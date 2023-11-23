@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "SDR"
+version = "0.1"
+authors = [{ name = "Vincent Maillou", email = "vmaillou@iis.ee.ethz.ch" },
+           { name = "Lisa Gaedke-Merzhaeuser", email = "lisa.gaedke.merzhaeuser@usi.ch" }]
+description = "Implementations of selected decompositions routines"
+readme = "README.MD"
+requires-python = ">=3.9"
+license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "pytest",
+    "pytest-cov",
+    "coverage",
+]
+
+[project.urls]
+repository = "https://github.com/vincent-maillou/SDR"
+
+[tool.setuptools.dynamic]
+version = { attr = "sdr" }
