@@ -39,7 +39,7 @@ the last column/last row can be differents.
 ### Decomposition routines
 - Cholesky
    1. blk_tridiag [x]
-   2. blk_tridiag_arrowhead []
+   2. blk_tridiag_arrowhead [x]
    3. blk_ndiags []
    4. blk_ndiags_arrowhead []
 - LU
