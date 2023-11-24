@@ -75,26 +75,42 @@ def chol_dcmp_tridia_arrowhead(
     """
 
     L = np.zeros_like(A)
-    
-    # Initialize the first diagonal block L_{0, 0}
-    L[0:diag_blocksize, 0:diag_blocksize] = la.cholesky(A[0:diag_blocksize, 0:diag_blocksize], lower=True)
+    L_inv_temp = np.zeros((diag_blocksize, diag_blocksize))
 
-    nblocks = (A.shape[0]-arrow_blocksize) // diag_blocksize + 1
-    # Proceed to the decomposition downwards
-    for i in range(1, nblocks):
-        # L{i+1, i}
-        L[i*diag_blocksize:(i+1)*diag_blocksize, (i-1)*diag_blocksize:i*diag_blocksize] = A[i*diag_blocksize:(i+1)*diag_blocksize, (i-1)*diag_blocksize:i*diag_blocksize] @ la.solve_triangular(L[(i-1)*diag_blocksize:i*diag_blocksize, (i-1)*diag_blocksize:i*diag_blocksize], np.eye(diag_blocksize), lower=True).T
+    n_diag_blocks = (A.shape[0]-arrow_blocksize) // diag_blocksize 
+    for i in range(0, n_diag_blocks-1):
+        # L_{i, i} = chol(A_{i, i})
+        L[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = la.cholesky(A[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize]).T
+
+        # Temporary storage of used twice lower triangular solving
+        L_inv_temp = la.solve_triangular(L[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize], np.eye(diag_blocksize), lower=True).T
+
+        # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+        L[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = A[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] @ L_inv_temp
         
-        # L_{nb, i}
-        L[-arrow_blocksize:, (i-1)*diag_blocksize:i*diag_blocksize] = A[-arrow_blocksize:, (i-1)*diag_blocksize:i*diag_blocksize] @ la.solve_triangular(L[(i-1)*diag_blocksize:i*diag_blocksize, (i-1)*diag_blocksize:i*diag_blocksize], np.eye(diag_blocksize), lower=True).T
-        # A_{nb, i+1}
-        A[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] = A[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] - L[-arrow_blocksize:, (i-1)*diag_blocksize:i*diag_blocksize] @ L[i*diag_blocksize:(i+1)*diag_blocksize, (i-1)*diag_blocksize:i*diag_blocksize].T
-        # A_{nb, nb}
-        A[-arrow_blocksize:, -arrow_blocksize:] = A[-arrow_blocksize:, -arrow_blocksize:] - L[-arrow_blocksize:, (i-1)*diag_blocksize:i*diag_blocksize] @ L[-arrow_blocksize:, (i-1)*diag_blocksize:i*diag_blocksize].T
+        # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
+        L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] = A[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] @ L_inv_temp
 
-        # L_{i+1, i+1}
-        L[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = A[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] - L[i*diag_blocksize:(i+1)*diag_blocksize, (i-1)*diag_blocksize:i*diag_blocksize] @ L[i*diag_blocksize:(i+1)*diag_blocksize, (i-1)*diag_blocksize:i*diag_blocksize].T
-        L[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = la.cholesky(L[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize]).T
+        # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.T
+        A[(i+1)*diag_blocksize:(i+2)*diag_blocksize, (i+1)*diag_blocksize:(i+2)*diag_blocksize] = A[(i+1)*diag_blocksize:(i+2)*diag_blocksize, (i+1)*diag_blocksize:(i+2)*diag_blocksize] - L[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] @ L[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize].T
+
+        # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.T
+        A[-arrow_blocksize:, (i+1)*diag_blocksize:(i+2)*diag_blocksize] = A[-arrow_blocksize:, (i+1)*diag_blocksize:(i+2)*diag_blocksize] - L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] @ L[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize].T
+        
+        # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.T  
+        A[-arrow_blocksize:, -arrow_blocksize:] = A[-arrow_blocksize:, -arrow_blocksize:] - L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] @ L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize].T
+
+    # L_{ndb, ndb} = chol(A_{ndb, ndb})
+    L[-(diag_blocksize+arrow_blocksize):-arrow_blocksize, -(diag_blocksize+arrow_blocksize):-arrow_blocksize] = la.cholesky(A[-(diag_blocksize+arrow_blocksize):-arrow_blocksize, -(diag_blocksize+arrow_blocksize):-arrow_blocksize]).T
+
+    # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
+    L[-arrow_blocksize:, -(diag_blocksize+arrow_blocksize):-arrow_blocksize] = A[-arrow_blocksize:, -(diag_blocksize+arrow_blocksize):-arrow_blocksize] @ la.solve_triangular(L[-(diag_blocksize+arrow_blocksize):-arrow_blocksize, -(diag_blocksize+arrow_blocksize):-arrow_blocksize], np.eye(diag_blocksize), lower=True).T
+
+    # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
+    A[-arrow_blocksize:, -arrow_blocksize:] = A[-arrow_blocksize:, -arrow_blocksize:] - L[-arrow_blocksize:, -(diag_blocksize+arrow_blocksize):-arrow_blocksize] @ L[-arrow_blocksize:, -(diag_blocksize+arrow_blocksize):-arrow_blocksize].T
+
+    # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
+    L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(A[-arrow_blocksize:, -arrow_blocksize:]).T
 
     return L
 

@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 
 # Testing of block tridiagonal cholesky
-if __name__ == "__main__":
+""" if __name__ == "__main__":
     nblocks = 5
     blocksize = 2
     symmetric = True
@@ -45,14 +45,14 @@ if __name__ == "__main__":
     ax[2].set_title("L: Selected cholesky decomposition")
     ax[2].matshow(L)
 
-    plt.show()
+    plt.show() """
 
 
 
-""" # Testing of block tridiagonal arrowhead cholesky
+# Testing of block tridiagonal arrowhead cholesky
 if __name__ == "__main__":
     nblocks = 5
-    diag_blocksize = 2
+    diag_blocksize = 3
     arrow_blocksize = 2
     symmetric = True
     diagonal_dominant = True
@@ -78,4 +78,4 @@ if __name__ == "__main__":
     ax[2].set_title("L: Selected cholesky decomposition")
     ax[2].matshow(L)
 
-    plt.show() """
+    plt.show()
