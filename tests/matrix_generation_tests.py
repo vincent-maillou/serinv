@@ -17,10 +17,11 @@ if __name__ == "__main__":
     nblocks = 5
     blocksize = 2
     symmetric = True
+    diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, seed
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
     plt.matshow(A)
@@ -33,10 +34,12 @@ if __name__ == "__main__":
     diag_blocksize = 3
     arrow_blocksize = 2
     symmetric = True
+    diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_blocktridiag_arrowhead(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, seed
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
+        seed
     )
 
     plt.matshow(A)

@@ -15,6 +15,7 @@ def generate_blocktridiag(
     nblocks: int,
     blocksize: int,    
     symmetric: bool = False,  
+    diagonal_dominant: bool = False,
     seed: int = None,
 ) -> np.ndarray:
     """ Generate a block tridiagonal matrix.
@@ -52,6 +53,9 @@ def generate_blocktridiag(
     if symmetric:
         A = A + A.T
 
+    if diagonal_dominant:
+        A = make_diagonally_dominante(A)
+
     return A        
 
 
@@ -60,7 +64,8 @@ def generate_blocktridiag_arrowhead(
     nblocks: int,
     diag_blocksize: int,    
     arrow_blocksize: int,    
-    symmetric: bool = False,  
+    symmetric: bool = False,
+    diagonal_dominant: bool = False,  
     seed: int = None,
 ) -> np.ndarray:
     """ Generate a block tridiagonal arrowhead matrix.
@@ -108,5 +113,29 @@ def generate_blocktridiag_arrowhead(
 
     if symmetric:
         A = A + A.T
+
+    if diagonal_dominant:
+        A = make_diagonally_dominante(A)
         
+    return A
+
+
+def make_diagonally_dominante(
+    A: np.ndarray,
+) -> np.ndarray:
+    """ Make a matrix diagonally dominant.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Input matrix.
+
+    Returns
+    -------
+    A : np.ndarray
+        Diagonally dominant matrix.
+    """
+
+    A = A + np.diag(np.sum(np.abs(A), axis=1))
+
     return A
