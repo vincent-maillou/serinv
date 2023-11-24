@@ -18,7 +18,9 @@ import scipy.linalg as la
 import matplotlib.pyplot as plt
 
 
-if __name__ == "__main__":
+
+# Testing of block tridiagonal cholesky
+""" if __name__ == "__main__":
     nblocks = 5
     blocksize = 2
     symmetric = True
@@ -43,18 +45,37 @@ if __name__ == "__main__":
     ax[2].set_title("L: Selected cholesky decomposition")
     ax[2].matshow(L)
 
-    plt.show()
+    plt.show() """
 
 
-    # --- Solver ---
+
+# Testing of block tridiagonal arrowhead cholesky
+if __name__ == "__main__":
+    nblocks = 5
+    diag_blocksize = 2
+    arrow_blocksize = 2
+    symmetric = True
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_blocktridiag_arrowhead(
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
+        seed
+    )
+
+
+    # --- Decomposition ---
 
     fig, ax = plt.subplots(1, 3)
     ax[0].set_title("A: Initial matrix")
     ax[0].matshow(A)
 
-    A_inv_ref = np.linalg.inv(A)
-    A_inv_ref_cut = matrix_transform.cut_to_blocktridiag(A_inv_ref, blocksize)
-    ax[1].set_title("A_inv_ref: Reference inversion and cut")
-    ax[1].matshow(A_inv_ref_cut)
+    L_ref = la.cholesky(A, lower=True)
+    ax[1].set_title("L: Reference cholesky decomposition")
+    ax[1].matshow(L_ref)
 
-    #plt.show()
+    """ L = chol_dcmp_tridiag(A, blocksize)
+    ax[2].set_title("L: Selected cholesky decomposition")
+    ax[2].matshow(L) """
+
+    plt.show()
