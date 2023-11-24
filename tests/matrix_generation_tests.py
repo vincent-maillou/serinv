@@ -45,3 +45,19 @@ if __name__ == "__main__":
     plt.matshow(A)
     plt.show()
     
+
+
+if __name__ == "__main__":
+    nblocks = 6
+    ndiags = 5
+    blocksize = 2
+    symmetric = True
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
+
+    plt.matshow(A)
+    plt.show()

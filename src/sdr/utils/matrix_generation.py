@@ -60,6 +60,69 @@ def generate_blocktridiag(
 
 
 
+def generate_block_ndiags(
+    nblocks: int,
+    ndiags: int,
+    blocksize: int,    
+    symmetric: bool = False,  
+    diagonal_dominant: bool = False,
+    seed: int = None,
+) -> np.ndarray:
+    """ Generate a block n-diagonals matrix.
+
+    Parameters
+    ----------
+    nblocks : int
+        Number of diagonal blocks.
+    ndiags : int
+        Number of diagonals.
+    blocksize : int
+        Size of the blocks.
+    symmetric : bool, optional
+        If True, the matrix will be symmetric.
+    seed : int, optional
+        Seed for the random number generator.
+        
+    Returns
+    -------
+    A : np.ndarray
+        Block n-diagonals matrix.
+    """
+
+    if seed is not None:
+        np.random.seed(seed)
+
+    if (ndiags+1)/2 > nblocks:
+        raise ValueError("(ndiags+1)/2 must be smaller or equal to nblocks")
+    
+    if ndiags % 2 == 0:
+        raise ValueError("ndiags must be odd")
+
+
+    matrice_size = nblocks*blocksize
+
+    A = np.zeros((matrice_size, matrice_size))
+
+    for i in range(nblocks):
+        A[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] = np.random.rand(blocksize, blocksize)
+        for j in range(1, (ndiags+1)//2):
+            if i+j < nblocks:
+                A[i*blocksize:(i+1)*blocksize, (i+j)*blocksize:(i+j+1)*blocksize] = np.random.rand(blocksize, blocksize)
+                A[(i+j)*blocksize:(i+j+1)*blocksize, i*blocksize:(i+1)*blocksize] = np.random.rand(blocksize, blocksize)
+            if i-j >= 0:
+                A[i*blocksize:(i+1)*blocksize, (i-j)*blocksize:(i-j+1)*blocksize] = np.random.rand(blocksize, blocksize)
+                A[(i-j)*blocksize:(i-j+1)*blocksize, i*blocksize:(i+1)*blocksize] = np.random.rand(blocksize, blocksize)
+
+    if symmetric:
+        A = A + A.T
+
+    if diagonal_dominant:
+        A = make_diagonally_dominante(A)
+
+    return A        
+
+
+
 def generate_blocktridiag_arrowhead(
     nblocks: int,
     diag_blocksize: int,    
