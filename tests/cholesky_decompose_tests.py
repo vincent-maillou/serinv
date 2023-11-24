@@ -11,7 +11,7 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 from sdr.utils import matrix_transform
 from sdr.utils import matrix_generation
 
-from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag
+from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag, chol_dcmp_tridia_arrowhead
 
 import numpy as np
 import scipy.linalg as la
@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 
 # Testing of block tridiagonal cholesky
-""" if __name__ == "__main__":
+if __name__ == "__main__":
     nblocks = 5
     blocksize = 2
     symmetric = True
@@ -45,11 +45,11 @@ import matplotlib.pyplot as plt
     ax[2].set_title("L: Selected cholesky decomposition")
     ax[2].matshow(L)
 
-    plt.show() """
+    plt.show()
 
 
 
-# Testing of block tridiagonal arrowhead cholesky
+""" # Testing of block tridiagonal arrowhead cholesky
 if __name__ == "__main__":
     nblocks = 5
     diag_blocksize = 2
@@ -74,8 +74,8 @@ if __name__ == "__main__":
     ax[1].set_title("L: Reference cholesky decomposition")
     ax[1].matshow(L_ref)
 
-    """ L = chol_dcmp_tridiag(A, blocksize)
+    L = chol_dcmp_tridia_arrowhead(A, diag_blocksize, arrow_blocksize)
     ax[2].set_title("L: Selected cholesky decomposition")
-    ax[2].matshow(L) """
+    ax[2].matshow(L)
 
-    plt.show()
+    plt.show() """
