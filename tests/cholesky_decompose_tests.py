@@ -52,7 +52,7 @@ import matplotlib.pyplot as plt
 # Testing of block n-diagonals cholesky
 if __name__ == "__main__":
     nblocks = 6
-    ndiags = 5
+    ndiags = 7
     blocksize = 2
     symmetric = True
     seed = 63
