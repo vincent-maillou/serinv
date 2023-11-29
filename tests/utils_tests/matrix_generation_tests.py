@@ -25,6 +25,7 @@ if __name__ == "__main__":
     )
 
     plt.matshow(A)
+    plt.title("Block tridiagonal matrix \n blocksize = " + str(blocksize))
     plt.show()
 
 
@@ -43,6 +44,7 @@ if __name__ == "__main__":
     )
 
     plt.matshow(A)
+    plt.title("Block tridiagonal arrowhead matrix \n blocksize = " + str(blocksize))
     plt.show()
     
 
@@ -60,4 +62,5 @@ if __name__ == "__main__":
     )
 
     plt.matshow(A)
+    plt.title("Block " +  str(ndiags) + "-diagonals matrix \n blocksize = " + str(blocksize))
     plt.show()
