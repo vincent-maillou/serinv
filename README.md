@@ -44,7 +44,7 @@ the last column/last row can be differents.
    4. blk_ndiags_arrowhead [x]
 - LU
    1. blk_tridiag [x]
-   1. blk_tridiag_arrowhead []
+   1. blk_tridiag_arrowhead [x]
    2. blk_ndiags []
    3. blk_ndiags_arrowhead []
 ### Solvers
