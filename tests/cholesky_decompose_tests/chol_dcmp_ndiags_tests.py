@@ -24,10 +24,11 @@ if __name__ == "__main__":
     ndiags = 7
     blocksize = 2
     symmetric = True
+    diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_block_ndiags(
-        nblocks, ndiags, blocksize, symmetric, seed
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
 

@@ -3,7 +3,7 @@
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
 @date: 2023-11
 
-Contains the cholesky decompositions routines.
+Contains the cholesky selected decompositions routines.
 
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
@@ -27,6 +27,8 @@ def chol_dcmp_tridiag(
     ----------
     A : np.ndarray
         Input matrix to decompose.
+    blocksize : int
+        Size of the blocks.
     
     Returns
     -------

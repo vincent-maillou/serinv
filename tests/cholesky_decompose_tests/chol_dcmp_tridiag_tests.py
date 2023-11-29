@@ -22,10 +22,11 @@ if __name__ == "__main__":
     nblocks = 5
     blocksize = 2
     symmetric = True
+    diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, seed
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
 
