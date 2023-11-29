@@ -3,7 +3,7 @@
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
 @date: 2023-11
 
-Tests for cholesky selected decompositions routines.
+Tests for lu selected decompositions routines.
 
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
