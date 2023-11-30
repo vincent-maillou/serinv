@@ -56,6 +56,9 @@ if __name__ == "__main__":
     ax[0, 2].matshow(L_diff)
     ax[1, 2].set_title("U: Difference between U_ref and U_sdr")
     ax[1, 2].matshow(U_diff)
+    fig.colorbar(ax[0, 2].matshow(L_diff), ax=ax[0, 2], label="Relative error")
+    fig.colorbar(ax[1, 2].matshow(U_diff), ax=ax[1, 2], label="Relative error")
+    
     plt.show() 
 
     

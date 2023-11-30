@@ -39,15 +39,16 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots(1, 3)
     L_ref = la.cholesky(A, lower=True)
-    ax[0].set_title("L: Reference cholesky decomposition")
+    ax[0].set_title("L_ref: Reference cholesky decomposition")
     ax[0].matshow(L_ref)
 
-    L = chol_dcmp_ndiags_arrowhead(A, nblocks, diag_blocksize, arrow_blocksize)
-    ax[1].set_title("L: Selected cholesky decomposition")
-    ax[1].matshow(L)
+    L_sdr = chol_dcmp_ndiags_arrowhead(A, nblocks, diag_blocksize, arrow_blocksize)
+    ax[1].set_title("L_sdr: Selected cholesky decomposition")
+    ax[1].matshow(L_sdr)
 
-    L_diff = L_ref - L
-    ax[2].set_title("L_diff: Difference between ref_chol and sel_chol")
+    L_diff = L_ref - L_sdr
+    ax[2].set_title("L_diff: Difference between L_ref and L_sdr")
     ax[2].matshow(L_diff)
+    fig.colorbar(ax[2].matshow(L_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
