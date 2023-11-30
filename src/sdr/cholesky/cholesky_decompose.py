@@ -240,3 +240,4 @@ def chol_dcmp_ndiags_arrowhead(
     L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(A[-arrow_blocksize:, -arrow_blocksize:]).T
 
     return L
+
