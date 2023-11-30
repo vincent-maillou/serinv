@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 
 
-# Testing of block tridiagonal arrowhead cholesky
+# Testing of block n-diagonals arrowhead cholesky
 if __name__ == "__main__":
     nblocks = 7
     ndiags = 5
