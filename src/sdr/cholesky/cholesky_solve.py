@@ -40,6 +40,7 @@ def chol_slv_tridiag(
     Y = np.zeros_like(B)
     X = np.zeros_like(B)
 
+    # ----- Forward substitution -----
     n_blocks = L.shape[0] // blocksize
     Y[0:blocksize] = la.solve_triangular(L[0:blocksize, 0:blocksize], B[0:blocksize], lower=True)
     for i in range(1, n_blocks, 1):
@@ -50,6 +51,7 @@ def chol_slv_tridiag(
             lower=True
         )
 
+    # ----- Backward substitution -----
     X[-blocksize:] = la.solve_triangular(L[-blocksize:, -blocksize:], Y[-blocksize:], lower=True, trans='T')
     for i in range(n_blocks-2, -1, -1):
         # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i} X_{i+1})
@@ -67,11 +69,11 @@ def chol_slv_tridiag(
 def chol_slv_tridiag_arrowhead(
     L: np.ndarray,
     B: np.ndarray,
-    blocksize: int,
+    diag_blocksize: int,
+    arrow_blocksize: int,
 ) -> np.ndarray:
     """ Solve a cholesky decomposed matrix with a block tridiagonal arrowhead 
-    structure against the given right hand side. The matrix is assumed to be 
-    symmetric positive definite.
+    structure against the given right hand side. 
     
     Parameters
     ----------
@@ -79,17 +81,65 @@ def chol_slv_tridiag_arrowhead(
         The cholesky factorization of the matrix.
     B : np.ndarray
         The right hand side.
-    
+    diag_blocksize : int
+        Blocksize of the diagonals blocks of the matrix.
+    arrow_blocksize : int
+        Blocksize of the blocks composing the arrowhead.
+        
     Returns
     -------
     X : np.ndarray
         The solution of the system.
     """
 
+    Y = np.zeros_like(B)
     X = np.zeros_like(B)
 
+    # ----- Forward substitution -----
+    n_diag_blocks = (L.shape[0]-arrow_blocksize) // diag_blocksize 
+    Y[0:diag_blocksize] = la.solve_triangular(L[0:diag_blocksize, 0:diag_blocksize], B[0:diag_blocksize], lower=True)
+    for i in range(0, n_diag_blocks):
+        # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
+        Y[i*diag_blocksize:(i+1)*diag_blocksize] = la.solve_triangular(
+            L[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize], 
+            B[i*diag_blocksize:(i+1)*diag_blocksize]-L[i*diag_blocksize:(i+1)*diag_blocksize, (i-1)*diag_blocksize:i*diag_blocksize] @ Y[(i-1)*diag_blocksize:(i)*diag_blocksize], 
+            lower=True
+        )
+    
+    # Accumulation of the arrowhead blocks
+    B_temp = B[-arrow_blocksize:]
+    for i in range(n_diag_blocks):
+        B_temp = B_temp - L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] @ Y[i*diag_blocksize:(i+1)*diag_blocksize]
+    # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
+    Y[-arrow_blocksize:] = la.solve_triangular(
+        L[-arrow_blocksize:, -arrow_blocksize:], 
+        B_temp, 
+        lower=True
+    )
 
+    # ----- Backward substitution -----
+    # X_{ndb+1} = L_{ndb+1,ndb+1}^{-T} (Y_{ndb+1})
+    X[-arrow_blocksize:] = la.solve_triangular(L[-arrow_blocksize:, -arrow_blocksize:], Y[-arrow_blocksize:], lower=True, trans='T')
 
+    # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
+    X[-arrow_blocksize-diag_blocksize:-arrow_blocksize] = la.solve_triangular(
+        L[-arrow_blocksize-diag_blocksize:-arrow_blocksize, -arrow_blocksize-diag_blocksize:-arrow_blocksize], 
+        Y[-arrow_blocksize-diag_blocksize:-arrow_blocksize] - L[-arrow_blocksize:, -arrow_blocksize-diag_blocksize:-arrow_blocksize].T @ X[-arrow_blocksize:],
+        lower=True, 
+        trans='T'
+    )
+
+    Y_temp = np.ndarray(shape=(diag_blocksize, B.shape[1]))
+    for i in range(n_diag_blocks-2, -1, -1):
+        # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
+        Y_temp = Y[i*diag_blocksize:(i+1)*diag_blocksize] - L[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize].T @ X[(i+1)*diag_blocksize:(i+2)*diag_blocksize] - L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize].T @ X[-arrow_blocksize:]
+        X[i*diag_blocksize:(i+1)*diag_blocksize] = la.solve_triangular(
+            L[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize], 
+            Y_temp, 
+            lower=True, 
+            trans='T'
+        )
+    
     return X
 
 
@@ -109,7 +159,9 @@ def chol_slv_ndiags(
         The cholesky factorization of the matrix.
     B : np.ndarray
         The right hand side.
-    
+    blocksize : int
+        The blocksize of the matrix.
+            
     Returns
     -------
     X : np.ndarray
