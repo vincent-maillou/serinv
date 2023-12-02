@@ -57,7 +57,7 @@ def chol_dcmp_tridiag(
 
 
 
-def chol_dcmp_tridia_arrowhead(
+def chol_dcmp_tridiag_arrowhead(
     A: np.ndarray,
     diag_blocksize: int,
     arrow_blocksize: int,

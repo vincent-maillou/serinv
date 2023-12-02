@@ -11,7 +11,7 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 from sdr.utils import matrix_transform
 from sdr.utils import matrix_generation
 
-from sdr.cholesky.cholesky_decompose import chol_dcmp_tridia_arrowhead
+from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag_arrowhead
 
 import numpy as np
 import scipy.linalg as la
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     ax[0].set_title("L_ref: Reference cholesky decomposition")
     ax[0].matshow(L_ref)
 
-    L_sdr = chol_dcmp_tridia_arrowhead(A, diag_blocksize, arrow_blocksize)
+    L_sdr = chol_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
     ax[1].set_title("L_sdr: Selected cholesky decomposition")
     ax[1].matshow(L_sdr)
 
