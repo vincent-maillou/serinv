@@ -14,6 +14,7 @@ from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
+import pytest
 
 
 
@@ -47,3 +48,37 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(L_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
+
+
+
+@pytest.mark.parametrize(
+    "nblocks, blocksize", 
+    [
+        (2, 2),
+        (10, 2),
+        (100, 2),
+        (2, 3),
+        (10, 3),
+        (100, 3),
+        (2, 100),
+        (5, 100),
+        (10, 100),
+    ]
+)
+def test_cholesky_decompose_tridiag(
+    nblocks: int,
+    blocksize: int,  
+):
+    symmetric = True
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    )
+
+    L_ref = la.cholesky(A, lower=True)
+    L_sdr = chol_dcmp_tridiag(A, blocksize)
+
+    assert np.allclose(L_ref, L_sdr)
+

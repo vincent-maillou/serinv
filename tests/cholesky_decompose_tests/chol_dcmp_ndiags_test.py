@@ -15,6 +15,7 @@ from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
+import pytest
 
 
 
@@ -50,3 +51,33 @@ if __name__ == "__main__":
 
     plt.show()
 
+
+
+@pytest.mark.parametrize(
+    "nblocks, ndiags, blocksize", 
+    [
+        (2, 3, 2),
+        (3, 5, 2),
+        (4, 7, 2),
+        (20, 3, 3),
+        (30, 5, 3),
+        (40, 7, 3),
+    ]
+)
+def test_cholesky_decompose_ndiags(
+    nblocks, 
+    ndiags, 
+    blocksize
+):
+    symmetric = True
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
+
+    L_ref = la.cholesky(A, lower=True)
+    L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
+
+    assert np.allclose(L_ref, L_sdr)
