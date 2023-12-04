@@ -54,8 +54,8 @@ the last column/last row can be differents.
    3. chol_slv_ndiags() []
    4. chol_slv_ndiags_arrowhead() []
 - LU
-   1. lu_slv_tridiag() []
-   2. lu_slv_tridiag_arrowhead() []
+   1. lu_slv_tridiag() [x]
+   2. lu_slv_tridiag_arrowhead() [x]
    3. lu_slv_ndiags() []
    4. lu_slv_ndiags_arrowhead() []
 ### Selected Inversion
