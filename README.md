@@ -54,13 +54,13 @@ the last column/last row can be differents.
    3. chol_slv_ndiags() []
    4. chol_slv_ndiags_arrowhead() []
 - LU
-   1. lu_slv_tridiag() []
+   1. lu_slv_tridiag() [x]
    2. lu_slv_tridiag_arrowhead() []
    3. lu_slv_ndiags() []
    4. lu_slv_ndiags_arrowhead() []
 ### Selected Inversion
 - Cholesky
-   1. chol_sinv_tridiag() [x]
+   1. chol_sinv_tridiag() []
    2. chol_sinv_tridiag_arrowhead() []
    3. chol_sinv_ndiags() []
    4. chol_sinv_ndiags_arrowhead() []
