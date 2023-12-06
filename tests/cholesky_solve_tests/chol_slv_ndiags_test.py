@@ -9,8 +9,8 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag
-from sdr.cholesky.cholesky_solve import chol_slv_tridiag
+from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags
+from sdr.cholesky.cholesky_solve import chol_slv_ndiags
 
 import numpy as np
 import scipy.linalg as la
@@ -20,21 +20,22 @@ import pytest
 
 # Testing of block tridiagonal cholesky
 if __name__ == "__main__":
-    nblocks = 5
+    nblocks = 6
+    ndiags = 7
     blocksize = 2
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
     L_ref = la.cholesky(A, lower=True)
-    L_sdr = chol_dcmp_tridiag(A, blocksize)
+    L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
 
-    n_rhs = 2
-    B = np.random.randn(A.shape[0], n_rhs)
+    nrhs = 3
+    B = np.random.randn(A.shape[0], nrhs)
 
 
     # --- Solving ---
@@ -48,7 +49,7 @@ if __name__ == "__main__":
     ax[0].set_title("X_ref: Reference cholesky solver")
     ax[0].matshow(X_ref)
 
-    X_sdr = chol_slv_tridiag(L_sdr, B, blocksize)
+    X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize)
     ax[1].set_title("X_sdr: Selected cholesky solver")
     ax[1].matshow(X_sdr)
 
@@ -56,46 +57,43 @@ if __name__ == "__main__":
     ax[2].set_title("X_diff: Difference between X_ref and X_sdr")
     ax[2].matshow(X_diff)
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
-    
+
     plt.show()
     
-    #print("norm(x - x_ref) = ", np.linalg.norm(X_sdr - X_ref))
 
     
 @pytest.mark.parametrize(
-    "nblocks, blocksize, nrhs", 
+    "nblocks, ndiags, blocksize, nrhs", 
     [
-        (2, 2, 1),
-        (10, 2, 3),
-        (100, 2, 4),
-        (2, 3, 1),
-        (10, 3, 2),
-        (100, 3, 1),
-        (2, 100, 5),
-        (5, 100, 2),
-        (10, 100, 1),
+        (2, 3, 2, 1),
+        (3, 5, 2, 3),
+        (4, 7, 2, 2),
+        (20, 3, 3, 5),
+        (30, 5, 3, 1),
+        (40, 7, 3, 2),
     ]
 )
-def test_cholesky_slv_tridiag(
-    nblocks: int,
-    blocksize: int,  
-    nrhs: int
+def test_cholesky_decompose_ndiags(
+    nblocks: int, 
+    ndiags: int, 
+    blocksize: int,
+    nrhs: int,
 ):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
     L_ref = la.cholesky(A, lower=True)
-    L_sdr = chol_dcmp_tridiag(A, blocksize)
+    L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
     
     B = np.random.randn(A.shape[0], nrhs)
     
     X_ref = la.cho_solve((L_ref, True), B)
-    X_sdr = chol_slv_tridiag(L_sdr, B, blocksize)
+    X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize)
+
 
     assert np.allclose(X_ref, X_sdr)
-
