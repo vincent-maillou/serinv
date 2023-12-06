@@ -8,7 +8,6 @@ Tests for cholesky selected decompositions routines.
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_transform
 from sdr.utils import matrix_generation
 
 from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags_arrowhead
