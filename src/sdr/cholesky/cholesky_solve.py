@@ -174,19 +174,18 @@ def chol_slv_ndiags(
         The solution of the system.
     """
 
-    # number of lower (or upper) off-diagonal blocks
-    n_offdiags = int((ndiags - 1) / 2)
-
     Y = np.zeros_like(B)
     X = np.zeros_like(B)
-    
+
+    n_offdiags_blk = int((ndiags - 1) / 2)
+
     # ----- Forward substitution -----
     n_blocks = L.shape[0] // blocksize    
     Y[0:blocksize] = la.solve_triangular(L[0:blocksize, 0:blocksize], B[0:blocksize], lower=True)
     for i in range(1, n_blocks, 1):
-        # Y_{i} = L_{i,i}^{-1} (B_{i} - sum_k=max(0,i-offdiags)^i-1 L_{i,k} Y_{k}) 
+        # Y_{i} = L_{i,i}^{-1} (B_{i} - sum_{k=max(0,i-offdiags)}^{i-1} L_{i,k} Y_{k}) 
         B_temp = B[i*blocksize:(i+1)*blocksize]
-        for k in range(max(0,i-n_offdiags), i, 1):
+        for k in range(max(0,i-n_offdiags_blk), i, 1):
             B_temp = B_temp - L[i*blocksize:(i+1)*blocksize, k*blocksize:(k+1)*blocksize] @ Y[k*blocksize:(k+1)*blocksize]
           
         Y[i*blocksize:(i+1)*blocksize] = la.solve_triangular(
@@ -199,9 +198,9 @@ def chol_slv_ndiags(
     
     X[-blocksize:] = la.solve_triangular(L[-blocksize:, -blocksize:], Y[-blocksize:], lower=True, trans='T')
     for i in range(n_blocks-2, -1, -1):
-        # X_{i} = L_{i,i}^{-T} (Y_{i} - sum_k=i+1^i+n_offdiags L^T_{k,i} X_{k})
+        # X_{i} = L_{i,i}^{-T} (Y_{i} - sum_{k=i+1}^{i+n_offdiags_blk} L^T_{k,i} X_{k})
         Y_temp = Y[i*blocksize:(i+1)*blocksize]
-        for k in range(i+1, min(i+1+n_offdiags, n_blocks)):
+        for k in range(i+1, min(i+1+n_offdiags_blk, n_blocks)):
             Y_temp = Y_temp - L[k*blocksize:(k+1)*blocksize, i*blocksize:(i+1)*blocksize].T @ X[k*blocksize:(k+1)*blocksize]
         
         X[i*blocksize:(i+1)*blocksize] = la.solve_triangular(
@@ -245,20 +244,19 @@ def chol_slv_ndiags_arrowhead(
         The solution of the system.
     """
         
-    # number of lower (or upper) off-diagonal blocks
-    n_offdiags = int((ndiags - 1) / 2)
-
     Y = np.zeros_like(B)
     X = np.zeros_like(B)
+
+    n_offdiags_blk = int((ndiags - 1) / 2)
     
     # ----- Forward substitution -----
     n_diag_blocks = (L.shape[0]-arrow_blocksize) // diag_blocksize 
 
     Y[0:diag_blocksize] = la.solve_triangular(L[0:diag_blocksize, 0:diag_blocksize], B[0:diag_blocksize], lower=True)
     for i in range(1, n_diag_blocks, 1):
-        # Y_{i} = L_{i,i}^{-1} (B_{i} - sum_k=max(0,i-offdiags)^i-1 L_{i,k} Y_{k}) 
+        # Y_{i} = L_{i,i}^{-1} (B_{i} - sum_{k=max(0,i-offdiags)}^{i-1} L_{i,k} Y_{k}) 
         B_temp = B[i*diag_blocksize:(i+1)*diag_blocksize]
-        for k in range(max(0,i-n_offdiags), i, 1):
+        for k in range(max(0,i-n_offdiags_blk), i, 1):
             B_temp = B_temp - L[i*diag_blocksize:(i+1)*diag_blocksize, k*diag_blocksize:(k+1)*diag_blocksize] @ Y[k*diag_blocksize:(k+1)*diag_blocksize]
           
         Y[i*diag_blocksize:(i+1)*diag_blocksize] = la.solve_triangular(
@@ -293,11 +291,11 @@ def chol_slv_ndiags_arrowhead(
     )
 
     for i in range(n_diag_blocks-2, -1, -1):
-        # X_{i} = L_{i,i}^{-T} (Y_{i} - sum_k=i+1^i+n_offdiags L^T_{k,i} X_{k} - L_{ndb+1,i}^T X_{ndb+1})
-        # Y_tmp = Y_{i} - sum_k=i+1^i+n_offdiags L^T_{k,i} X_{k}
+        # X_{i} = L_{i,i}^{-T} (Y_{i} - sum_k=i+1^i+n_offdiags_blk L^T_{k,i} X_{k} - L_{ndb+1,i}^T X_{ndb+1})
+        # Y_tmp = Y_{i} - sum_k=i+1^i+n_offdiags_blk L^T_{k,i} X_{k}
         Y_temp = Y[i*diag_blocksize:(i+1)*diag_blocksize]
 
-        for k in range(i+1, min(i+1+n_offdiags, n_diag_blocks)):
+        for k in range(i+1, min(i+1+n_offdiags_blk, n_diag_blocks)):
             Y_temp = Y_temp - L[k*diag_blocksize:(k+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize].T @ X[k*diag_blocksize:(k+1)*diag_blocksize]
 
         # Y_tmp = Y_tmp - L_{ndb+1,i}^T X_{ndb+1}
