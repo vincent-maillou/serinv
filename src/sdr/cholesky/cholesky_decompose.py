@@ -148,6 +148,8 @@ def chol_dcmp_ndiags(
     L = np.zeros_like(A)
     L_inv_temp = np.zeros((blocksize, blocksize))
 
+    n_offdiags_blk = ndiags // 2
+
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks-1):
         # L_{i, i} = chol(A_{i, i})
@@ -156,7 +158,7 @@ def chol_dcmp_ndiags(
         # Temporary storage of re-used triangular solving
         L_inv_temp = la.solve_triangular(L[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize], np.eye(blocksize), lower=True).T
 
-        for j in range(1, min(ndiags, nblocks-i)):
+        for j in range(1, min(n_offdiags_blk+1, nblocks-i)):
             # L_{i+j, i} = A_{i+j, i} @ L_{i, i}^{-T}
             L[(i+j)*blocksize:(i+j+1)*blocksize, i*blocksize:(i+1)*blocksize] = A[(i+j)*blocksize:(i+j+1)*blocksize, i*blocksize:(i+1)*blocksize] @ L_inv_temp
 
@@ -200,6 +202,8 @@ def chol_dcmp_ndiags_arrowhead(
     L = np.zeros_like(A)
     L_inv_temp = np.zeros((diag_blocksize, diag_blocksize))
 
+    n_offdiags_blk = ndiags // 2
+
     n_diag_blocks = (A.shape[0]-arrow_blocksize) // diag_blocksize 
     for i in range(0, n_diag_blocks-1):
         # L_{i, i} = chol(A_{i, i})
@@ -208,7 +212,7 @@ def chol_dcmp_ndiags_arrowhead(
         # Temporary storage of re-used triangular solving
         L_inv_temp = la.solve_triangular(L[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize], np.eye(diag_blocksize), lower=True).T
 
-        for j in range(1, min(ndiags, n_diag_blocks-i)):
+        for j in range(1, min(n_offdiags_blk+1, n_diag_blocks-i)):
             # L_{i+j, i} = A_{i+j, i} @ L_{i, i}^{-T}
             L[(i+j)*diag_blocksize:(i+j+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = A[(i+j)*diag_blocksize:(i+j+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] @ L_inv_temp
 
@@ -220,7 +224,7 @@ def chol_dcmp_ndiags_arrowhead(
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] = A[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] @ L_inv_temp
 
-        for k in range(1, min(ndiags, n_diag_blocks-i)):
+        for k in range(1, min(n_offdiags_blk+1, n_diag_blocks-i)):
             # A_{ndb+1, i+k} = A_{ndb+1, i+k} - L_{ndb+1, i} @ L_{i+k, i}^{T}
             A[-arrow_blocksize:, (i+k)*diag_blocksize:(i+k+1)*diag_blocksize] = A[-arrow_blocksize:, (i+k)*diag_blocksize:(i+k+1)*diag_blocksize] - L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] @ L[(i+k)*diag_blocksize:(i+k+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize].T
 

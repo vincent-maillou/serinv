@@ -22,8 +22,8 @@ import pytest
 
 # Testing of block n-diagonals arrowhead cholesky
 if __name__ == "__main__":
-    nblocks = 4
-    ndiags = 3
+    nblocks = 7
+    ndiags = 5
     diag_blocksize = 2
     arrow_blocksize = 2
     symmetric = True
