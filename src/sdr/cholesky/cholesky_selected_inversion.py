@@ -122,3 +122,45 @@ def chol_sinv_tridiag_arrowhead(
         X[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = (L_blk_inv.T - X[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize].T @ L[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] - X[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize].T @ L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize]) @ L_blk_inv
 
     return X
+
+
+
+def chol_sinv_ndiags(
+    L: np.ndarray,
+    ndiags: int,
+    blocksize: int,
+) -> np.ndarray:
+    """ Perform a selected inversion from a cholesky decomposed matrix with a
+    block tridiagonal arrowhead structure.
+    
+    Parameters
+    ----------
+    L : np.ndarray
+        The cholesky factorization of the matrix.
+    ndiags : int
+        Number of diagonals.
+    blocksize : int
+        Size of the blocks.
+    
+    Returns
+    -------
+    X : np.ndarray
+        Selected inversion of the matrix.
+    """
+
+    X = np.zeros(L.shape, dtype=L.dtype)
+
+    nblocks = L.shape[0] // blocksize
+    n_offdiags_blk = ndiags // 2
+
+    L_blk_inv = np.zeros((blocksize, blocksize), dtype=L.dtype)
+    L_blk_inv = la.solve_triangular(L[-blocksize:, -blocksize:], np.eye(blocksize), lower=True)
+    X[-blocksize:, -blocksize:] = L_blk_inv.T @ L_blk_inv
+
+    for i in range(nblocks-2, -1, -1):
+        for j in range(min(i+n_offdiags_blk, nblocks-1), i-1, -1):
+            print(f"i={i}, j={j}")
+
+            # X_{j, i} = -X_{j, j} L_{j, i} L_{i, i}^{-1}
+
+    return X

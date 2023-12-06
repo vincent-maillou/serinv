@@ -89,3 +89,37 @@ def cut_to_blocktridiag_arrowhead(
 
 
     
+def cut_to_blockndiags(
+    A: np.ndarray,
+    ndiags: int,
+    blocksize: int,
+):
+    """ Cut a matrix to a block ndiags matrix.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Matrix to cut.
+    ndiags : int
+        Number of diagonals.
+    blocksize : int
+        Size of the blocks.
+
+    Returns
+    -------
+    A : np.ndarray
+        Block ndiags matrix.
+    """
+
+    matrice_size = A.shape[0]
+    nblocks = matrice_size // blocksize
+
+    A_cut = np.zeros((matrice_size, matrice_size))
+
+    for i in range(nblocks):
+        for j in range((ndiags//2)+1):
+            if i+j < nblocks:
+                A_cut[i*blocksize:(i+1)*blocksize, (i+j)*blocksize:(i+j+1)*blocksize] = A[i*blocksize:(i+1)*blocksize, (i+j)*blocksize:(i+j+1)*blocksize]
+                A_cut[(i+j)*blocksize:(i+j+1)*blocksize, i*blocksize:(i+1)*blocksize] = A[(i+j)*blocksize:(i+j+1)*blocksize, i*blocksize:(i+1)*blocksize]
+
+    return A_cut
