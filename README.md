@@ -61,7 +61,7 @@ the last column/last row can be differents.
 ### Selected Inversion
 - Cholesky
    1. chol_sinv_tridiag() [x]
-   2. chol_sinv_tridiag_arrowhead() []
+   2. chol_sinv_tridiag_arrowhead() [x]
    3. chol_sinv_ndiags() []
    4. chol_sinv_ndiags_arrowhead() []
 - LU
