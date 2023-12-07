@@ -177,7 +177,7 @@ def chol_slv_ndiags(
     Y = np.zeros_like(B)
     X = np.zeros_like(B)
 
-    n_offdiags_blk = int((ndiags - 1) / 2)
+    n_offdiags_blk = ndiags // 2
 
     # ----- Forward substitution -----
     n_blocks = L.shape[0] // blocksize    
@@ -247,7 +247,7 @@ def chol_slv_ndiags_arrowhead(
     Y = np.zeros_like(B)
     X = np.zeros_like(B)
 
-    n_offdiags_blk = int((ndiags - 1) / 2)
+    n_offdiags_blk = ndiags // 2
     
     # ----- Forward substitution -----
     n_diag_blocks = (L.shape[0]-arrow_blocksize) // diag_blocksize 

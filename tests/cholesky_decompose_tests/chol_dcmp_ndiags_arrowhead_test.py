@@ -8,7 +8,6 @@ Tests for cholesky selected decompositions routines.
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_transform
 from sdr.utils import matrix_generation
 
 from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags_arrowhead
@@ -22,8 +21,8 @@ import pytest
 
 # Testing of block n-diagonals arrowhead cholesky
 if __name__ == "__main__":
-    nblocks = 4
-    ndiags = 3
+    nblocks = 7
+    ndiags = 5
     diag_blocksize = 2
     arrow_blocksize = 2
     symmetric = True

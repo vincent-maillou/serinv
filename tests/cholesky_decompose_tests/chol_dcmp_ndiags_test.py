@@ -22,7 +22,7 @@ import pytest
 # Testing of block n-diagonals cholesky
 if __name__ == "__main__":
     nblocks = 6
-    ndiags = 7
+    ndiags = 5
     blocksize = 2
     symmetric = True
     diagonal_dominant = True
