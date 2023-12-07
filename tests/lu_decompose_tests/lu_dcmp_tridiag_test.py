@@ -14,7 +14,7 @@ from sdr.lu.lu_decompose import lu_dcmp_tridiag
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
-
+import pytest
 
 
 # Testing of block tridiagonal lu
@@ -31,10 +31,11 @@ if __name__ == "__main__":
 
 
     # --- Decomposition ---
-
-    P_ref, L_ref, U_ref = la.lu(A)
+    # permute_l is default but to raise awareness that this would fail otherwise ...
+    P_ref, L_ref, U_ref = la.lu(A, permute_l=False)
 
     plt.matshow(P_ref)
+    ## TODO: we need P to be identity ...
 
     fig, ax = plt.subplots(2, 3)
     ax[0, 0].set_title("L_ref: Scipy lower factor")
@@ -58,3 +59,35 @@ if __name__ == "__main__":
     fig.colorbar(ax[1, 2].matshow(U_diff), ax=ax[1, 2], label="Relative error")
     
     plt.show() 
+
+
+@pytest.mark.parametrize(
+    "nblocks, blocksize", 
+    [
+        (2, 2),
+        (10, 2),
+        (100, 2),
+        (2, 3),
+        (10, 3),
+        (100, 3),
+        (2, 100),
+        (5, 100),
+        (10, 100),
+    ]
+)
+def test_lu_decompose_tridiag(
+    nblocks: int,
+    blocksize: int,  
+):
+    symmetric = False
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    )
+
+    P_ref, L_ref, U_ref = la.lu(A)
+    L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
+            
+    assert np.allclose(L_ref, L_sdr) and np.allclose(U_ref, U_sdr)

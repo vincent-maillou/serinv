@@ -14,7 +14,7 @@ from sdr.lu.lu_decompose import lu_dcmp_tridia_arrowhead
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
-
+import pytest
 
 
 # Testing of block tridiagonal arrowhead lu
@@ -62,3 +62,34 @@ if __name__ == "__main__":
     plt.show() 
 
     
+@pytest.mark.parametrize(
+    "nblocks, diag_blocksize, arrow_blocksize", 
+    [
+        (2, 2, 2),
+        (2, 3, 2),
+        (2, 2, 3),
+        (10, 2, 2),
+        (10, 3, 2),
+        (10, 2, 3),
+        (10, 10, 2),
+        (10, 2, 10),
+    ]
+)
+def test_lu_decompose_tridiag_arrowhead(
+    nblocks: int, 
+    diag_blocksize: int, 
+    arrow_blocksize: int, 
+):
+    symmetric = False
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_blocktridiag_arrowhead(
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
+        seed
+    )
+
+    P_ref, L_ref, U_ref = la.lu(A)
+    L_sdr, U_sdr = lu_dcmp_tridia_arrowhead(A, diag_blocksize, arrow_blocksize)
+
+    assert np.allclose(L_ref, L_sdr) and np.allclose(U_ref, U_sdr)

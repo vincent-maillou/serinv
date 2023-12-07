@@ -14,7 +14,7 @@ from sdr.lu.lu_decompose import lu_dcmp_ndiags
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
-
+import pytest
 
 
 # Testing of block n-diagonals lu
@@ -61,3 +61,31 @@ if __name__ == "__main__":
     plt.show() 
 
     
+@pytest.mark.parametrize(
+    "nblocks, ndiags, blocksize", 
+    [
+        (2, 3, 2),
+        (3, 5, 2),
+        (4, 7, 2),
+        (20, 3, 3),
+        (30, 5, 3),
+        (40, 7, 3),
+    ]
+)
+def test_lu_decompose_ndiags(
+    nblocks, 
+    ndiags, 
+    blocksize
+):
+    symmetric = False
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
+    
+    P_ref, L_ref, U_ref = la.lu(A)
+    L_sdr, U_sdr = lu_dcmp_ndiags(A, ndiags, blocksize)
+            
+    assert np.allclose(L_ref, L_sdr) and np.allclose(U_ref, U_sdr)

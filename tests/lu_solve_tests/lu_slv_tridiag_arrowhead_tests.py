@@ -9,13 +9,13 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.lu.lu_decompose import lu_dcmp_tridia_arrowhead
+from sdr.lu.lu_decompose import lu_dcmp_tridiag_arrowhead
 from sdr.lu.lu_solve import lu_slv_tridiag_arrowhead
 
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
-
+import pytest
 
 
 # Testing of block tridiagonal lu
@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     # P_ref, L_ref, U_ref = la.lu(A)
     lu_ref, p_ref = la.lu_factor(A)
-    L_sdr, U_sdr = lu_dcmp_tridia_arrowhead(A, diag_blocksize, arrow_blocksize)
+    L_sdr, U_sdr = lu_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
 
     n_rhs = 1
     B = np.random.randn(A.shape[0], n_rhs)
@@ -62,4 +62,41 @@ if __name__ == "__main__":
 
     plt.show()
 
+@pytest.mark.parametrize(
+    "nblocks, diag_blocksize, arrow_blocksize, nrhs", 
+    [
+        (2, 2, 2, 1),
+        (2, 3, 2, 2),
+        (2, 2, 3, 5),
+        (10, 2, 2, 1),
+        (10, 3, 2, 4),
+        (10, 2, 3, 8),
+        (10, 10, 2, 1),
+        (10, 2, 10, 1),
+    ]
+)
+def test_lu_slv_tridiag_arrowhead(
+    nblocks: int, 
+    diag_blocksize: int, 
+    arrow_blocksize: int, 
+    nrhs: int,
+):
+    symmetric = False
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_blocktridiag_arrowhead(
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
+        seed
+    )
+
+    lu_ref, p_ref = la.lu_factor(A)
+    L_sdr, U_sdr = lu_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
+
+    B = np.random.randn(A.shape[0], nrhs)
+
+    X_ref = la.lu_solve((lu_ref, p_ref), B)
+    X_sdr = lu_slv_tridiag_arrowhead(L_sdr, U_sdr, B, diag_blocksize, arrow_blocksize)
+
+    assert np.allclose(X_ref, X_sdr)
 
