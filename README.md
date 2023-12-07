@@ -51,8 +51,8 @@ the last column/last row can be differents.
 - Cholesky
    1. chol_slv_tridiag() [x]
    2. chol_slv_tridiag_arrowhead() [x]
-   3. chol_slv_ndiags() []
-   4. chol_slv_ndiags_arrowhead() []
+   3. chol_slv_ndiags() [x]
+   4. chol_slv_ndiags_arrowhead() [x]
 - LU
    1. lu_slv_tridiag() [x]
    2. lu_slv_tridiag_arrowhead() [x]
