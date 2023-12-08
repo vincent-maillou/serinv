@@ -21,8 +21,8 @@ import matplotlib.pyplot as plt
 
 # Testing of block tridiagonal cholesky sinv
 if __name__ == "__main__":
-    nblocks = 4
-    ndiags = 7
+    nblocks = 6
+    ndiags = 5
     blocksize = 2
     symmetric = True
     diagonal_dominant = True
