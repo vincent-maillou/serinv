@@ -44,7 +44,7 @@ the last column/last row can be differents.
    4. chol_dcmp_ndiags_arrowhead [x]
 - LU
    1. lu_dcmp_tridiag() [x]
-   1. lu_dcmp_tridia_arrowhead() [x]
+   1. lu_dcmp_tridiag_arrowhead() [x]
    2. lu_dcmp_ndiags() [x]
    3. lu_dcmp_ndiags_arrowhead() [x]
 ### Solvers
@@ -65,8 +65,8 @@ the last column/last row can be differents.
    3. chol_sinv_ndiags() [x]
    4. chol_sinv_ndiags_arrowhead() [x]
 - LU
-   1. lu_sinv_tridiag() []
-   2. lu_sinv_tridiag_arrowhead() []
+   1. lu_sinv_tridiag() [x]
+   2. lu_sinv_tridiag_arrowhead() [x]
    3. lu_sinv_ndiags() []
    4. lu_sinv_ndiags_arrowhead() []
 

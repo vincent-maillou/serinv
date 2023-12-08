@@ -9,7 +9,7 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.lu.lu_decompose import lu_dcmp_tridia_arrowhead
+from sdr.lu.lu_decompose import lu_dcmp_tridiag_arrowhead
 from sdr.lu.lu_solve import lu_slv_tridiag_arrowhead
 
 import numpy as np
@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     # P_ref, L_ref, U_ref = la.lu(A)
     lu_ref, p_ref = la.lu_factor(A)
-    L_sdr, U_sdr = lu_dcmp_tridia_arrowhead(A, diag_blocksize, arrow_blocksize)
+    L_sdr, U_sdr = lu_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
 
     n_rhs = 1
     B = np.random.randn(A.shape[0], n_rhs)
