@@ -9,9 +9,9 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import cut_to_blockndiags
-from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags
-from sdr.cholesky.cholesky_selected_inversion import chol_sinv_ndiags
+from sdr.utils.matrix_transform import cut_to_blockndiags_arrowhead
+from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags_arrowhead
+from sdr.cholesky.cholesky_selected_inversion import chol_sinv_ndiags_arrowhead
 
 import numpy as np
 import scipy.linalg as la
@@ -22,29 +22,31 @@ import matplotlib.pyplot as plt
 # Testing of block tridiagonal cholesky sinv
 if __name__ == "__main__":
     nblocks = 7
-    ndiags = 7
-    blocksize = 2
+    ndiags = 5
+    diag_blocksize = 3
+    arrow_blocksize = 2
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
-        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    A = matrix_generation.generate_ndiags_arrowhead(
+        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
+        seed
     )
 
 
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blockndiags(X_ref, ndiags, blocksize)
+    X_ref = cut_to_blockndiags_arrowhead(X_ref, ndiags, diag_blocksize, arrow_blocksize)
 
-    L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
+    L_sdr = chol_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
 
     fig, ax = plt.subplots(1, 3)
     ax[0].set_title("X_ref: Cholesky reference inversion")
     ax[0].matshow(X_ref)
 
-    X_sdr = chol_sinv_ndiags(L_sdr, ndiags, blocksize)
+    X_sdr = chol_sinv_ndiags_arrowhead(L_sdr, ndiags, diag_blocksize, arrow_blocksize)
     ax[1].set_title("X_sdr: Cholesky selected inversion")
     ax[1].matshow(X_sdr)
 
