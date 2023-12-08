@@ -62,8 +62,8 @@ the last column/last row can be differents.
 - Cholesky
    1. chol_sinv_tridiag() [x]
    2. chol_sinv_tridiag_arrowhead() [x]
-   3. chol_sinv_ndiags() []
-   4. chol_sinv_ndiags_arrowhead() []
+   3. chol_sinv_ndiags() [x]
+   4. chol_sinv_ndiags_arrowhead() [x]
 - LU
    1. lu_sinv_tridiag() []
    2. lu_sinv_tridiag_arrowhead() []
