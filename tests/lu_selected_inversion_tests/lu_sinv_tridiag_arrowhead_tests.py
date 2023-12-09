@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":
-    nblocks = 5
+    nblocks = 6
     diag_blocksize = 3
     arrow_blocksize = 2
     symmetric = False

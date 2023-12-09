@@ -3,15 +3,15 @@
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
 @date: 2023-11
 
-Tests for cholesky selected inversion routines.
+Tests for lu selected inversion routines.
 
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
 from sdr.utils.matrix_transform import cut_to_blockndiags
-from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags
-from sdr.cholesky.cholesky_selected_inversion import chol_sinv_ndiags
+from sdr.lu.lu_decompose import lu_dcmp_ndiags
+from sdr.lu.lu_selected_inversion import lu_sinv_ndiags
 
 import numpy as np
 import scipy.linalg as la
@@ -19,12 +19,12 @@ import matplotlib.pyplot as plt
 
 
 
-# Testing of block tridiagonal cholesky sinv
+# Testing of block tridiagonal lu sinv
 if __name__ == "__main__":
-    nblocks = 7
+    nblocks = 8
     ndiags = 7
     blocksize = 2
-    symmetric = True
+    symmetric = False
     diagonal_dominant = True
     seed = 63
 
@@ -38,14 +38,14 @@ if __name__ == "__main__":
     X_ref = la.inv(A)
     X_ref = cut_to_blockndiags(X_ref, ndiags, blocksize)
 
-    L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
+    L_sdr, U_sdr = lu_dcmp_ndiags(A, ndiags, blocksize)
 
     fig, ax = plt.subplots(1, 3)
-    ax[0].set_title("X_ref: Cholesky reference inversion")
+    ax[0].set_title("X_ref: Scipy reference inversion")
     ax[0].matshow(X_ref)
 
-    X_sdr = chol_sinv_ndiags(L_sdr, ndiags, blocksize)
-    ax[1].set_title("X_sdr: Cholesky selected inversion")
+    X_sdr = lu_sinv_ndiags(L_sdr, U_sdr, ndiags, blocksize)
+    ax[1].set_title("X_sdr: LU selected inversion")
     ax[1].matshow(X_sdr)
 
     X_diff = X_ref - X_sdr
