@@ -61,7 +61,7 @@ def lu_dcmp_tridiag(
 
 
 
-def lu_dcmp_tridia_arrowhead(
+def lu_dcmp_tridiag_arrowhead(
     A: np.ndarray,
     diag_blocksize: int,
     arrow_blocksize: int,
@@ -180,6 +180,8 @@ def lu_dcmp_ndiags(
     L_inv_temp = np.zeros((blocksize, blocksize))
     U_inv_temp = np.zeros((blocksize, blocksize))
 
+    n_offdiags_blk = ndiags // 2
+
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks-1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
@@ -189,7 +191,7 @@ def lu_dcmp_ndiags(
         L_inv_temp = la.solve_triangular(L[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize], np.eye(blocksize), lower=True)
         U_inv_temp = la.solve_triangular(U[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize], np.eye(blocksize), lower=False)
 
-        for j in range(1, min(ndiags, nblocks-i)):
+        for j in range(1, min(n_offdiags_blk+1, nblocks-i)):
             # L_{i+j, i} = A_{i+j, i} @ U{i, i}^{-1}
             L[(i+j)*blocksize:(i+j+1)*blocksize, i*blocksize:(i+1)*blocksize] = A[(i+j)*blocksize:(i+j+1)*blocksize, i*blocksize:(i+1)*blocksize] @ U_inv_temp
 
@@ -247,6 +249,8 @@ def lu_dcmp_ndiags_arrowhead(
     L_inv_temp = np.zeros((diag_blocksize, diag_blocksize))
     U_inv_temp = np.zeros((diag_blocksize, diag_blocksize))
 
+    n_offdiags_blk = ndiags // 2
+
     n_diag_blocks = (A.shape[0]-arrow_blocksize) // diag_blocksize 
     for i in range(0, n_diag_blocks-1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
@@ -256,7 +260,7 @@ def lu_dcmp_ndiags_arrowhead(
         L_inv_temp = la.solve_triangular(L[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize], np.eye(diag_blocksize), lower=True)
         U_inv_temp = la.solve_triangular(U[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize], np.eye(diag_blocksize), lower=False)
 
-        for j in range(1, min(ndiags, n_diag_blocks-i)):
+        for j in range(1, min(n_offdiags_blk+1, n_diag_blocks-i)):
             # L_{i+j, i} = A_{i+j, i} @ U{i, i}^{-1}
             L[(i+j)*diag_blocksize:(i+j+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = A[(i+j)*diag_blocksize:(i+j+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] @ U_inv_temp
 
@@ -280,7 +284,7 @@ def lu_dcmp_ndiags_arrowhead(
         # U_{i, ndb+1} = L{i, i}^{-1} @ A_{i, ndb+1}
         U[i*diag_blocksize:(i+1)*diag_blocksize, -arrow_blocksize:] = L_inv_temp @ A[i*diag_blocksize:(i+1)*diag_blocksize, -arrow_blocksize:]
 
-        for k in range(1, min(ndiags, n_diag_blocks-i)):
+        for k in range(1, min(n_offdiags_blk+1, n_diag_blocks-i)):
             # A_{ndb+1, i+k} = A_{ndb+1, i+k} - L_{ndb+1, i} @ U_{i, i+k}
             A[-arrow_blocksize:, (i+k)*diag_blocksize:(i+k+1)*diag_blocksize] = A[-arrow_blocksize:, (i+k)*diag_blocksize:(i+k+1)*diag_blocksize] - L[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] @ U[i*diag_blocksize:(i+1)*diag_blocksize, (i+k)*diag_blocksize:(i+k+1)*diag_blocksize]
 

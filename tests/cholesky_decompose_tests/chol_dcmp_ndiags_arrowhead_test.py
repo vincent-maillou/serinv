@@ -8,7 +8,6 @@ Tests for cholesky selected decompositions routines.
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_transform
 from sdr.utils import matrix_generation
 
 from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags_arrowhead
@@ -24,7 +23,7 @@ import pytest
 if __name__ == "__main__":
     nblocks = 7
     ndiags = 5
-    diag_blocksize = 3
+    diag_blocksize = 2
     arrow_blocksize = 2
     symmetric = True
     diagonal_dominant = True
@@ -43,7 +42,7 @@ if __name__ == "__main__":
     ax[0].set_title("L_ref: Reference cholesky decomposition")
     ax[0].matshow(L_ref)
 
-    L_sdr = chol_dcmp_ndiags_arrowhead(A, nblocks, diag_blocksize, arrow_blocksize)
+    L_sdr = chol_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
     ax[1].set_title("L_sdr: Selected cholesky decomposition")
     ax[1].matshow(L_sdr)
 
@@ -85,6 +84,6 @@ def test_cholesky_decompose_ndiags_arrowhead(
     )
 
     L_ref = la.cholesky(A, lower=True)
-    L_sdr = chol_dcmp_ndiags_arrowhead(A, nblocks, diag_blocksize, arrow_blocksize)
+    L_sdr = chol_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
 
     assert np.allclose(L_ref, L_sdr)
