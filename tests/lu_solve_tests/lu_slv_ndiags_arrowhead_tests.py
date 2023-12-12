@@ -95,7 +95,6 @@ def test_lu_slv_ndiags_arrowhead(
     )
 
     lu_ref, p_ref = la.lu_factor(A)
-        
     L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
 
     B = np.random.randn(A.shape[0], nrhs)
@@ -103,5 +102,4 @@ def test_lu_slv_ndiags_arrowhead(
     X_ref = la.lu_solve((lu_ref, p_ref), B)
     X_sdr = lu_slv_ndiags_arrowhead(L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize)
 
-    
     assert np.allclose(X_ref, X_sdr)
