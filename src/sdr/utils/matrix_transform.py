@@ -89,3 +89,82 @@ def cut_to_blocktridiag_arrowhead(
 
 
     
+def cut_to_blockndiags(
+    A: np.ndarray,
+    ndiags: int,
+    blocksize: int,
+):
+    """ Cut a matrix to a block ndiags matrix.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Matrix to cut.
+    ndiags : int
+        Number of diagonals.
+    blocksize : int
+        Size of the blocks.
+
+    Returns
+    -------
+    A : np.ndarray
+        Block ndiags matrix.
+    """
+
+    matrice_size = A.shape[0]
+    nblocks = matrice_size // blocksize
+
+    A_cut = np.zeros((matrice_size, matrice_size))
+
+    for i in range(nblocks):
+        for j in range((ndiags//2)+1):
+            if i+j < nblocks:
+                A_cut[i*blocksize:(i+1)*blocksize, (i+j)*blocksize:(i+j+1)*blocksize] = A[i*blocksize:(i+1)*blocksize, (i+j)*blocksize:(i+j+1)*blocksize]
+                A_cut[(i+j)*blocksize:(i+j+1)*blocksize, i*blocksize:(i+1)*blocksize] = A[(i+j)*blocksize:(i+j+1)*blocksize, i*blocksize:(i+1)*blocksize]
+
+    return A_cut
+
+
+
+def cut_to_blockndiags_arrowhead(
+    A: np.ndarray,
+    ndiags: int,
+    diag_blocksize: int,
+    arrow_blocksize: int,
+):
+    """ Cut a matrix to a block ndiags arrowhead matrix.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Matrix to cut.
+    ndiags : int
+        Number of diagonals.
+    diag_blocksize : int
+        Size of the diagonal blocks.
+    arrow_blocksize : int
+        Size of the arrow blocks.
+
+    Returns
+    -------
+    A : np.ndarray
+        Block ndiags arrowhead matrix.
+    """
+
+    matrice_size = A.shape[0]
+    n_diag_blocks = (matrice_size-arrow_blocksize) // diag_blocksize 
+
+    A_cut = np.zeros((matrice_size, matrice_size))
+
+    for i in range(n_diag_blocks):
+        for j in range((ndiags//2)+1):
+            if i+j < n_diag_blocks:
+                A_cut[i*diag_blocksize:(i+1)*diag_blocksize, (i+j)*diag_blocksize:(i+j+1)*diag_blocksize] = A[i*diag_blocksize:(i+1)*diag_blocksize, (i+j)*diag_blocksize:(i+j+1)*diag_blocksize]
+                A_cut[(i+j)*diag_blocksize:(i+j+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = A[(i+j)*diag_blocksize:(i+j+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize]
+
+        A_cut[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize] = A[-arrow_blocksize:, i*diag_blocksize:(i+1)*diag_blocksize]
+        A_cut[i*diag_blocksize:(i+1)*diag_blocksize, -arrow_blocksize:] = A[i*diag_blocksize:(i+1)*diag_blocksize, -arrow_blocksize:]
+
+    A_cut[-arrow_blocksize:, -arrow_blocksize:] = A[-arrow_blocksize:, -arrow_blocksize:]
+
+    return A_cut

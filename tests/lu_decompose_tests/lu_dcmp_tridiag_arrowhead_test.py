@@ -9,7 +9,7 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.lu.lu_decompose import lu_dcmp_tridia_arrowhead
+from sdr.lu.lu_decompose import lu_dcmp_tridiag_arrowhead
 
 import numpy as np
 import scipy.linalg as la
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     ax[1, 0].set_title("U_ref: Scipy upper factor")
     ax[1, 0].matshow(U_ref)
 
-    L_sdr, U_sdr = lu_dcmp_tridia_arrowhead(A, diag_blocksize, arrow_blocksize)
+    L_sdr, U_sdr = lu_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
     ax[0, 1].set_title("L_sdr: SDR lower factor")
     ax[0, 1].matshow(L_sdr)
     ax[1, 1].set_title("U_sdr: SDR upper factor")
