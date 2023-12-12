@@ -90,6 +90,6 @@ def test_lu_decompose_tridiag_arrowhead(
     )
 
     P_ref, L_ref, U_ref = la.lu(A)
-    L_sdr, U_sdr = lu_dcmp_tridia_arrowhead(A, diag_blocksize, arrow_blocksize)
+    L_sdr, U_sdr = lu_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
 
     assert np.allclose(L_ref, L_sdr) and np.allclose(U_ref, U_sdr)
