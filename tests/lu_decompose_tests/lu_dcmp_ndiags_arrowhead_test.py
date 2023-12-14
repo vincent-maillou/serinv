@@ -14,14 +14,15 @@ from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
+import pytest
 
 
 
 # Testing of block n-diagonals arrowhead lu
 if __name__ == "__main__":
-    nblocks = 7
-    ndiags = 5
-    diag_blocksize = 3
+    nblocks = 6
+    ndiags = 9
+    diag_blocksize = 2
     arrow_blocksize = 2
     symmetric = False
     diagonal_dominant = True
@@ -32,6 +33,7 @@ if __name__ == "__main__":
         diagonal_dominant, seed
     )
 
+    plt.matshow(A)
 
     # --- Decomposition ---
 
@@ -63,3 +65,43 @@ if __name__ == "__main__":
     plt.show() 
 
     
+
+@pytest.mark.parametrize(
+    "nblocks, ndiags, diag_blocksize, arrow_blocksize", 
+    [
+        (2, 1, 1, 2),
+        (3, 3, 2, 1),
+        (4, 5, 1, 2),
+        (5, 7, 2, 1),
+        (15, 1, 3, 1),
+        (15, 3, 1, 2),
+        (15, 5, 3, 1),
+        (15, 7, 1, 2),
+    ]
+)
+def test_sinv_decompose_ndiags_arrowhead(
+    nblocks, 
+    ndiags, 
+    diag_blocksize, 
+    arrow_blocksize
+):
+    symmetric = False
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_ndiags_arrowhead(
+        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, 
+        diagonal_dominant, seed
+    )
+
+    # --- Decomposition ---
+
+    P_ref, L_ref, U_ref = la.lu(A)
+
+    if np.allclose(P_ref, np.eye(A.shape[0])):
+        L_ref = P_ref @ L_ref
+
+    L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, nblocks, diag_blocksize, arrow_blocksize)
+    
+    assert np.allclose(L_ref, L_sdr)
+    assert np.allclose(U_ref, U_sdr)
