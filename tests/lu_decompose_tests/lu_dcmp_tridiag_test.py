@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import pytest
 
 
+
 # Testing of block tridiagonal lu
 if __name__ == "__main__":
     nblocks = 5
@@ -61,6 +62,7 @@ if __name__ == "__main__":
     plt.show() 
 
 
+
 @pytest.mark.parametrize(
     "nblocks, blocksize", 
     [
@@ -87,7 +89,14 @@ def test_lu_decompose_tridiag(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
+    # --- Decomposition ---
+
     P_ref, L_ref, U_ref = la.lu(A)
+
+    if np.allclose(P_ref, np.eye(A.shape[0])):
+        L_ref = P_ref @ L_ref
+
     L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
-            
-    assert np.allclose(L_ref, L_sdr) and np.allclose(U_ref, U_sdr)
+
+    assert np.allclose(L_ref, L_sdr)
+    assert np.allclose(U_ref, U_sdr)
