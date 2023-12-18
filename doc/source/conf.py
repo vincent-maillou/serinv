@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'SDR: Selected Decomposition Routines'
+project = 'SDR'
 copyright = '2023, Vincent Maillou, Lisa Gaedke-merzhaeuser'
 author = 'Vincent Maillou, Lisa Gaedke-merzhaeuser'
 release = '0.1'
