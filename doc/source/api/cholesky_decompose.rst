@@ -9,3 +9,5 @@ Decompose
     
     chol_dcmp_tridiag
     chol_dcmp_tridiag_arrowhead
+    chol_dcmp_ndiags
+    chol_dcmp_ndiags_arrowhead

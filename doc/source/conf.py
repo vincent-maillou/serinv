@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'SDR: Selected Decomposition Routines'
+project = 'SDR'
 copyright = '2023, Vincent Maillou, Lisa Gaedke-merzhaeuser'
 author = 'Vincent Maillou, Lisa Gaedke-merzhaeuser'
 release = '0.1'
@@ -37,9 +37,9 @@ html_theme_options = {
     "icon_links": [],  # See https://github.com/pydata/pydata-sphinx-theme/issues/1220
 }
 
-# TODO: html_css_files = ["bsparse.css"]
+html_css_files = ["sdr.css"]
 
-# TODO: html_context = {"default_mode": "light"}
+html_context = {"default_mode": "light"}
 
 # TODO: html_logo = "_static/bsparse.png"
 
