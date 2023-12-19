@@ -26,16 +26,13 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_tridiag(A, blocksize)
 
     n_rhs = 2
     B = np.random.randn(A.shape[0], n_rhs)
-
 
     # --- Solving ---
 
@@ -56,14 +53,14 @@ if __name__ == "__main__":
     ax[2].set_title("X_diff: Difference between X_ref and X_sdr")
     ax[2].matshow(X_diff)
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
-    
-    plt.show()
-    
-    #print("norm(x - x_ref) = ", np.linalg.norm(X_sdr - X_ref))
 
-    
+    plt.show()
+
+    # print("norm(x - x_ref) = ", np.linalg.norm(X_sdr - X_ref))
+
+
 @pytest.mark.parametrize(
-    "nblocks, blocksize, nrhs", 
+    "nblocks, blocksize, nrhs",
     [
         (2, 2, 1),
         (10, 2, 3),
@@ -74,28 +71,21 @@ if __name__ == "__main__":
         (2, 100, 5),
         (5, 100, 2),
         (10, 100, 1),
-    ]
+    ],
 )
-def test_cholesky_slv_tridiag(
-    nblocks: int,
-    blocksize: int,  
-    nrhs: int
-):
+def test_cholesky_slv_tridiag(nblocks: int, blocksize: int, nrhs: int):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_tridiag(A, blocksize)
-    
+
     B = np.random.randn(A.shape[0], nrhs)
-    
+
     X_ref = la.cho_solve((L_ref, True), B)
     X_sdr = chol_slv_tridiag(L_sdr, B, blocksize)
 
     assert np.allclose(X_ref, X_sdr)
-

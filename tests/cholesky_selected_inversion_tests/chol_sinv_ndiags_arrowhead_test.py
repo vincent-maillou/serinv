@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-
 # Testing of block tridiagonal cholesky sinv
 if __name__ == "__main__":
     nblocks = 7
@@ -31,10 +30,8 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
-
 
     # --- Inversion ---
 
@@ -59,9 +56,8 @@ if __name__ == "__main__":
     plt.show()
 
 
-
 @pytest.mark.parametrize(
-    "nblocks, ndiags, diag_blocksize, arrow_blocksize", 
+    "nblocks, ndiags, diag_blocksize, arrow_blocksize",
     [
         (2, 1, 1, 2),
         (3, 3, 2, 1),
@@ -71,21 +67,15 @@ if __name__ == "__main__":
         (15, 3, 1, 2),
         (15, 5, 3, 1),
         (15, 7, 1, 2),
-    ]
+    ],
 )
-def test_cholesky_sinv_ndiags_arrowhead(
-    nblocks, 
-    ndiags, 
-    diag_blocksize, 
-    arrow_blocksize
-):
+def test_cholesky_sinv_ndiags_arrowhead(nblocks, ndiags, diag_blocksize, arrow_blocksize):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, 
-        diagonal_dominant, seed
+        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
     # --- Inversion ---

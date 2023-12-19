@@ -28,8 +28,7 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_blocktridiag_arrowhead(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
     # P_ref, L_ref, U_ref = la.lu(A)
@@ -38,7 +37,6 @@ if __name__ == "__main__":
 
     n_rhs = 1
     B = np.random.randn(A.shape[0], n_rhs)
-
 
     # --- Solving ---
 
@@ -62,8 +60,9 @@ if __name__ == "__main__":
 
     plt.show()
 
+
 @pytest.mark.parametrize(
-    "nblocks, diag_blocksize, arrow_blocksize, nrhs", 
+    "nblocks, diag_blocksize, arrow_blocksize, nrhs",
     [
         (2, 2, 2, 1),
         (2, 3, 2, 2),
@@ -73,12 +72,12 @@ if __name__ == "__main__":
         (10, 2, 3, 8),
         (10, 10, 2, 1),
         (10, 2, 10, 1),
-    ]
+    ],
 )
 def test_lu_slv_tridiag_arrowhead(
-    nblocks: int, 
-    diag_blocksize: int, 
-    arrow_blocksize: int, 
+    nblocks: int,
+    diag_blocksize: int,
+    arrow_blocksize: int,
     nrhs: int,
 ):
     symmetric = False
@@ -86,8 +85,7 @@ def test_lu_slv_tridiag_arrowhead(
     seed = 63
 
     A = matrix_generation.generate_blocktridiag_arrowhead(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
     lu_ref, p_ref = la.lu_factor(A)
@@ -99,4 +97,3 @@ def test_lu_slv_tridiag_arrowhead(
     X_sdr = lu_slv_tridiag_arrowhead(L_sdr, U_sdr, B, diag_blocksize, arrow_blocksize)
 
     assert np.allclose(X_ref, X_sdr)
-

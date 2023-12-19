@@ -27,16 +27,13 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
-        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
-    )
+    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
 
     nrhs = 3
     B = np.random.randn(A.shape[0], nrhs)
-
 
     # --- Solving ---
 
@@ -59,11 +56,10 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
-    
 
-    
+
 @pytest.mark.parametrize(
-    "nblocks, ndiags, blocksize, nrhs", 
+    "nblocks, ndiags, blocksize, nrhs",
     [
         (2, 3, 2, 1),
         (3, 5, 2, 3),
@@ -71,11 +67,11 @@ if __name__ == "__main__":
         (20, 3, 3, 5),
         (30, 5, 3, 1),
         (40, 7, 3, 2),
-    ]
+    ],
 )
 def test_cholesky_decompose_ndiags(
-    nblocks: int, 
-    ndiags: int, 
+    nblocks: int,
+    ndiags: int,
     blocksize: int,
     nrhs: int,
 ):
@@ -83,17 +79,14 @@ def test_cholesky_decompose_ndiags(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
-        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
-    )
+    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
-    
+
     B = np.random.randn(A.shape[0], nrhs)
-    
+
     X_ref = la.cho_solve((L_ref, True), B)
     X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize)
-
 
     assert np.allclose(X_ref, X_sdr)

@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-
 # Testing of block tridiagonal lu
 if __name__ == "__main__":
     nblocks = 5
@@ -26,10 +25,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
-
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     # --- Decomposition ---
     # permute_l is default but to raise awareness that this would fail otherwise ...
@@ -58,13 +54,12 @@ if __name__ == "__main__":
     ax[1, 2].matshow(U_diff)
     fig.colorbar(ax[0, 2].matshow(L_diff), ax=ax[0, 2], label="Relative error")
     fig.colorbar(ax[1, 2].matshow(U_diff), ax=ax[1, 2], label="Relative error")
-    
-    plt.show() 
 
+    plt.show()
 
 
 @pytest.mark.parametrize(
-    "nblocks, blocksize", 
+    "nblocks, blocksize",
     [
         (2, 2),
         (10, 2),
@@ -75,19 +70,17 @@ if __name__ == "__main__":
         (2, 100),
         (5, 100),
         (10, 100),
-    ]
+    ],
 )
 def test_lu_decompose_tridiag(
     nblocks: int,
-    blocksize: int,  
+    blocksize: int,
 ):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     # --- Decomposition ---
 
