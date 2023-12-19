@@ -1,6 +1,8 @@
 # SDR: Selected Decomposition Routines
 SDR pack several selected decompositions routines and linear system solvers for severals types of structured block-sparse matrices.
 
+[![codecov](https://codecov.io/gh/vincent-maillou/SDR/graph/badge.svg?token=VZTGAUW2NW)](https://codecov.io/gh/vincent-maillou/SDR)
+
 ## Decompositions routines
 ### Block cholesky factorization
 A block cholesky factorization routines for symmetric, positive-definite matrices.
