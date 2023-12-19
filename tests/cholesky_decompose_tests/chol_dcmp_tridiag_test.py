@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-
 # Testing of block tridiagonal cholesky
 if __name__ == "__main__":
     nblocks = 5
@@ -26,10 +25,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
-
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     # --- Decomposition ---
 
@@ -50,9 +46,8 @@ if __name__ == "__main__":
     plt.show()
 
 
-
 @pytest.mark.parametrize(
-    "nblocks, blocksize", 
+    "nblocks, blocksize",
     [
         (2, 2),
         (10, 2),
@@ -63,22 +58,19 @@ if __name__ == "__main__":
         (2, 100),
         (5, 100),
         (10, 100),
-    ]
+    ],
 )
 def test_cholesky_decompose_tridiag(
     nblocks: int,
-    blocksize: int,  
+    blocksize: int,
 ):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_tridiag(A, blocksize)
 
     assert np.allclose(L_ref, L_sdr)
-

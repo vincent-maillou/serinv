@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":
     nblocks = 8
@@ -29,10 +28,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
-        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
-    )
-
+    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
 
     # --- Inversion ---
 
@@ -57,9 +53,8 @@ if __name__ == "__main__":
     plt.show()
 
 
-
 @pytest.mark.parametrize(
-    "nblocks, ndiags, blocksize", 
+    "nblocks, ndiags, blocksize",
     [
         (2, 3, 2),
         (3, 5, 2),
@@ -67,20 +62,14 @@ if __name__ == "__main__":
         (20, 3, 3),
         (30, 5, 3),
         (40, 7, 3),
-    ]
+    ],
 )
-def test_lu_sinv_ndiags(
-    nblocks, 
-    ndiags, 
-    blocksize
-):
+def test_lu_sinv_ndiags(nblocks, ndiags, blocksize):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
-        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
-    )
+    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
 
     # --- Inversion ---
 
@@ -91,5 +80,3 @@ def test_lu_sinv_ndiags(
     X_sdr = lu_sinv_ndiags(L_sdr, U_sdr, ndiags, blocksize)
 
     assert np.allclose(X_ref, X_sdr)
-
-    

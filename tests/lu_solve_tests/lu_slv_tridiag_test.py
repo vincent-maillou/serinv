@@ -26,9 +26,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     # P_ref, L_ref, U_ref = la.lu(A)
     lu_ref, p_ref = la.lu_factor(A)
@@ -36,7 +34,6 @@ if __name__ == "__main__":
 
     n_rhs = 1
     B = np.random.randn(A.shape[0], n_rhs)
-
 
     # --- Solving ---
     X_ref = la.lu_solve((lu_ref, p_ref), B)
@@ -61,7 +58,7 @@ if __name__ == "__main__":
 
 
 @pytest.mark.parametrize(
-    "nblocks, blocksize, nrhs", 
+    "nblocks, blocksize, nrhs",
     [
         (2, 2, 1),
         (10, 2, 3),
@@ -72,26 +69,20 @@ if __name__ == "__main__":
         (2, 100, 5),
         (5, 100, 2),
         (10, 100, 1),
-    ]
+    ],
 )
-def test_lu_slv_tridiag(
-    nblocks: int,
-    blocksize: int,  
-    nrhs: int
-):
+def test_lu_slv_tridiag(nblocks: int, blocksize: int, nrhs: int):
     symmetric = False
     diagonal_dominant = True
     seed = 63
-    
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
+
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     lu_ref, p_ref = la.lu_factor(A)
     L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
-    
+
     B = np.random.randn(A.shape[0], nrhs)
-    
+
     X_ref = la.lu_solve((lu_ref, p_ref), B)
     X_sdr = lu_slv_tridiag(L_sdr, U_sdr, B, blocksize)
 

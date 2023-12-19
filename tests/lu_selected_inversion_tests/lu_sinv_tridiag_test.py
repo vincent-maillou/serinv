@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":
     nblocks = 5
@@ -28,10 +27,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
-
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     # --- Inversion ---
 
@@ -55,10 +51,9 @@ if __name__ == "__main__":
 
     plt.show()
 
-    
 
 @pytest.mark.parametrize(
-    "nblocks, blocksize", 
+    "nblocks, blocksize",
     [
         (2, 2),
         (10, 2),
@@ -69,19 +64,17 @@ if __name__ == "__main__":
         (2, 100),
         (5, 100),
         (10, 100),
-    ]
+    ],
 )
 def test_lu_sinv_tridiag(
     nblocks: int,
-    blocksize: int,  
+    blocksize: int,
 ):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
+    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     # --- Inversion ---
 

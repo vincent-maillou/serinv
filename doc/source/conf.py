@@ -6,10 +6,10 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'SDR'
-copyright = '2023, Vincent Maillou, Lisa Gaedke-merzhaeuser'
-author = 'Vincent Maillou, Lisa Gaedke-merzhaeuser'
-release = '0.1'
+project = "SDR"
+copyright = "2023, Vincent Maillou, Lisa Gaedke-merzhaeuser"
+author = "Vincent Maillou, Lisa Gaedke-merzhaeuser"
+release = "0.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -17,19 +17,19 @@ release = '0.1'
 extensions = [
     "sphinx.ext.autodoc",
     "numpydoc",
-    "sphinx.ext.intersphinx", # Links to numpy and scipy
+    "sphinx.ext.intersphinx",  # Links to numpy and scipy
     "sphinx.ext.autosummary",
-    "sphinx.ext.mathjax",]
+    "sphinx.ext.mathjax",
+]
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = []
-
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'pydata_sphinx_theme'
+html_theme = "pydata_sphinx_theme"
 
 html_theme_options = {
     "github_url": "https://github.com/vincent-maillou/SDR",
@@ -43,7 +43,7 @@ html_context = {"default_mode": "light"}
 
 # TODO: html_logo = "_static/bsparse.png"
 
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 html_use_modindex = True
 
