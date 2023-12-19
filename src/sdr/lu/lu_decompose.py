@@ -1,6 +1,7 @@
 """
 @author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
+@author: Alexandros Nikolaos Ziogas (alziogas@iis.ee.ethz.ch)
 @date: 2023-11
 
 Contains the lu selected decompositions routines.
@@ -213,6 +214,66 @@ def lu_dcmp_ndiags(
 
     return L, U
 
+
+def lu_dcmp_ndiags_bsize_one(
+    A: np.ndarray,
+    ndiags: int,
+) -> np.ndarray:
+    """ Perform the LU factorization of an n-diagonals matrix. The matrix is assumed to be non-singular.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Input matrix to decompose.
+    ndiags : int
+        Number of diagonals of the matrix.
+    blocksize : int
+        Size of the blocks.
+    
+    Returns
+    -------
+    L : np.ndarray
+        Lower factor of the LU factorization of the matrix.
+    U : np.ndarray
+        Upper factor of the LU factorization of the matrix.
+    """
+
+    L = np.zeros_like(A)
+    U = np.zeros_like(A)
+
+    n_offdiags_blk = ndiags // 2
+
+    nblocks = A.shape[0]
+    for i in range(0, nblocks-1):
+        # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
+        L[i, i], U[i, i] = 1, A[i, i]
+
+        # Invert L_{i, i} and U_{i, i} for later use
+        # L_inv_temp = A.dtype(1)
+        U_inv_temp = 1 / U[i, i]
+
+        for j in range(1, min(n_offdiags_blk+1, nblocks-i)):
+            # L_{i+j, i} = A_{i+j, i} @ U{i, i}^{-1}
+            L[i+j, i] = A[i+j, i] * U_inv_temp
+
+            # U_{i, i+j} = L{i, i}^{-1} @ A_{i, i+j}  
+            # U[i, i+j] = L_inv_temp * A[i, i+j]
+            U[i, i+j] = A[i, i+j]
+
+            for k in range(1, j):
+                # A_{i+j, i+k} = A_{i+j, i+k} - L_{i+j, i} @ U_{i, i+k}
+                A[i+j, i+k] = A[i+j, i+k] - L[i+j, i] * U[i, i+k]
+
+                # A_{i+k, i+j} = A_{i+k, i+j} - L_{i+k, i} @ U_{i, i+j}
+                A[i+k, i+j] = A[i+k, i+j] - L[i+k, i] * U[i, i+j]
+
+            # A_{i+j, i+j} = A_{i+j, i+j} - L_{i+j, i} @ U_{i, i+j}
+            A[i+j, i+j] = A[i+j, i+j] - L[i+j, i] * U[i, i+j]
+
+    # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
+    L[-1, -1], U[-1, -1] = 1, A[-1, -1]
+
+    return L, U
 
 
 def lu_dcmp_ndiags_arrowhead(
