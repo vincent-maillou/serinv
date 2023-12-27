@@ -9,6 +9,7 @@ Tests for lu selected decompositions routines.
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
+import copy
 from sdr.utils import matrix_generation
 from sdr.lu.lu_decompose import lu_dcmp_ndiags_bsize_one
 
@@ -21,6 +22,8 @@ import pytest
 
 # Testing of block n-diagonals lu
 if __name__ == "__main__":
+    np.set_printoptions(edgeitems=30, linewidth=100000, 
+    formatter=dict(float=lambda x: "%.3g" % x))
     nblocks = 12
     ndiags = 7
     blocksize = 1
@@ -28,10 +31,10 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
+    A_origin = matrix_generation.generate_block_ndiags(
         nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
-
+    A = copy.deepcopy(A_origin)
 
     # --- Decomposition ---
 

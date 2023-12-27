@@ -9,8 +9,183 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
 
+import copy
 import numpy as np
 import scipy.linalg as la
+
+from sdr.utils import matrix_generation
+
+
+def invert_LU(LU: np.ndarray) -> np.ndarray:
+    """ Invert a triangular matrix.
+    
+    Parameters
+    ----------
+    A : np.ndarray
+        The triangular matrix to invert.
+    lower : bool
+        Whether the matrix is lower or upper triangular.
+    
+    Returns
+    -------
+    A_inv : np.ndarray
+        The inverted triangular matrix.
+    """
+    n = LU.shape[0]
+    
+    for i in range(n):
+        LU[i, i] = 1 / LU[i, i]
+        for j in range(i):
+            s = 0
+            for k in range(j, i):
+                s += LU[k, i] * LU[j, k]
+            LU[j,i] = - s * LU[i, i]
+    
+    for i in range(n):
+        for j in range(i):
+            s = LU[i, j]
+            for k in range(j+1, i):
+                s += LU[i, k] * LU[k, j]
+            LU[i,j] = - s
+
+
+    L = np.tril(LU, k=-1) + np.eye(n, dtype=LU.dtype)
+    U = np.triu(LU, k=0)    
+        
+    
+    return U @ L
+
+
+
+
+# def sinv_ndiags_greg(
+#     in_A: np.ndarray,
+#     ndiags: int,
+# ) -> np.ndarray:
+#     """ Perform the LU factorization of an n-diagonals matrix. The matrix is assumed to be non-singular.
+
+#     Parameters
+#     ----------
+#     A : np.ndarray
+#         Input matrix to decompose.
+#     ndiags : int
+#         Number of diagonals of the matrix above the main diagonal. The total number of diagonals is 2*ndiags+1.
+#     blocksize : int
+#         Size of the blocks.
+    
+#     Returns
+#     -------
+#     L : np.ndarray
+#         Lower factor of the LU factorization of the matrix.
+#     U : np.ndarray
+#         Upper factor of the LU factorization of the matrix.
+#     """
+
+
+#     A_inv_str = np.zeros(in_A.shape, dtype=in_A.dtype)
+#     A = copy.deepcopy(in_A)
+#     # in-place LU decomposition without pivoting
+#     n = A.shape[0]
+#     for k in range(n):
+#         A[k, k] = 1 / A[k, k]
+
+#         for i in range(k+1,min(k+1 + ndiags, n)): #(n-1, k, -1)
+#             A[i, k] = A[i,k] * A[k,k]
+#             for j in range(k+1,min(k+1 + ndiags, n)): #range(n-1, k, -1): 
+#                 A[i,j]  -= A[i,k]*A[k,j]      
+
+#         A_inv_str[k,k] = A[k,k] 
+#         for i in range(k): #range(max(0, k - ndiags), k): 
+#             s1 = A[i, k] * A[i, i]
+#             s2 = A[k, i]
+
+#             for j in range(i+1, k):  
+#                 s1 += A[j, k] * A[i, j]
+#                 s2 += A[k, j] * A[j, i]
+#             A[i,k] = - s1 * A[k, k]
+#             A[k,i] = - s2
+
+
+#             A_inv_str[i,k] = A[i,k] 
+#             A_inv_str[k,i] = A[k,i] * A[k,k] 
+#             for j in range(i):
+#                 A_inv_str[i,j] +=  A[i,k]*A[k,j]
+#                 A_inv_str[j,i] +=  A[j,k]*A[k,i]
+#             A_inv_str[i,i] += A[i,k]*A[k,i] 
+
+#     LU = copy.deepcopy(A)
+    
+
+#     U = np.triu(LU, k=0)
+#     L = np.tril(LU, k=-1) + np.eye(n, dtype=A.dtype)
+#     A_inv = U @ L
+
+#     return U @ L
+
+
+
+
+def sinv_ndiags_greg(
+    in_A: np.ndarray,
+    ndiags: int,
+) -> np.ndarray:
+    """ Perform the LU factorization of an n-diagonals matrix. The matrix is assumed to be non-singular.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Input matrix to decompose.
+    ndiags : int
+        Number of diagonals of the matrix above the main diagonal. The total number of diagonals is 2*ndiags+1.
+    blocksize : int
+        Size of the blocks.
+    
+    Returns
+    -------
+    L : np.ndarray
+        Lower factor of the LU factorization of the matrix.
+    U : np.ndarray
+        Upper factor of the LU factorization of the matrix.
+    """
+
+
+    A_inv_str = np.zeros(in_A.shape, dtype=in_A.dtype)
+    A = copy.deepcopy(in_A)
+    n = A.shape[0]
+    for k in range(n):
+        # BEGIN in-place LU decomposition without pivoting
+        A[k, k] = 1 / A[k, k]
+
+        for i in range(k+1,min(k+1 + ndiags, n)): #(n-1, k, -1)
+            A[i, k] = A[i,k] * A[k,k]
+            for j in range(k+1,min(k+1 + ndiags, n)): #range(n-1, k, -1): 
+                A[i,j]  -= A[i,k]*A[k,j]      
+        # END in-place LU decomposition without pivoting
+
+        A_inv_str[k,k] = A[k,k] 
+
+        # BEGIN invert in-place LU decomposition (two triangular L and U matrices are stored in A)
+        for i in range(max(0, k - ndiags), k):  # range(k): #
+            s1 = A[i, k] * A[i, i]
+            s2 = A[k, i]
+
+            for j in range(i+1, k):  
+                s1 += A[j, k] * A[i, j]
+                s2 += A[k, j] * A[j, i]
+            A[i,k] = - s1 * A[k, k]
+            A[k,i] = - s2
+            # END invert in-place LU decomposition (two triangular L and U matrices are stored in A)
+
+            # BEGIN matrix-matrix multiplcation of U^(k-1) L^(k-1) (stored in A)
+            A_inv_str[i,k] = A[i,k] 
+            A_inv_str[k,i] = A[k,i] * A[k,k] 
+            for j in range(i):
+                A_inv_str[i,j] +=  A[i,k]*A[k,j]
+                A_inv_str[j,i] +=  A[j,k]*A[k,i]
+            A_inv_str[i,i] += A[i,k]*A[k,i] 
+            # END matrix-matrix multiplcation of U^(k-1) L^(k-1) (stored in A)
+
+    return A_inv_str
 
 
 
@@ -45,6 +220,15 @@ def lu_sinv_tridiag(
     L_blk_inv = la.solve_triangular(L[-blocksize:, -blocksize:], np.eye(blocksize), lower=True)
     U_blk_inv = la.solve_triangular(U[-blocksize:, -blocksize:], np.eye(blocksize), lower=False)
     X[-blocksize:, -blocksize:] = U_blk_inv @ L_blk_inv
+
+    LU = L[-blocksize:, -blocksize:] + U[-blocksize:, -blocksize:] - np.eye(blocksize, dtype=L.dtype)
+    tmp = invert_LU(LU)
+
+    Aa = matrix_generation.generate_blocktridiag(
+        5, 2, False, True, 63
+    )
+    Pp, Ll, Uu = la.lu(copy.deepcopy(Aa))
+    Aa_inv = sinv_ndiags_greg(copy.deepcopy(Aa), 3)
 
     nblocks = L.shape[0] // blocksize
     for i in range(nblocks-2, -1, -1):

@@ -252,7 +252,9 @@ def lu_dcmp_ndiags_bsize_one(
         # L_inv_temp = A.dtype(1)
         U_inv_temp = 1 / U[i, i]
 
-        for j in range(1, min(n_offdiags_blk+1, nblocks-i)):
+        for j in range(1, nblocks-i): 
+            if j >= n_offdiags_blk+1:
+                a =1 
             # L_{i+j, i} = A_{i+j, i} @ U{i, i}^{-1}
             L[i+j, i] = A[i+j, i] * U_inv_temp
 
