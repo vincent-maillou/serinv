@@ -154,7 +154,7 @@ def sinv_ndiags_greg(
     n = A.shape[0]
     for k in range(n):
         # BEGIN in-place LU decomposition without pivoting
-        A[k, k] = 1 / A[k, k]
+        A[k, k] = 1 / A[k, k]  # <- this is NOT the part of LU! This is already a first step of INVERSION
 
         for i in range(k+1,min(k+1 + ndiags, n)): #(n-1, k, -1)
             A[i, k] = A[i,k] * A[k,k]
@@ -162,7 +162,8 @@ def sinv_ndiags_greg(
                 A[i,j]  -= A[i,k]*A[k,j]      
         # END in-place LU decomposition without pivoting
 
-        A_inv_str[k,k] = A[k,k] 
+        A_inv_str[k,k] = A[k,k]  # <- A will hold  LU inverted. la.tril(A) is L^(-1), 
+                                 #  la.triu(A) is U^(-1), A_inv_str is  U^(-1) @ L^(-1)
 
         # BEGIN invert in-place LU decomposition (two triangular L and U matrices are stored in A)
         for i in range(max(0, k - ndiags), k):  # range(k): #
@@ -182,6 +183,8 @@ def sinv_ndiags_greg(
             for j in range(i):
                 A_inv_str[i,j] +=  A[i,k]*A[k,j]
                 A_inv_str[j,i] +=  A[j,k]*A[k,i]
+            if i == 0:
+                print(f"A[i,i] = {A_inv_str[i,i]}, A[i,k] = {A[i,k]}, A[k,i] = {A[k,i]}, res={A_inv_str[i,i] + A[i,k]*A[k,i]}, i={i}, k={k}")
             A_inv_str[i,i] += A[i,k]*A[k,i] 
             # END matrix-matrix multiplcation of U^(k-1) L^(k-1) (stored in A)
 
@@ -222,13 +225,13 @@ def lu_sinv_tridiag(
     X[-blocksize:, -blocksize:] = U_blk_inv @ L_blk_inv
 
     LU = L[-blocksize:, -blocksize:] + U[-blocksize:, -blocksize:] - np.eye(blocksize, dtype=L.dtype)
-    tmp = invert_LU(LU)
+    # tmp = invert_LU(LU)
 
-    Aa = matrix_generation.generate_blocktridiag(
-        5, 2, False, True, 63
-    )
-    Pp, Ll, Uu = la.lu(copy.deepcopy(Aa))
-    Aa_inv = sinv_ndiags_greg(copy.deepcopy(Aa), 3)
+    # Aa = matrix_generation.generate_blocktridiag(
+    #     5, 2, False, True, 63
+    # )
+    # Pp, Ll, Uu = la.lu(copy.deepcopy(Aa))
+    # Aa_inv = sinv_ndiags_greg(copy.deepcopy(Aa), 3)
 
     nblocks = L.shape[0] // blocksize
     for i in range(nblocks-2, -1, -1):
