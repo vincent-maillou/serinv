@@ -87,3 +87,6 @@ def test_cholesky_decompose_ndiags_arrowhead(
     L_sdr = chol_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
 
     assert np.allclose(L_ref, L_sdr)
+
+
+
