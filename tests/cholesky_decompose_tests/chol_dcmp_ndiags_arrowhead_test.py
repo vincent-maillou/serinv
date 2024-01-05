@@ -88,5 +88,3 @@ def test_cholesky_decompose_ndiags_arrowhead(
 
     assert np.allclose(L_ref, L_sdr)
 
-
-
