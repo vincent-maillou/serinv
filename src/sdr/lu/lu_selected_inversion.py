@@ -14,6 +14,7 @@ import numpy as np
 import scipy.linalg as la
 
 from sdr.utils import matrix_generation
+from tracing import CDAG, Vertex, Edge, sinv_cdag
 
 
 def invert_LU(LU: np.ndarray) -> np.ndarray:
@@ -123,72 +124,127 @@ def invert_LU(LU: np.ndarray) -> np.ndarray:
 #     return U @ L
 
 
+def cut_to_banded(
+    A: np.ndarray,
+    ndiags : int
+):
+    for i in range(A.shape[0]):
+        for j in range(A.shape[1]):
+            if abs(i-j) > ndiags:
+                A[i, j] = 0
+    return A
 
 
 def sinv_ndiags_greg(
     in_A: np.ndarray,
     ndiags: int,
 ) -> np.ndarray:
-    """ Perform the LU factorization of an n-diagonals matrix. The matrix is assumed to be non-singular.
+    """ Perform the selected inversion on the given input matrix in_A. The sparsity structure is encoded in the loop ranges
+    (lines 160, 162, 170, 174, 184)
 
     Parameters
     ----------
-    A : np.ndarray
+    in_A : np.ndarray
         Input matrix to decompose.
     ndiags : int
         Number of diagonals of the matrix above the main diagonal. The total number of diagonals is 2*ndiags+1.
-    blocksize : int
-        Size of the blocks.
     
     Returns
     -------
-    L : np.ndarray
-        Lower factor of the LU factorization of the matrix.
-    U : np.ndarray
-        Upper factor of the LU factorization of the matrix.
+    A_inv_str : np.ndarray
+        A_inv_str = in_A^{-1} * nonzero_mask
     """
 
+
+    import scipy as sp
+    p, l, u = sp.linalg.lu(in_A)
+    ref_lu = u + np.tril(l, k=-1)
+    ref_inv_lu = np.linalg.inv(u) + np.tril(np.linalg.inv(l), k=-1)
+    another = lu_sinv_tridiag(l, u, 1)
 
     A_inv_str = np.zeros(in_A.shape, dtype=in_A.dtype)
     A = copy.deepcopy(in_A)
     n = A.shape[0]
     for k in range(n):
         # BEGIN in-place LU decomposition without pivoting
+        sinv_cdag.add([Vertex("A", A, (k, k), output=False)], Vertex("A", A, (k, k), output=True))
         A[k, k] = 1 / A[k, k]  # <- this is NOT the part of LU! This is already a first step of INVERSION
 
+        # for i in range(k+1,min(n, n)): #(n-1, k, -1)
         for i in range(k+1,min(k+1 + ndiags, n)): #(n-1, k, -1)
+            sinv_cdag.add([Vertex("A", A, (i, k), output=False), Vertex("A", A, (k, k), output=False)], Vertex("A", A, (i, k), output=True))
             A[i, k] = A[i,k] * A[k,k]
+            # for j in range(k+1,min(n, n)): #range(n-1, k, -1): 
             for j in range(k+1,min(k+1 + ndiags, n)): #range(n-1, k, -1): 
+                sinv_cdag.add([Vertex("A", A, (i, j), output=False), 
+                               Vertex("A", A, (i, k), output=False), 
+                               Vertex("A", A, (k, j), output=False)], 
+                               Vertex("A", A, (i, j), output=True))
                 A[i,j]  -= A[i,k]*A[k,j]      
         # END in-place LU decomposition without pivoting
 
+        sinv_cdag.add([Vertex("A", A, (k, k), output=False)], Vertex("A_inv_str", A_inv_str,  (k, k), output=True))
         A_inv_str[k,k] = A[k,k]  # <- A will hold  LU inverted. la.tril(A) is L^(-1), 
                                  #  la.triu(A) is U^(-1), A_inv_str is  U^(-1) @ L^(-1)
 
         # BEGIN invert in-place LU decomposition (two triangular L and U matrices are stored in A)
         for i in range(max(0, k - ndiags), k):  # range(k): #
-            s1 = A[i, k] * A[i, i]
-            s2 = A[k, i]
+        # for i in range(max(0, 0), k):  # range(k): #
+            sinv_cdag.add([Vertex("A", A, (i, k), output=False),
+                        Vertex("A", A, (i, i), output=False)], 
+                        Vertex("A", A, (i, k), output=True))
+            A[i,k] = A[i, k] * A[i, i]
+            sinv_cdag.add([Vertex("A", A, (k, i), output=False)],
+                        Vertex("A", A, (k, i), output=True))
+            A[k,i] = -A[k, i]
 
             for j in range(i+1, k):  
-                s1 += A[j, k] * A[i, j]
-                s2 += A[k, j] * A[j, i]
-            A[i,k] = - s1 * A[k, k]
-            A[k,i] = - s2
+                sinv_cdag.add([Vertex("A", A, (j, k), output=False),
+                            Vertex("A", A, (i, j), output=False),
+                            Vertex("A", A, (i, k), output=False)],
+                            Vertex("A", A, (i, k), output=True))
+                A[i,k] += A[j, k] * A[i, j]
+                sinv_cdag.add([Vertex("A", A, (k, j), output=False),
+                            Vertex("A", A, (j, i), output=False),
+                            Vertex("A", A, (k, i), output=False)],
+                            Vertex("A", A, (k, i), output=True))
+                A[k,i] -= A[k, j] * A[j, i]
+            sinv_cdag.add([Vertex("A", A, (i, k), output=False),
+                           Vertex("A", A, (k,k), output=False)],
+                           Vertex("A", A, (i,k), output=True))
+            A[i,k] = - A[i,k] * A[k, k]
+            # A[k,i] = - A[k,i]
             # END invert in-place LU decomposition (two triangular L and U matrices are stored in A)
 
             # BEGIN matrix-matrix multiplcation of U^(k-1) L^(k-1) (stored in A)
             A_inv_str[i,k] = A[i,k] 
+
+            # test
             A_inv_str[k,i] = A[k,i] * A[k,k] 
+            # A[ k,i] = A[k,i] * A[k,k] 
             for j in range(i):
+                # A[i,j] +=  A[i,k]*A[k,j]
+                # A[j,i] +=  A[j,k]*A[k,i]
+                sinv_cdag.add([Vertex("A", A, (i, k), output=False),
+                               Vertex("A", A, (k, j), output=False),
+                               Vertex("A_inv_str", A_inv_str, (i, j), output=False)],
+                               Vertex("A_inv_str", A_inv_str, (i, j), output=True))
                 A_inv_str[i,j] +=  A[i,k]*A[k,j]
+                sinv_cdag.add([Vertex("A", A, (j, k), output=False),
+                               Vertex("A", A, (k, i), output=False),
+                               Vertex("A_inv_str", A_inv_str, (j, i), output=False)],
+                               Vertex("A_inv_str", A_inv_str, (j, i), output=True))
                 A_inv_str[j,i] +=  A[j,k]*A[k,i]
-            if i == 0:
-                print(f"A[i,i] = {A_inv_str[i,i]}, A[i,k] = {A[i,k]}, A[k,i] = {A[k,i]}, res={A_inv_str[i,i] + A[i,k]*A[k,i]}, i={i}, k={k}")
+            # if i == 0:
+            #     print(f"A[i,i] = {A_inv_str[i,i]}, A[i,k] = {A[i,k]}, A[k,i] = {A[k,i]}, res={A_inv_str[i,i] + A[i,k]*A[k,i]}, i={i}, k={k}")
             A_inv_str[i,i] += A[i,k]*A[k,i] 
+            # A[i,i] += A[i,k]*A[k,i] 
             # END matrix-matrix multiplcation of U^(k-1) L^(k-1) (stored in A)
 
+    # A_inv_str = np.triu(A, k=0) @ (np.tril(A, k=-1) + np.eye(n, dtype=A.dtype))
+    sinv_cdag.plot()
     return A_inv_str
+    # return A
 
 
 
@@ -225,13 +281,6 @@ def lu_sinv_tridiag(
     X[-blocksize:, -blocksize:] = U_blk_inv @ L_blk_inv
 
     LU = L[-blocksize:, -blocksize:] + U[-blocksize:, -blocksize:] - np.eye(blocksize, dtype=L.dtype)
-    # tmp = invert_LU(LU)
-
-    # Aa = matrix_generation.generate_blocktridiag(
-    #     5, 2, False, True, 63
-    # )
-    # Pp, Ll, Uu = la.lu(copy.deepcopy(Aa))
-    # Aa_inv = sinv_ndiags_greg(copy.deepcopy(Aa), 3)
 
     nblocks = L.shape[0] // blocksize
     for i in range(nblocks-2, -1, -1):
