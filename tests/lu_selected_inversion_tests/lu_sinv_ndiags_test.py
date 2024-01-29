@@ -28,7 +28,9 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     # --- Inversion ---
 
@@ -69,7 +71,9 @@ def test_lu_sinv_ndiags(nblocks, ndiags, blocksize):
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     # --- Inversion ---
 

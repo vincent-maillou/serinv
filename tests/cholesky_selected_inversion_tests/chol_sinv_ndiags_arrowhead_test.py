@@ -30,7 +30,13 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     # --- Inversion ---
@@ -69,13 +75,21 @@ if __name__ == "__main__":
         (15, 7, 1, 2),
     ],
 )
-def test_cholesky_sinv_ndiags_arrowhead(nblocks, ndiags, diag_blocksize, arrow_blocksize):
+def test_cholesky_sinv_ndiags_arrowhead(
+    nblocks, ndiags, diag_blocksize, arrow_blocksize
+):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     # --- Inversion ---

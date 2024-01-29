@@ -28,7 +28,13 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     plt.matshow(A)
@@ -79,13 +85,21 @@ if __name__ == "__main__":
         (15, 7, 1, 2),
     ],
 )
-def test_lu_decompose_ndiags_arrowhead(nblocks, ndiags, diag_blocksize, arrow_blocksize):
+def test_lu_decompose_ndiags_arrowhead(
+    nblocks, ndiags, diag_blocksize, arrow_blocksize
+):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     # --- Decomposition ---

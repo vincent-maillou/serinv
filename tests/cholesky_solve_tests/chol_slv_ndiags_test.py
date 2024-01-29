@@ -27,7 +27,9 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
@@ -79,7 +81,9 @@ def test_cholesky_decompose_ndiags(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)

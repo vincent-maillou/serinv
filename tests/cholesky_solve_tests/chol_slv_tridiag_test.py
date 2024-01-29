@@ -26,7 +26,9 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_tridiag(A, blocksize)
@@ -78,7 +80,9 @@ def test_cholesky_slv_tridiag(nblocks: int, blocksize: int, nrhs: int):
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_tridiag(A, blocksize)

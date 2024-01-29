@@ -27,7 +27,9 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     # P_ref, L_ref, U_ref = la.lu(A)
     lu_ref, p_ref = la.lu_factor(A)
@@ -80,7 +82,9 @@ def test_lu_decompose_ndiags(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     lu_ref, p_ref = la.lu_factor(A)
     L_sdr, U_sdr = lu_dcmp_ndiags(A, ndiags, blocksize)
