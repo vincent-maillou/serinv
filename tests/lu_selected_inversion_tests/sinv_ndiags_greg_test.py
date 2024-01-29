@@ -1,4 +1,4 @@
-from sdr.lu.lu_selected_inversion import sinv_ndiags_greg
+from sdr.lu.lu_selected_inversion import sinv_ndiags_greg, sinv_tridiag_explicit
 
 
 import numpy as np
@@ -67,26 +67,31 @@ def test_sinv_ndiags_greg(
         ndiags: int
 ):
     matrix_size = 6
-    ndiags = 1
+    ndiags = 2
     A = create_banded_matrix(matrix_size, ndiags)
     reference_inverse = np.linalg.inv(A)
     # assert(np.allclose(reference_inverse @ A, np.eye(matrix_size), atol=1e-07))
     assert np.linalg.norm(reference_inverse @ A- np.eye(matrix_size))/np.linalg.norm(A) < 1e-7
     
     # test_inverse = sinv_ndiags_greg(A, 2*ndiags)
-    test_inverse = sinv_ndiags_greg(A, matrix_size)
+    test_inverse = sinv_tridiag_explicit(A, ndiags)
+    # test_inverse = sinv_ndiags_greg(A, matrix_size)
+
+    # test_inverse_tridiag = 
     cut_to_banded(reference_inverse, ndiags)
     cut_to_banded(test_inverse, ndiags)
     assert np.allclose(test_inverse, reference_inverse)
 
 
 if __name__ == "__main__":
-    params = [(1, 0),
-         (2, 0),
-         (3, 0),
-         (4, 0),
-         (5, 0),
-         (3, 1),
+    
+    # [(1, 0),
+    #      (2, 0),
+    #      (3, 0),
+    #      (4, 0),
+    #      (5, 0),
+    params = \
+         [(3, 1),
          (4, 1),
          (5, 1),
          (5, 2),
