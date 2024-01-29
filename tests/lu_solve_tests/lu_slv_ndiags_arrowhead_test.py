@@ -29,7 +29,13 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     # P_ref, L_ref, U_ref = la.lu(A)
@@ -52,7 +58,9 @@ if __name__ == "__main__":
     ax[0].set_title("X_ref: Reference lu solver")
     ax[0].matshow(X_ref)
 
-    X_sdr = lu_slv_ndiags_arrowhead(L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize)
+    X_sdr = lu_slv_ndiags_arrowhead(
+        L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize
+    )
     ax[1].set_title("X_sdr: Selected lu solver")
     ax[1].matshow(X_sdr)
 
@@ -89,7 +97,13 @@ def test_lu_slv_ndiags_arrowhead(
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     lu_ref, p_ref = la.lu_factor(A)
@@ -98,6 +112,8 @@ def test_lu_slv_ndiags_arrowhead(
     B = np.random.randn(A.shape[0], nrhs)
 
     X_ref = la.lu_solve((lu_ref, p_ref), B)
-    X_sdr = lu_slv_ndiags_arrowhead(L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize)
+    X_sdr = lu_slv_ndiags_arrowhead(
+        L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize
+    )
 
     assert np.allclose(X_ref, X_sdr)

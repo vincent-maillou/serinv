@@ -25,7 +25,9 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     # --- Decomposition ---
     # permute_l is default but to raise awareness that this would fail otherwise ...
@@ -80,7 +82,9 @@ def test_lu_decompose_tridiag(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     # --- Decomposition ---
 

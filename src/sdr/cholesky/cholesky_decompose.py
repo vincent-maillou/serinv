@@ -42,25 +42,48 @@ def chol_dcmp_tridiag(
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = la.cholesky(
+        L[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = la.cholesky(
             L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize]
         ).T
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L[(i + 1) * blocksize : (i + 2) * blocksize, i * blocksize : (i + 1) * blocksize] = (
-            A[(i + 1) * blocksize : (i + 2) * blocksize, i * blocksize : (i + 1) * blocksize]
+        L[
+            (i + 1) * blocksize : (i + 2) * blocksize,
+            i * blocksize : (i + 1) * blocksize,
+        ] = (
+            A[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ]
             @ la.solve_triangular(
-                L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+                L[
+                    i * blocksize : (i + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
+                ],
                 np.eye(blocksize),
                 lower=True,
             ).T
         )
 
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}^{T}
-        L[(i + 1) * blocksize : (i + 2) * blocksize, (i + 1) * blocksize : (i + 2) * blocksize] = (
-            A[(i + 1) * blocksize : (i + 2) * blocksize, (i + 1) * blocksize : (i + 2) * blocksize]
-            - L[(i + 1) * blocksize : (i + 2) * blocksize, i * blocksize : (i + 1) * blocksize]
-            @ L[(i + 1) * blocksize : (i + 2) * blocksize, i * blocksize : (i + 1) * blocksize].T
+        L[
+            (i + 1) * blocksize : (i + 2) * blocksize,
+            (i + 1) * blocksize : (i + 2) * blocksize,
+        ] = (
+            A[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                (i + 1) * blocksize : (i + 2) * blocksize,
+            ]
+            - L[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ]
+            @ L[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ].T
         )
 
     L[-blocksize:, -blocksize:] = la.cholesky(L[-blocksize:, -blocksize:]).T
@@ -97,40 +120,71 @@ def chol_dcmp_tridiag_arrowhead(
     n_diag_blocks = (A.shape[0] - arrow_blocksize) // diag_blocksize
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] = la.cholesky(
-            A[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+        L[
+            i * diag_blocksize : (i + 1) * diag_blocksize,
+            i * diag_blocksize : (i + 1) * diag_blocksize,
+        ] = la.cholesky(
+            A[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ]
         ).T
 
         # Temporary storage of used twice lower triangular solving
         L_inv_temp = la.solve_triangular(
-            L[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize],
+            L[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ],
             np.eye(diag_blocksize),
             lower=True,
         ).T
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            A[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+        L[
+            (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+            i * diag_blocksize : (i + 1) * diag_blocksize,
+        ] = (
+            A[
+                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ]
             @ L_inv_temp
         )
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            A[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize] @ L_inv_temp
+            A[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
+            @ L_inv_temp
         )
 
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.T
-        A[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
-            A[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-            - L[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
-            @ L[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize].T
+        A[
+            (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+            (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+        ] = (
+            A[
+                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+            ]
+            - L[
+                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ]
+            @ L[
+                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ].T
         )
 
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.T
         A[-arrow_blocksize:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
             A[-arrow_blocksize:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
             - L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            @ L[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize].T
+            @ L[
+                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ].T
         )
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.T
@@ -142,7 +196,8 @@ def chol_dcmp_tridiag_arrowhead(
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
     L[
-        -(diag_blocksize + arrow_blocksize) : -arrow_blocksize, -(diag_blocksize + arrow_blocksize) : -arrow_blocksize
+        -(diag_blocksize + arrow_blocksize) : -arrow_blocksize,
+        -(diag_blocksize + arrow_blocksize) : -arrow_blocksize,
     ] = la.cholesky(
         A[
             -(diag_blocksize + arrow_blocksize) : -arrow_blocksize,
@@ -171,7 +226,9 @@ def chol_dcmp_tridiag_arrowhead(
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-    L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(A[-arrow_blocksize:, -arrow_blocksize:]).T
+    L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(
+        A[-arrow_blocksize:, -arrow_blocksize:]
+    ).T
 
     return L
 
@@ -207,27 +264,50 @@ def chol_dcmp_ndiags(
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = la.cholesky(
+        L[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = la.cholesky(
             A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize]
         ).T
 
         # Temporary storage of re-used triangular solving
         L_inv_temp = la.solve_triangular(
-            L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize], np.eye(blocksize), lower=True
+            L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+            np.eye(blocksize),
+            lower=True,
         ).T
 
         for j in range(1, min(n_offdiags_blk + 1, nblocks - i)):
             # L_{i+j, i} = A_{i+j, i} @ L_{i, i}^{-T}
-            L[(i + j) * blocksize : (i + j + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
-                A[(i + j) * blocksize : (i + j + 1) * blocksize, i * blocksize : (i + 1) * blocksize] @ L_inv_temp
+            L[
+                (i + j) * blocksize : (i + j + 1) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ] = (
+                A[
+                    (i + j) * blocksize : (i + j + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
+                ]
+                @ L_inv_temp
             )
 
             for k in range(1, j + 1):
                 # A_{i+j, i+k} = A_{i+j, i+k} - L_{i+j, i} @ L_{i+k, i}^{T}
-                A[(i + j) * blocksize : (i + j + 1) * blocksize, (i + k) * blocksize : (i + k + 1) * blocksize] = (
-                    A[(i + j) * blocksize : (i + j + 1) * blocksize, (i + k) * blocksize : (i + k + 1) * blocksize]
-                    - L[(i + j) * blocksize : (i + j + 1) * blocksize, i * blocksize : (i + 1) * blocksize]
-                    @ L[(i + k) * blocksize : (i + k + 1) * blocksize, i * blocksize : (i + 1) * blocksize].T
+                A[
+                    (i + j) * blocksize : (i + j + 1) * blocksize,
+                    (i + k) * blocksize : (i + k + 1) * blocksize,
+                ] = (
+                    A[
+                        (i + j) * blocksize : (i + j + 1) * blocksize,
+                        (i + k) * blocksize : (i + k + 1) * blocksize,
+                    ]
+                    - L[
+                        (i + j) * blocksize : (i + j + 1) * blocksize,
+                        i * blocksize : (i + 1) * blocksize,
+                    ]
+                    @ L[
+                        (i + k) * blocksize : (i + k + 1) * blocksize,
+                        i * blocksize : (i + 1) * blocksize,
+                    ].T
                 )
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
@@ -270,13 +350,22 @@ def chol_dcmp_ndiags_arrowhead(
     n_diag_blocks = (A.shape[0] - arrow_blocksize) // diag_blocksize
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] = la.cholesky(
-            A[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+        L[
+            i * diag_blocksize : (i + 1) * diag_blocksize,
+            i * diag_blocksize : (i + 1) * diag_blocksize,
+        ] = la.cholesky(
+            A[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ]
         ).T
 
         # Temporary storage of re-used triangular solving
         L_inv_temp = la.solve_triangular(
-            L[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize],
+            L[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ],
             np.eye(diag_blocksize),
             lower=True,
         ).T
@@ -284,7 +373,8 @@ def chol_dcmp_ndiags_arrowhead(
         for j in range(1, min(n_offdiags_blk + 1, n_diag_blocks - i)):
             # L_{i+j, i} = A_{i+j, i} @ L_{i, i}^{-T}
             L[
-                (i + j) * diag_blocksize : (i + j + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize
+                (i + j) * diag_blocksize : (i + j + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
             ] = (
                 A[
                     (i + j) * diag_blocksize : (i + j + 1) * diag_blocksize,
@@ -316,13 +406,20 @@ def chol_dcmp_ndiags_arrowhead(
         # Part of the decomposition for the arrowhead structure
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            A[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize] @ L_inv_temp
+            A[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
+            @ L_inv_temp
         )
 
         for k in range(1, min(n_offdiags_blk + 1, n_diag_blocks - i)):
             # A_{ndb+1, i+k} = A_{ndb+1, i+k} - L_{ndb+1, i} @ L_{i+k, i}^{T}
-            A[-arrow_blocksize:, (i + k) * diag_blocksize : (i + k + 1) * diag_blocksize] = (
-                A[-arrow_blocksize:, (i + k) * diag_blocksize : (i + k + 1) * diag_blocksize]
+            A[
+                -arrow_blocksize:,
+                (i + k) * diag_blocksize : (i + k + 1) * diag_blocksize,
+            ] = (
+                A[
+                    -arrow_blocksize:,
+                    (i + k) * diag_blocksize : (i + k + 1) * diag_blocksize,
+                ]
                 - L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
                 @ L[
                     (i + k) * diag_blocksize : (i + k + 1) * diag_blocksize,
@@ -339,9 +436,13 @@ def chol_dcmp_ndiags_arrowhead(
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
     L[
-        -diag_blocksize - arrow_blocksize : -arrow_blocksize, -diag_blocksize - arrow_blocksize : -arrow_blocksize
+        -diag_blocksize - arrow_blocksize : -arrow_blocksize,
+        -diag_blocksize - arrow_blocksize : -arrow_blocksize,
     ] = la.cholesky(
-        A[-diag_blocksize - arrow_blocksize : -arrow_blocksize, -diag_blocksize - arrow_blocksize : -arrow_blocksize]
+        A[
+            -diag_blocksize - arrow_blocksize : -arrow_blocksize,
+            -diag_blocksize - arrow_blocksize : -arrow_blocksize,
+        ]
     ).T
 
     # L_{ndb+1, nbd} = A_{ndb+1, nbd} @ L_{ndb, ndb}^{-T}
@@ -365,6 +466,8 @@ def chol_dcmp_ndiags_arrowhead(
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-    L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(A[-arrow_blocksize:, -arrow_blocksize:]).T
+    L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(
+        A[-arrow_blocksize:, -arrow_blocksize:]
+    ).T
 
     return L

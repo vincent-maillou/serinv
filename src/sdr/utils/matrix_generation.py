@@ -45,16 +45,16 @@ def generate_blocktridiag(
     A = np.zeros((matrice_size, matrice_size))
 
     for i in range(nblocks):
-        A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = np.random.rand(
-            blocksize, blocksize
-        )
+        A[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = np.random.rand(blocksize, blocksize)
         if i > 0:
-            A[i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize] = np.random.rand(
-                blocksize, blocksize
-            )
-            A[(i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize] = np.random.rand(
-                blocksize, blocksize
-            )
+            A[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ] = np.random.rand(blocksize, blocksize)
+            A[
+                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            ] = np.random.rand(blocksize, blocksize)
 
     if symmetric:
         A = A + A.T
@@ -108,24 +108,28 @@ def generate_block_ndiags(
     A = np.zeros((matrice_size, matrice_size))
 
     for i in range(nblocks):
-        A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = np.random.rand(
-            blocksize, blocksize
-        )
+        A[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = np.random.rand(blocksize, blocksize)
         for j in range(1, (ndiags + 1) // 2):
             if i + j < nblocks:
-                A[i * blocksize : (i + 1) * blocksize, (i + j) * blocksize : (i + j + 1) * blocksize] = np.random.rand(
-                    blocksize, blocksize
-                )
-                A[(i + j) * blocksize : (i + j + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = np.random.rand(
-                    blocksize, blocksize
-                )
+                A[
+                    i * blocksize : (i + 1) * blocksize,
+                    (i + j) * blocksize : (i + j + 1) * blocksize,
+                ] = np.random.rand(blocksize, blocksize)
+                A[
+                    (i + j) * blocksize : (i + j + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
+                ] = np.random.rand(blocksize, blocksize)
             if i - j >= 0:
-                A[i * blocksize : (i + 1) * blocksize, (i - j) * blocksize : (i - j + 1) * blocksize] = np.random.rand(
-                    blocksize, blocksize
-                )
-                A[(i - j) * blocksize : (i - j + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = np.random.rand(
-                    blocksize, blocksize
-                )
+                A[
+                    i * blocksize : (i + 1) * blocksize,
+                    (i - j) * blocksize : (i - j + 1) * blocksize,
+                ] = np.random.rand(blocksize, blocksize)
+                A[
+                    (i - j) * blocksize : (i - j + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
+                ] = np.random.rand(blocksize, blocksize)
 
     if symmetric:
         A = A + A.T
@@ -176,23 +180,28 @@ def generate_blocktridiag_arrowhead(
     for i in range(nblocks):
         if i < nblocks - 1:
             A[
-                i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
             ] = np.random.rand(diag_blocksize, diag_blocksize)
             if i > 0:
                 A[
-                    i * diag_blocksize : (i + 1) * diag_blocksize, (i - 1) * diag_blocksize : i * diag_blocksize
+                    i * diag_blocksize : (i + 1) * diag_blocksize,
+                    (i - 1) * diag_blocksize : i * diag_blocksize,
                 ] = np.random.rand(diag_blocksize, diag_blocksize)
                 A[
-                    (i - 1) * diag_blocksize : i * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize
+                    (i - 1) * diag_blocksize : i * diag_blocksize,
+                    i * diag_blocksize : (i + 1) * diag_blocksize,
                 ] = np.random.rand(diag_blocksize, diag_blocksize)
 
             A[
-                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize + arrow_blocksize,
+                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize
+                + arrow_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
             ] = np.random.rand(arrow_blocksize, diag_blocksize)
             A[
                 i * diag_blocksize : (i + 1) * diag_blocksize,
-                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize + arrow_blocksize,
+                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize
+                + arrow_blocksize,
             ] = np.random.rand(diag_blocksize, arrow_blocksize)
 
         else:
@@ -253,7 +262,8 @@ def generate_ndiags_arrowhead(
     for i in range(nblocks):
         if i < nblocks - 1:
             A[
-                i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
             ] = np.random.rand(diag_blocksize, diag_blocksize)
             for j in range(1, (ndiags + 1) // 2):
                 if i + j < nblocks - 1:
@@ -276,12 +286,14 @@ def generate_ndiags_arrowhead(
                     ] = np.random.rand(diag_blocksize, diag_blocksize)
 
             A[
-                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize + arrow_blocksize,
+                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize
+                + arrow_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
             ] = np.random.rand(arrow_blocksize, diag_blocksize)
             A[
                 i * diag_blocksize : (i + 1) * diag_blocksize,
-                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize + arrow_blocksize,
+                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize
+                + arrow_blocksize,
             ] = np.random.rand(diag_blocksize, arrow_blocksize)
 
         else:

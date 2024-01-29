@@ -30,7 +30,13 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     # --- Inversion ---
@@ -44,7 +50,9 @@ if __name__ == "__main__":
     ax[0].set_title("X_ref: Scipy reference inversion")
     ax[0].matshow(X_ref)
 
-    X_sdr = lu_sinv_ndiags_arrowhead(L_sdr, U_sdr, ndiags, diag_blocksize, arrow_blocksize)
+    X_sdr = lu_sinv_ndiags_arrowhead(
+        L_sdr, U_sdr, ndiags, diag_blocksize, arrow_blocksize
+    )
     ax[1].set_title("X_sdr: LU selected inversion")
     ax[1].matshow(X_sdr)
 
@@ -69,13 +77,21 @@ if __name__ == "__main__":
         (15, 7, 1, 2),
     ],
 )
-def test_sinv_decompose_ndiags_arrowhead(nblocks, ndiags, diag_blocksize, arrow_blocksize):
+def test_sinv_decompose_ndiags_arrowhead(
+    nblocks, ndiags, diag_blocksize, arrow_blocksize
+):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     # --- Inversion ---
@@ -84,6 +100,8 @@ def test_sinv_decompose_ndiags_arrowhead(nblocks, ndiags, diag_blocksize, arrow_
     X_ref = cut_to_blockndiags_arrowhead(X_ref, ndiags, diag_blocksize, arrow_blocksize)
 
     L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
-    X_sdr = lu_sinv_ndiags_arrowhead(L_sdr, U_sdr, ndiags, diag_blocksize, arrow_blocksize)
+    X_sdr = lu_sinv_ndiags_arrowhead(
+        L_sdr, U_sdr, ndiags, diag_blocksize, arrow_blocksize
+    )
 
     assert np.allclose(X_ref, X_sdr)

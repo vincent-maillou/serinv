@@ -22,7 +22,9 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     plt.matshow(A)
 
@@ -55,7 +57,9 @@ if __name__ == "__main__":
 
     plt.matshow(A_inv)
 
-    A_cut = matrix_transform.cut_to_blocktridiag_arrowhead(A_inv, diag_blocksize, arrow_blocksize)
+    A_cut = matrix_transform.cut_to_blocktridiag_arrowhead(
+        A_inv, diag_blocksize, arrow_blocksize
+    )
 
     plt.matshow(A_cut)
 

@@ -36,14 +36,18 @@ def cut_to_blocktridiag(
     A_cut = np.zeros((matrice_size, matrice_size))
 
     for i in range(nblocks):
-        A_cut[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = A[
+        A_cut[
             i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ]
+        ] = A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize]
         if i > 0:
-            A_cut[i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize] = A[
+            A_cut[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ] = A[
                 i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
             ]
-            A_cut[(i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize] = A[
+            A_cut[
+                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            ] = A[
                 (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
             ]
 
@@ -79,30 +83,46 @@ def cut_to_blocktridiag_arrowhead(
 
     for i in range(nblocks):
         if i < nblocks - 1:
-            A_cut[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] = A[
-                i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize
+            A_cut[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ] = A[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
             ]
             if i > 0:
-                A_cut[i * diag_blocksize : (i + 1) * diag_blocksize, (i - 1) * diag_blocksize : i * diag_blocksize] = A[
-                    i * diag_blocksize : (i + 1) * diag_blocksize, (i - 1) * diag_blocksize : i * diag_blocksize
+                A_cut[
+                    i * diag_blocksize : (i + 1) * diag_blocksize,
+                    (i - 1) * diag_blocksize : i * diag_blocksize,
+                ] = A[
+                    i * diag_blocksize : (i + 1) * diag_blocksize,
+                    (i - 1) * diag_blocksize : i * diag_blocksize,
                 ]
-                A_cut[(i - 1) * diag_blocksize : i * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] = A[
-                    (i - 1) * diag_blocksize : i * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize
+                A_cut[
+                    (i - 1) * diag_blocksize : i * diag_blocksize,
+                    i * diag_blocksize : (i + 1) * diag_blocksize,
+                ] = A[
+                    (i - 1) * diag_blocksize : i * diag_blocksize,
+                    i * diag_blocksize : (i + 1) * diag_blocksize,
                 ]
 
             A_cut[
-                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize + arrow_blocksize,
+                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize
+                + arrow_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
             ] = A[
-                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize + arrow_blocksize,
+                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize
+                + arrow_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
             ]
             A_cut[
                 i * diag_blocksize : (i + 1) * diag_blocksize,
-                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize + arrow_blocksize,
+                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize
+                + arrow_blocksize,
             ] = A[
                 i * diag_blocksize : (i + 1) * diag_blocksize,
-                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize + arrow_blocksize,
+                (nblocks - 1) * diag_blocksize : (nblocks - 1) * diag_blocksize
+                + arrow_blocksize,
             ]
 
         else:
@@ -147,11 +167,19 @@ def cut_to_blockndiags(
     for i in range(nblocks):
         for j in range((ndiags // 2) + 1):
             if i + j < nblocks:
-                A_cut[i * blocksize : (i + 1) * blocksize, (i + j) * blocksize : (i + j + 1) * blocksize] = A[
-                    i * blocksize : (i + 1) * blocksize, (i + j) * blocksize : (i + j + 1) * blocksize
+                A_cut[
+                    i * blocksize : (i + 1) * blocksize,
+                    (i + j) * blocksize : (i + j + 1) * blocksize,
+                ] = A[
+                    i * blocksize : (i + 1) * blocksize,
+                    (i + j) * blocksize : (i + j + 1) * blocksize,
                 ]
-                A_cut[(i + j) * blocksize : (i + j + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = A[
-                    (i + j) * blocksize : (i + j + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+                A_cut[
+                    (i + j) * blocksize : (i + j + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
+                ] = A[
+                    (i + j) * blocksize : (i + j + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
                 ]
 
     return A_cut
@@ -212,6 +240,8 @@ def cut_to_blockndiags_arrowhead(
             i * diag_blocksize : (i + 1) * diag_blocksize, -arrow_blocksize:
         ]
 
-    A_cut[-arrow_blocksize:, -arrow_blocksize:] = A[-arrow_blocksize:, -arrow_blocksize:]
+    A_cut[-arrow_blocksize:, -arrow_blocksize:] = A[
+        -arrow_blocksize:, -arrow_blocksize:
+    ]
 
     return A_cut

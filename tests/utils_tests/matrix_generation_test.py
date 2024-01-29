@@ -20,7 +20,9 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(nblocks, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     plt.matshow(A)
     plt.title("Block tridiagonal matrix \n blocksize = " + str(blocksize))
@@ -52,10 +54,14 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed)
+    A = matrix_generation.generate_block_ndiags(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
+    )
 
     plt.matshow(A)
-    plt.title("Block " + str(ndiags) + "-diagonals matrix \n blocksize = " + str(blocksize))
+    plt.title(
+        "Block " + str(ndiags) + "-diagonals matrix \n blocksize = " + str(blocksize)
+    )
     plt.show()
 
 
@@ -69,7 +75,13 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     plt.matshow(A)
