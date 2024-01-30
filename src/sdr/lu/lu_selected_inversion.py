@@ -104,6 +104,7 @@ def sinv_tridiag_explicit(in_A: np.ndarray,
                      blocksize: int) -> np.ndarray:
     L, U = lu_dcmp_tridiag_explicit(in_A, blocksize=blocksize)
     LU_inv = lu_sinv_tridiag_explicit(L, U, blocksize=blocksize)
+    sinv_cdag.plot()
     return LU_inv
 
 
@@ -352,6 +353,9 @@ def lu_sinv_tridiag(
         )
 
         # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i}) L_{i, i}^{-1}
+        print(f"U_blk_inv:")
+        print(U_blk_inv)
+        print(f"X[i*blocksize:(i+1)*blocksize, (i+1)*blocksize:(i+2)*blocksize]:")
         X[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
             U_blk_inv
             - X[i * blocksize : (i + 1) * blocksize, (i + 1) * blocksize : (i + 2) * blocksize]
@@ -422,11 +426,11 @@ def lu_sinv_tridiag_explicit(
         # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i}) L_{i, i}^{-1}
         X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] = \
             MMM_explicit(
-                MMM_explicit(
-                    subs_explicit(
-                        U_blk_inv,
-                        X[i*blocksize:(i+1)*blocksize, (i+1)*blocksize:(i+2)*blocksize]),
-                    L[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize]),
+                subs_explicit(
+                    U_blk_inv,
+                    MMM_explicit(
+                        X[i*blocksize:(i+1)*blocksize, (i+1)*blocksize:(i+2)*blocksize],
+                        L[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize])),
             L_blk_inv)
 
     return X

@@ -66,7 +66,7 @@ def test_sinv_ndiags_greg(
         matrix_size: int,
         ndiags: int
 ):
-    matrix_size = 6
+    matrix_size = 8
     ndiags = 2
     A = create_banded_matrix(matrix_size, ndiags)
     reference_inverse = np.linalg.inv(A)
@@ -74,8 +74,8 @@ def test_sinv_ndiags_greg(
     assert np.linalg.norm(reference_inverse @ A- np.eye(matrix_size))/np.linalg.norm(A) < 1e-7
     
     # test_inverse = sinv_ndiags_greg(A, 2*ndiags)
-    test_inverse = sinv_tridiag_explicit(A, ndiags)
-    # test_inverse = sinv_ndiags_greg(A, matrix_size)
+    # test_inverse = sinv_tridiag_explicit(A, ndiags)
+    test_inverse = sinv_ndiags_greg(A, matrix_size)
 
     # test_inverse_tridiag = 
     cut_to_banded(reference_inverse, ndiags)

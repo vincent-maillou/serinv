@@ -178,6 +178,8 @@ class CDAG:
 
         redundant_vertices = []
         for u in self.vertices:
+            if u not in G.nodes:
+                continue
             if not any(nx.algorithms.has_path(G, u, v) for v in out_vertices):
                 redundant_vertices.append(u)
         return redundant_vertices
