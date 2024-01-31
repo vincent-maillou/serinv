@@ -13,48 +13,62 @@ import numpy as np
 import scipy.linalg as la
 
 
-
-def chol_dcmp_tridiag(
+def chol_dcmp_tridiag_inPlace(
     A: np.ndarray,
-    blocksize: int,
-) -> np.ndarray:
-    """ Perform the cholesky factorization of a block tridiagonal matrix. The 
+    blocksize: int
+):
+    """ Perform the cholesky factorization of a block tridiagonal matrix in place. The 
     matrix is assumed to be symmetric positive definite.
-
-    Current implementation doesn't modify the input matrix A.
     
     Parameters
     ----------
     A : np.ndarray
-        Input matrix to decompose.
+        Input matrix to decompose. Overwrites A.
     blocksize : int
         Size of the blocks.
     
-    Returns
-    -------
-    L : np.ndarray
-        The cholesky factorization of the matrix.
     """
 
-    L = np.zeros_like(A)
-
-    L[0:blocksize, 0:blocksize] = A[0:blocksize, 0:blocksize]
+    #L[0:blocksize, 0:blocksize] = A[0:blocksize, 0:blocksize]
 
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks-1):
         # L_{i, i} = chol(A_{i, i})
-        L[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] = la.cholesky(L[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize]).T
+        A[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] = la.cholesky(A[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize]).T
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize] = A[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize] @ la.solve_triangular(L[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize], np.eye(blocksize), lower=True).T
+        A[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize] = A[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize] @ la.solve_triangular(A[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize], np.eye(blocksize), lower=True).T
         
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}^{T}
-        L[(i+1)*blocksize:(i+2)*blocksize, (i+1)*blocksize:(i+2)*blocksize] = A[(i+1)*blocksize:(i+2)*blocksize, (i+1)*blocksize:(i+2)*blocksize] - L[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize] @ L[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize].T
+        A[(i+1)*blocksize:(i+2)*blocksize, (i+1)*blocksize:(i+2)*blocksize] = A[(i+1)*blocksize:(i+2)*blocksize, (i+1)*blocksize:(i+2)*blocksize] - A[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize] @ A[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize].T
        
-    L[-blocksize:, -blocksize:] = la.cholesky(L[-blocksize:, -blocksize:]).T
+    A[-blocksize:, -blocksize:] = la.cholesky(A[-blocksize:, -blocksize:]).T
+    
 
-    return L
-
+def chol_dcmp_tridiag(    
+    A: np.ndarray,
+    blocksize: int
+) -> np.ndarray:
+    """ Perform the cholesky factorization of a block tridiagonal matrix in place. The 
+    matrix is assumed to be symmetric positive definite.
+    
+    Parameters
+    ----------
+    A : np.ndarray
+        Input matrix to decompose. Overwrites A.
+    blocksize : int
+        Size of the blocks.
+        
+    Returns
+    -------
+    L : np.ndarray
+        The cholesky factorization of the matrix.
+    
+    """
+    
+    L = A.copy()
+    chol_dcmp_tridiag_inPlace(L, blocksize)
+    return np.tril(L)
 
 
 def chol_dcmp_tridiag_arrowhead(
