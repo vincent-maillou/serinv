@@ -3,6 +3,8 @@ from sdr.utils import matrix_generation
 
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.linalg as la
+
 
 
 def get_partitions_indices(
@@ -109,7 +111,12 @@ def top_factorize(
     L_arrow_bottom = np.zeros_like(A_arrow_bottom)
     U_arrow_right = np.zeros_like(A_arrow_right)
 
-    # TODO: HERE
+    nblocks = A_local.shape[0] // blocksize
+
+    for i in range(1, nblocks):
+        LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] = A_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] @ np.linalg.inv(A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize])
+        LU_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]   = np.linalg.inv(A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize]) @ A_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]
+        A_local[i * blocksize : (i+1) * blocksize, i * blocksize : (i+1) * blocksize]    = A_local[i * blocksize : (i+1) * blocksize, i * blocksize : (i+1) * blocksize] - LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] @ A_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]
 
     return LU_local, L_arrow_bottom, U_arrow_right
 
