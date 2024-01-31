@@ -3,9 +3,6 @@ from sdr.utils import matrix_generation
 
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.linalg as la
-
-
 
 def get_partitions_indices(
     n_partitions: int,
@@ -114,11 +111,16 @@ def top_factorize(
     nblocks = A_local.shape[0] // blocksize
 
     for i in range(1, nblocks):
+        # L[i, i-1] = A[i, i-1] @ A[i-1, i-1]^(-1)
         LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] = A_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] @ np.linalg.inv(A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize])
+        
+        # U[i-1, i] = A[i-1, i-1]^(-1) @ A[i-1, i]
         LU_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]   = np.linalg.inv(A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize]) @ A_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]
+        
+        # A[i, i] = A[i, i] - L[i, i-1] @ A[i-1, i]
         A_local[i * blocksize : (i+1) * blocksize, i * blocksize : (i+1) * blocksize]    = A_local[i * blocksize : (i+1) * blocksize, i * blocksize : (i+1) * blocksize] - LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] @ A_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]
 
-    return LU_local, L_arrow_bottom, U_arrow_right
+    return A_local, LU_local, L_arrow_bottom, U_arrow_right
 
 
 
@@ -238,11 +240,16 @@ if __name__ == "__main__":
 
 
     for process in range(0, n_partitions):
-        if process == 1:
+        if process == 0:
             A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[process], partition_sizes[process], diag_blocksize, arrow_blocksize)
 
             psr_arrowhead(A_local, A_arrow_bottom, A_arrow_right, diag_blocksize, arrow_blocksize, process)
 
+
+        if process == 1:
+            A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[process], partition_sizes[process], diag_blocksize, arrow_blocksize)
+
+            psr_arrowhead(A_local, A_arrow_bottom, A_arrow_right, diag_blocksize, arrow_blocksize, process)
 
         """ plt.matshow(A_local)
         plt.title("A_local process: " + str(process))
