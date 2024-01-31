@@ -76,7 +76,6 @@ def get_partitions_indices(
     return start_blockrows, partition_sizes, end_blockrows
 
 
-
 def extract_partition(
     A_global: np.ndarray,
     start_blockrow: int, 
@@ -96,6 +95,83 @@ def extract_partition(
     A_arrow_right  = A_global[start_blockrow*blocksize:stop_blockrow*blocksize, -arrow_blocksize:-1]
 
     return A_local, A_arrow_bottom, A_arrow_right
+
+
+def top_factorize(
+    A_local: np.ndarray,
+    A_arrow_bottom: np.ndarray, 
+    A_arrow_right: np.ndarray,
+    blocksize: int,
+    arrowhead_blocksize: int,
+) -> [np.ndarray, np.ndarray, np.ndarray]:
+
+    LU_local = np.zeros_like(A_local)
+    L_arrow_bottom = np.zeros_like(A_arrow_bottom)
+    U_arrow_right = np.zeros_like(A_arrow_right)
+
+    # TODO: HERE
+
+    return LU_local, L_arrow_bottom, U_arrow_right
+
+
+
+def middle_factorize(
+    A_local: np.ndarray,
+    A_arrow_bottom: np.ndarray, 
+    A_arrow_right: np.ndarray,
+    blocksize: int,
+    arrowhead_blocksize: int,
+) -> [np.ndarray, np.ndarray, np.ndarray]:
+
+    LU_local = np.zeros_like(A_local)
+    L_arrow_bottom = np.zeros_like(A_arrow_bottom)
+    U_arrow_right = np.zeros_like(A_arrow_right)
+
+    # TODO: HERE
+
+    return LU_local, L_arrow_bottom, U_arrow_right
+
+
+def create_reduce_system():
+    pass
+
+
+def inverse_reduced_system():
+    pass
+
+
+def top_sinv()
+    pass
+
+
+def middle_sinv()
+    pass
+
+
+def psr_arrowhead(
+    A_local: np.ndarray,
+    A_arrow_bottom: np.ndarray, 
+    A_arrow_right: np.ndarray,
+    blocksize: int,
+    arrowhead_blocksize: int,
+):
+
+    if process == 0:
+        top_factorize()
+    else:
+        middle_factorize()
+
+    reduced_system = create_reduce_system()
+
+    S_reduced_system = inverse_reduced_system(reduced_system)
+
+    if process == 0:
+        S_local, S_arrow_bottom, S_arrow_right = top_sinv()
+    else:
+        S_local, S_arrow_bottom, S_arrow_right = middle_sinv()
+
+    return S_local, S_arrow_bottom, S_arrow_right
+
 
 
 if __name__ == "__main__":
@@ -121,6 +197,10 @@ if __name__ == "__main__":
     for process in range(0, n_partitions):
         A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[process], partition_sizes[process], diag_blocksize, arrow_blocksize)
 
+        S_local, S_arrow_bottom, S_arrow_right = psr_arrowhead(A_local, A_arrow_bottom, A_arrow_right, diag_blocksize, arrow_blocksize)
+
+
+
         plt.matshow(A_local)
         plt.title("A_local process: " + str(process))
 
@@ -130,4 +210,3 @@ if __name__ == "__main__":
         plt.matshow(A_arrow_right)
         plt.title("A_arrow_right process: " + str(process))
         plt.show() 
-
