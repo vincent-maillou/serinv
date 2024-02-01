@@ -1,4 +1,6 @@
 from sdr.utils import matrix_generation
+from sdr.lu import lu_dcmp_tridiag_arrowhead
+from sdr.lu import lu_sinv_tridiag_arrowhead
 
 
 import numpy as np
@@ -182,6 +184,7 @@ def create_reduced_system(
     arrow_blocksize, 
     Bridges_upper, 
     Bridges_lower, 
+    A_global_arrow_tip,
     local_arrow_tip_update, 
     process,
     total_num_processes
@@ -190,6 +193,7 @@ def create_reduced_system(
     # create empty matrix for reduced system -> (2*#process - 1)*blocksize + arrowhead_size
     size_reduced_system = (2*total_num_processes - 1) * blocksize + arrow_blocksize
     reduced_system = np.zeros(size_reduced_system, size_reduced_system)
+    reduced_system[-arrow_blocksize:, -arrow_blocksize:] = local_arrow_tip_update
 
     if process == 0:
         pass
@@ -203,7 +207,6 @@ def create_reduced_system(
         
     else:
         
-        # process
         start_index = blocksize + (process - 1) * 2 * blocksize
         reduced_system[start_index : start_index + blocksize, start_index - blocksize : start_index] = Bridges_lower[process]
         reduced_system[start_index : start_index + blocksize, start_index : start_index + blocksize] = A_local[:blocksize, :blocksize]
@@ -219,17 +222,28 @@ def create_reduced_system(
         reduced_system[start_index : start_index + blocksize, -arrow_blocksize:] = A_arrow_right[:blocksize, :]
         reduced_system[start_index + blocksize : start_index + 2*blocksize, -arrow_blocksize:] = A_arrow_right[-blocksize:, :]
         
-        # send with MPI_Allgather
+        # send with MPI_AllReduce
 
     # all processes 
+    
+    reduced_system[-arrow_blocksize:, -arrow_blocksize:] = A_global_arrow_tip
     
     return reduced_system
     
 
+def inverse_reduced_system(reduced_system, diag_blocksize, arrowhead_blocksize):
+    
+    #n_blocks = (reduced_system.shape[0] - arrowhead_blocksize) // diag_blocksize
+    
+    L_reduced, U_reduced = lu_dcmp_tridiag_arrowhead(reduced_system, diag_blocksize, arrowhead_blocksize)
+    S_reduced  = lu_sinv_tridiag_arrowhead(L_reduced,  U_reduced, diag_blocksize, arrowhead_blocksize)
+    
+    return S_reduced
 
-def inverse_reduced_system():
+def update_sinv_reduced_system():
+    
+    # revert create_reduced_system() -> write into S_local but use indices from A_local ...
     pass
-
 
 def top_sinv( 
     A_local: np.ndarray,

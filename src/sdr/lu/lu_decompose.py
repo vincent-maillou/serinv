@@ -113,7 +113,7 @@ def lu_dcmp_tridiag_arrowhead(
     A: np.ndarray,
     diag_blocksize: int,
     arrow_blocksize: int,
-) -> np.ndarray:
+) -> [np.ndarray, np.ndarray]:
     """Perform the lu factorization of a block tridiagonal arrowhead
     matrix. The matrix is assumed to be non singular.
 
