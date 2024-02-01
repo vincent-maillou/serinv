@@ -113,12 +113,20 @@ def top_factorize(
     for i in range(1, nblocks):
         # L[i, i-1] = A[i, i-1] @ A[i-1, i-1]^(-1)
         LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] = A_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] @ np.linalg.inv(A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize])
+        #LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] = np.linalg.solve(A_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize].T, A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize].T).T
+
         
         # U[i-1, i] = A[i-1, i-1]^(-1) @ A[i-1, i]
         LU_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]   = np.linalg.inv(A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize]) @ A_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]
-        
+        #LU_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]   = np.linalg.solve(A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize], A_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize])
+
+        # A_{i+1, ndb+1} = A_{i+1, ndb+1} - L_{i+1, i} @ U_{i, ndb+1}
+
+        # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ U_{i, ndb+1}
+
         # A[i, i] = A[i, i] - L[i, i-1] @ A[i-1, i]
         A_local[i * blocksize : (i+1) * blocksize, i * blocksize : (i+1) * blocksize]    = A_local[i * blocksize : (i+1) * blocksize, i * blocksize : (i+1) * blocksize] - LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] @ A_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]
+
 
     return A_local, LU_local, L_arrow_bottom, U_arrow_right
 
@@ -174,9 +182,36 @@ def inverse_reduced_system():
     pass
 
 
-def top_sinv():
-    pass
+def top_sinv( 
+    A_local: np.ndarray,
+    A_arrow_bottom: np.ndarray, 
+    A_arrow_right: np.ndarray,
+    LU_local: np.ndarray, 
+    L_arrow_bottom: np.ndarray, 
+    U_arrow_right: np.ndarray, 
+    S_local: np.ndarray, 
+    S_arrow_bottom: np.ndarray, 
+    S_arrow_right: np.ndarray,
+    blocksize: int,
+    arrowhead_blocksize: int
+) -> [np.ndarray]:
+        
+    n_blocks = A_local.shape[0] // blocksize
+    
+    # for now initialize S_local[nblocks, nblocks] = inv(A_local[nblocks, nblocks])
+    #S_local[(n_blocks - 1)*blocksize:n_blocks*blocksize, (n_blocks - 1)*blocksize:n_blocks*blocksize] = np.linalg.inv(A_local[(n_blocks - 1)*blocksize:n_blocks*blocksize, (n_blocks - 1)*blocksize:n_blocks*blocksize])
 
+    for i in range(n_blocks-1, 0, -1):
+        # S[i,i-1] = - S[i,i] @ L[i,i-1]
+        S_local[i*blocksize: (i+1)*blocksize, (i-1)*blocksize: i*blocksize] = - S_local[i*blocksize: (i+1)*blocksize, i*blocksize: (i+1)*blocksize] @ LU_local[i*blocksize: (i+1)*blocksize, (i-1)*blocksize: i*blocksize]
+       
+        # S[i-1,i] = - U[i-1,i] @ S[i,i]
+        S_local[(i-1)*blocksize: i*blocksize, i*blocksize: (i+1)*blocksize] = - LU_local[(i-1)*blocksize: i*blocksize, i*blocksize: (i+1)*blocksize] @ S_local[i*blocksize: (i+1)*blocksize, i*blocksize: (i+1)*blocksize]
+        
+        # S[i-1,i-1] = inv(A[i-1,i-1]) - U[i-1, i] @ S[i,i-1]
+        S_local[(i-1)*blocksize: i*blocksize, (i-1)*blocksize: i*blocksize] = np.linalg.inv(A_local[(i-1)*blocksize: i*blocksize, (i-1)*blocksize: i*blocksize]) - LU_local[(i-1)*blocksize: i*blocksize, i*blocksize: (i+1)*blocksize] @ S_local[i*blocksize: (i+1)*blocksize, (i-1)*blocksize: i*blocksize]
+    
+    return S_local, S_arrow_bottom, S_arrow_right
 
 def middle_sinv():
     pass
