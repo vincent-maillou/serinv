@@ -1,6 +1,6 @@
 from sdr.utils import matrix_generation
-from sdr.lu import lu_dcmp_tridiag_arrowhead
-from sdr.lu import lu_sinv_tridiag_arrowhead
+from sdr.lu import lu_decompose
+from sdr.lu import lu_selected_inversion
 
 
 import numpy as np
@@ -97,6 +97,33 @@ def extract_partition(
 
     return A_local, A_arrow_bottom, A_arrow_right
 
+
+def extract_bridges(
+    A_global: np.ndarray,
+    blocksize: int,
+    arrow_blocksize: int,
+    partition_sizes: list,
+) -> [list, list]:
+    
+    # without arrowhead tip
+    num_partitions = len(partition_sizes)
+    print("num partitions:")
+    print(num_partitions)
+    
+    # last bridge block different shape
+    Bridges_lower = []
+    Bridges_upper = []
+
+    for i in range(num_partitions-1):
+        start_index = sum(partition_sizes[:i+1]) * blocksize
+        print(start_index)
+        Bridges_lower.append(A_global[start_index : start_index + blocksize, start_index - blocksize : start_index])
+        Bridges_upper.append(A_global[start_index - blocksize : start_index, start_index : start_index + blocksize])
+
+    Bridges_lower.append(A_global[-arrow_blocksize:, -(arrow_blocksize+blocksize):-arrow_blocksize])
+    Bridges_upper.append(A_global[-(arrow_blocksize+blocksize):-arrow_blocksize, -arrow_blocksize:])   
+    
+    return Bridges_lower, Bridges_upper
 
 def top_factorize(
     A_local: np.ndarray,
@@ -240,10 +267,54 @@ def inverse_reduced_system(reduced_system, diag_blocksize, arrowhead_blocksize):
     
     return S_reduced
 
-def update_sinv_reduced_system():
+def update_sinv_reduced_system(blocksize: int, 
+                               arrow_blocksize: int, 
+                               reduced_system: np.ndarray, 
+                               S_local: np.ndarray, 
+                               S_arrow_bottom: np.ndarray, 
+                               S_arrow_right: np.ndarray,
+                               Bridges_upper: np.ndarray, 
+                               Bridges_lower: np.ndarray,
+                               process: int):
     
-    # revert create_reduced_system() -> write into S_local but use indices from A_local ...
-    pass
+
+    if process == 0:
+        S_local[-blocksize:, -blocksize:] = reduced_system[:blocksize, :blocksize]
+        Bridges_upper[process, :, :] = reduced_system[:blocksize, blocksize:2*blocksize] 
+        
+        S_arrow_bottom[arrow_blocksize, -blocksize:] = reduced_system[-arrow_blocksize:, :blocksize]
+        S_arrow_right[arrow_blocksize, -blocksize:] = reduced_system[:blocksize, -arrow_blocksize:]
+                
+    else:
+        
+        start_index = blocksize + (process - 1) * 2 * blocksize
+        Bridges_lower[process] = reduced_system[start_index : start_index + blocksize, start_index - blocksize : start_index] 
+        S_local[:blocksize, :blocksize] = reduced_system[start_index : start_index + blocksize, start_index : start_index + blocksize] 
+        S_local[:blocksize, -blocksize:] = reduced_system[start_index : start_index + blocksize, start_index + blocksize : start_index + 2 * blocksize] 
+        
+        S_local[-blocksize : , : blocksize] = reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index : start_index + blocksize] 
+        S_local[-blocksize : , -blocksize : ] = reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index + blocksize : start_index + 2 * blocksize] 
+        Bridges_upper[process, :, :] = reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index + 2 * blocksize : start_index + 3 * blocksize] 
+        
+        S_arrow_bottom[:, :blocksize] = reduced_system[-arrow_blocksize:, start_index : start_index + blocksize] 
+        S_arrow_bottom[:, -blocksize:] = reduced_system[-arrow_blocksize:, start_index + blocksize : start_index + 2*blocksize] 
+        
+        S_arrow_right[:blocksize, :] = reduced_system[start_index : start_index + blocksize, -arrow_blocksize:] 
+        S_arrow_right[-blocksize:, :] = reduced_system[start_index + blocksize : start_index + 2*blocksize, -arrow_blocksize:] 
+
+        
+        S_local[-blocksize : , : blocksize] = reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index : start_index + blocksize] 
+        S_local[-blocksize : , -blocksize : ] = reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index + blocksize : start_index + 2 * blocksize] 
+        Bridges_upper[process, :, :] = reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index + 2 * blocksize : start_index + 3 * blocksize]
+        
+        S_arrow_bottom[:, :blocksize] = reduced_system[-arrow_blocksize:, start_index : start_index + blocksize] 
+        S_arrow_bottom[:, -blocksize:] = reduced_system[-arrow_blocksize:, start_index + blocksize : start_index + 2*blocksize] 
+        
+        S_arrow_right[:blocksize, :] = reduced_system[start_index : start_index + blocksize, -arrow_blocksize:] 
+        S_arrow_right[-blocksize:, :] = reduced_system[start_index + blocksize : start_index + 2*blocksize, -arrow_blocksize:]
+        
+    return S_local, S_arrow_bottom, S_arrow_right
+
 
 def top_sinv( 
     A_local: np.ndarray,
@@ -289,6 +360,8 @@ def psr_arrowhead(
     process: int,
 ):
 
+    
+
     if process == 0:
         A_local, LU_local, L_arrow_bottom, U_arrow_right = top_factorize(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize)
     else:
@@ -302,6 +375,11 @@ def psr_arrowhead(
     plt.title("LU_local process: " + str(process))
 
     plt.show()
+    
+    # arrow tip factorize still missing
+    
+    create_reduced_system(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrow_blocksize, Bridges_upper, Bridges_lower, A_global_arrow_tip, local_arrow_tip_update, process, total_num_processes)
+    
 
 
     """ reduced_system = create_reduce_system()
