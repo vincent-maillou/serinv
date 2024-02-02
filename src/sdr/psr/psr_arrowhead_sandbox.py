@@ -4,7 +4,10 @@ from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
 
 
 import numpy as np
+import math
 import matplotlib.pyplot as plt
+from mpi4py import MPI
+
 
 def get_partitions_indices(
     n_partitions: int,
@@ -63,7 +66,7 @@ def get_partitions_indices(
     end_blockrows = []
 
     for i in range(n_partitions):
-        partition_sizes.append(round(partitions_distribution[i] * total_size))
+        partition_sizes.append(math.floor(partitions_distribution[i] * total_size))
 
     if sum(partition_sizes) != total_size:
         diff = total_size - sum(partition_sizes)
@@ -105,12 +108,9 @@ def extract_bridges(
     partition_sizes: list,
 ) -> [list, list]:
     
-    # without arrowhead tip
+    # Without arrowhead tip
     num_partitions = len(partition_sizes)
-    print("num partitions:")
-    print(num_partitions)
     
-    # last bridge block different shape
     Bridges_lower = []
     Bridges_upper = []
 
@@ -120,10 +120,8 @@ def extract_bridges(
         Bridges_lower.append(A_global[start_index : start_index + blocksize, start_index - blocksize : start_index])
         Bridges_upper.append(A_global[start_index - blocksize : start_index, start_index : start_index + blocksize])
 
-    Bridges_lower.append(A_global[-arrow_blocksize:, -(arrow_blocksize+blocksize):-arrow_blocksize])
-    Bridges_upper.append(A_global[-(arrow_blocksize+blocksize):-arrow_blocksize, -arrow_blocksize:])   
-    
     return Bridges_lower, Bridges_upper
+
 
 def top_factorize(
     A_local: np.ndarray,
@@ -214,53 +212,65 @@ def create_reduced_system(
     A_local, 
     A_arrow_bottom, 
     A_arrow_right, 
-    blocksize,
-    arrow_blocksize, 
+    A_global_arrow_tip, 
     Bridges_upper, 
     Bridges_lower, 
-    A_global_arrow_tip,
     local_arrow_tip_update, 
-    process,
-    total_num_processes
+    blocksize, 
+    arrowhead_blocksize
 ):
     
+    comm = MPI.COMM_WORLD
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     # create empty matrix for reduced system -> (2*#process - 1)*blocksize + arrowhead_size
-    size_reduced_system = (2*total_num_processes - 1) * blocksize + arrow_blocksize
-    reduced_system = np.zeros(size_reduced_system, size_reduced_system)
+    size_reduced_system = (2*comm_size - 1) * blocksize + arrow_blocksize
+    reduced_system = np.zeros((size_reduced_system, size_reduced_system))
     reduced_system[-arrow_blocksize:, -arrow_blocksize:] = local_arrow_tip_update
 
-    if process == 0:
+    if comm_rank == 0:
         pass
         reduced_system[:blocksize, :blocksize] = A_local[-blocksize:, -blocksize:]
-        reduced_system[:blocksize, blocksize:2*blocksize]  = Bridges_upper[process, :, :]
+        reduced_system[:blocksize, blocksize:2*blocksize]  = Bridges_upper[comm_rank]
         
-        reduced_system[-arrow_blocksize:, :blocksize] = A_arrow_bottom[arrow_blocksize, -blocksize:]
-        reduced_system[:blocksize, -arrow_blocksize:] = A_arrow_right[arrow_blocksize, -blocksize:]
-        
-        # send with MPI_Allgather
+        reduced_system[-arrow_blocksize:, :blocksize] = A_arrow_bottom[:, -blocksize:]
+        reduced_system[:blocksize, -arrow_blocksize:] = A_arrow_right[-blocksize:, :]
         
     else:
         
-        start_index = blocksize + (process - 1) * 2 * blocksize
-        reduced_system[start_index : start_index + blocksize, start_index - blocksize : start_index] = Bridges_lower[process]
+        start_index = blocksize + (comm_rank - 1) * 2 * blocksize
+        reduced_system[start_index : start_index + blocksize, start_index - blocksize : start_index] = Bridges_lower[comm_rank-1]
         reduced_system[start_index : start_index + blocksize, start_index : start_index + blocksize] = A_local[:blocksize, :blocksize]
         reduced_system[start_index : start_index + blocksize, start_index + blocksize : start_index + 2 * blocksize] = A_local[:blocksize, -blocksize:]
         
         reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index : start_index + blocksize] = A_local[-blocksize : , : blocksize]
         reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index + blocksize : start_index + 2 * blocksize] = A_local[-blocksize : , -blocksize : ]
-        reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index + 2 * blocksize : start_index + 3 * blocksize] = Bridges_upper[process, :, :]
+        
+        if comm_rank != comm_size-1:
+            reduced_system[start_index + blocksize : start_index + 2 * blocksize, start_index + 2 * blocksize : start_index + 3 * blocksize] = Bridges_upper[comm_rank]
         
         reduced_system[-arrow_blocksize:, start_index : start_index + blocksize] = A_arrow_bottom[:, :blocksize]
         reduced_system[-arrow_blocksize:, start_index + blocksize : start_index + 2*blocksize] = A_arrow_bottom[:, -blocksize:]
         
         reduced_system[start_index : start_index + blocksize, -arrow_blocksize:] = A_arrow_right[:blocksize, :]
         reduced_system[start_index + blocksize : start_index + 2*blocksize, -arrow_blocksize:] = A_arrow_right[-blocksize:, :]
-        
-        # send with MPI_AllReduce
 
-    # all processes 
+
+    """ plt.matshow(reduced_system)
+    plt.title("Reduced system process: " + str(comm_rank))
+    plt.show() """
+
+    # Send the reduced_system with MPIallReduce SUM operation
+    reduced_system_sum = np.zeros_like(reduced_system)
+    comm.Allreduce([reduced_system, MPI.DOUBLE], [reduced_system_sum, MPI.DOUBLE], op=MPI.SUM)
+
+    plt.matshow(reduced_system_sum)
+    plt.title("Reduced system process: " + str(comm_rank))
+    plt.show()
+
     
-    reduced_system[-arrow_blocksize:, -arrow_blocksize:] = A_global_arrow_tip
+    reduced_system[-arrow_blocksize:, -arrow_blocksize:] += A_global_arrow_tip
     
     return reduced_system
     
@@ -402,19 +412,36 @@ def psr_arrowhead(
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray, 
     A_arrow_right: np.ndarray,
+    A_global_arrow_tip: np.ndarray,
+    Bridges_upper, 
+    Bridges_lower,
     blocksize: int,
     arrowhead_blocksize: int,
-    process: int,
 ):
+    
+    comm = MPI.COMM_WORLD
+    comm_rank = comm.Get_rank()
 
-    if process == 0:
+    if comm_rank == 0:
         A_local, LU_local, L_arrow_bottom, U_arrow_right = top_factorize(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize)
     
     else:
         A_local, LU_local, L_arrow_bottom, U_arrow_right = middle_factorize(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize)
         
-    # create_reduced_system(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize, Bridges_upper, Bridges_lower, local_arrow_tip_update, process, total_num_processes)
-    
+
+    """ plt.matshow(A_local)
+    plt.title("A_local process: " + str(process))
+
+    plt.matshow(LU_local)
+    plt.title("LU_local process: " + str(process))
+    plt.show() """
+   
+    local_arrow_tip_update = np.zeros((arrowhead_blocksize, arrowhead_blocksize))
+
+    create_reduced_system(A_local, A_arrow_bottom, A_arrow_right, A_global_arrow_tip, Bridges_upper, Bridges_lower, local_arrow_tip_update, blocksize, arrowhead_blocksize)
+
+
+
     # invert_redcued_system(reduced_system, diag_blocksize, arrowhead_blocksize)
     
     # TODO: test
@@ -423,7 +450,7 @@ def psr_arrowhead(
     S_arrow_right = np.zeros_like(A_arrow_right)
     # update_sinv_reduced_system(blocksize, arrow_blocksize, reduced_system, S_local, S_arrow_bottom, S_arrow_right, Bridges_upper, Bridges_lower, process)
 
-    if process == 0:
+    if comm_rank == 0:
         S_local, S_arrow_bottom, S_arrow_right = top_sinv(A_local, LU_local, L_arrow_bottom, U_arrow_right, blocksize, arrowhead_blocksize)
 
     else:
@@ -445,35 +472,39 @@ if __name__ == "__main__":
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
         seed
     ) 
-
-    # plt.matshow(A)
-    # plt.title("A inital matrix")
  
-    n_partitions = 3
+    comm = MPI.COMM_WORLD
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    n_partitions = comm_size
 
     start_blockrows, partition_sizes, end_blockrows = get_partitions_indices(n_partitions=n_partitions, total_size=nblocks-1)
 
-    for process in range(0, n_partitions):
-        if process == 0:
-            A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[process], partition_sizes[process], diag_blocksize, arrow_blocksize)
+    Bridges_upper, Bridges_lower = extract_bridges(A, diag_blocksize, arrow_blocksize, partition_sizes)
 
-            psr_arrowhead(A_local, A_arrow_bottom, A_arrow_right, diag_blocksize, arrow_blocksize, process)
+    A_arrow_tip = A[-arrow_blocksize:, -arrow_blocksize:]
 
-        if process == 1:
-            A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[process], partition_sizes[process], diag_blocksize, arrow_blocksize)
+    if comm_rank == 0:
+        A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[comm_rank], partition_sizes[comm_rank], diag_blocksize, arrow_blocksize)
 
-            psr_arrowhead(A_local, A_arrow_bottom, A_arrow_right, diag_blocksize, arrow_blocksize, process)
+        psr_arrowhead(A_local, A_arrow_bottom, A_arrow_right, A_arrow_tip, Bridges_upper, Bridges_lower, diag_blocksize, arrow_blocksize)
+
+    else:
+        A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[comm_rank], partition_sizes[comm_rank], diag_blocksize, arrow_blocksize)
+
+        psr_arrowhead(A_local, A_arrow_bottom, A_arrow_right, A_arrow_tip, Bridges_upper, Bridges_lower, diag_blocksize, arrow_blocksize)
 
 
-        # reassemble S from S_local 
-        
-        
-        """ plt.matshow(A_local)
-        plt.title("A_local process: " + str(process))
+    # reassemble S from S_local 
+    
+    
+    """ plt.matshow(A_local)
+    plt.title("A_local process: " + str(process))
 
-        plt.matshow(A_arrow_bottom)
-        plt.title("A_arrow_bottom process: " + str(process))
+    plt.matshow(A_arrow_bottom)
+    plt.title("A_arrow_bottom process: " + str(process))
 
-        plt.matshow(A_arrow_right)
-        plt.title("A_arrow_right process: " + str(process))
-        plt.show()  """
+    plt.matshow(A_arrow_right)
+    plt.title("A_arrow_right process: " + str(process))
+    plt.show()  """
