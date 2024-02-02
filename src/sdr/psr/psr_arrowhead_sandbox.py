@@ -2,6 +2,9 @@ from sdr.utils import matrix_generation
 from sdr.lu.lu_decompose import lu_dcmp_tridiag_arrowhead
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
 
+from sdr.lu.lu_decompose import lu_dcmp_tridiag
+from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
+
 
 import numpy as np
 import math
@@ -116,7 +119,6 @@ def extract_bridges(
 
     for i in range(num_partitions-1):
         start_index = sum(partition_sizes[:i+1]) * blocksize
-        print(start_index)
         Bridges_lower.append(A_global[start_index : start_index + blocksize, start_index - blocksize : start_index])
         Bridges_upper.append(A_global[start_index - blocksize : start_index, start_index : start_index + blocksize])
 
@@ -265,24 +267,38 @@ def create_reduced_system(
     reduced_system_sum = np.zeros_like(reduced_system)
     comm.Allreduce([reduced_system, MPI.DOUBLE], [reduced_system_sum, MPI.DOUBLE], op=MPI.SUM)
 
-    plt.matshow(reduced_system_sum)
-    plt.title("Reduced system process: " + str(comm_rank))
-    plt.show()
+    reduced_system_sum[-arrow_blocksize:, -arrow_blocksize:] += A_global_arrow_tip
+    
 
-    
-    reduced_system[-arrow_blocksize:, -arrow_blocksize:] += A_global_arrow_tip
-    
-    return reduced_system
+    """ plt.matshow(reduced_system_sum)
+    plt.title("Reduced system process: " + str(comm_rank))
+    plt.show() """
+
+
+    return reduced_system_sum
     
 
 def inverse_reduced_system(reduced_system, diag_blocksize, arrowhead_blocksize):
     
-    #n_blocks = (reduced_system.shape[0] - arrowhead_blocksize) // diag_blocksize
+    n_diag_blocks = (reduced_system.shape[0] - arrowhead_blocksize) // diag_blocksize
     
-    L_reduced, U_reduced = lu_dcmp_tridiag_arrowhead(reduced_system, diag_blocksize, arrowhead_blocksize)
-    S_reduced  = lu_sinv_tridiag_arrowhead(L_reduced,  U_reduced, diag_blocksize, arrowhead_blocksize)
+    # For now with blk tridiag
+    # Cast the right size
+    reduced_system_sliced_to_tridiag = reduced_system[:n_diag_blocks*diag_blocksize, :n_diag_blocks*diag_blocksize]
     
+    L_reduced_sliced_to_tridiag, U_reduced_sliced_to_tridiag = lu_dcmp_tridiag(reduced_system_sliced_to_tridiag, diag_blocksize)
+    S_reduced_sliced_to_tridiag  = lu_sinv_tridiag(L_reduced_sliced_to_tridiag,  U_reduced_sliced_to_tridiag, diag_blocksize)
+    
+    S_reduced = np.zeros_like(reduced_system)
+    S_reduced[:n_diag_blocks*diag_blocksize, :n_diag_blocks*diag_blocksize] = S_reduced_sliced_to_tridiag
+
+    # Switch when arrowhead
+    # L_reduced, U_reduced = lu_dcmp_tridiag_arrowhead(reduced_system, diag_blocksize, arrowhead_blocksize)
+    # S_reduced  = lu_sinv_tridiag_arrowhead(L_reduced,  U_reduced, diag_blocksize, arrowhead_blocksize)
+
     return S_reduced
+
+
 
 def update_sinv_reduced_system(blocksize: int, 
                                arrow_blocksize: int, 
@@ -438,12 +454,16 @@ def psr_arrowhead(
    
     local_arrow_tip_update = np.zeros((arrowhead_blocksize, arrowhead_blocksize))
 
-    create_reduced_system(A_local, A_arrow_bottom, A_arrow_right, A_global_arrow_tip, Bridges_upper, Bridges_lower, local_arrow_tip_update, blocksize, arrowhead_blocksize)
+    reduced_system = create_reduced_system(A_local, A_arrow_bottom, A_arrow_right, A_global_arrow_tip, Bridges_upper, Bridges_lower, local_arrow_tip_update, blocksize, arrowhead_blocksize)
 
-
-
-    # invert_redcued_system(reduced_system, diag_blocksize, arrowhead_blocksize)
+    reduced_system_inv = inverse_reduced_system(reduced_system, diag_blocksize, arrowhead_blocksize)
     
+    plt.matshow(reduced_system_inv)
+    plt.title("reduced_system_inv process: " + str(comm_rank))
+    plt.show()
+
+
+
     # TODO: test
     S_local = np.zeros_like(A_local)
     S_arrow_bottom = np.zeros_like(A_arrow_bottom)
@@ -484,6 +504,8 @@ if __name__ == "__main__":
     Bridges_upper, Bridges_lower = extract_bridges(A, diag_blocksize, arrow_blocksize, partition_sizes)
 
     A_arrow_tip = A[-arrow_blocksize:, -arrow_blocksize:]
+
+
 
     if comm_rank == 0:
         A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[comm_rank], partition_sizes[comm_rank], diag_blocksize, arrow_blocksize)
