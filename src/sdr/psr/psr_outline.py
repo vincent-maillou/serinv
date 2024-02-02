@@ -5,7 +5,8 @@ import numpy as np
 
 
 
-
+def extract_bridges()
+    # 
 
 
 def top_factorization()
