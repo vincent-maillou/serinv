@@ -1,6 +1,6 @@
 from sdr.utils import matrix_generation
-from sdr.lu import lu_dcmp_tridiag_arrowhead
-from sdr.lu import lu_sinv_tridiag_arrowhead
+from sdr.lu.lu_decompose import lu_dcmp_tridiag_arrowhead
+from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
 
 
 import numpy as np
@@ -254,37 +254,40 @@ def update_sinv_reduced_system():
 
 def top_sinv( 
     A_local: np.ndarray,
-    A_arrow_bottom: np.ndarray, 
-    A_arrow_right: np.ndarray,
+    # A_arrow_bottom: np.ndarray, 
+    # A_arrow_right: np.ndarray,
     LU_local: np.ndarray, 
     L_arrow_bottom: np.ndarray, 
     U_arrow_right: np.ndarray, 
-    S_local: np.ndarray, 
-    S_arrow_bottom: np.ndarray, 
-    S_arrow_right: np.ndarray,
     blocksize: int,
-    arrowhead_blocksize: int
+    arrowhead_blocksize: int,
 ) -> [np.ndarray]:
         
     n_blocks = A_local.shape[0] // blocksize
-    
-    # for now initialize S_local[nblocks, nblocks] = inv(A_local[nblocks, nblocks])
-    #S_local[(n_blocks - 1)*blocksize:n_blocks*blocksize, (n_blocks - 1)*blocksize:n_blocks*blocksize] = np.linalg.inv(A_local[(n_blocks - 1)*blocksize:n_blocks*blocksize, (n_blocks - 1)*blocksize:n_blocks*blocksize])
 
-    for i in range(n_blocks-1, 0, -1):
-        # S[i,i-1] = - S[i,i] @ L[i,i-1]
-        S_local[i*blocksize: (i+1)*blocksize, (i-1)*blocksize: i*blocksize] = - S_local[i*blocksize: (i+1)*blocksize, i*blocksize: (i+1)*blocksize] @ LU_local[i*blocksize: (i+1)*blocksize, (i-1)*blocksize: i*blocksize]
+    S_local = np.zeros_like(A_local)
+    S_arrow_bottom = np.zeros_like(L_arrow_bottom)
+    S_arrow_right = np.zeros_like(U_arrow_right)
+    
+    # # for now initialize S_local[nblocks, nblocks] = inv(A_local[nblocks, nblocks])
+    # #S_local[(n_blocks - 1)*blocksize:n_blocks*blocksize, (n_blocks - 1)*blocksize:n_blocks*blocksize] = np.linalg.inv(A_local[(n_blocks - 1)*blocksize:n_blocks*blocksize, (n_blocks - 1)*blocksize:n_blocks*blocksize])
+
+    # for i in range(n_blocks-1, 0, -1):
+    #     # S[i,i-1] = - S[i,i] @ L[i,i-1]
+    #     S_local[i*blocksize: (i+1)*blocksize, (i-1)*blocksize: i*blocksize] = - S_local[i*blocksize: (i+1)*blocksize, i*blocksize: (i+1)*blocksize] @ LU_local[i*blocksize: (i+1)*blocksize, (i-1)*blocksize: i*blocksize]
        
-        # S[i-1,i] = - U[i-1,i] @ S[i,i]
-        S_local[(i-1)*blocksize: i*blocksize, i*blocksize: (i+1)*blocksize] = - LU_local[(i-1)*blocksize: i*blocksize, i*blocksize: (i+1)*blocksize] @ S_local[i*blocksize: (i+1)*blocksize, i*blocksize: (i+1)*blocksize]
+    #     # S[i-1,i] = - U[i-1,i] @ S[i,i]
+    #     S_local[(i-1)*blocksize: i*blocksize, i*blocksize: (i+1)*blocksize] = - LU_local[(i-1)*blocksize: i*blocksize, i*blocksize: (i+1)*blocksize] @ S_local[i*blocksize: (i+1)*blocksize, i*blocksize: (i+1)*blocksize]
         
-        # S[i-1,i-1] = inv(A[i-1,i-1]) - U[i-1, i] @ S[i,i-1]
-        S_local[(i-1)*blocksize: i*blocksize, (i-1)*blocksize: i*blocksize] = np.linalg.inv(A_local[(i-1)*blocksize: i*blocksize, (i-1)*blocksize: i*blocksize]) - LU_local[(i-1)*blocksize: i*blocksize, i*blocksize: (i+1)*blocksize] @ S_local[i*blocksize: (i+1)*blocksize, (i-1)*blocksize: i*blocksize]
+    #     # S[i-1,i-1] = inv(A[i-1,i-1]) - U[i-1, i] @ S[i,i-1]
+    #     S_local[(i-1)*blocksize: i*blocksize, (i-1)*blocksize: i*blocksize] = np.linalg.inv(A_local[(i-1)*blocksize: i*blocksize, (i-1)*blocksize: i*blocksize]) - LU_local[(i-1)*blocksize: i*blocksize, i*blocksize: (i+1)*blocksize] @ S_local[i*blocksize: (i+1)*blocksize, (i-1)*blocksize: i*blocksize]
     
     return S_local, S_arrow_bottom, S_arrow_right
 
 def middle_sinv(
     A_local: int, 
+    # A_arrow_bottom: np.ndarray, 
+    # A_arrow_right: np.ndarray,
     LU_local: int, 
     L_arrow_bottom: int, 
     U_arrow_right: int,
@@ -322,10 +325,6 @@ def middle_sinv(
 
     return S_local, S_arrow_bottom, S_arrow_right
 
-import copy as cp
-
-from sdr.lu.lu_decompose import lu_dcmp_tridiag
-from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
 
 
 def psr_arrowhead(
@@ -339,12 +338,12 @@ def psr_arrowhead(
 
     if process == 0:
         A_local, LU_local, L_arrow_bottom, U_arrow_right = top_factorize(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize)
+    
+        S_local, S_arrow_bottom, S_arrow_right = top_sinv(A_local, LU_local, L_arrow_bottom, U_arrow_right, blocksize, arrowhead_blocksize)
     else:
         A_local, LU_local, L_arrow_bottom, U_arrow_right = middle_factorize(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize)
-
         
         S_local, S_arrow_bottom, S_arrow_right = middle_sinv(A_local, LU_local, L_arrow_bottom, U_arrow_right, blocksize, arrowhead_blocksize)
-
        
     return S_local, S_arrow_bottom, S_arrow_right
 
