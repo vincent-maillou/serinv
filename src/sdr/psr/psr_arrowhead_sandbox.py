@@ -407,15 +407,26 @@ def psr_arrowhead(
     process: int,
 ):
 
-    
-
     if process == 0:
         A_local, LU_local, L_arrow_bottom, U_arrow_right = top_factorize(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize)
     
-        S_local, S_arrow_bottom, S_arrow_right = top_sinv(A_local, LU_local, L_arrow_bottom, U_arrow_right, blocksize, arrowhead_blocksize)
     else:
         A_local, LU_local, L_arrow_bottom, U_arrow_right = middle_factorize(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize)
         
+    # create_reduced_system(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize, Bridges_upper, Bridges_lower, local_arrow_tip_update, process, total_num_processes)
+    
+    # invert_redcued_system(reduced_system, diag_blocksize, arrowhead_blocksize)
+    
+    # TODO: test
+    S_local = np.zeros_like(A_local)
+    S_arrow_bottom = np.zeros_like(A_arrow_bottom)
+    S_arrow_right = np.zeros_like(A_arrow_right)
+    # update_sinv_reduced_system(blocksize, arrow_blocksize, reduced_system, S_local, S_arrow_bottom, S_arrow_right, Bridges_upper, Bridges_lower, process)
+
+    if process == 0:
+        S_local, S_arrow_bottom, S_arrow_right = top_sinv(A_local, LU_local, L_arrow_bottom, U_arrow_right, blocksize, arrowhead_blocksize)
+
+    else:
         S_local, S_arrow_bottom, S_arrow_right = middle_sinv(A_local, LU_local, L_arrow_bottom, U_arrow_right, blocksize, arrowhead_blocksize)
        
     return S_local, S_arrow_bottom, S_arrow_right
@@ -442,7 +453,6 @@ if __name__ == "__main__":
 
     start_blockrows, partition_sizes, end_blockrows = get_partitions_indices(n_partitions=n_partitions, total_size=nblocks-1)
 
-
     for process in range(0, n_partitions):
         if process == 0:
             A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[process], partition_sizes[process], diag_blocksize, arrow_blocksize)
@@ -454,6 +464,10 @@ if __name__ == "__main__":
 
             psr_arrowhead(A_local, A_arrow_bottom, A_arrow_right, diag_blocksize, arrow_blocksize, process)
 
+
+        # reassemble S from S_local 
+        
+        
         """ plt.matshow(A_local)
         plt.title("A_local process: " + str(process))
 
