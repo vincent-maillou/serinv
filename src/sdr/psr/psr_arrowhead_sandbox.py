@@ -136,7 +136,7 @@ def top_factorize(
 
 def middle_factorize(
     A_local: np.ndarray,
-    A_arrow_bottom: np.ndarray, 
+    A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
     blocksize: int,
     arrowhead_blocksize: int,
@@ -149,29 +149,36 @@ def middle_factorize(
     n_blocks = A_local.shape[0] // blocksize
 
     for i in range(2, n_blocks):
+
+        top = slice(0, blocksize)
+        im1 = slice((i - 1) * blocksize, i * blocksize)
+        i = slice(i * blocksize, (i + 1) * blocksize)
+
+        A_im1im1_inv = np.linalg.inv(A_local[im1, im1])
+
         # L[i, i-1] = A[i, i-1] @ A[i-1, i-1]^(-1)
-        LU_local[i*blocksize:(i+1)*blocksize, (i-1)*blocksize:i*blocksize] = A_local[i*blocksize:(i+1)*blocksize, (i-1)*blocksize:i*blocksize] @ np.linalg.inv(A_local[(i-1)*blocksize:i*blocksize, (i-1)*blocksize:i*blocksize])
+        LU_local[i, im1] = A_local[i, im1] @ A_im1im1_inv
 
         # L[top, i-1] = A[top, i-1] @ A[i-1, i-1]^(-1)
-        LU_local[:blocksize, (i-1)*blocksize:i*blocksize] = A_local[:blocksize, (i-1)*blocksize:i*blocksize] @ np.linalg.inv(A_local[(i-1)*blocksize:i*blocksize, (i-1)*blocksize:i*blocksize])
+        LU_local[top, im1] = A_local[top, im1] @ A_im1im1_inv
 
         # U[i-1, i] = A[i-1, i-1]^(-1) @ A[i-1, i]
-        LU_local[(i-1)*blocksize:i*blocksize, i*blocksize:(i+1)*blocksize] = np.linalg.inv(A_local[(i-1)*blocksize:i*blocksize, (i-1)*blocksize:i*blocksize]) @ A_local[(i-1)*blocksize:i*blocksize, i*blocksize:(i+1)*blocksize]
+        LU_local[im1, i] = A_im1im1_inv @ A_local[im1, i]
 
         # U[i-1, top] = A[i-1, i-1]^(-1) @ A[i-1, top]
-        LU_local[(i-1)*blocksize:i*blocksize, :blocksize] = np.linalg.inv(A_local[(i-1)*blocksize:i*blocksize, (i-1)*blocksize:i*blocksize]) @ A_local[(i-1)*blocksize:i*blocksize, :blocksize]
+        LU_local[im1, top] = A_im1im1_inv @ A_local[im1, top]
 
         # A_local[i, i] = A[i, i] - L[i, i-1] @ A_local[i-1, i]
-        A_local[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] = A_local[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] - LU_local[i*blocksize:(i+1)*blocksize, (i-1)*blocksize:i*blocksize] @ A_local[(i-1)*blocksize:i*blocksize, i*blocksize:(i+1)*blocksize]
-        
+        A_local[i, i] = A_local[i, i] - LU_local[i, im1] @ A_local[im1, i]
+
         # A_local[top, top] = A[top, top] - L[top, i-1] @ A_local[i-1, top]
-        A_local[:blocksize, :blocksize] = A_local[:blocksize, :blocksize] - LU_local[:blocksize, (i-1)*blocksize:i*blocksize] @ A_local[(i-1)*blocksize:i*blocksize, :blocksize]
+        A_local[top, top] = A_local[top, top] - LU_local[top, im1] @ A_local[im1, top]
 
         # A_local[i, top] = - L[i, i-1] @ A_local[i-1, top]
-        A_local[i*blocksize:(i+1)*blocksize, :blocksize] = - LU_local[i*blocksize:(i+1)*blocksize, (i-1)*blocksize:i*blocksize] @ A_local[(i-1)*blocksize:i*blocksize, :blocksize]
+        A_local[i, top] = - LU_local[i, im1] @ A_local[im1, top]
 
-        # A_local[top, i] = - L[top, i-1] @ A_local[i-1, i] 
-        A_local[:blocksize, i*blocksize:(i+1)*blocksize] = - LU_local[:blocksize, (i-1)*blocksize:i*blocksize] @ A_local[(i-1)*blocksize:i*blocksize, i*blocksize:(i+1)*blocksize]
+        # A_local[top, i] = - L[top, i-1] @ A_local[i-1, i]
+        A_local[top, i] = - LU_local[top, im1] @ A_local[im1, i]
 
     return A_local, LU_local, L_arrow_bottom, U_arrow_right
 
@@ -276,8 +283,49 @@ def top_sinv(
     
     return S_local, S_arrow_bottom, S_arrow_right
 
-def middle_sinv():
-    pass
+def middle_sinv(
+    A_local: int, 
+    LU_local: int, 
+    L_arrow_bottom: int, 
+    U_arrow_right: int,
+    blocksize: int,
+    arrowhead_blocksize: int,
+) -> [np.ndarray, np.ndarray, np.ndarray]:
+    
+    S_local = np.zeros_like(A_local)
+    S_arrow_bottom = np.zeros_like(L_arrow_bottom)
+    S_arrow_right = np.zeros_like(U_arrow_right)
+
+    n_blocks = A_local.shape[0] // blocksize
+
+    # S_local[bot, bot-1] = - S_local[bot, top] @ L[top, bot-1] - S_local[bot, bot] @ L[bot, bot-1]
+
+    # S_local[bot-1, bot] = - U[bot-1, bot] @ S_local[bot, bot] - U[bot-1, top] @ S_local[top, bot]
+
+    for i in range(n_blocks-2, 1, -1):
+        # S_local[top, i] = - S_local[top, top] @ L[top, i] - S_local[top, i+1] @ L[i+1, i]
+
+        # S_local[i, top] = - U[i, i+1] @ S_local[i+1, top] - U[i, top] @ S_local[top, top]
+        
+        pass
+
+    for i in range(n_blocks-2, 2, -1):
+        # S_local[i, i] = np.linalg.inv(A_local[i, i]) - U[i, top] @ S_local[top, i] - U[i, i+1] @ S_local[i+1, i]
+
+        # S_local[i-1, i] = - U[i-1, top] @ S_local[top, i] - U[i-1, i] @ S_local[i, i]
+
+        # S_local[i, i-1] = - S_local[i, top] @ L[top, i-1] - S_local[i, i] @ L[i, i-1]
+        
+        pass
+
+    # S_local[top+1, top+1] = np.linalg.inv(A_local[top+1, top+1]) - U[top+1, top] @ S_local[top, top+1] - U[top+1, top+2] @ S_local[top+2, top+1]
+
+    return S_local, S_arrow_bottom, S_arrow_right
+
+import copy as cp
+
+from sdr.lu.lu_decompose import lu_dcmp_tridiag
+from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
 
 
 def psr_arrowhead(
@@ -294,31 +342,16 @@ def psr_arrowhead(
     else:
         A_local, LU_local, L_arrow_bottom, U_arrow_right = middle_factorize(A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize)
 
+        
+        S_local, S_arrow_bottom, S_arrow_right = middle_sinv(A_local, LU_local, L_arrow_bottom, U_arrow_right, blocksize, arrowhead_blocksize)
 
-    plt.matshow(A_local)
-    plt.title("A_local process: " + str(process))
-
-    plt.matshow(LU_local)
-    plt.title("LU_local process: " + str(process))
-
-    plt.show()
-
-
-    """ reduced_system = create_reduce_system()
-
-    S_reduced_system = inverse_reduced_system(reduced_system)
-
-    if process == 0:
-        S_local, S_arrow_bottom, S_arrow_right = top_sinv()
-    else:
-        S_local, S_arrow_bottom, S_arrow_right = middle_sinv() """
-
-    #return S_local, S_arrow_bottom, S_arrow_right
+       
+    return S_local, S_arrow_bottom, S_arrow_right
 
 
 
 if __name__ == "__main__":
-    nblocks = 11
+    nblocks = 30
     diag_blocksize = 3
     arrow_blocksize = 2
     symmetric = False
@@ -330,7 +363,8 @@ if __name__ == "__main__":
         seed
     ) 
 
-    plt.matshow(A)
+    # plt.matshow(A)
+    # plt.title("A inital matrix")
  
     n_partitions = 3
 
@@ -342,7 +376,6 @@ if __name__ == "__main__":
             A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[process], partition_sizes[process], diag_blocksize, arrow_blocksize)
 
             psr_arrowhead(A_local, A_arrow_bottom, A_arrow_right, diag_blocksize, arrow_blocksize, process)
-
 
         if process == 1:
             A_local, A_arrow_bottom, A_arrow_right = extract_partition(A, start_blockrows[process], partition_sizes[process], diag_blocksize, arrow_blocksize)
