@@ -1,10 +1,13 @@
-from sdr.lu.lu_selected_inversion import sinv_ndiags_greg, sinv_tridiag_explicit
+from sdr.lu.lu_selected_inversion import sinv_ndiags_greg, sinv_ndiags_greg2, sinv_tridiag_explicit
 
 
 import numpy as np
 import pytest
+from tracing import sinv_cdag
 
 seed = 10
+
+np.random.seed(seed)
 
 def cut_to_banded(
     A: np.ndarray,
@@ -66,16 +69,25 @@ def test_sinv_ndiags_greg(
         matrix_size: int,
         ndiags: int
 ):
-    matrix_size = 8
+    matrix_size = 6
     ndiags = 2
+    if matrix_size % ndiags != 0:
+        return
     A = create_banded_matrix(matrix_size, ndiags)
     reference_inverse = np.linalg.inv(A)
     # assert(np.allclose(reference_inverse @ A, np.eye(matrix_size), atol=1e-07))
     assert np.linalg.norm(reference_inverse @ A- np.eye(matrix_size))/np.linalg.norm(A) < 1e-7
     
-    # test_inverse = sinv_ndiags_greg(A, 2*ndiags)
+    sinv_cdag.clear()    
+    test_inverse = sinv_ndiags_greg2(A, ndiags)
+
     # test_inverse = sinv_tridiag_explicit(A, ndiags)
-    test_inverse = sinv_ndiags_greg(A, matrix_size)
+    # test_inverse = sinv_ndiags_greg(A, ndiags)
+
+    work, depth = sinv_cdag.workDepth()
+    formula1 = ndiags**2*matrix_size
+    # formula2 = ndiags**3*matrix_size
+    print(f"N: {matrix_size}, d: {ndiags}, Work: {work}, Depth: {depth}, ratio: {work/formula1}")
 
     # test_inverse_tridiag = 
     cut_to_banded(reference_inverse, ndiags)
@@ -90,27 +102,37 @@ if __name__ == "__main__":
     #      (3, 0),
     #      (4, 0),
     #      (5, 0),
+            #  [(3, 1),
+        #  (4, 1),
+        #  (5, 1),
+        #  (5, 2),
+        #  (6, 2),
+        #  (7, 2),
+        #  (8, 2),
+        #  (9, 3),
+        #  (10, 2),
+        #  (10, 4),
+        #  (11, 4),
+        #  (12, 4),
+        #  (20, 5),
+        #  (21, 5),
+        #  (23, 5),
+        #  (25, 5),
+        #  (18, 6),
+        #  (24, 6),
+        #  (30, 6),
+        #  (36, 6),
+        #  (24, 8),
+        #  (32, 8),
+        #  (40, 8),
+        #  (56, 8),
     params = \
-         [(3, 1),
-         (4, 1),
-         (5, 1),
-         (5, 2),
-         (6, 2),
-         (7, 2),
-         (8, 2),
-         (9, 3),
-         (10, 2),
-         (10, 4),
-         (11, 4),
-         (12, 4),
-         (20, 5),
-         (21, 5),
-         (23, 5),
-         (25, 5),
-         (20, 6),
-         (21, 6),
-         (23, 6),
-         (25, 6),
+        [(128,2),
+         (128,8),
+        (128,16),
+        (256,2),
+        (256,8),
+        (256,16),
         ]
     for param in params:
         test_sinv_ndiags_greg(*param)

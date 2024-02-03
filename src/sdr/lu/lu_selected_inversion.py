@@ -104,8 +104,119 @@ def sinv_tridiag_explicit(in_A: np.ndarray,
                      blocksize: int) -> np.ndarray:
     L, U = lu_dcmp_tridiag_explicit(in_A, blocksize=blocksize)
     LU_inv = lu_sinv_tridiag_explicit(L, U, blocksize=blocksize)
-    sinv_cdag.plot()
+    # sinv_cdag.plot()
     return LU_inv
+
+
+
+
+def sinv_ndiags_greg2(
+    in_A: np.ndarray,
+    ndiags: int
+) -> np.ndarray:
+    """ Perform the selected inversion on the given input matrix in_A. 
+
+    Parameters
+    ----------
+    in_A : np.ndarray
+        Input matrix to decompose.
+    ndiags : int
+        Number of diagonals of the matrix above the main diagonal. The total number of diagonals is 2*ndiags+1.
+    
+    Returns
+    -------
+    A_inv_str : np.ndarray
+        A_inv_str = in_A^{-1} * nonzero_mask
+    """
+    # blocksize = ndiags
+    # L, U = lu_dcmp_tridiag_explicit(in_A, blocksize=blocksize)
+    # LU = L + U - np.eye(L.shape[0], dtype=L.dtype)
+    # L_inv, U_inv = invert_LU_explicit(LU) 
+
+    # p, l, u = la.lu(in_A)
+    # ref_lu = u + np.tril(l, k=-1)
+    # ref_inv_lu = np.linalg.inv(u) + np.tril(np.linalg.inv(l), k=-1)
+    ref_inv_A = la.inv(in_A)
+    # orginal = lu_sinv_tridiag(l, u, ndiags)
+    # oringal_l = cut_to_banded(np.tril(orginal, k=-1), ndiags)
+    # another = lu_sinv_tridiag_explicit(l, u, ndiags)
+    # another2 = lu_sinv_ndiags_explicit(l, u, 2*ndiags, 1)
+
+    A_inv = np.zeros(in_A.shape, dtype=in_A.dtype)
+    A = copy.deepcopy(in_A)
+    n = A.shape[0]
+    for k in range(n):
+        # BEGIN in-place LU decomposition without pivoting
+        sinv_cdag.add([Vertex("A", A, (k, k), output=False)], Vertex("A", A, (k, k), output=True))
+        A[k, k] = 1 / A[k, k]  # <- this is NOT the part of LU! This is already a first step of INVERSION
+
+        # for i in range(k+1,min(n, n)): #(n-1, k, -1)
+        for i in range(k+1,min(k+1 + ndiags, n)): #(n-1, k, -1)
+            sinv_cdag.add([Vertex("A", A, (i, k), output=False), Vertex("A", A, (k, k), output=False)], Vertex("A", A, (i, k), output=True))
+            A[i, k] = A[i,k] * A[k,k]
+            # for j in range(k+1,min(n, n)): #range(n-1, k, -1): 
+            for j in range(k+1,min(k+1 + ndiags, n)): #range(n-1, k, -1): 
+                sinv_cdag.add([Vertex("A", A, (i, j), output=False), 
+                               Vertex("A", A, (i, k), output=False), 
+                               Vertex("A", A, (k, j), output=False)], 
+                               Vertex("A", A, (i, j), output=True))
+                A[i,j]  -= A[i,k]*A[k,j]      
+        # END in-place LU decomposition without pivoting
+
+    for k in range(n-1, -1, -1):
+        A_inv[k, k] = A[k,k]
+        # Off-diagonal block part
+        for i in range(min(k+ndiags, n-1), k, -1):
+            for j in range(k+1, min(k+ndiags+1, n)):
+                if j == k+1:
+                    sinv_cdag.add([Vertex("A", A, (j, k), output=False),
+                                    Vertex("A_inv", A_inv, (i, j), output=False),
+                                    Vertex("A_inv", A_inv, (i, k), output=False, is_zero=False)],
+                                    Vertex("A_inv", A_inv, (i, k), output=True))
+                    
+                    sinv_cdag.add([Vertex("A", A, (k, j), output=False),
+                                 Vertex("A_inv", A_inv, (j, i), output=False),
+                                 Vertex("A_inv", A_inv, (k, i), output=False, is_zero=False)],
+                                 Vertex("A_inv", A_inv, (k, i), output=True))
+                else:
+                    sinv_cdag.add([Vertex("A", A, (j, k), output=False),
+                                    Vertex("A_inv", A_inv, (i, j), output=False),
+                                    Vertex("A_inv", A_inv, (i, k), output=False)],
+                                    Vertex("A_inv", A_inv, (i, k), output=True))
+                    
+                    sinv_cdag.add([Vertex("A", A, (k, j), output=False),
+                                 Vertex("A_inv", A_inv, (j, i), output=False),
+                                 Vertex("A_inv", A_inv, (k, i), output=False)],
+                                 Vertex("A_inv", A_inv, (k, i), output=True))
+
+                # X_{i, k} = X_{i, k} - X_{i, j} L_{j, k}
+                A_inv[i, k] -= A_inv[i, j] * A[j, k]
+                # X_{k, i} = X_{k, i} - U_{k, j} X_{j, i}
+                A_inv[k, i] -= A[k, j] * A_inv[j, i]
+
+                # A[i, k] -= A[i, j] * A[j, k]
+                # # X_{k, i} = X_{k, i} - U_{k, j} X_{j, i}
+                # A[k, i] -= A[k, j] * A[j, i]
+        
+            # X_{k, i} = U_{k, k}^{-1} X_{k, i}
+            sinv_cdag.add([Vertex("A", A, (k, k), output=False),
+                            Vertex("A_inv", A_inv, (k, i), output=False)],
+                            Vertex("A_inv", A_inv, (k, i), output=True))                            
+            sinv_cdag.add([Vertex("A", A, (k, k), output=False)], Vertex("A_inv", A_inv, (k, k), output=True))
+
+            A_inv[k, i] = A_inv[k, i]  * A[k,k]
+            A_inv[k, k] -= A_inv[k, i] * A[i, k]
+
+            # A[k, i] = A[k, i]  * A[k,k]
+            # A[k, k] -= A[k, i] * A[i, k]
+
+
+
+    # sinv_cdag.plot()
+    return A_inv
+
+
+
 
 
 def sinv_ndiags_greg(
@@ -128,17 +239,18 @@ def sinv_ndiags_greg(
         A_inv_str = in_A^{-1} * nonzero_mask
     """
     blocksize = ndiags
-    # L, U = lu_dcmp_tridiag_explicit(in_A, blocksize=blocksize)
-    # LU = L + U - np.eye(L.shape[0], dtype=L.dtype)
-    # L_inv, U_inv = invert_LU_explicit(LU) 
+    L, U = lu_dcmp_tridiag_explicit(in_A, blocksize=blocksize)
+    LU = L + U - np.eye(L.shape[0], dtype=L.dtype)
+    L_inv, U_inv = invert_LU_explicit(LU) 
 
-    # p, l, u = la.lu(in_A)
-    # ref_lu = u + np.tril(l, k=-1)
-    # ref_inv_lu = np.linalg.inv(u) + np.tril(np.linalg.inv(l), k=-1)
-    # ref_inv_A = la.inv(in_A)
-    # orginal = lu_sinv_tridiag(l, u, ndiags)
-    # another = lu_sinv_tridiag_explicit(l, u, ndiags)
-    # another = lu_sinv_tridiag_explicit(l, u, 1)
+    p, l, u = la.lu(in_A)
+    ref_lu = u + np.tril(l, k=-1)
+    ref_inv_lu = np.linalg.inv(u) + np.tril(np.linalg.inv(l), k=-1)
+    ref_inv_A = la.inv(in_A)
+    orginal = lu_sinv_tridiag(l, u, ndiags)
+    oringal_l = cut_to_banded(np.tril(orginal, k=-1), ndiags)
+    another = lu_sinv_tridiag_explicit(l, u, ndiags)
+    another2 = lu_sinv_ndiags_explicit(l, u, 2*ndiags, 1)
 
     A_inv_str = np.zeros(in_A.shape, dtype=in_A.dtype)
     A = copy.deepcopy(in_A)
@@ -218,6 +330,12 @@ def sinv_ndiags_greg(
             A_inv_str[i,i] += A[i,k]*A[k,i] 
             # A[i,i] += A[i,k]*A[k,i] 
             # END matrix-matrix multiplcation of U^(k-1) L^(k-1) (stored in A)
+
+    greg_invA_l = np.tril(cut_to_banded(A_inv_str, ndiags), k = -1)
+    greg_inv_u = np.triu(cut_to_banded(A_inv_str, ndiags), k = 0)
+
+    greg_invL_l = np.tril(cut_to_banded(A, ndiags), k = -1)
+    greg_invU_u = np.triu(cut_to_banded(A, ndiags), k = 0)
 
     # A_inv_str = np.triu(A, k=0) @ (np.tril(A, k=-1) + np.eye(n, dtype=A.dtype))
     sinv_cdag.plot()
@@ -585,6 +703,165 @@ def lu_sinv_ndiags(
         X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] = X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] @ L_blk_inv
 
     return X
+
+
+
+def lu_sinv_ndiags_explicit(
+    L: np.ndarray,
+    U: np.ndarray,
+    ndiags: int,
+    blocksize: int,
+) -> np.ndarray:
+    """ Perform a selected inversion from a lu decomposed matrix with a
+    block n-diagonals structure.
+    
+    Parameters
+    ----------
+    L : np.ndarray
+        Lower factor of the lu factorization fo the matrix.
+    U : np.ndarray
+        Upper factor of the lu factorization fo the matrix.
+    ndiags : int
+        Number of diagonals.
+    blocksize : int
+        Size of the blocks.
+    
+    Returns
+    -------
+    X : np.ndarray
+        Selected inversion of the matrix.
+    """
+
+    X = np.zeros(L.shape, dtype=L.dtype)
+
+    L_blk_inv = np.zeros((blocksize, blocksize), dtype=L.dtype)
+    U_blk_inv = np.zeros((blocksize, blocksize), dtype=L.dtype)
+
+    nblocks = L.shape[0] // blocksize
+    n_offdiags_blk = ndiags // 2
+    for i in range(nblocks-1, -1, -1):
+    # for i in range(nblocks-1):
+        # L_blk_inv = L_{i, i}^{-1}
+        # L_blk_inv = la.solve_triangular(L[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize], np.eye(blocksize), lower=True)
+        # # U_blk_inv = U_{i, i}^{-1}
+        # U_blk_inv = la.solve_triangular(U[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize], np.eye(blocksize), lower=False)
+
+
+        LU = L[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] + U[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] - np.eye(blocksize, dtype=L.dtype)
+        for ii in range(blocksize):
+            LU[ii, ii] = 1 / LU[ii, ii]
+            for jj in range(ii):
+                LU[jj,ii] = LU[jj, ii] * LU[jj, jj]
+                for kk in range(jj+1, ii):                    
+                    LU[jj,ii] += LU[kk, ii] * LU[jj, kk]                
+                LU[jj,ii] = - LU[jj,ii] * LU[ii, ii]
+        
+        for ii in range(blocksize):
+            for jj in range(ii):
+                for kk in range(jj+1, ii):     
+                    LU[ii, jj] += LU[ii, kk] * LU[kk, jj]
+                LU[ii,jj] = - LU[ii, jj]
+
+
+        L_blk_inv = np.tril(LU, k=-1) + np.eye(blocksize, dtype=LU.dtype)
+        U_blk_inv = np.triu(LU, k=0)   
+
+
+
+        # Off-diagonal block part
+        for j in range(min(i+n_offdiags_blk, nblocks-1), i, -1):
+            for k in range(i+1, min(i+n_offdiags_blk+1, nblocks), 1):
+                # X_{j, i} = X_{j, i} - X_{j, k} L_{k, i}
+                X[j*blocksize:(j+1)*blocksize, i*blocksize:(i+1)*blocksize] -= X[j*blocksize:(j+1)*blocksize, k*blocksize:(k+1)*blocksize] @ L[k*blocksize:(k+1)*blocksize, i*blocksize:(i+1)*blocksize]
+
+                # X_{i, j} = X_{i, j} - U_{i, k} X_{k, j}
+                X[i*blocksize:(i+1)*blocksize, j*blocksize:(j+1)*blocksize] -= U[i*blocksize:(i+1)*blocksize, k*blocksize:(k+1)*blocksize] @ X[k*blocksize:(k+1)*blocksize, j*blocksize:(j+1)*blocksize]
+
+            # X_{j, i} = X_{j, i} L_{i, i}^{-1}
+            X[j*blocksize:(j+1)*blocksize, i*blocksize:(i+1)*blocksize] = X[j*blocksize:(j+1)*blocksize, i*blocksize:(i+1)*blocksize] @ L_blk_inv
+        
+            # X_{i, j} = U_{i, i}^{-1} X_{i, j}
+            X[i*blocksize:(i+1)*blocksize, j*blocksize:(j+1)*blocksize] = U_blk_inv @ X[i*blocksize:(i+1)*blocksize, j*blocksize:(j+1)*blocksize]
+
+
+        # Diagonal block part
+        # X_{i, i} = (U_{i, i}^{-1} - sum_{k=i+1}^{min(i+ndiags/2, nblocks)} X_{i, k} L_{k, i}) L_{i, i}^{-1}
+        
+        # X_{i, i} = U_{i, i}^{-1}
+        X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] = U_blk_inv
+
+        for k in range(i+1, min(i+n_offdiags_blk+1, nblocks), 1):
+            # X_{i, i} = X_{i, i} - X_{i, k} L_{k, i}
+            X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] -= X[i*blocksize:(i+1)*blocksize, k*blocksize:(k+1)*blocksize] @ L[k*blocksize:(k+1)*blocksize, i*blocksize:(i+1)*blocksize]
+
+        # X_{i, i} = X_{i, i} L_{i, i}^{-1}
+        X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] = X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] @ L_blk_inv
+
+    return X
+
+
+
+def lu_sinv_ndiags_explicit_blocksize1(
+    L: np.ndarray,
+    U: np.ndarray,
+    ndiags: int,
+) -> np.ndarray:
+    """ Perform a selected inversion from a lu decomposed matrix with a
+    block n-diagonals structure.
+    
+    Parameters
+    ----------
+    L : np.ndarray
+        Lower factor of the lu factorization fo the matrix.
+    U : np.ndarray
+        Upper factor of the lu factorization fo the matrix.
+    ndiags : int
+        Number of diagonals.
+    blocksize : int
+        Size of the blocks.
+    
+    Returns
+    -------
+    X : np.ndarray
+        Selected inversion of the matrix.
+    """
+
+    X = np.zeros(L.shape, dtype=L.dtype)
+
+    n = L.shape[0]
+    for i in range(n-1, -1, -1):
+
+        # Off-diagonal block part
+        for j in range(min(i+ndiags, n-1), i, -1):
+            for k in range(i+1, min(i+ndiags+1, n), 1):
+                # X_{j, i} = X_{j, i} - X_{j, k} L_{k, i}
+                X[j, i] -= X[j, k] * L[k, i]
+
+                # X_{i, j} = X_{i, j} - U_{i, k} X_{k, j}
+                X[i, j] -= U[i, k] * X[k, j]
+
+            # X_{j, i} = X_{j, i} L_{i, i}^{-1}
+            # X[j, i] = X[j, i] 
+        
+            # X_{i, j} = U_{i, i}^{-1} X_{i, j}
+            X[i, j] = X[i, j] / U[i,i]
+
+
+        # Diagonal block part
+        # X_{i, i} = (U_{i, i}^{-1} - sum_{k=i+1}^{min(i+ndiags/2, nblocks)} X_{i, k} L_{k, i}) L_{i, i}^{-1}
+        
+        # X_{i, i} = U_{i, i}^{-1}
+        X[i, i] = 1 / U[i,i]
+
+        for k in range(i+1, min(i+ndiags+1, n), 1):
+            # X_{i, i} = X_{i, i} - X_{i, k} L_{k, i}
+            X[i, i] -= X[i, k] * L[k, i]
+
+
+    return X
+
+
+
 
 
 

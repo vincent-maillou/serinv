@@ -15,7 +15,8 @@ class Vertex:
     def __init__(self, arr:str, arr_obj: np.ndarray, ind: tuple[int, ...], output: bool = False, version: int = -1, is_zero: bool = None):
         self.arr = arr
         self.ind = ind
-        if arr_obj is not None and is_zero is None and np.isclose(arr_obj[ind], 0):
+        self.is_zero = is_zero
+        if arr_obj is not None and is_zero is None and not output and np.isclose(arr_obj[ind], 0):
             self.is_zero = True
         if output:
             vertex_versions[self.base] = vertex_versions[self.base] + 1
@@ -64,10 +65,17 @@ class CDAG:
     in_neighs: defaultdict[Vertex, list[Vertex]] = field(default_factory=lambda: defaultdict(list))
     out_neighs: defaultdict[Vertex, list[Vertex]] = field(default_factory=lambda: defaultdict(list))    
 
+    def clear(self):
+        self.vertices.clear()
+        self.edges.clear()
+        self.in_neighs.clear()
+        self.out_neighs.clear()
+        vertex_versions.clear()
+
     '''
     Implement method to add all edges to all pairs of u's to v
     '''
-    def add(self, us: list[Vertex], v: Vertex, ignore_zeros: bool = True, tracing: bool = True):
+    def add(self, us: list[Vertex], v: Vertex, ignore_zeros: bool = True, tracing: bool = False):
         if not tracing:
             return
         for u in us:
@@ -85,13 +93,13 @@ class CDAG:
             self.out_neighs[u.ssa].append(v)
             self.in_neighs[v.ssa].append(u)
         
-        print(f"{v.name} = ({', '.join(u.name for u in us)}))")
+        # print(f"{v.name} = ({', '.join(u.name for u in us)}))")
 
     """
     Plot the directed acyclic graph in a 3D space. X and Y coordinates of vertices
     are i and j indices of the matrix, and Z coordinate is the version of the vertex.
     """
-    def plot(self, input_array_only: bool = True):
+    def plot(self, input_array_only: bool = False):
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
         from matplotlib.patches import FancyArrowPatch
@@ -156,6 +164,7 @@ class CDAG:
         plt.show()
         self.find_redundant_vertices()
         work, depth = self.workDepth()
+        print(f"Work: {work}, Depth: {depth}")
         a = 1
         
     def find_redundant_vertices(self):
