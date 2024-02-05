@@ -507,7 +507,7 @@ def lu_sinv_tridiag_arrowhead(
             @ L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
         ) @ L_blk_inv
 
-        # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, i+1} X_{i+1, i+1})
+        # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, ndb+1} X_{ndb+1, i+1})
         X[
             i * diag_blocksize : (i + 1) * diag_blocksize,
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,

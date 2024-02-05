@@ -569,12 +569,13 @@ def update_sinv_reduced_system(
     S_local: np.ndarray,
     S_arrow_bottom: np.ndarray,
     S_arrow_right: np.ndarray,
+    S_global_arrow_tip: np.ndarray,
     reduced_system: np.ndarray,
     Bridges_upper: list,
     Bridges_lower: list,
     blocksize: int,
     arrow_blocksize: int,
-) -> [np.ndarray, np.ndarray, np.ndarray]:
+) -> [np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
 
@@ -633,13 +634,16 @@ def update_sinv_reduced_system(
             start_index + blocksize : start_index + 2 * blocksize, -arrow_blocksize:
         ]
 
-    return S_local, S_arrow_bottom, S_arrow_right
+    S_global_arrow_tip = reduced_system[-arrow_blocksize:, -arrow_blocksize:]
+
+    return S_local, S_arrow_bottom, S_arrow_right, S_global_arrow_tip
 
 
 def top_sinv(
     S_local: np.ndarray,
     S_arrow_bottom: np.ndarray,
     S_arrow_right: np.ndarray,
+    S_global_arrow_tip: np.ndarray,
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
@@ -655,7 +659,58 @@ def top_sinv(
     # #S_local[(n_blocks - 1)*blocksize:n_blocks*blocksize, (n_blocks - 1)*blocksize:n_blocks*blocksize] = np.linalg.inv(A_local[(n_blocks - 1)*blocksize:n_blocks*blocksize, (n_blocks - 1)*blocksize:n_blocks*blocksize])
 
     for i in range(n_blocks - 1, 0, -1):
-        # S_{i, i-1} = - S_{i, i} @ L_{i, i-1}
+        # # ----- Block-tridiagonal solver -----
+        # # S_{i, i-1} = - S_{i, i} @ L_{i, i-1}
+        # S_local[
+        #     i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+        # ] = (
+        #     -S_local[
+        #         i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        #     ]
+        #     @ LU_local[
+        #         i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+        #     ]
+        # )
+
+        # # S_{i-1, i} = - U_{i-1, i} @ S_{i, i}
+        # S_local[
+        #     (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+        # ] = (
+        #     -LU_local[
+        #         (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+        #     ]
+        #     @ S_local[
+        #         i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        #     ]
+        # )
+
+        # # S_{i-1, i-1} = A_{i-1, i-1}^{-1} - U_{i-1, i} @ S_{i, i-1}
+        # S_local[
+        #     (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
+        # ] = (
+        #     np.linalg.inv(
+        #         A_local[
+        #             (i - 1) * blocksize : i * blocksize,
+        #             (i - 1) * blocksize : i * blocksize,
+        #         ]
+        #     )
+        #     - LU_local[
+        #         (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+        #     ]
+        #     @ S_local[
+        #         i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+        #     ]
+        # )
+
+        # ----- Block-tridiagonal arrowhead solver -----
+
+        A_im1im1_inv = np.linalg.inv(
+            A_local[
+                (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
+        )
+
+        # S_{i, i-1} = (-S_{i, i} L_{i, i-1} - S_{i, ndb+1} L_{ndb+1, i-1}) A_{i-1, i-1}^{-1}
         S_local[
             i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
         ] = (
@@ -665,37 +720,57 @@ def top_sinv(
             @ LU_local[
                 i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
             ]
-        )
+            - S_arrow_right[i * blocksize : (i + 1) * blocksize, :]
+            @ L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
+        ) @ A_im1im1_inv
 
-        # S_{i-1, i} = - U_{i-1, i} @ S_{i, i}
+        # S_{i-1, i} = A_{i-1, i-1}^{-1} (- U_{i-1, i} S_{i, i} - U_{i-1, ndb+1} S_{ndb+1, i})
         S_local[
             (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = (
+        ] = A_im1im1_inv @ (
             -LU_local[
                 (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
             ]
             @ S_local[
                 i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
             ]
+            - U_arrow_right[(i - 1) * blocksize : i * blocksize, :]
+            @ S_arrow_bottom[:, i * blocksize : (i + 1) * blocksize]
         )
 
-        # S_{i-1, i-1} = A_{i-1, i-1}^{-1} - U_{i-1, i} @ S_{i, i-1}
+        # S_{ndb+1, i-1} = (- S_{ndb+1, i} L_{i, i-1} - S_{ndb+1, ndb+1} L_{ndb+1, i-1}) A_{i-1, i-1}^{-1}
+        S_arrow_bottom[:, (i - 1) * blocksize : i * blocksize] = (
+            -S_arrow_bottom[:, i * blocksize : (i + 1) * blocksize]
+            @ LU_local[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
+            - S_global_arrow_tip
+            @ L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
+        ) @ A_im1im1_inv
+
+        # S_{i-1, ndb+1} = A_{i-1, i-1}^{-1} (- U_{i-1, i} S_{i, ndb+1} - U_{i-1, ndb+1} S_{ndb+1, ndb+1})
+        S_arrow_right[(i - 1) * blocksize : i * blocksize, :] = A_im1im1_inv @ (
+            -LU_local[
+                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
+            @ S_arrow_right[i * blocksize : (i + 1) * blocksize, :]
+            - U_arrow_right[(i - 1) * blocksize : i * blocksize, :] @ S_global_arrow_tip
+        )
+
+        # S_{i-1, i-1} = (A_{i-1, i-1}^{-1} - S_{i-1, i} L_{i, i-1} - S_{i-1, ndb+1} L_{ndb+1, i-1}) A_{i-1, i-1}^{-1}
         S_local[
             (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
         ] = (
-            np.linalg.inv(
-                A_local[
-                    (i - 1) * blocksize : i * blocksize,
-                    (i - 1) * blocksize : i * blocksize,
-                ]
-            )
-            - LU_local[
+            A_im1im1_inv
+            - S_local[
                 (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
             ]
-            @ S_local[
+            @ LU_local[
                 i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
             ]
-        )
+            - S_arrow_right[(i - 1) * blocksize : i * blocksize, :]
+            @ L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
+        ) @ A_im1im1_inv
 
     return S_local, S_arrow_bottom, S_arrow_right
 
@@ -704,6 +779,7 @@ def middle_sinv(
     S_local: np.ndarray,
     S_arrow_bottom: np.ndarray,
     S_arrow_right: np.ndarray,
+    S_global_arrow_tip: np.ndarray,
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
@@ -919,11 +995,18 @@ def psr_arrowhead(
     S_local = np.zeros_like(A_local)
     S_arrow_bottom = np.zeros_like(A_arrow_bottom)
     S_arrow_right = np.zeros_like(A_arrow_right)
+    S_global_arrow_tip = np.zeros_like(A_global_arrow_tip)
 
-    S_local, S_arrow_bottom, S_arrow_right = update_sinv_reduced_system(
+    (
         S_local,
         S_arrow_bottom,
         S_arrow_right,
+        S_global_arrow_tip,
+    ) = update_sinv_reduced_system(
+        S_local,
+        S_arrow_bottom,
+        S_arrow_right,
+        S_global_arrow_tip,
         reduced_system_inv,
         Bridges_upper,
         Bridges_lower,
@@ -945,6 +1028,7 @@ def psr_arrowhead(
             S_local,
             S_arrow_bottom,
             S_arrow_right,
+            S_global_arrow_tip,
             A_local,
             A_arrow_bottom,
             A_arrow_right,
@@ -960,6 +1044,7 @@ def psr_arrowhead(
             S_local,
             S_arrow_bottom,
             S_arrow_right,
+            S_global_arrow_tip,
             A_local,
             A_arrow_bottom,
             A_arrow_right,
