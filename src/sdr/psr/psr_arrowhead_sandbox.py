@@ -130,6 +130,7 @@ def extract_bridges(
 
     for i in range(num_partitions - 1):
         start_index = sum(partition_sizes[: i + 1]) * blocksize
+
         Bridges_lower.append(
             A_global[
                 start_index : start_index + blocksize,
@@ -146,10 +147,12 @@ def extract_bridges(
     return Bridges_lower, Bridges_upper
 
 
+### ------------------------ PSR ARROWHEAD ------------------------ ###
 def top_factorize(
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
+    Update_arrow_tip: np.ndarray,
     blocksize: int,
     arrowhead_blocksize: int,
 ) -> [np.ndarray, np.ndarray, np.ndarray]:
@@ -160,15 +163,20 @@ def top_factorize(
     nblocks = A_local.shape[0] // blocksize
 
     for i in range(1, nblocks):
-        # L[i, i-1] = A[i, i-1] @ A[i-1, i-1]^(-1)
-        LU_local[
-            i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        ] = A_local[
-            i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        ] @ np.linalg.inv(
+        A_im1im1_inv = np.linalg.inv(
             A_local[
                 (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
             ]
+        )
+
+        # L[i, i-1] = A[i, i-1] @ A[i-1, i-1]^(-1)
+        LU_local[
+            i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+        ] = (
+            A_local[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
+            @ A_im1im1_inv
         )
         # LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] = np.linalg.solve(A_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize].T, A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize].T).T
 
@@ -176,12 +184,7 @@ def top_factorize(
         LU_local[
             (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
         ] = (
-            np.linalg.inv(
-                A_local[
-                    (i - 1) * blocksize : i * blocksize,
-                    (i - 1) * blocksize : i * blocksize,
-                ]
-            )
+            A_im1im1_inv
             @ A_local[
                 (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
             ]
@@ -207,13 +210,14 @@ def top_factorize(
             ]
         )
 
-    return A_local, LU_local, L_arrow_bottom, U_arrow_right
+    return A_local, LU_local, L_arrow_bottom, U_arrow_right, Update_arrow_tip
 
 
 def middle_factorize(
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
+    Update_arrow_tip: np.ndarray,
     blocksize: int,
     arrowhead_blocksize: int,
 ) -> [np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -224,37 +228,81 @@ def middle_factorize(
     n_blocks = A_local.shape[0] // blocksize
 
     for i in range(2, n_blocks):
-        top = slice(0, blocksize)
-        im1 = slice((i - 1) * blocksize, i * blocksize)
-        i = slice(i * blocksize, (i + 1) * blocksize)
-
-        A_im1im1_inv = np.linalg.inv(A_local[im1, im1])
+        A_im1im1_inv = np.linalg.inv(
+            A_local[
+                (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
+        )
 
         # L[i, i-1] = A[i, i-1] @ A[i-1, i-1]^(-1)
-        LU_local[i, im1] = A_local[i, im1] @ A_im1im1_inv
+        LU_local[
+            i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+        ] = (
+            A_local[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
+            @ A_im1im1_inv
+        )
 
         # L[top, i-1] = A[top, i-1] @ A[i-1, i-1]^(-1)
-        LU_local[top, im1] = A_local[top, im1] @ A_im1im1_inv
+        LU_local[0:blocksize, (i - 1) * blocksize : i * blocksize] = (
+            A_local[0:blocksize, (i - 1) * blocksize : i * blocksize] @ A_im1im1_inv
+        )
 
         # U[i-1, i] = A[i-1, i-1]^(-1) @ A[i-1, i]
-        LU_local[im1, i] = A_im1im1_inv @ A_local[im1, i]
+        LU_local[
+            (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = (
+            A_im1im1_inv
+            @ A_local[
+                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
+        )
 
         # U[i-1, top] = A[i-1, i-1]^(-1) @ A[i-1, top]
-        LU_local[im1, top] = A_im1im1_inv @ A_local[im1, top]
+        LU_local[(i - 1) * blocksize : i * blocksize, 0:blocksize] = (
+            A_im1im1_inv @ A_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
+        )
 
         # A_local[i, i] = A[i, i] - L[i, i-1] @ A_local[i-1, i]
-        A_local[i, i] = A_local[i, i] - LU_local[i, im1] @ A_local[im1, i]
+        A_local[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = (
+            A_local[
+                i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
+            - LU_local[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
+            @ A_local[
+                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
+        )
 
         # A_local[top, top] = A[top, top] - L[top, i-1] @ A_local[i-1, top]
-        A_local[top, top] = A_local[top, top] - LU_local[top, im1] @ A_local[im1, top]
+        A_local[0:blocksize, 0:blocksize] = (
+            A_local[0:blocksize, 0:blocksize]
+            - LU_local[0:blocksize, (i - 1) * blocksize : i * blocksize]
+            @ A_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
+        )
 
         # A_local[i, top] = - L[i, i-1] @ A_local[i-1, top]
-        A_local[i, top] = -LU_local[i, im1] @ A_local[im1, top]
+        A_local[i * blocksize : (i + 1) * blocksize, 0:blocksize] = (
+            -LU_local[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
+            @ A_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
+        )
 
         # A_local[top, i] = - L[top, i-1] @ A_local[i-1, i]
-        A_local[top, i] = -LU_local[top, im1] @ A_local[im1, i]
+        A_local[0:blocksize, i * blocksize : (i + 1) * blocksize] = (
+            -LU_local[0:blocksize, (i - 1) * blocksize : i * blocksize]
+            @ A_local[
+                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
+        )
 
-    return A_local, LU_local, L_arrow_bottom, U_arrow_right
+    return A_local, LU_local, L_arrow_bottom, U_arrow_right, Update_arrow_tip
 
 
 def create_reduced_system(
@@ -264,7 +312,7 @@ def create_reduced_system(
     A_global_arrow_tip,
     Bridges_upper,
     Bridges_lower,
-    local_arrow_tip_update,
+    Update_arrow_tip,
     blocksize,
     arrowhead_blocksize,
 ):
@@ -275,7 +323,7 @@ def create_reduced_system(
     # Create empty matrix for reduced system -> (2*#process - 1)*blocksize + arrowhead_size
     size_reduced_system = (2 * comm_size - 1) * blocksize + arrow_blocksize
     reduced_system = np.zeros((size_reduced_system, size_reduced_system))
-    reduced_system[-arrow_blocksize:, -arrow_blocksize:] = local_arrow_tip_update
+    reduced_system[-arrow_blocksize:, -arrow_blocksize:] = Update_arrow_tip
 
     if comm_rank == 0:
         reduced_system[:blocksize, :blocksize] = A_local[-blocksize:, -blocksize:]
@@ -528,70 +576,121 @@ def middle_sinv(
 ) -> [np.ndarray, np.ndarray, np.ndarray]:
     n_blocks = A_local.shape[0] // blocksize
 
-    top_slice = slice(0, blocksize)
-    botm1_slice = slice((n_blocks - 2) * blocksize, (n_blocks - 1) * blocksize)
-    bot_slice = slice((n_blocks - 1) * blocksize, n_blocks * blocksize)
-
     # S_local[bot, bot-1] = - S_local[bot, top] @ L[top, bot-1] - S_local[bot, bot] @ L[bot, bot-1]
-    S_local[bot_slice, botm1_slice] = (
-        -S_local[bot_slice, top_slice] @ LU_local[top_slice, botm1_slice]
-        - S_local[bot_slice, bot_slice] @ LU_local[bot_slice, botm1_slice]
+    S_local[
+        (n_blocks - 1) * blocksize : n_blocks * blocksize,
+        (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize,
+    ] = (
+        -S_local[(n_blocks - 1) * blocksize : n_blocks * blocksize, 0:blocksize]
+        @ LU_local[0:blocksize, (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize]
+        - S_local[
+            (n_blocks - 1) * blocksize : n_blocks * blocksize,
+            (n_blocks - 1) * blocksize : n_blocks * blocksize,
+        ]
+        @ LU_local[
+            (n_blocks - 1) * blocksize : n_blocks * blocksize,
+            (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize,
+        ]
     )
 
     # S_local[bot-1, bot] = - U[bot-1, bot] @ S_local[bot, bot] - U[bot-1, top] @ S_local[top, bot]
-    S_local[botm1_slice, bot_slice] = (
-        -LU_local[botm1_slice, bot_slice] @ S_local[bot_slice, bot_slice]
-        - LU_local[botm1_slice, top_slice] @ S_local[top_slice, bot_slice]
+    S_local[
+        (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize,
+        (n_blocks - 1) * blocksize : n_blocks * blocksize,
+    ] = (
+        -LU_local[
+            (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize,
+            (n_blocks - 1) * blocksize : n_blocks * blocksize,
+        ]
+        @ S_local[
+            (n_blocks - 1) * blocksize : n_blocks * blocksize,
+            (n_blocks - 1) * blocksize : n_blocks * blocksize,
+        ]
+        - LU_local[(n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize, 0:blocksize]
+        @ S_local[0:blocksize, (n_blocks - 1) * blocksize : n_blocks * blocksize]
     )
 
     for i in range(n_blocks - 2, 0, -1):
-        i_slice = slice(i * blocksize, (i + 1) * blocksize)
-        ip1_slice = slice((i + 1) * blocksize, (i + 2) * blocksize)
-
         # S_local[top, i] = - S_local[top, top] @ L[top, i] - S_local[top, i+1] @ L[i+1, i]
-        S_local[top_slice, i_slice] = (
-            -S_local[top_slice, top_slice] @ LU_local[top_slice, i_slice]
-            - S_local[top_slice, ip1_slice] @ LU_local[ip1_slice, i_slice]
+        S_local[0:blocksize, i * blocksize : (i + 1) * blocksize] = (
+            -S_local[0:blocksize, 0:blocksize]
+            @ LU_local[0:blocksize, i * blocksize : (i + 1) * blocksize]
+            - S_local[0:blocksize, (i + 1) * blocksize : (i + 2) * blocksize]
+            @ LU_local[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ]
         )
 
         # S_local[i, top] = - U[i, i+1] @ S_local[i+1, top] - U[i, top] @ S_local[top, top]
-        S_local[i_slice, top_slice] = (
-            -LU_local[i_slice, ip1_slice] @ S_local[ip1_slice, top_slice]
-            - LU_local[i_slice, top_slice] @ S_local[top_slice, top_slice]
+        S_local[i * blocksize : (i + 1) * blocksize, 0:blocksize] = (
+            -LU_local[
+                i * blocksize : (i + 1) * blocksize,
+                (i + 1) * blocksize : (i + 2) * blocksize,
+            ]
+            @ S_local[(i + 1) * blocksize : (i + 2) * blocksize, 0:blocksize]
+            - LU_local[i * blocksize : (i + 1) * blocksize, 0:blocksize]
+            @ S_local[0:blocksize, 0:blocksize]
         )
 
     for i in range(n_blocks - 2, 1, -1):
-        im1_slice = slice((i - 1) * blocksize, i * blocksize)
-        i_slice = slice(i * blocksize, (i + 1) * blocksize)
-        ip1_slice = slice((i + 1) * blocksize, (i + 2) * blocksize)
-
         # S_local[i, i] = np.linalg.inv(A_local[i, i]) - U[i, top] @ S_local[top, i] - U[i, i+1] @ S_local[i+1, i]
-        S_local[i_slice, i_slice] = (
-            np.linalg.inv(A_local[i_slice, i_slice])
-            - LU_local[i_slice, top_slice] @ S_local[top_slice, i_slice]
-            - LU_local[i_slice, ip1_slice] @ S_local[ip1_slice, i_slice]
+        S_local[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = (
+            np.linalg.inv(
+                A_local[
+                    i * blocksize : (i + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
+                ]
+            )
+            - LU_local[i * blocksize : (i + 1) * blocksize, 0:blocksize]
+            @ S_local[0:blocksize, i * blocksize : (i + 1) * blocksize]
+            - LU_local[
+                i * blocksize : (i + 1) * blocksize,
+                (i + 1) * blocksize : (i + 2) * blocksize,
+            ]
+            @ S_local[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ]
         )
 
         # S_local[i-1, i] = - U[i-1, top] @ S_local[top, i] - U[i-1, i] @ S_local[i, i]
-        S_local[im1_slice, i_slice] = (
-            -LU_local[im1_slice, top_slice] @ S_local[top_slice, i_slice]
-            - LU_local[im1_slice, i_slice] @ S_local[i_slice, i_slice]
+        S_local[
+            (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = (
+            -LU_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
+            @ S_local[0:blocksize, i * blocksize : (i + 1) * blocksize]
+            - LU_local[
+                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
+            @ S_local[
+                i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
         )
 
         # S_local[i, i-1] = - S_local[i, top] @ L[top, i-1] - S_local[i, i] @ L[i, i-1]
-        S_local[i_slice, im1_slice] = (
-            -S_local[i_slice, top_slice] @ LU_local[top_slice, im1_slice]
-            - S_local[i_slice, i_slice] @ LU_local[i_slice, im1_slice]
+        S_local[
+            i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+        ] = (
+            -S_local[i * blocksize : (i + 1) * blocksize, 0:blocksize]
+            @ LU_local[0:blocksize, (i - 1) * blocksize : i * blocksize]
+            - S_local[
+                i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
+            @ LU_local[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
         )
 
-    topp1_slice = slice(blocksize, 2 * blocksize)
-    topp2_slice = slice(2 * blocksize, 3 * blocksize)
-
     # S_local[top+1, top+1] = np.linalg.inv(A_local[top+1, top+1]) - U[top+1, top] @ S_local[top, top+1] - U[top+1, top+2] @ S_local[top+2, top+1]
-    S_local[topp1_slice, topp1_slice] = (
-        np.linalg.inv(A_local[topp1_slice, topp1_slice])
-        - LU_local[topp1_slice, top_slice] @ S_local[top_slice, topp1_slice]
-        - LU_local[topp1_slice, topp2_slice] @ S_local[topp2_slice, topp1_slice]
+    S_local[blocksize : 2 * blocksize, blocksize : 2 * blocksize] = (
+        np.linalg.inv(A_local[blocksize : 2 * blocksize, blocksize : 2 * blocksize])
+        - LU_local[blocksize : 2 * blocksize, 0:blocksize]
+        @ S_local[0:blocksize, blocksize : 2 * blocksize]
+        - LU_local[blocksize : 2 * blocksize, 2 * blocksize : 3 * blocksize]
+        @ S_local[2 * blocksize : 3 * blocksize, blocksize : 2 * blocksize]
     )
 
     return S_local, S_arrow_bottom, S_arrow_right
@@ -610,13 +709,37 @@ def psr_arrowhead(
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
 
+    Update_arrow_tip = np.zeros((arrowhead_blocksize, arrowhead_blocksize))
+
     if comm_rank == 0:
-        A_local, LU_local, L_arrow_bottom, U_arrow_right = top_factorize(
-            A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize
+        (
+            A_local,
+            LU_local,
+            L_arrow_bottom,
+            U_arrow_right,
+            Update_arrow_tip,
+        ) = top_factorize(
+            A_local,
+            A_arrow_bottom,
+            A_arrow_right,
+            Update_arrow_tip,
+            blocksize,
+            arrowhead_blocksize,
         )
     else:
-        A_local, LU_local, L_arrow_bottom, U_arrow_right = middle_factorize(
-            A_local, A_arrow_bottom, A_arrow_right, blocksize, arrowhead_blocksize
+        (
+            A_local,
+            LU_local,
+            L_arrow_bottom,
+            U_arrow_right,
+            Update_arrow_tip,
+        ) = middle_factorize(
+            A_local,
+            A_arrow_bottom,
+            A_arrow_right,
+            Update_arrow_tip,
+            blocksize,
+            arrowhead_blocksize,
         )
 
     """ plt.matshow(A_local)
@@ -626,8 +749,6 @@ def psr_arrowhead(
     plt.title("LU_local process: " + str(process))
     plt.show() """
 
-    local_arrow_tip_update = np.zeros((arrowhead_blocksize, arrowhead_blocksize))
-
     reduced_system = create_reduced_system(
         A_local,
         A_arrow_bottom,
@@ -635,7 +756,7 @@ def psr_arrowhead(
         A_global_arrow_tip,
         Bridges_upper,
         Bridges_lower,
-        local_arrow_tip_update,
+        Update_arrow_tip,
         blocksize,
         arrowhead_blocksize,
     )
@@ -728,9 +849,6 @@ if __name__ == "__main__":
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
-    A_ref = cp.deepcopy(A)
-    A_inv_ref = np.linalg.inv(A_ref)
-
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
@@ -740,6 +858,19 @@ if __name__ == "__main__":
     start_blockrows, partition_sizes, end_blockrows = get_partitions_indices(
         n_partitions=n_partitions, total_size=nblocks - 1
     )
+
+    # ----- Reference/Checkign data -----
+    A_ref = cp.deepcopy(A)
+    A_inv_ref = np.linalg.inv(A_ref)
+
+    A_inv_ref_local, A_ref_arrow_bottom, A_ref_arrow_right = extract_partition(
+        A_inv_ref,
+        start_blockrows[comm_rank],
+        partition_sizes[comm_rank],
+        diag_blocksize,
+        arrow_blocksize,
+    )
+    # ----- Reference/Checkign data -----
 
     Bridges_upper, Bridges_lower = extract_bridges(
         A, diag_blocksize, arrow_blocksize, partition_sizes
@@ -762,14 +893,6 @@ if __name__ == "__main__":
         A_arrow_tip,
         Bridges_upper,
         Bridges_lower,
-        diag_blocksize,
-        arrow_blocksize,
-    )
-
-    A_inv_ref_local, A_ref_arrow_bottom, A_ref_arrow_right = extract_partition(
-        A_inv_ref,
-        start_blockrows[comm_rank],
-        partition_sizes[comm_rank],
         diag_blocksize,
         arrow_blocksize,
     )
