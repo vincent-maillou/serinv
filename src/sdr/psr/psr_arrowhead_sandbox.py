@@ -154,7 +154,7 @@ def top_factorize(
     A_arrow_right: np.ndarray,
     Update_arrow_tip: np.ndarray,
     blocksize: int,
-    arrowhead_blocksize: int,
+    arrow_blocksize: int,
 ) -> [
     np.ndarray,
     np.ndarray,
@@ -266,7 +266,7 @@ def middle_factorize(
     A_arrow_right: np.ndarray,
     Update_arrow_tip: np.ndarray,
     blocksize: int,
-    arrowhead_blocksize: int,
+    arrow_blocksize: int,
 ) -> [
     np.ndarray,
     np.ndarray,
@@ -429,7 +429,7 @@ def create_reduced_system(
     Bridges_lower: list,
     Update_arrow_tip: np.ndarray,
     blocksize: int,
-    arrowhead_blocksize: int,
+    arrow_blocksize: int,
 ) -> np.ndarray:
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
@@ -494,53 +494,73 @@ def create_reduced_system(
             start_index + blocksize : start_index + 2 * blocksize, -arrow_blocksize:
         ] = A_arrow_right[-blocksize:, :]
 
-    plt.matshow(reduced_system)
-    plt.title("Reduced system, before sending, process: " + str(comm_rank))
-    plt.show()
-
     # Send the reduced_system with MPIallReduce SUM operation
     reduced_system_sum = np.zeros_like(reduced_system)
     comm.Allreduce(
         [reduced_system, MPI.DOUBLE], [reduced_system_sum, MPI.DOUBLE], op=MPI.SUM
     )
 
+    # Should we invert the tip of the arrow before adding it to the reduced system?
+    # ----- HERE IS: NO -----
     reduced_system_sum[-arrow_blocksize:, -arrow_blocksize:] += A_global_arrow_tip
+    # ...is the only one that doesn't give a singular matrix and fail
+
+    # ----- HERE IS: Invert block and then add it -----
+    # reduced_system_sum[-arrow_blocksize:, -arrow_blocksize:] += np.linalg.inv(
+    #     A_global_arrow_tip
+    # )
+
+    # ----- HERE IS: Add it and then invert the block -----
+    # reduced_system_sum[-arrow_blocksize:, -arrow_blocksize:] += A_global_arrow_tip
+    # reduced_system_sum[-arrow_blocksize:, -arrow_blocksize:] = np.linalg.inv(
+    #     reduced_system_sum[-arrow_blocksize:, -arrow_blocksize:]
+    # )
 
     return reduced_system_sum
 
 
 def inverse_reduced_system(
-    reduced_system, diag_blocksize, arrowhead_blocksize
+    reduced_system, diag_blocksize, arrow_blocksize
 ) -> np.ndarray:
-    n_diag_blocks = (reduced_system.shape[0] - arrowhead_blocksize) // diag_blocksize
+    n_diag_blocks = (reduced_system.shape[0] - arrow_blocksize) // diag_blocksize
 
     if comm_rank == 0:
         plt.matshow(reduced_system)
-        plt.title("Reduced system, after sending, process: " + str(comm_rank))
+        plt.title("Reduced system, before inversion, process: " + str(comm_rank))
         plt.show()
 
     # ----- For now with blk tridiag -----
     # Cast the right size
-    reduced_system_sliced_to_tridiag = reduced_system[
-        : n_diag_blocks * diag_blocksize, : n_diag_blocks * diag_blocksize
-    ]
+    # reduced_system_sliced_to_tridiag = reduced_system[
+    #     : n_diag_blocks * diag_blocksize, : n_diag_blocks * diag_blocksize
+    # ]
 
-    L_reduced_sliced_to_tridiag, U_reduced_sliced_to_tridiag = lu_dcmp_tridiag(
-        reduced_system_sliced_to_tridiag, diag_blocksize
-    )
-    S_reduced_sliced_to_tridiag = lu_sinv_tridiag(
-        L_reduced_sliced_to_tridiag, U_reduced_sliced_to_tridiag, diag_blocksize
-    )
+    # L_reduced_sliced_to_tridiag, U_reduced_sliced_to_tridiag = lu_dcmp_tridiag(
+    #     reduced_system_sliced_to_tridiag, diag_blocksize
+    # )
+    # S_reduced_sliced_to_tridiag = lu_sinv_tridiag(
+    #     L_reduced_sliced_to_tridiag, U_reduced_sliced_to_tridiag, diag_blocksize
+    # )
 
-    S_reduced = np.zeros_like(reduced_system)
-    S_reduced[
-        : n_diag_blocks * diag_blocksize, : n_diag_blocks * diag_blocksize
-    ] = S_reduced_sliced_to_tridiag
+    # S_reduced = np.zeros_like(reduced_system)
+    # S_reduced[
+    #     : n_diag_blocks * diag_blocksize, : n_diag_blocks * diag_blocksize
+    # ] = S_reduced_sliced_to_tridiag
     # ------------------------------------
 
-    # Switch when arrowhead
-    # L_reduced, U_reduced = lu_dcmp_tridiag_arrowhead(reduced_system, diag_blocksize, arrowhead_blocksize)
-    # S_reduced  = lu_sinv_tridiag_arrowhead(L_reduced,  U_reduced, diag_blocksize, arrowhead_blocksize)
+    # ----- Arrowhead solver -----
+    L_reduced, U_reduced = lu_dcmp_tridiag_arrowhead(
+        reduced_system, diag_blocksize, arrow_blocksize
+    )
+    S_reduced = lu_sinv_tridiag_arrowhead(
+        L_reduced, U_reduced, diag_blocksize, arrow_blocksize
+    )
+    # ----------------------------
+
+    if comm_rank == 0:
+        plt.matshow(S_reduced)
+        plt.title("S_reduced, after inversion, process: " + str(comm_rank))
+        plt.show()
 
     return S_reduced
 
@@ -627,7 +647,7 @@ def top_sinv(
     L_arrow_bottom: np.ndarray,
     U_arrow_right: np.ndarray,
     blocksize: int,
-    arrowhead_blocksize: int,
+    arrow_blocksize: int,
 ) -> [np.ndarray, np.ndarray, np.ndarray]:
     n_blocks = A_local.shape[0] // blocksize
 
@@ -691,7 +711,7 @@ def middle_sinv(
     L_arrow_bottom: np.ndarray,
     U_arrow_right: np.ndarray,
     blocksize: int,
-    arrowhead_blocksize: int,
+    arrow_blocksize: int,
 ) -> [np.ndarray, np.ndarray, np.ndarray]:
     n_blocks = A_local.shape[0] // blocksize
 
@@ -823,12 +843,12 @@ def psr_arrowhead(
     Bridges_upper: list,
     Bridges_lower: list,
     blocksize: int,
-    arrowhead_blocksize: int,
+    arrow_blocksize: int,
 ) -> [np.ndarray, np.ndarray, np.ndarray]:
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
 
-    Update_arrow_tip = np.zeros((arrowhead_blocksize, arrowhead_blocksize))
+    Update_arrow_tip = np.zeros((arrow_blocksize, arrow_blocksize))
 
     if comm_rank == 0:
         (
@@ -845,7 +865,7 @@ def psr_arrowhead(
             A_arrow_right,
             Update_arrow_tip,
             blocksize,
-            arrowhead_blocksize,
+            arrow_blocksize,
         )
     else:
         (
@@ -862,7 +882,7 @@ def psr_arrowhead(
             A_arrow_right,
             Update_arrow_tip,
             blocksize,
-            arrowhead_blocksize,
+            arrow_blocksize,
         )
 
     """ plt.matshow(A_local)
@@ -881,7 +901,7 @@ def psr_arrowhead(
         Bridges_lower,
         Update_arrow_tip,
         blocksize,
-        arrowhead_blocksize,
+        arrow_blocksize,
     )
 
     # plt.matshow(reduced_system)
@@ -889,7 +909,7 @@ def psr_arrowhead(
     # plt.show()
 
     reduced_system_inv = inverse_reduced_system(
-        reduced_system, diag_blocksize, arrowhead_blocksize
+        reduced_system, diag_blocksize, arrow_blocksize
     )
 
     # plt.matshow(reduced_system_inv)
@@ -932,7 +952,7 @@ def psr_arrowhead(
             L_arrow_bottom,
             U_arrow_right,
             blocksize,
-            arrowhead_blocksize,
+            arrow_blocksize,
         )
 
     else:
@@ -947,7 +967,7 @@ def psr_arrowhead(
             L_arrow_bottom,
             U_arrow_right,
             blocksize,
-            arrowhead_blocksize,
+            arrow_blocksize,
         )
 
     # plt.matshow(S_local)
