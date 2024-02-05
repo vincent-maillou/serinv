@@ -155,7 +155,15 @@ def top_factorize(
     Update_arrow_tip: np.ndarray,
     blocksize: int,
     arrowhead_blocksize: int,
-) -> [np.ndarray, np.ndarray, np.ndarray]:
+) -> [
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+]:
     LU_local = np.zeros_like(A_local)
     L_arrow_bottom = np.zeros_like(A_arrow_bottom)
     U_arrow_right = np.zeros_like(A_arrow_right)
@@ -170,6 +178,7 @@ def top_factorize(
         )
 
         # L[i, i-1] = A[i, i-1] @ A[i-1, i-1]^(-1)
+        # LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] = np.linalg.solve(A_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize].T, A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize].T).T
         LU_local[
             i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
         ] = (
@@ -178,9 +187,14 @@ def top_factorize(
             ]
             @ A_im1im1_inv
         )
-        # LU_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize] = np.linalg.solve(A_local[i * blocksize : (i + 1) * blocksize, (i-1) * blocksize : i * blocksize].T, A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize].T).T
+
+        # L_{ndb+1, i-1} = A_{ndb+1, i-1} @ A{i-1, i-1}^{-1}
+        L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize] = (
+            A_arrow_bottom[:, (i - 1) * blocksize : i * blocksize] @ A_im1im1_inv
+        )
 
         # U[i-1, i] = A[i-1, i-1]^(-1) @ A[i-1, i]
+        # LU_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize] = np.linalg.solve(A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize], A_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize])
         LU_local[
             (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
         ] = (
@@ -189,11 +203,11 @@ def top_factorize(
                 (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
             ]
         )
-        # LU_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize]   = np.linalg.solve(A_local[(i-1) * blocksize : i * blocksize, (i-1) * blocksize : i * blocksize], A_local[(i-1) * blocksize : i * blocksize, i * blocksize : (i+1) * blocksize])
 
-        # A_{i+1, ndb+1} = A_{i+1, ndb+1} - L_{i+1, i} @ U_{i, ndb+1}
-
-        # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ U_{i, ndb+1}
+        # U_{i-1, ndb+1} = A{i-1, i-1}^{-1} @ A_{i-1, ndb+1}
+        U_arrow_right[(i - 1) * blocksize : i * blocksize, :] = (
+            A_im1im1_inv @ A_arrow_right[:blocksize, :]
+        )
 
         # A[i, i] = A[i, i] - L[i, i-1] @ A[i-1, i]
         A_local[
@@ -210,7 +224,40 @@ def top_factorize(
             ]
         )
 
-    return A_local, LU_local, L_arrow_bottom, U_arrow_right, Update_arrow_tip
+        # A_{ndb+1, i} = A_{ndb+1, i} - L_{ndb+1, i-1} @ U_{i-1, i}
+        A_arrow_bottom[:, i * blocksize : (i + 1) * blocksize] = (
+            A_arrow_bottom[:, i * blocksize : (i + 1) * blocksize]
+            - L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
+            @ LU_local[
+                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
+        )
+
+        # A_{i, ndb+1} = A_{i, ndb+1} - L_{i, i-1} @ U_{i-1, ndb+1}
+        A_arrow_right[i * blocksize : (i + 1) * blocksize, :] = (
+            A_arrow_right[i * blocksize : (i + 1) * blocksize, :]
+            - LU_local[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
+            @ U_arrow_right[(i - 1) * blocksize : i * blocksize, :]
+        )
+
+        # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i-1} @ U_{i-1, ndb+1}
+        Update_arrow_tip = (
+            Update_arrow_tip
+            - L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
+            @ U_arrow_right[(i - 1) * blocksize : i * blocksize, :]
+        )
+
+    return (
+        A_local,
+        A_arrow_bottom,
+        A_arrow_right,
+        LU_local,
+        L_arrow_bottom,
+        U_arrow_right,
+        Update_arrow_tip,
+    )
 
 
 def middle_factorize(
@@ -220,7 +267,15 @@ def middle_factorize(
     Update_arrow_tip: np.ndarray,
     blocksize: int,
     arrowhead_blocksize: int,
-) -> [np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> [
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+]:
     LU_local = np.zeros_like(A_local)
     L_arrow_bottom = np.zeros_like(A_arrow_bottom)
     U_arrow_right = np.zeros_like(A_arrow_right)
@@ -302,20 +357,80 @@ def middle_factorize(
             ]
         )
 
-    return A_local, LU_local, L_arrow_bottom, U_arrow_right, Update_arrow_tip
+        # Arrowhead-update part
+        # Update downward
+        # U_{i-1, bot} = A_{i-1, i-1}^{-1} @ A_{i-1, bot}
+        U_arrow_right[(i - 1) * blocksize : i * blocksize, :] = (
+            A_im1im1_inv @ A_arrow_right[(i - 1) * blocksize : i * blocksize, :]
+        )
+
+        # L_{bot, i-1} = A_{bot, i-1} @ A_{i-1, i-1}^{-1}
+        L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize] = (
+            A_arrow_bottom[:, (i - 1) * blocksize : i * blocksize] @ A_im1im1_inv
+        )
+
+        # A_{bot, i} = A_{bot, i} - L_{bot, i-1} @ U_{i-1, i}
+        A_arrow_bottom[:, i * blocksize : (i + 1) * blocksize] = (
+            A_arrow_bottom[:, i * blocksize : (i + 1) * blocksize]
+            - L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
+            @ LU_local[
+                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            ]
+        )
+
+        # A_{i, bot} = A_{i, bot} - L_{i, i-1} @ U_{i-1, bot}
+        A_arrow_right[i * blocksize : (i + 1) * blocksize, :] = (
+            A_arrow_right[i * blocksize : (i + 1) * blocksize, :]
+            - LU_local[
+                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            ]
+            @ U_arrow_right[(i - 1) * blocksize : i * blocksize, :]
+        )
+
+        # A_{bot, bot} = A_{bot, bot} - L_{bot, i-1} @ U_{i-1, bot}
+        Update_arrow_tip = (
+            Update_arrow_tip
+            - L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
+            @ U_arrow_right[(i - 1) * blocksize : i * blocksize, :]
+        )
+
+        # Update upward
+        # A_{bot, top} = A_{bot, top} - L_{bot, i-1} @ U_{i-1, top}
+        A_arrow_bottom[:, 0:blocksize] = (
+            A_arrow_bottom[:, 0:blocksize]
+            - L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
+            @ LU_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
+        )
+
+        # A_{top, bot} = A_{top, bot} - L_{top, i-1} @ U_{i-1, bot}
+        A_arrow_right[0:blocksize, :] = (
+            A_arrow_right[0:blocksize, :]
+            - LU_local[0:blocksize, (i - 1) * blocksize : i * blocksize]
+            @ U_arrow_right[(i - 1) * blocksize : i * blocksize, :]
+        )
+
+    return (
+        A_local,
+        A_arrow_bottom,
+        A_arrow_right,
+        LU_local,
+        L_arrow_bottom,
+        U_arrow_right,
+        Update_arrow_tip,
+    )
 
 
 def create_reduced_system(
-    A_local,
-    A_arrow_bottom,
-    A_arrow_right,
-    A_global_arrow_tip,
-    Bridges_upper,
-    Bridges_lower,
-    Update_arrow_tip,
-    blocksize,
-    arrowhead_blocksize,
-):
+    A_local: np.ndarray,
+    A_arrow_bottom: np.ndarray,
+    A_arrow_right: np.ndarray,
+    A_global_arrow_tip: np.ndarray,
+    Bridges_upper: list,
+    Bridges_lower: list,
+    Update_arrow_tip: np.ndarray,
+    blocksize: int,
+    arrowhead_blocksize: int,
+) -> np.ndarray:
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
@@ -379,9 +494,9 @@ def create_reduced_system(
             start_index + blocksize : start_index + 2 * blocksize, -arrow_blocksize:
         ] = A_arrow_right[-blocksize:, :]
 
-    """ plt.matshow(reduced_system)
-    plt.title("Reduced system process: " + str(comm_rank))
-    plt.show() """
+    plt.matshow(reduced_system)
+    plt.title("Reduced system, before sending, process: " + str(comm_rank))
+    plt.show()
 
     # Send the reduced_system with MPIallReduce SUM operation
     reduced_system_sum = np.zeros_like(reduced_system)
@@ -391,17 +506,20 @@ def create_reduced_system(
 
     reduced_system_sum[-arrow_blocksize:, -arrow_blocksize:] += A_global_arrow_tip
 
-    """ plt.matshow(reduced_system_sum)
-    plt.title("Reduced system process: " + str(comm_rank))
-    plt.show() """
-
     return reduced_system_sum
 
 
-def inverse_reduced_system(reduced_system, diag_blocksize, arrowhead_blocksize):
+def inverse_reduced_system(
+    reduced_system, diag_blocksize, arrowhead_blocksize
+) -> np.ndarray:
     n_diag_blocks = (reduced_system.shape[0] - arrowhead_blocksize) // diag_blocksize
 
-    # For now with blk tridiag
+    if comm_rank == 0:
+        plt.matshow(reduced_system)
+        plt.title("Reduced system, after sending, process: " + str(comm_rank))
+        plt.show()
+
+    # ----- For now with blk tridiag -----
     # Cast the right size
     reduced_system_sliced_to_tridiag = reduced_system[
         : n_diag_blocks * diag_blocksize, : n_diag_blocks * diag_blocksize
@@ -418,6 +536,7 @@ def inverse_reduced_system(reduced_system, diag_blocksize, arrowhead_blocksize):
     S_reduced[
         : n_diag_blocks * diag_blocksize, : n_diag_blocks * diag_blocksize
     ] = S_reduced_sliced_to_tridiag
+    # ------------------------------------
 
     # Switch when arrowhead
     # L_reduced, U_reduced = lu_dcmp_tridiag_arrowhead(reduced_system, diag_blocksize, arrowhead_blocksize)
@@ -431,11 +550,11 @@ def update_sinv_reduced_system(
     S_arrow_bottom: np.ndarray,
     S_arrow_right: np.ndarray,
     reduced_system: np.ndarray,
-    Bridges_upper: np.ndarray,
-    Bridges_lower: np.ndarray,
+    Bridges_upper: list,
+    Bridges_lower: list,
     blocksize: int,
     arrow_blocksize: int,
-):
+) -> [np.ndarray, np.ndarray, np.ndarray]:
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
 
@@ -701,11 +820,11 @@ def psr_arrowhead(
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
     A_global_arrow_tip: np.ndarray,
-    Bridges_upper,
-    Bridges_lower,
+    Bridges_upper: list,
+    Bridges_lower: list,
     blocksize: int,
     arrowhead_blocksize: int,
-):
+) -> [np.ndarray, np.ndarray, np.ndarray]:
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
 
@@ -714,6 +833,8 @@ def psr_arrowhead(
     if comm_rank == 0:
         (
             A_local,
+            A_arrow_bottom,
+            A_arrow_right,
             LU_local,
             L_arrow_bottom,
             U_arrow_right,
@@ -729,6 +850,8 @@ def psr_arrowhead(
     else:
         (
             A_local,
+            A_arrow_bottom,
+            A_arrow_right,
             LU_local,
             L_arrow_bottom,
             U_arrow_right,
