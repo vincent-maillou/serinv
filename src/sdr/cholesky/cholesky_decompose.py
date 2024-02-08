@@ -17,6 +17,7 @@ import scipy.linalg as la
 def chol_dcmp_tridiag(
     A: np.ndarray,
     blocksize: int,
+    overwrite: bool = False,
 ) -> np.ndarray:
     """ Perform the cholesky factorization of a block tridiagonal matrix. The 
     matrix is assumed to be symmetric positive definite.
@@ -29,6 +30,8 @@ def chol_dcmp_tridiag(
         Input matrix to decompose.
     blocksize : int
         Size of the blocks.
+    overwrite : bool
+        If True, the input matrix A is modified in place. Default is False.
     
     Returns
     -------
@@ -36,7 +39,10 @@ def chol_dcmp_tridiag(
         The cholesky factorization of the matrix.
     """
 
-    L = np.zeros_like(A)
+    if overwrite:
+        L = A
+    else:    
+        L = np.zeros_like(A)
 
     L[0:blocksize, 0:blocksize] = A[0:blocksize, 0:blocksize]
 
@@ -52,6 +58,11 @@ def chol_dcmp_tridiag(
         L[(i+1)*blocksize:(i+2)*blocksize, (i+1)*blocksize:(i+2)*blocksize] = A[(i+1)*blocksize:(i+2)*blocksize, (i+1)*blocksize:(i+2)*blocksize] - L[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize] @ L[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize].T
        
     L[-blocksize:, -blocksize:] = la.cholesky(L[-blocksize:, -blocksize:]).T
+    
+    # zero out upper part of A if overwrite is true
+    if overwrite:
+        upper_triangular_indices = np.triu_indices(L.shape[0], k=1)
+        L[upper_triangular_indices] = 0
 
     return L
 

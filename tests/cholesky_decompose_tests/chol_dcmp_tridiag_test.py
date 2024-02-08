@@ -15,6 +15,7 @@ import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
 import pytest
+import ctypes
 
 
 
@@ -48,26 +49,44 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(L_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
+    
+    # Run with overwrite = True functionality
+    L_sdr = chol_dcmp_tridiag(A, blocksize, overwrite=True)
+    print("Run with overwrite :  True")
+    print("memory address A   : ", A.ctypes.data)
+    print("memory address L   : ", L_sdr.ctypes.data)
+    print("L_ref == L_sdr     : ", np.allclose(L_ref, L_sdr))
+
 
 
 
 @pytest.mark.parametrize(
-    "nblocks, blocksize", 
+    "nblocks, blocksize, overwrite", 
     [
-        (2, 2),
-        (10, 2),
-        (100, 2),
-        (2, 3),
-        (10, 3),
-        (100, 3),
-        (2, 100),
-        (5, 100),
-        (10, 100),
+        (2, 2, False),
+        (10, 2, False),
+        (100, 2, False),
+        (2, 3, False),
+        (10, 3, False),
+        (100, 3, False),
+        (2, 100, False),
+        (5, 100, False),
+        (10, 100, False),
+        (2, 2, True),
+        (10, 2, True),
+        (100, 2, True),
+        (2, 3, True),
+        (10, 3, True),
+        (100, 3, True),
+        (2, 100, True),
+        (5, 100, True),
+        (10, 100, True),
     ]
 )
 def test_cholesky_decompose_tridiag(
     nblocks: int,
     blocksize: int,  
+    overwrite: bool,
 ):
     symmetric = True
     diagonal_dominant = True
@@ -78,7 +97,9 @@ def test_cholesky_decompose_tridiag(
     )
 
     L_ref = la.cholesky(A, lower=True)
-    L_sdr = chol_dcmp_tridiag(A, blocksize)
+    L_sdr = chol_dcmp_tridiag(A, blocksize, overwrite=overwrite)
 
-    assert np.allclose(L_ref, L_sdr)
-
+    if overwrite:
+        assert np.allclose(L_ref, L_sdr) and A.ctypes.data == L_sdr.ctypes.data
+    else: 
+        assert np.allclose(L_ref, L_sdr) and A.ctypes.data != L_sdr.ctypes.data 
