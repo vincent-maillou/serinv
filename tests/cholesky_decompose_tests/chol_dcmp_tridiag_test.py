@@ -59,30 +59,26 @@ if __name__ == "__main__":
 
 
 
-
 @pytest.mark.parametrize(
-    "nblocks, blocksize, overwrite", 
+    "nblocks, blocksize", 
     [
-        (2, 2, False),
-        (10, 2, False),
-        (100, 2, False),
-        (2, 3, False),
-        (10, 3, False),
-        (100, 3, False),
-        (2, 100, False),
-        (5, 100, False),
-        (10, 100, False),
-        (2, 2, True),
-        (10, 2, True),
-        (100, 2, True),
-        (2, 3, True),
-        (10, 3, True),
-        (100, 3, True),
-        (2, 100, True),
-        (5, 100, True),
-        (10, 100, True),
+        (2, 2),
+        (10, 2),
+        (100, 2),
+        (2, 3),
+        (10, 3),
+        (100, 3),
+        (2, 100),
+        (5, 100),
+        (10, 100),
     ]
 )
+@pytest.mark.parametrize(
+    "overwrite", 
+    [True, False]
+)    
+
+
 def test_cholesky_decompose_tridiag(
     nblocks: int,
     blocksize: int,  
