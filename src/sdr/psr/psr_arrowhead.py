@@ -803,6 +803,21 @@ def middle_sinv(
     blocksize: int,
     arrow_blocksize: int,
 ) -> [np.ndarray, np.ndarray, np.ndarray]:
+
+    # comm = MPI.COMM_WORLD
+    # comm_rank = comm.Get_rank()
+
+    # fig, ax = plt.subplots(1, 3)
+    # fig.suptitle(f"Rank {comm_rank}")
+    # ax[0].matshow(S_local)
+    # ax[0].set_title("S_local")
+    # ax[1].matshow(A_local)
+    # ax[1].set_title("A_local")
+    # ax[2].matshow(LU_local)
+    # ax[2].set_title("LU_local")
+    # plt.show()
+
+
     n_blocks = A_local.shape[0] // blocksize
 
     # S_local[bot, bot-1] = - S_local[bot, top] @ L[top, bot-1] - S_local[bot, bot] @ L[bot, bot-1]
@@ -839,7 +854,7 @@ def middle_sinv(
         @ S_local[0:blocksize, (n_blocks - 1) * blocksize : n_blocks * blocksize]
     )
 
-    for i in range(n_blocks - 2, 0, -1):
+    for i in range(n_blocks - 2, 0, -1): # It was wrong in the paper
         # S_local[top, i] = - S_local[top, top] @ L[top, i] - S_local[top, i+1] @ L[i+1, i]
         S_local[0:blocksize, i * blocksize : (i + 1) * blocksize] = (
             -S_local[0:blocksize, 0:blocksize]
@@ -862,7 +877,7 @@ def middle_sinv(
             @ S_local[0:blocksize, 0:blocksize]
         )
 
-    for i in range(n_blocks - 2, 1, -1):
+    for i in range(n_blocks - 2, 1, -1): # It was wrong in the paper
         # S_local[i, i] = np.linalg.inv(A_local[i, i]) - U[i, top] @ S_local[top, i] - U[i, i+1] @ S_local[i+1, i]
         S_local[
             i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
@@ -975,13 +990,6 @@ def psr_arrowhead(
             arrow_blocksize,
         )
 
-    """ plt.matshow(A_local)
-    plt.title("A_local process: " + str(process))
-
-    plt.matshow(LU_local)
-    plt.title("LU_local process: " + str(process))
-    plt.show() """
-
     reduced_system = create_reduced_system(
         A_local,
         A_arrow_bottom,
@@ -994,18 +1002,9 @@ def psr_arrowhead(
         arrow_blocksize,
     )
 
-    """ if comm_rank == 0:
-        plt.matshow(reduced_system)
-        plt.title("reduced_system process: " + str(comm_rank))
-        plt.show() """
-
     reduced_system_inv = inverse_reduced_system(
         reduced_system, diag_blocksize, arrow_blocksize
     )
-
-    # plt.matshow(reduced_system_inv)
-    # plt.title("reduced_system_inv process: " + str(comm_rank))
-    # plt.show()
 
     S_local = np.zeros_like(A_local)
     S_arrow_bottom = np.zeros_like(A_arrow_bottom)
@@ -1028,16 +1027,7 @@ def psr_arrowhead(
         blocksize,
         arrow_blocksize,
     )
-
-    # plt.matshow(reduced_system_inv)
-    # plt.title("reduced_system_inv process: " + str(comm_rank))
-    # plt.matshow(S_local)
-    # plt.title("S_local process: " + str(comm_rank))
-    # plt.show()
-
-    # plt.matshow(S_local)
-    # plt.title("S_local before process: " + str(comm_rank))
-
+    
     if comm_rank == 0:
         S_local, S_arrow_bottom, S_arrow_right = top_sinv(
             S_local,
@@ -1053,7 +1043,6 @@ def psr_arrowhead(
             blocksize,
             arrow_blocksize,
         )
-
     else:
         S_local, S_arrow_bottom, S_arrow_right = middle_sinv(
             S_local,
@@ -1069,10 +1058,6 @@ def psr_arrowhead(
             blocksize,
             arrow_blocksize,
         )
-
-    # plt.matshow(S_local)
-    # plt.title("S_local after process: " + str(comm_rank))
-    # plt.show()
 
     return S_local, Bridges_upper, Bridges_lower, S_arrow_bottom, S_arrow_right, S_global_arrow_tip
 
@@ -1270,7 +1255,7 @@ import copy as cp
 
 # Integration test
 if __name__ == "__main__":
-    nblocks = 11
+    nblocks = 13
     diag_blocksize = 3
     arrow_blocksize = 2
     symmetric = False
@@ -1280,10 +1265,6 @@ if __name__ == "__main__":
     A = matrix_generation.generate_blocktridiag_arrowhead(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
-    
-    # A = matrix_generation.generate_blocktridiag(
-    #     nblocks, diag_blocksize, diagonal_dominant, seed
-    # )
 
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
@@ -1303,27 +1284,6 @@ if __name__ == "__main__":
     A_inv_ref[:-arrow_blocksize, :-arrow_blocksize] = np.linalg.inv(A_ref[:-arrow_blocksize, :-arrow_blocksize])
     
     A_inv_ref_cut_tridiag = mt.cut_to_blocktridiag(A_inv_ref, diag_blocksize)
-    
-    """ 
-    # I verified:
-    # 1. We invert the trdagonal matrix not the arrowhead
-    # 2. We cut the inverted matrix to the tridiagonal shape
-    # 3. We cast it back into the arrowhead shape
-    # 4. All processes have the same A_inv_ref_cut_tridiag matrix
-    A_inv_ref_cut_tridiag_norme = np.linalg.norm(A_inv_ref_cut_tridiag)
-    print("Process: ", comm_rank, " A_inv_ref_cut_tridiag norme = ", A_inv_ref_cut_tridiag_norme)
-    
-    fig, ax = plt.subplots(1, 4)
-    ax[0].matshow(A)
-    ax[0].set_title("A")
-    ax[1].matshow(A_ref)
-    ax[1].set_title("A_ref")
-    ax[2].matshow(A_inv_ref)
-    ax[2].set_title("A_inv_ref")
-    ax[3].matshow(A_inv_ref_cut_tridiag)
-    ax[3].set_title("A_inv_ref_cut_tridiag")
-    plt.show() 
-    """
 
     A_inv_ref_local, A_ref_arrow_bottom, A_ref_arrow_right = extract_partition(
         A_inv_ref_cut_tridiag,
@@ -1333,45 +1293,14 @@ if __name__ == "__main__":
         arrow_blocksize,
     )
     
-    """ 
-    # I verified:
-    # 1. The local reference partition we extract matches the reference matrix
-    fig, ax = plt.subplots(1, 2)
-    fig.suptitle("Process: " + str(comm_rank))
-    ax[0].matshow(A_inv_ref_cut_tridiag)
-    ax[0].set_title("A_inv_ref_cut_tridiag")
-    ax[1].matshow(A_inv_ref_local)
-    ax[1].set_title("A_inv_ref_local")
-    plt.show()  
-    """
-    
     Bridges_upper_inv_ref, Bridges_lower_inv_ref = extract_bridges(
         A_inv_ref_cut_tridiag, diag_blocksize, start_blockrows
     )
-    
     # ----- Reference/Checking data -----
-    
-    
     
     Bridges_upper, Bridges_lower = extract_bridges(
         A, diag_blocksize, start_blockrows
     )
-    
-    
-    """ # I verified:
-    # 1. The bridges are correct
-    #   - They weren't (inverted), now P0 is correct but not the middles partitions schemes
-    
-    if comm_rank == 0:
-        plt.matshow(A)
-        n_bridges = len(Bridges_upper)
-        for i in range(n_bridges):
-            plt.matshow(Bridges_upper[i])
-            plt.title("Bridges_upper " + str(i))
-            plt.matshow(Bridges_lower[i])
-            plt.title("Bridges_lower " + str(i))
-        plt.show() """
-   
 
     A_arrow_tip = A[-arrow_blocksize:, -arrow_blocksize:]
 
@@ -1396,6 +1325,9 @@ if __name__ == "__main__":
 
     S_local_cut_tridiag = mt.cut_to_blocktridiag(S_local, diag_blocksize)
 
+
+    # ----- VERFIFYING THE RESULTS -----
+
     # fig, ax = plt.subplots(1, 3)
     # fig.suptitle("Process: " + str(comm_rank))
     # ax[0].matshow(A_inv_ref_local)
@@ -1405,11 +1337,18 @@ if __name__ == "__main__":
     # ax[2].matshow(S_local_cut_tridiag)
     # ax[2].set_title("S_local_cut_tridiag")
     # plt.show()
+    
+    # DIFF = A_inv_ref_local - S_local_cut_tridiag
+    # plt.matshow(DIFF)
+    # plt.title("DIFF Process: " + str(comm_rank))
+    # plt.show()
 
     # Check for partitions correctness
     Norme_A_inv_ref_local = np.linalg.norm(A_inv_ref_local)
-    Norme_S_local = np.linalg.norm(S_local)
-    Norme_diff = np.linalg.norm(A_inv_ref_local - S_local)
+    Norme_S_local = np.linalg.norm(S_local_cut_tridiag)
+    Norme_diff = np.linalg.norm(A_inv_ref_local - S_local_cut_tridiag)
+    
+    assert np.allclose(A_inv_ref_local, S_local_cut_tridiag)
 
     print("Partition n", comm_rank, " \n     norme ref = ", Norme_A_inv_ref_local, "  norm psr = ", Norme_S_local, "  norm diff = ", Norme_diff)
 
