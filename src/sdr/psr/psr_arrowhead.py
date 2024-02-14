@@ -117,7 +117,7 @@ def extract_partition(
     return A_local, A_arrow_bottom, A_arrow_right
 
 
-def extract_bridges(
+def extract_bridges_lisa(
     A_global: np.ndarray,
     blocksize: int,
     arrow_blocksize: int,
@@ -146,6 +146,31 @@ def extract_bridges(
         )
 
     return Bridges_lower, Bridges_upper
+
+
+def extract_bridges(
+    A: np.ndarray,
+    blocksize: int,
+    start_blockrows: list,
+) -> [list, list]:
+    
+    Bridges_lower: list = []
+    Bridges_upper: list = []
+    
+    for i in range(1, len(start_blockrows)):
+        upper_bridge = np.zeros((blocksize, blocksize))
+        lower_bridge = np.zeros((blocksize, blocksize))
+        
+        start_ixd = start_blockrows[i]*blocksize
+        
+        upper_bridge = A[start_ixd-blocksize:start_ixd, start_ixd:start_ixd+blocksize]
+        lower_bridge = A[start_ixd:start_ixd+blocksize, start_ixd-blocksize:start_ixd]
+        
+        Bridges_upper.append(upper_bridge)
+        Bridges_lower.append(lower_bridge)
+        
+    return Bridges_upper, Bridges_lower
+
 
 
 ### ------------------------ PSR ARROWHEAD ------------------------ ###
@@ -446,8 +471,8 @@ def create_reduced_system(
         reduced_system[:blocksize, :blocksize] = A_local[-blocksize:, -blocksize:]
         reduced_system[:blocksize, blocksize : 2 * blocksize] = Bridges_upper[comm_rank]
 
-        reduced_system[-arrow_blocksize:, :blocksize] = A_arrow_bottom[:, -blocksize:]
-        reduced_system[:blocksize, -arrow_blocksize:] = A_arrow_right[-blocksize:, :]
+        # reduced_system[-arrow_blocksize:, :blocksize] = A_arrow_bottom[:, -blocksize:]
+        # reduced_system[:blocksize, -arrow_blocksize:] = A_arrow_right[-blocksize:, :]
     else:
         start_index = blocksize + (comm_rank - 1) * 2 * blocksize
 
@@ -480,21 +505,21 @@ def create_reduced_system(
                 start_index + 2 * blocksize : start_index + 3 * blocksize,
             ] = Bridges_upper[comm_rank]
 
-        reduced_system[
-            -arrow_blocksize:, start_index : start_index + blocksize
-        ] = A_arrow_bottom[:, :blocksize]
+        # reduced_system[
+        #     -arrow_blocksize:, start_index : start_index + blocksize
+        # ] = A_arrow_bottom[:, :blocksize]
 
-        reduced_system[
-            -arrow_blocksize:, start_index + blocksize : start_index + 2 * blocksize
-        ] = A_arrow_bottom[:, -blocksize:]
+        # reduced_system[
+        #     -arrow_blocksize:, start_index + blocksize : start_index + 2 * blocksize
+        # ] = A_arrow_bottom[:, -blocksize:]
 
-        reduced_system[
-            start_index : start_index + blocksize, -arrow_blocksize:
-        ] = A_arrow_right[:blocksize, :]
+        # reduced_system[
+        #     start_index : start_index + blocksize, -arrow_blocksize:
+        # ] = A_arrow_right[:blocksize, :]
 
-        reduced_system[
-            start_index + blocksize : start_index + 2 * blocksize, -arrow_blocksize:
-        ] = A_arrow_right[-blocksize:, :]
+        # reduced_system[
+        #     start_index + blocksize : start_index + 2 * blocksize, -arrow_blocksize:
+        # ] = A_arrow_right[-blocksize:, :]
 
     # Send the reduced_system with MPIallReduce SUM operation
     reduced_system_sum = np.zeros_like(reduced_system)
@@ -504,7 +529,7 @@ def create_reduced_system(
 
     # Should we invert the tip of the arrow before adding it to the reduced system?
     # ----- HERE IS: NO -----
-    reduced_system_sum[-arrow_blocksize:, -arrow_blocksize:] += A_global_arrow_tip
+    # reduced_system_sum[-arrow_blocksize:, -arrow_blocksize:] += A_global_arrow_tip
     # ...is the only one that doesn't give a singular matrix and fail
 
     # ----- HERE IS: Invert block and then add it -----
@@ -526,11 +551,6 @@ def inverse_reduced_system(
 ) -> np.ndarray:
     n_diag_blocks = (reduced_system.shape[0] - arrow_blocksize) // diag_blocksize
 
-    # if comm_rank == 0:
-    #     plt.matshow(reduced_system)
-    #     plt.title("Reduced system, before inversion, process: " + str(comm_rank))
-    #     plt.show()
-
     # ----- For now with blk tridiag -----
     # Cast the right size
     reduced_system_sliced_to_tridiag = reduced_system[
@@ -549,7 +569,6 @@ def inverse_reduced_system(
         : n_diag_blocks * diag_blocksize, : n_diag_blocks * diag_blocksize
     ] = S_reduced_sliced_to_tridiag[:,:]
     # ------------------------------------
-
     # # ----- Arrowhead solver -----
     # L_reduced, U_reduced = lu_dcmp_tridiag_arrowhead(
     #     reduced_system, diag_blocksize, arrow_blocksize
@@ -559,10 +578,6 @@ def inverse_reduced_system(
     # )
     # # ----------------------------
 
-    # if comm_rank == 0:
-    #     plt.matshow(S_reduced)
-    #     plt.title("S_reduced, after inversion, process: " + str(comm_rank))
-    #     plt.show()
 
     return S_reduced
 
@@ -586,8 +601,8 @@ def update_sinv_reduced_system(
 
         Bridges_upper[comm_rank] = reduced_system[:blocksize, blocksize : 2 * blocksize]
 
-        S_arrow_bottom[:, -blocksize:] = reduced_system[-arrow_blocksize:, :blocksize]
-        S_arrow_right[-blocksize:, :] = reduced_system[:blocksize, -arrow_blocksize:]
+        # S_arrow_bottom[:, -blocksize:] = reduced_system[-arrow_blocksize:, :blocksize]
+        # S_arrow_right[-blocksize:, :] = reduced_system[:blocksize, -arrow_blocksize:]
     else:
         start_index = blocksize + (comm_rank - 1) * 2 * blocksize
 
@@ -620,21 +635,21 @@ def update_sinv_reduced_system(
                 start_index + 2 * blocksize : start_index + 3 * blocksize,
             ]
 
-        S_arrow_bottom[:, :blocksize] = reduced_system[
-            -arrow_blocksize:, start_index : start_index + blocksize
-        ]
+        # S_arrow_bottom[:, :blocksize] = reduced_system[
+        #     -arrow_blocksize:, start_index : start_index + blocksize
+        # ]
 
-        S_arrow_bottom[:, -blocksize:] = reduced_system[
-            -arrow_blocksize:, start_index + blocksize : start_index + 2 * blocksize
-        ]
+        # S_arrow_bottom[:, -blocksize:] = reduced_system[
+        #     -arrow_blocksize:, start_index + blocksize : start_index + 2 * blocksize
+        # ]
 
-        S_arrow_right[:blocksize, :] = reduced_system[
-            start_index : start_index + blocksize, -arrow_blocksize:
-        ]
+        # S_arrow_right[:blocksize, :] = reduced_system[
+        #     start_index : start_index + blocksize, -arrow_blocksize:
+        # ]
 
-        S_arrow_right[-blocksize:, :] = reduced_system[
-            start_index + blocksize : start_index + 2 * blocksize, -arrow_blocksize:
-        ]
+        # S_arrow_right[-blocksize:, :] = reduced_system[
+        #     start_index + blocksize : start_index + 2 * blocksize, -arrow_blocksize:
+        # ]
 
     S_global_arrow_tip = reduced_system[-arrow_blocksize:, -arrow_blocksize:]
 
@@ -979,10 +994,10 @@ def psr_arrowhead(
         arrow_blocksize,
     )
 
-    if comm_rank == 0:
+    """ if comm_rank == 0:
         plt.matshow(reduced_system)
         plt.title("reduced_system process: " + str(comm_rank))
-        plt.show()
+        plt.show() """
 
     reduced_system_inv = inverse_reduced_system(
         reduced_system, diag_blocksize, arrow_blocksize
@@ -1059,7 +1074,7 @@ def psr_arrowhead(
     # plt.title("S_local after process: " + str(comm_rank))
     # plt.show()
 
-    return S_local, S_arrow_bottom, S_arrow_right
+    return S_local, Bridges_upper, Bridges_lower, S_arrow_bottom, S_arrow_right, S_global_arrow_tip
 
 
 import copy as cp
@@ -1255,7 +1270,7 @@ import copy as cp
 
 # Integration test
 if __name__ == "__main__":
-    nblocks = 30
+    nblocks = 11
     diag_blocksize = 3
     arrow_blocksize = 2
     symmetric = False
@@ -1265,6 +1280,10 @@ if __name__ == "__main__":
     A = matrix_generation.generate_blocktridiag_arrowhead(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
+    
+    # A = matrix_generation.generate_blocktridiag(
+    #     nblocks, diag_blocksize, diagonal_dominant, seed
+    # )
 
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
@@ -1277,23 +1296,82 @@ if __name__ == "__main__":
     )
 
     # ----- Reference/Checkign data -----
-    A_ref = cp.deepcopy(A)
-    A_inv_ref = np.linalg.inv(A_ref)
-
-    A_inv_ref = mt.cut_to_blocktridiag(A_inv_ref, diag_blocksize)
+    A_ref = np.zeros_like(A)
+    A_ref[:-arrow_blocksize, :-arrow_blocksize] = A[:-arrow_blocksize, :-arrow_blocksize]
+    
+    A_inv_ref = np.zeros_like(A_ref)
+    A_inv_ref[:-arrow_blocksize, :-arrow_blocksize] = np.linalg.inv(A_ref[:-arrow_blocksize, :-arrow_blocksize])
+    
+    A_inv_ref_cut_tridiag = mt.cut_to_blocktridiag(A_inv_ref, diag_blocksize)
+    
+    """ 
+    # I verified:
+    # 1. We invert the trdagonal matrix not the arrowhead
+    # 2. We cut the inverted matrix to the tridiagonal shape
+    # 3. We cast it back into the arrowhead shape
+    # 4. All processes have the same A_inv_ref_cut_tridiag matrix
+    A_inv_ref_cut_tridiag_norme = np.linalg.norm(A_inv_ref_cut_tridiag)
+    print("Process: ", comm_rank, " A_inv_ref_cut_tridiag norme = ", A_inv_ref_cut_tridiag_norme)
+    
+    fig, ax = plt.subplots(1, 4)
+    ax[0].matshow(A)
+    ax[0].set_title("A")
+    ax[1].matshow(A_ref)
+    ax[1].set_title("A_ref")
+    ax[2].matshow(A_inv_ref)
+    ax[2].set_title("A_inv_ref")
+    ax[3].matshow(A_inv_ref_cut_tridiag)
+    ax[3].set_title("A_inv_ref_cut_tridiag")
+    plt.show() 
+    """
 
     A_inv_ref_local, A_ref_arrow_bottom, A_ref_arrow_right = extract_partition(
-        A_inv_ref,
+        A_inv_ref_cut_tridiag,
         start_blockrows[comm_rank],
         partition_sizes[comm_rank],
         diag_blocksize,
         arrow_blocksize,
     )
-    # ----- Reference/Checkign data -----
-
-    Bridges_upper, Bridges_lower = extract_bridges(
-        A, diag_blocksize, arrow_blocksize, partition_sizes
+    
+    """ 
+    # I verified:
+    # 1. The local reference partition we extract matches the reference matrix
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle("Process: " + str(comm_rank))
+    ax[0].matshow(A_inv_ref_cut_tridiag)
+    ax[0].set_title("A_inv_ref_cut_tridiag")
+    ax[1].matshow(A_inv_ref_local)
+    ax[1].set_title("A_inv_ref_local")
+    plt.show()  
+    """
+    
+    Bridges_upper_inv_ref, Bridges_lower_inv_ref = extract_bridges(
+        A_inv_ref_cut_tridiag, diag_blocksize, start_blockrows
     )
+    
+    # ----- Reference/Checking data -----
+    
+    
+    
+    Bridges_upper, Bridges_lower = extract_bridges(
+        A, diag_blocksize, start_blockrows
+    )
+    
+    
+    """ # I verified:
+    # 1. The bridges are correct
+    #   - They weren't (inverted), now P0 is correct but not the middles partitions schemes
+    
+    if comm_rank == 0:
+        plt.matshow(A)
+        n_bridges = len(Bridges_upper)
+        for i in range(n_bridges):
+            plt.matshow(Bridges_upper[i])
+            plt.title("Bridges_upper " + str(i))
+            plt.matshow(Bridges_lower[i])
+            plt.title("Bridges_lower " + str(i))
+        plt.show() """
+   
 
     A_arrow_tip = A[-arrow_blocksize:, -arrow_blocksize:]
 
@@ -1305,7 +1383,7 @@ if __name__ == "__main__":
         arrow_blocksize,
     )
 
-    S_local, S_arrow_bottom, S_arrow_right = psr_arrowhead(
+    S_local, S_bridges_upper, S_bridges_lower, S_arrow_bottom, S_arrow_right, S_global_arrow_tip = psr_arrowhead(
         A_local,
         A_arrow_bottom,
         A_arrow_right,
@@ -1316,16 +1394,49 @@ if __name__ == "__main__":
         arrow_blocksize,
     )
 
-    S_local = mt.cut_to_blocktridiag(S_local, diag_blocksize)
+    S_local_cut_tridiag = mt.cut_to_blocktridiag(S_local, diag_blocksize)
 
-    partition_norme = np.linalg.norm(S_local - A_inv_ref_local)
-    print("Partition n", comm_rank, " norme = ", partition_norme)
-
-    # print("Partition n", comm_rank, " S_local = ", S_local - A_inv_ref_local)
-
-    # fig, ax = plt.subplots(1, 2)
+    # fig, ax = plt.subplots(1, 3)
+    # fig.suptitle("Process: " + str(comm_rank))
     # ax[0].matshow(A_inv_ref_local)
-    # ax[0].set_title("A_inv_ref_local process: " + str(comm_rank))
+    # ax[0].set_title("A_inv_ref_local")
     # ax[1].matshow(S_local)
-    # ax[1].set_title("S_local process: " + str(comm_rank))
+    # ax[1].set_title("S_local")
+    # ax[2].matshow(S_local_cut_tridiag)
+    # ax[2].set_title("S_local_cut_tridiag")
     # plt.show()
+
+    # Check for partitions correctness
+    Norme_A_inv_ref_local = np.linalg.norm(A_inv_ref_local)
+    Norme_S_local = np.linalg.norm(S_local)
+    Norme_diff = np.linalg.norm(A_inv_ref_local - S_local)
+
+    print("Partition n", comm_rank, " \n     norme ref = ", Norme_A_inv_ref_local, "  norm psr = ", Norme_S_local, "  norm diff = ", Norme_diff)
+
+    # Check for bridges correctness
+    print("     Bridges correctness:")
+    if comm_rank == 0:
+        norme_upper_bridge_ref_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank])
+        norme_upper_bridge_psr_i = np.linalg.norm(S_bridges_upper[comm_rank])
+        norme_diff_upper_bridge_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank] - S_bridges_upper[comm_rank])
+        
+        print("          Upper bridge n", comm_rank, "  norme ref = ", norme_upper_bridge_ref_i, " norm psr = ", norme_upper_bridge_psr_i, " norm diff = ", norme_diff_upper_bridge_i)            
+                        
+    elif comm_rank == comm_size-1:
+        norme_lower_bridge_ref_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1])
+        norme_lower_bridge_psr_i = np.linalg.norm(S_bridges_lower[comm_rank-1])
+        norme_diff_lower_bridge_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1] - S_bridges_lower[comm_rank-1])
+        
+        print("          Lower bridge n", comm_rank, "  norme ref = ", norme_lower_bridge_ref_i, " norm psr = ", norme_lower_bridge_psr_i, " norm diff = ", norme_diff_lower_bridge_i)
+        
+    else:
+        norme_upper_bridge_ref_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank])
+        norme_upper_bridge_psr_i = np.linalg.norm(S_bridges_upper[comm_rank])
+        norme_diff_upper_bridge_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank] - S_bridges_upper[comm_rank])
+        
+        norme_lower_bridge_ref_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1])
+        norme_lower_bridge_psr_i = np.linalg.norm(S_bridges_lower[comm_rank-1])
+        norme_diff_lower_bridge_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1] - S_bridges_lower[comm_rank-1])
+        
+        print("          Upper bridge n", comm_rank, "  norme ref = ", norme_upper_bridge_ref_i, " norm psr = ", norme_upper_bridge_psr_i, " norm diff = ", norme_diff_upper_bridge_i)            
+        print("          Lower bridge n", comm_rank, "  norme ref = ", norme_lower_bridge_ref_i, " norm psr = ", norme_lower_bridge_psr_i, " norm diff = ", norme_diff_lower_bridge_i)
