@@ -53,6 +53,12 @@ if __name__ == "__main__":
 
     plt.show()
 
+    # Run with overwrite = True functionality
+    L_sdr = chol_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize, overwrite=True)
+    print("Run with overwrite :  True")
+    print("memory address A   : ", A.ctypes.data)
+    print("memory address L   : ", L_sdr.ctypes.data)
+    print("L_ref == L_sdr     : ", np.allclose(L_ref, L_sdr))
 
 
 @pytest.mark.parametrize(

@@ -40,10 +40,9 @@ def chol_dcmp_tridiag(
 
     if overwrite:
         L = A
-    else:    
-        L = np.zeros_like(A)
-
-    L[0:blocksize, 0:blocksize] = A[0:blocksize, 0:blocksize]
+    else:   
+    # (Lisa) TODO: probably less efficient than initializing with zeros? Not sure if relevant. 
+        L = np.copy(A)
 
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks - 1):
@@ -59,7 +58,7 @@ def chol_dcmp_tridiag(
             (i + 1) * blocksize : (i + 2) * blocksize,
             i * blocksize : (i + 1) * blocksize,
         ] = (
-            A[
+            L[
                 (i + 1) * blocksize : (i + 2) * blocksize,
                 i * blocksize : (i + 1) * blocksize,
             ]
@@ -78,7 +77,7 @@ def chol_dcmp_tridiag(
             (i + 1) * blocksize : (i + 2) * blocksize,
             (i + 1) * blocksize : (i + 2) * blocksize,
         ] = (
-            A[
+            L[
                 (i + 1) * blocksize : (i + 2) * blocksize,
                 (i + 1) * blocksize : (i + 2) * blocksize,
             ]
@@ -94,13 +93,9 @@ def chol_dcmp_tridiag(
 
     L[-blocksize:, -blocksize:] = la.cholesky(L[-blocksize:, -blocksize:]).T
     
-    # zero out upper part of A if overwrite is true
-    if overwrite:
-        upper_triangular_indices = np.triu_indices(L.shape[0], k=1)
-        L[upper_triangular_indices] = 0
-
-    if overwrite:
-        L[:] = L * np.tri(*L.shape, k=0)
+    # (Lisa) TODO: potentially make this more efficient. Check if relevant for performance.
+    L[:] = L * np.tri(*L.shape, k=0)
+    
     return L
 
 
@@ -108,6 +103,7 @@ def chol_dcmp_tridiag_arrowhead(
     A: np.ndarray,
     diag_blocksize: int,
     arrow_blocksize: int,
+    overwrite: bool = False,
 ) -> np.ndarray:
     """Perform the cholesky factorization of a block tridiagonal arrowhead
     matrix. The matrix is assumed to be symmetric positive definite.
@@ -120,14 +116,20 @@ def chol_dcmp_tridiag_arrowhead(
         Blocksize of the diagonals blocks of the matrix.
     arrow_blocksize : int
         Blocksize of the blocks composing the arrowhead.
+    overwrite : bool
+        If True, the input matrix A is modified in place. Default is False.
 
     Returns
     -------
     L : np.ndarray
         The cholesky factorization of the matrix.
     """
-
-    L = np.zeros_like(A)
+    
+    if overwrite:
+        L = A
+    else:    
+        L = np.copy(A)
+        
     L_inv_temp = np.zeros((diag_blocksize, diag_blocksize))
 
     n_diag_blocks = (A.shape[0] - arrow_blocksize) // diag_blocksize
@@ -137,14 +139,16 @@ def chol_dcmp_tridiag_arrowhead(
             i * diag_blocksize : (i + 1) * diag_blocksize,
             i * diag_blocksize : (i + 1) * diag_blocksize,
         ] = la.cholesky(
-            A[
+            L[
                 i * diag_blocksize : (i + 1) * diag_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
             ]
         ).T
 
         # Temporary storage of used twice lower triangular solving
-        L_inv_temp = la.solve_triangular(
+        # (Lisa) TODO: double check if this is actually better than solving twice ... 
+        # especially when number of rows in arrowhead is small
+        L_inv_temp[:diag_blocksize, :diag_blocksize] = la.solve_triangular(
             L[
                 i * diag_blocksize : (i + 1) * diag_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
@@ -158,7 +162,7 @@ def chol_dcmp_tridiag_arrowhead(
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
             i * diag_blocksize : (i + 1) * diag_blocksize,
         ] = (
-            A[
+            L[
                 (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
             ]
@@ -167,16 +171,16 @@ def chol_dcmp_tridiag_arrowhead(
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            A[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
+            L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ L_inv_temp
         )
 
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.T
-        A[
+        L[
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
         ] = (
-            A[
+            L[
                 (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
                 (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
             ]
@@ -191,8 +195,8 @@ def chol_dcmp_tridiag_arrowhead(
         )
 
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.T
-        A[-arrow_blocksize:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
-            A[-arrow_blocksize:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+        L[-arrow_blocksize:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
+            L[-arrow_blocksize:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
             - L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ L[
                 (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
@@ -201,8 +205,8 @@ def chol_dcmp_tridiag_arrowhead(
         )
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.T
-        A[-arrow_blocksize:, -arrow_blocksize:] = (
-            A[-arrow_blocksize:, -arrow_blocksize:]
+        L[-arrow_blocksize:, -arrow_blocksize:] = (
+            L[-arrow_blocksize:, -arrow_blocksize:]
             - L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize].T
         )
@@ -212,7 +216,7 @@ def chol_dcmp_tridiag_arrowhead(
         -(diag_blocksize + arrow_blocksize) : -arrow_blocksize,
         -(diag_blocksize + arrow_blocksize) : -arrow_blocksize,
     ] = la.cholesky(
-        A[
+        L[
             -(diag_blocksize + arrow_blocksize) : -arrow_blocksize,
             -(diag_blocksize + arrow_blocksize) : -arrow_blocksize,
         ]
@@ -220,7 +224,7 @@ def chol_dcmp_tridiag_arrowhead(
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
     L[-arrow_blocksize:, -(diag_blocksize + arrow_blocksize) : -arrow_blocksize] = (
-        A[-arrow_blocksize:, -(diag_blocksize + arrow_blocksize) : -arrow_blocksize]
+        L[-arrow_blocksize:, -(diag_blocksize + arrow_blocksize) : -arrow_blocksize]
         @ la.solve_triangular(
             L[
                 -(diag_blocksize + arrow_blocksize) : -arrow_blocksize,
@@ -232,16 +236,19 @@ def chol_dcmp_tridiag_arrowhead(
     )
 
     # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
-    A[-arrow_blocksize:, -arrow_blocksize:] = (
-        A[-arrow_blocksize:, -arrow_blocksize:]
+    L[-arrow_blocksize:, -arrow_blocksize:] = (
+        L[-arrow_blocksize:, -arrow_blocksize:]
         - L[-arrow_blocksize:, -(diag_blocksize + arrow_blocksize) : -arrow_blocksize]
         @ L[-arrow_blocksize:, -(diag_blocksize + arrow_blocksize) : -arrow_blocksize].T
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
     L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(
-        A[-arrow_blocksize:, -arrow_blocksize:]
+        L[-arrow_blocksize:, -arrow_blocksize:]
     ).T
+    
+    # zero out upper triangular part
+    L[:] = L * np.tri(*L.shape, k=0)
 
     return L
 
@@ -250,6 +257,7 @@ def chol_dcmp_ndiags(
     A: np.ndarray,
     ndiags: int,
     blocksize: int,
+    overwrite: bool = False,
 ) -> np.ndarray:
     """Perform the cholesky factorization of a block n-diagonals matrix. The
     matrix is assumed to be symmetric positive definite.
@@ -262,14 +270,20 @@ def chol_dcmp_ndiags(
         Number of diagonals of the matrix.
     blocksize : int
         Size of the blocks of the matrix.
+    overwrite : bool
+        If True, the input matrix A is modified in place. Default is False.
 
     Returns
     -------
     L : np.ndarray
         The cholesky factorization of the matrix.
     """
-
-    L = np.zeros_like(A)
+    
+    if overwrite:
+        L = A
+    else:    
+        L = np.copy(A)
+        
     L_inv_temp = np.zeros((blocksize, blocksize))
 
     n_offdiags_blk = ndiags // 2
@@ -280,7 +294,7 @@ def chol_dcmp_ndiags(
         L[
             i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
         ] = la.cholesky(
-            A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize]
+            L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize]
         ).T
 
         # Temporary storage of re-used triangular solving
@@ -296,7 +310,7 @@ def chol_dcmp_ndiags(
                 (i + j) * blocksize : (i + j + 1) * blocksize,
                 i * blocksize : (i + 1) * blocksize,
             ] = (
-                A[
+                L[
                     (i + j) * blocksize : (i + j + 1) * blocksize,
                     i * blocksize : (i + 1) * blocksize,
                 ]
@@ -305,11 +319,11 @@ def chol_dcmp_ndiags(
 
             for k in range(1, j + 1):
                 # A_{i+j, i+k} = A_{i+j, i+k} - L_{i+j, i} @ L_{i+k, i}^{T}
-                A[
+                L[
                     (i + j) * blocksize : (i + j + 1) * blocksize,
                     (i + k) * blocksize : (i + k + 1) * blocksize,
                 ] = (
-                    A[
+                    L[
                         (i + j) * blocksize : (i + j + 1) * blocksize,
                         (i + k) * blocksize : (i + k + 1) * blocksize,
                     ]
@@ -324,7 +338,10 @@ def chol_dcmp_ndiags(
                 )
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
-    L[-blocksize:, -blocksize:] = la.cholesky(A[-blocksize:, -blocksize:]).T
+    L[-blocksize:, -blocksize:] = la.cholesky(L[-blocksize:, -blocksize:]).T
+    
+    # zero out upper triangular part
+    L[:] = L * np.tri(*L.shape, k=0)
 
     return L
 
@@ -334,6 +351,7 @@ def chol_dcmp_ndiags_arrowhead(
     ndiags: int,
     diag_blocksize: int,
     arrow_blocksize: int,
+    overwrite: bool = False,
 ) -> np.ndarray:
     """Perform the cholesky factorization of a block n-diagonals arrowhead
     matrix. The matrix is assumed to be symmetric positive definite.
@@ -348,6 +366,8 @@ def chol_dcmp_ndiags_arrowhead(
         Blocksize of the diagonals blocks of the matrix.
     arrow_blocksize : int
         Blocksize of the blocks composing the arrowhead.
+    overwrite : bool
+        If True, the input matrix A is modified in place. Default is False.
 
     Returns
     -------
@@ -355,7 +375,11 @@ def chol_dcmp_ndiags_arrowhead(
         The cholesky factorization of the matrix.
     """
 
-    L = np.zeros_like(A)
+    if overwrite:
+        L = A
+    else:    
+        L = np.copy(A)
+        
     L_inv_temp = np.zeros((diag_blocksize, diag_blocksize))
 
     n_offdiags_blk = ndiags // 2
@@ -367,7 +391,7 @@ def chol_dcmp_ndiags_arrowhead(
             i * diag_blocksize : (i + 1) * diag_blocksize,
             i * diag_blocksize : (i + 1) * diag_blocksize,
         ] = la.cholesky(
-            A[
+            L[
                 i * diag_blocksize : (i + 1) * diag_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
             ]
@@ -389,7 +413,7 @@ def chol_dcmp_ndiags_arrowhead(
                 (i + j) * diag_blocksize : (i + j + 1) * diag_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
             ] = (
-                A[
+                L[
                     (i + j) * diag_blocksize : (i + j + 1) * diag_blocksize,
                     i * diag_blocksize : (i + 1) * diag_blocksize,
                 ]
@@ -398,11 +422,11 @@ def chol_dcmp_ndiags_arrowhead(
 
             for k in range(1, j + 1):
                 # A_{i+j, i+k} = A_{i+j, i+k} - L_{i+j, i} @ L_{i+k, i}^{T}
-                A[
+                L[
                     (i + j) * diag_blocksize : (i + j + 1) * diag_blocksize,
                     (i + k) * diag_blocksize : (i + k + 1) * diag_blocksize,
                 ] = (
-                    A[
+                    L[
                         (i + j) * diag_blocksize : (i + j + 1) * diag_blocksize,
                         (i + k) * diag_blocksize : (i + k + 1) * diag_blocksize,
                     ]
@@ -419,17 +443,17 @@ def chol_dcmp_ndiags_arrowhead(
         # Part of the decomposition for the arrowhead structure
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            A[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
+            L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ L_inv_temp
         )
 
         for k in range(1, min(n_offdiags_blk + 1, n_diag_blocks - i)):
             # A_{ndb+1, i+k} = A_{ndb+1, i+k} - L_{ndb+1, i} @ L_{i+k, i}^{T}
-            A[
+            L[
                 -arrow_blocksize:,
                 (i + k) * diag_blocksize : (i + k + 1) * diag_blocksize,
             ] = (
-                A[
+                L[
                     -arrow_blocksize:,
                     (i + k) * diag_blocksize : (i + k + 1) * diag_blocksize,
                 ]
@@ -441,8 +465,8 @@ def chol_dcmp_ndiags_arrowhead(
             )
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}^{T}
-        A[-arrow_blocksize:, -arrow_blocksize:] = (
-            A[-arrow_blocksize:, -arrow_blocksize:]
+        L[-arrow_blocksize:, -arrow_blocksize:] = (
+            L[-arrow_blocksize:, -arrow_blocksize:]
             - L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize].T
         )
@@ -452,7 +476,7 @@ def chol_dcmp_ndiags_arrowhead(
         -diag_blocksize - arrow_blocksize : -arrow_blocksize,
         -diag_blocksize - arrow_blocksize : -arrow_blocksize,
     ] = la.cholesky(
-        A[
+        L[
             -diag_blocksize - arrow_blocksize : -arrow_blocksize,
             -diag_blocksize - arrow_blocksize : -arrow_blocksize,
         ]
@@ -460,7 +484,7 @@ def chol_dcmp_ndiags_arrowhead(
 
     # L_{ndb+1, nbd} = A_{ndb+1, nbd} @ L_{ndb, ndb}^{-T}
     L[-arrow_blocksize:, -diag_blocksize - arrow_blocksize : -arrow_blocksize] = (
-        A[-arrow_blocksize:, -diag_blocksize - arrow_blocksize : -arrow_blocksize]
+        L[-arrow_blocksize:, -diag_blocksize - arrow_blocksize : -arrow_blocksize]
         @ la.solve_triangular(
             L[
                 -diag_blocksize - arrow_blocksize : -arrow_blocksize,
@@ -472,15 +496,18 @@ def chol_dcmp_ndiags_arrowhead(
     )
 
     # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
-    A[-arrow_blocksize:, -arrow_blocksize:] = (
-        A[-arrow_blocksize:, -arrow_blocksize:]
+    L[-arrow_blocksize:, -arrow_blocksize:] = (
+        L[-arrow_blocksize:, -arrow_blocksize:]
         - L[-arrow_blocksize:, -diag_blocksize - arrow_blocksize : -arrow_blocksize]
         @ L[-arrow_blocksize:, -diag_blocksize - arrow_blocksize : -arrow_blocksize].T
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
     L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(
-        A[-arrow_blocksize:, -arrow_blocksize:]
+        L[-arrow_blocksize:, -arrow_blocksize:]
     ).T
+    
+    # zero out upper triangular part
+    L[:] = L * np.tri(*L.shape, k=0)    
 
     return L
