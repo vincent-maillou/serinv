@@ -41,7 +41,6 @@ def chol_dcmp_tridiag(
     if overwrite:
         L = A
     else:   
-    # (Lisa) TODO: probably less efficient than initializing with zeros? Not sure if relevant. 
         L = np.copy(A)
 
     nblocks = A.shape[0] // blocksize
@@ -93,7 +92,6 @@ def chol_dcmp_tridiag(
 
     L[-blocksize:, -blocksize:] = la.cholesky(L[-blocksize:, -blocksize:]).T
     
-    # (Lisa) TODO: potentially make this more efficient. Check if relevant for performance.
     L[:] = L * np.tri(*L.shape, k=0)
     
     return L

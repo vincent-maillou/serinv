@@ -60,6 +60,13 @@ if __name__ == "__main__":
     plt.show()
     
     #print("norm(x - x_ref) = ", np.linalg.norm(X_sdr - X_ref))
+    
+    # Run with overwrite = True functionality
+    X_sdr = chol_slv_tridiag(L_sdr, B, blocksize, overwrite=True)
+    print("Run with overwrite :  True")
+    print("memory address B   : ", B.ctypes.data)
+    print("memory address X   : ", X_sdr.ctypes.data)
+    print("X_ref == X_sdr     : ", np.allclose(X_ref, X_sdr))
 
     
 @pytest.mark.parametrize(
@@ -76,10 +83,17 @@ if __name__ == "__main__":
         (10, 100, 1),
     ]
 )
+
+@pytest.mark.parametrize(
+    "overwrite", 
+    [True, False]
+) 
+
 def test_cholesky_slv_tridiag(
     nblocks: int,
     blocksize: int,  
-    nrhs: int
+    nrhs: int,
+    overwrite: bool,
 ):
     symmetric = True
     diagonal_dominant = True
@@ -95,7 +109,9 @@ def test_cholesky_slv_tridiag(
     B = np.random.randn(A.shape[0], nrhs)
     
     X_ref = la.cho_solve((L_ref, True), B)
-    X_sdr = chol_slv_tridiag(L_sdr, B, blocksize)
+    X_sdr = chol_slv_tridiag(L_sdr, B, blocksize, overwrite)
 
-    assert np.allclose(X_ref, X_sdr)
-
+    if overwrite:
+        assert np.allclose(X_ref, X_sdr) and B.ctypes.data == X_sdr.ctypes.data
+    else: 
+        assert np.allclose(X_ref, X_sdr) and B.ctypes.data != X_sdr.ctypes.data 
