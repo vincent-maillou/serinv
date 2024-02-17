@@ -49,12 +49,6 @@ def lu_sinv_tridiag(
     )
     X[-blocksize:, -blocksize:] = U_blk_inv @ L_blk_inv
 
-    LU = (
-        L[-blocksize:, -blocksize:]
-        + U[-blocksize:, -blocksize:]
-        - np.eye(blocksize, dtype=L.dtype)
-    )
-
     nblocks = L.shape[0] // blocksize
     for i in range(nblocks - 2, -1, -1):
         L_blk_inv = la.solve_triangular(
