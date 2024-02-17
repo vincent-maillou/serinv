@@ -145,7 +145,7 @@ def extract_bridges(
 
 ### ------------------------ PSR ARROWHEAD ------------------------ ###
 def top_factorize(
-    A: np.ndarray,
+    A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
     Update_arrow_tip: np.ndarray,
@@ -160,86 +160,86 @@ def top_factorize(
     np.ndarray,
     np.ndarray,
 ]:
-    L = np.zeros_like(A)
-    U = np.zeros_like(A)
+    L_local = np.zeros_like(A_local)
+    U_local = np.zeros_like(A_local)
     
     L_arrow_bottom = np.zeros_like(A_arrow_bottom)
     U_arrow_right = np.zeros_like(A_arrow_right)
 
-    nblocks = A.shape[0] // blocksize
+    nblocks = A_local.shape[0] // blocksize
 
     for i in range(nblocks - 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
-            L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
-            U[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+            L_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+            U_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
         ) = la.lu(
-            A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+            A_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
             permute_l=True,
         )
 
-        # L_{i+1, i} = A_{i+1, i} @ U{i, i+1}^{-1}
-        L[
+        # L_{i+1, i} = A_{i+1, i} @ U_local{i, i+1}^{-1}
+        L_local[
             (i + 1) * blocksize : (i + 2) * blocksize,
             i * blocksize : (i + 1) * blocksize,
-        ] = A[
+        ] = A_local[
             (i + 1) * blocksize : (i + 2) * blocksize,
             i * blocksize : (i + 1) * blocksize,
         ] @ la.solve_triangular(
-            U[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+            U_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
             np.eye(blocksize),
             lower=False,
         )
 
-        # L_{i, i+1} = L{i+1, i}^{-1} @ A_{i, i+1}
-        U[
+        # L_{i, i+1} = L_local{i+1, i}^{-1} @ A_{i, i+1}
+        U_local[
             i * blocksize : (i + 1) * blocksize,
             (i + 1) * blocksize : (i + 2) * blocksize,
         ] = (
             la.solve_triangular(
-                L[
+                L_local[
                     i * blocksize : (i + 1) * blocksize,
                     i * blocksize : (i + 1) * blocksize,
                 ],
                 np.eye(blocksize),
                 lower=True,
             )
-            @ A[
+            @ A_local[
                 i * blocksize : (i + 1) * blocksize,
                 (i + 1) * blocksize : (i + 2) * blocksize,
             ]
         )
 
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
-        A[
+        A_local[
             (i + 1) * blocksize : (i + 2) * blocksize,
             (i + 1) * blocksize : (i + 2) * blocksize,
         ] = (
-            A[
+            A_local[
                 (i + 1) * blocksize : (i + 2) * blocksize,
                 (i + 1) * blocksize : (i + 2) * blocksize,
             ]
-            - L[
+            - L_local[
                 (i + 1) * blocksize : (i + 2) * blocksize,
                 i * blocksize : (i + 1) * blocksize,
             ]
-            @ U[
+            @ U_local[
                 i * blocksize : (i + 1) * blocksize,
                 (i + 1) * blocksize : (i + 2) * blocksize,
             ]
         )
 
     # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
-    L[-blocksize:, -blocksize:], U[-blocksize:, -blocksize:] = la.lu(
-        A[-blocksize:, -blocksize:], permute_l=True
+    L_local[-blocksize:, -blocksize:], U_local[-blocksize:, -blocksize:] = la.lu(
+        A_local[-blocksize:, -blocksize:], permute_l=True
     )
 
     return (
-        A,
+        A_local,
         A_arrow_bottom,
         A_arrow_right,
-        L,
-        U,
+        L_local,
+        U_local,
         L_arrow_bottom,
         U_arrow_right,
         Update_arrow_tip,
@@ -623,128 +623,76 @@ def top_sinv(
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
-    LU_local: np.ndarray,
+    L_local: np.ndarray,
+    U_local: np.ndarray,
     L_arrow_bottom: np.ndarray,
     U_arrow_right: np.ndarray,
     blocksize: int,
     arrow_blocksize: int,
 ) -> [np.ndarray, np.ndarray, np.ndarray]:
-    n_blocks = A_local.shape[0] // blocksize
 
-    for i in range(n_blocks - 1, 0, -1):
+    L_blk_inv = np.empty((blocksize, blocksize), dtype=L_local.dtype)
+    U_blk_inv = np.empty((blocksize, blocksize), dtype=U_local.dtype)
+
+    n_blocks = A_local.shape[0] // blocksize
+    for i in range(n_blocks - 1, -1, -1):
         # ----- Block-tridiagonal solver -----
-        # S_{i, i-1} = - S_{i, i} @ L_{i, i-1}
+        L_blk_inv = la.solve_triangular(
+            L_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+            np.eye(blocksize),
+            lower=True,
+        )
+        U_blk_inv = la.solve_triangular(
+            U_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+            np.eye(blocksize),
+            lower=False,
+        )
+
+        # X_{i+1, i} = -X_{i+1, i+1} L_{i+1, i} L_{i, i}^{-1}
         S_local[
-            i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            (i + 1) * blocksize : (i + 2) * blocksize,
+            i * blocksize : (i + 1) * blocksize,
         ] = (
             -S_local[
-                i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                (i + 1) * blocksize : (i + 2) * blocksize,
             ]
-            @ LU_local[
-                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            @ L_local[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
             ]
+            @ L_blk_inv
         )
 
-        # S_{i-1, i} = - U_{i-1, i} @ S_{i, i}
+        # X_{i, i+1} = -U_{i, i}^{-1} U_{i, i+1} X_{i+1, i+1}
         S_local[
-            (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            i * blocksize : (i + 1) * blocksize,
+            (i + 1) * blocksize : (i + 2) * blocksize,
         ] = (
-            -LU_local[
-                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+            -U_blk_inv
+            @ U_local[
+                i * blocksize : (i + 1) * blocksize,
+                (i + 1) * blocksize : (i + 2) * blocksize,
             ]
             @ S_local[
-                i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                (i + 1) * blocksize : (i + 2) * blocksize,
             ]
         )
 
-        # S_{i-1, i-1} = A_{i-1, i-1}^{-1} - U_{i-1, i} @ S_{i, i-1}
-        S_local[
-            (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
-        ] = (
-            np.linalg.inv(
-                A_local[
-                    (i - 1) * blocksize : i * blocksize,
-                    (i - 1) * blocksize : i * blocksize,
-                ]
-            )
-            - LU_local[
-                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
+        # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i}) L_{i, i}^{-1}
+        S_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            U_blk_inv
+            - S_local[
+                i * blocksize : (i + 1) * blocksize,
+                (i + 1) * blocksize : (i + 2) * blocksize,
             ]
-            @ S_local[
-                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
+            @ L_local[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
             ]
-        )
-
-        # ----- Block-tridiagonal arrowhead solver -----
-
-        # A_im1im1_inv = np.linalg.inv(
-        #     A_local[
-        #         (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
-        #     ]
-        # )
-
-        # # S_{i, i-1} = (-S_{i, i} L_{i, i-1} - S_{i, ndb+1} L_{ndb+1, i-1}) A_{i-1, i-1}^{-1}
-        # S_local[
-        #     i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        # ] = (
-        #     -S_local[
-        #         i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        #     ]
-        #     @ LU_local[
-        #         i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        #     ]
-        #     - S_arrow_right[i * blocksize : (i + 1) * blocksize, :]
-        #     @ L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
-        # ) @ A_im1im1_inv
-
-        # # S_{i-1, i} = A_{i-1, i-1}^{-1} (- U_{i-1, i} S_{i, i} - U_{i-1, ndb+1} S_{ndb+1, i})
-        # S_local[
-        #     (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        # ] = A_im1im1_inv @ (
-        #     -LU_local[
-        #         (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        #     ]
-        #     @ S_local[
-        #         i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        #     ]
-        #     - U_arrow_right[(i - 1) * blocksize : i * blocksize, :]
-        #     @ S_arrow_bottom[:, i * blocksize : (i + 1) * blocksize]
-        # )
-
-        # # S_{ndb+1, i-1} = (- S_{ndb+1, i} L_{i, i-1} - S_{ndb+1, ndb+1} L_{ndb+1, i-1}) A_{i-1, i-1}^{-1}
-        # S_arrow_bottom[:, (i - 1) * blocksize : i * blocksize] = (
-        #     -S_arrow_bottom[:, i * blocksize : (i + 1) * blocksize]
-        #     @ LU_local[
-        #         i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        #     ]
-        #     - S_global_arrow_tip
-        #     @ L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
-        # ) @ A_im1im1_inv
-
-        # # S_{i-1, ndb+1} = A_{i-1, i-1}^{-1} (- U_{i-1, i} S_{i, ndb+1} - U_{i-1, ndb+1} S_{ndb+1, ndb+1})
-        # S_arrow_right[(i - 1) * blocksize : i * blocksize, :] = A_im1im1_inv @ (
-        #     -LU_local[
-        #         (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        #     ]
-        #     @ S_arrow_right[i * blocksize : (i + 1) * blocksize, :]
-        #     - U_arrow_right[(i - 1) * blocksize : i * blocksize, :] @ S_global_arrow_tip
-        # )
-
-        # # S_{i-1, i-1} = (A_{i-1, i-1}^{-1} - S_{i-1, i} L_{i, i-1} - S_{i-1, ndb+1} L_{ndb+1, i-1}) A_{i-1, i-1}^{-1}
-        # S_local[
-        #     (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
-        # ] = (
-        #     A_im1im1_inv
-        #     - S_local[
-        #         (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        #     ]
-        #     @ LU_local[
-        #         i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        #     ]
-        #     - S_arrow_right[(i - 1) * blocksize : i * blocksize, :]
-        #     @ L_arrow_bottom[:, (i - 1) * blocksize : i * blocksize]
-        # ) @ A_im1im1_inv
-
+        ) @ L_blk_inv
+        
     return S_local, S_arrow_bottom, S_arrow_right
 
 
@@ -1092,35 +1040,36 @@ if __name__ == "__main__":
     norme_diff_last_block_inv = np.linalg.norm(S_last_block_inv - ref_last_block_inv)
     print("Norme diff last block inv = ", norme_diff_last_block_inv)
     
+    # ----- Selected inversion part -----
+    S_local, S_arrow_bottom, S_arrow_right = top_sinv(
+        S_local,
+        S_arrow_bottom,
+        S_arrow_right,
+        S_global_arrow_tip,
+        A_local,
+        A_arrow_bottom,
+        A_arrow_right,
+        L_local,
+        U_local,
+        L_arrow_bottom,
+        U_arrow_right,
+        diag_blocksize,
+        arrow_blocksize,
+    )
 
-    # S_local, S_arrow_bottom, S_arrow_right = top_sinv(
-    #     S_local,
-    #     S_arrow_bottom,
-    #     S_arrow_right,
-    #     S_global_arrow_tip,
-    #     A_local,
-    #     A_arrow_bottom,
-    #     A_arrow_right,
-    #     LU_local,
-    #     L_arrow_bottom,
-    #     U_arrow_right,
-    #     diag_blocksize,
-    #     arrow_blocksize,
-    # )
+    A_ref_inv = mt.cut_to_blocktridiag(A_ref_inv, diag_blocksize)
 
-    # A_ref_inv = mt.cut_to_blocktridiag(A_ref_inv, diag_blocksize)
+    inv_norm = np.linalg.norm(A_ref_inv - S_local)
+    print("Top partition only inv norm = ", inv_norm)
 
-    # inv_norm = np.linalg.norm(A_ref_inv - S_local)
-    # print("Top partition only inv norm = ", inv_norm)
+    fig, axs = plt.subplots(1, 2)
+    axs[0].matshow(A_ref_inv)
+    axs[0].set_title("A_ref_inv")
+    axs[1].matshow(S_local)
+    axs[1].set_title("S_local")
+    fig.suptitle("Results")
 
-    # fig, axs = plt.subplots(1, 2)
-    # axs[0].matshow(A_ref_inv)
-    # axs[0].set_title("A_ref_inv")
-    # axs[1].matshow(S_local)
-    # axs[1].set_title("S_local")
-    # fig.suptitle("Results")
-
-    # plt.show()
+    plt.show()
 
 
 # # Local checking
@@ -1231,7 +1180,7 @@ if __name__ == "__main__":
 #     plt.show()
 
 
-# Integration test
+# # Integration test
 # if __name__ == "__main__":
 #     nblocks = 13
 #     diag_blocksize = 3
