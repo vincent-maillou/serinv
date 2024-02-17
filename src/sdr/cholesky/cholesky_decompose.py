@@ -50,11 +50,14 @@ def chol_dcmp_tridiag(
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = la.cholesky(
-            L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
-        ).T
+        L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            la.cholesky(
+                L[
+                    i * blocksize : (i + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
+                ],
+            ).T
+        )
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L[
@@ -95,9 +98,9 @@ def chol_dcmp_tridiag(
         )
 
     L[-blocksize:, -blocksize:] = la.cholesky(L[-blocksize:, -blocksize:]).T
-    
+
     L[:] = L * np.tri(*L.shape, k=0)
-    
+
     return L
 
 
