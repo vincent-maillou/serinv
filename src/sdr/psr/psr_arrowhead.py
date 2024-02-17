@@ -118,37 +118,6 @@ def extract_partition(
     return A_local, A_arrow_bottom, A_arrow_right
 
 
-def extract_bridges_lisa(
-    A_global: np.ndarray,
-    blocksize: int,
-    arrow_blocksize: int,
-    partition_sizes: list,
-) -> [list, list]:
-    # Without arrowhead tip
-    num_partitions = len(partition_sizes)
-
-    Bridges_lower = []
-    Bridges_upper = []
-
-    for i in range(num_partitions - 1):
-        start_index = sum(partition_sizes[: i + 1]) * blocksize
-
-        Bridges_lower.append(
-            A_global[
-                start_index : start_index + blocksize,
-                start_index - blocksize : start_index,
-            ]
-        )
-        Bridges_upper.append(
-            A_global[
-                start_index - blocksize : start_index,
-                start_index : start_index + blocksize,
-            ]
-        )
-
-    return Bridges_lower, Bridges_upper
-
-
 def extract_bridges(
     A: np.ndarray,
     blocksize: int,
