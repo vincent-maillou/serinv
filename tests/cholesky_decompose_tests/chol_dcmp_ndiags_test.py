@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-
 # Testing of block n-diagonals cholesky
 if __name__ == "__main__":
     nblocks = 6
@@ -31,7 +30,6 @@ if __name__ == "__main__":
     A = matrix_generation.generate_block_ndiags(
         nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
-
 
     # --- Decomposition ---
 
@@ -59,9 +57,8 @@ if __name__ == "__main__":
     print("L_ref == L_sdr     : ", np.allclose(L_ref, L_sdr))
 
 
-
 @pytest.mark.parametrize(
-    "nblocks, ndiags, blocksize", 
+    "nblocks, ndiags, blocksize",
     [
         (2, 3, 2),
         (3, 5, 2),
@@ -69,7 +66,7 @@ if __name__ == "__main__":
         (20, 3, 3),
         (30, 5, 3),
         (40, 7, 3),
-    ]
+    ],
 )
 
 @pytest.mark.parametrize(

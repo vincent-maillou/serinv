@@ -16,7 +16,7 @@ from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
-
+import pytest
 
 
 # Testing of block tridiagonal lu sinv
@@ -30,7 +30,6 @@ if __name__ == "__main__":
     A = matrix_generation.generate_blocktridiag(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
-
 
     # --- Inversion ---
 
@@ -54,4 +53,39 @@ if __name__ == "__main__":
 
     plt.show()
 
-    
+
+@pytest.mark.parametrize(
+    "nblocks, blocksize",
+    [
+        (2, 2),
+        (10, 2),
+        (100, 2),
+        (2, 3),
+        (10, 3),
+        (100, 3),
+        (2, 100),
+        (5, 100),
+        (10, 100),
+    ],
+)
+def test_lu_sinv_tridiag(
+    nblocks: int,
+    blocksize: int,
+):
+    symmetric = False
+    diagonal_dominant = True
+    seed = 63
+
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    )
+
+    # --- Inversion ---
+
+    X_ref = la.inv(A)
+    X_ref = cut_to_blocktridiag(X_ref, blocksize)
+
+    L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
+    X_sdr = lu_sinv_tridiag(L_sdr, U_sdr, blocksize)
+
+    assert np.allclose(X_ref, X_sdr)

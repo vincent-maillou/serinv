@@ -9,8 +9,8 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
-from sdr.lu.lu_solve import lu_slv_ndiags_arrowhead
+from sdr.lu.lu_decompose import lu_dcmp_tridiag
+from sdr.lu.lu_solve import lu_slv_tridiag
 
 import numpy as np
 import scipy.linalg as la
@@ -20,30 +20,24 @@ import pytest
 
 # Testing of block tridiagonal lu
 if __name__ == "__main__":
-    nblocks = 4
-    ndiags = 3
-    diag_blocksize = 2
-    arrow_blocksize = 2
+    nblocks = 5
+    blocksize = 2
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, 
-        diagonal_dominant, seed
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
     # P_ref, L_ref, U_ref = la.lu(A)
-    ## this one permutes A
     lu_ref, p_ref = la.lu_factor(A)
-        
-    L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
+    L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
 
     n_rhs = 1
     B = np.random.randn(A.shape[0], n_rhs)
 
     # --- Solving ---
-
     X_ref = la.lu_solve((lu_ref, p_ref), B)
     # Is equivalent to..
     # Y_ref = la.solve_triangular(L_ref, B, lower=True)
@@ -53,7 +47,7 @@ if __name__ == "__main__":
     ax[0].set_title("X_ref: Reference lu solver")
     ax[0].matshow(X_ref)
 
-    X_sdr = lu_slv_ndiags_arrowhead(L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize)
+    X_sdr = lu_slv_tridiag(L_sdr, U_sdr, B, blocksize)
     ax[1].set_title("X_sdr: Selected lu solver")
     ax[1].matshow(X_sdr)
 
@@ -66,40 +60,34 @@ if __name__ == "__main__":
 
 
 @pytest.mark.parametrize(
-    "nblocks, ndiags, diag_blocksize, arrow_blocksize, nrhs", 
+    "nblocks, blocksize, nrhs",
     [
-        (2, 1, 1, 2, 1),
-        (3, 3, 2, 1, 3),
-        (4, 5, 1, 2, 5),
-        (5, 7, 2, 1, 1),
-        (15, 1, 3, 1, 2),
-        (15, 3, 1, 2, 1),
-        (15, 5, 3, 1, 6),
-        (15, 7, 1, 2, 2),
-    ]
+        (2, 2, 1),
+        (10, 2, 3),
+        (100, 2, 4),
+        (2, 3, 1),
+        (10, 3, 2),
+        (100, 3, 1),
+        (2, 100, 5),
+        (5, 100, 2),
+        (10, 100, 1),
+    ],
 )
-def test_lu_slv_ndiags_arrowhead(
-    nblocks: int, 
-    ndiags: int,
-    diag_blocksize: int, 
-    arrow_blocksize: int,
-    nrhs: int, 
-):
+def test_lu_slv_tridiag(nblocks: int, blocksize: int, nrhs: int):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
     lu_ref, p_ref = la.lu_factor(A)
-    L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
+    L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
 
     B = np.random.randn(A.shape[0], nrhs)
-    
+
     X_ref = la.lu_solve((lu_ref, p_ref), B)
-    X_sdr = lu_slv_ndiags_arrowhead(L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize)
+    X_sdr = lu_slv_tridiag(L_sdr, U_sdr, B, blocksize)
 
     assert np.allclose(X_ref, X_sdr)

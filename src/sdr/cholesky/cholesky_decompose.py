@@ -29,9 +29,13 @@ def chol_dcmp_tridiag(
         Input matrix to decompose.
     blocksize : int
         Size of the blocks.
+<<<<<<< HEAD
     overwrite : bool
         If True, the input matrix A is modified in place. Default is False.
     
+=======
+
+>>>>>>> main
     Returns
     -------
     L : np.ndarray
@@ -144,8 +148,6 @@ def chol_dcmp_tridiag_arrowhead(
         ).T
 
         # Temporary storage of used twice lower triangular solving
-        # (Lisa) TODO: double check if this is actually better than solving twice ... 
-        # especially when number of rows in arrowhead is small
         L_inv_temp[:diag_blocksize, :diag_blocksize] = la.solve_triangular(
             L[
                 i * diag_blocksize : (i + 1) * diag_blocksize,

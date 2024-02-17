@@ -67,9 +67,9 @@ if __name__ == "__main__":
     print("X_ref == X_sdr     : ", np.allclose(X_ref, X_sdr))
     
 
-    
+
 @pytest.mark.parametrize(
-    "nblocks, ndiags, blocksize, nrhs", 
+    "nblocks, ndiags, blocksize, nrhs",
     [
         (2, 3, 2, 1),
         (3, 5, 2, 3),
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         (20, 3, 3, 5),
         (30, 5, 3, 1),
         (40, 7, 3, 2),
-    ]
+    ],
 )
 
 @pytest.mark.parametrize(
@@ -86,8 +86,8 @@ if __name__ == "__main__":
 ) 
 
 def test_cholesky_decompose_ndiags(
-    nblocks: int, 
-    ndiags: int, 
+    nblocks: int,
+    ndiags: int,
     blocksize: int,
     nrhs: int,
     overwrite: bool,
@@ -102,9 +102,9 @@ def test_cholesky_decompose_ndiags(
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
-    
+
     B = np.random.randn(A.shape[0], nrhs)
-    
+
     X_ref = la.cho_solve((L_ref, True), B)
     X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize, overwrite)
 

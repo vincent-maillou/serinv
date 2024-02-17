@@ -36,7 +36,6 @@ if __name__ == "__main__":
     n_rhs = 2
     B = np.random.randn(A.shape[0], n_rhs)
 
-
     # --- Solving ---
 
     X_ref = la.cho_solve((L_ref, True), B)
@@ -68,9 +67,13 @@ if __name__ == "__main__":
     print("memory address X   : ", X_sdr.ctypes.data)
     print("X_ref == X_sdr     : ", np.allclose(X_ref, X_sdr))
 
-    
+    plt.show()
+
+    # print("norm(x - x_ref) = ", np.linalg.norm(X_sdr - X_ref))
+
+
 @pytest.mark.parametrize(
-    "nblocks, blocksize, nrhs", 
+    "nblocks, blocksize, nrhs",
     [
         (2, 2, 1),
         (10, 2, 3),
@@ -81,7 +84,7 @@ if __name__ == "__main__":
         (2, 100, 5),
         (5, 100, 2),
         (10, 100, 1),
-    ]
+    ],
 )
 
 @pytest.mark.parametrize(
@@ -105,9 +108,9 @@ def test_cholesky_slv_tridiag(
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_tridiag(A, blocksize)
-    
+
     B = np.random.randn(A.shape[0], nrhs)
-    
+
     X_ref = la.cho_solve((L_ref, True), B)
     X_sdr = chol_slv_tridiag(L_sdr, B, blocksize, overwrite)
 

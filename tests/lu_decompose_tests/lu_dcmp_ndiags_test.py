@@ -30,7 +30,6 @@ if __name__ == "__main__":
         nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
-
     # --- Decomposition ---
 
     P_ref, L_ref, U_ref = la.lu(A)
@@ -57,12 +56,12 @@ if __name__ == "__main__":
     ax[1, 2].matshow(U_diff)
     fig.colorbar(ax[0, 2].matshow(L_diff), ax=ax[0, 2], label="Relative error")
     fig.colorbar(ax[1, 2].matshow(U_diff), ax=ax[1, 2], label="Relative error")
-    
-    plt.show() 
 
-    
+    plt.show()
+
+
 @pytest.mark.parametrize(
-    "nblocks, ndiags, blocksize", 
+    "nblocks, ndiags, blocksize",
     [
         (2, 3, 2),
         (3, 5, 2),
@@ -70,13 +69,9 @@ if __name__ == "__main__":
         (20, 3, 3),
         (30, 5, 3),
         (40, 7, 3),
-    ]
+    ],
 )
-def test_lu_decompose_ndiags(
-    nblocks, 
-    ndiags, 
-    blocksize
-):
+def test_lu_decompose_ndiags(nblocks, ndiags, blocksize):
     symmetric = False
     diagonal_dominant = True
     seed = 63
@@ -84,8 +79,15 @@ def test_lu_decompose_ndiags(
     A = matrix_generation.generate_block_ndiags(
         nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
-    
+
+    # --- Decomposition ---
+
     P_ref, L_ref, U_ref = la.lu(A)
+
+    if np.allclose(P_ref, np.eye(A.shape[0])):
+        L_ref = P_ref @ L_ref
+
     L_sdr, U_sdr = lu_dcmp_ndiags(A, ndiags, blocksize)
-            
-    assert np.allclose(L_ref, L_sdr) and np.allclose(U_ref, U_sdr)
+
+    assert np.allclose(L_ref, L_sdr)
+    assert np.allclose(U_ref, U_sdr)
