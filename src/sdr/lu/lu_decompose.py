@@ -62,7 +62,7 @@ def lu_dcmp_tridiag(
             lower=False,
         )
 
-        # L_{i, i+1} = L{i+1, i}^{-1} @ A_{i, i+1}
+        # U_{i, i+1} = L{i+1, i}^{-1} @ A_{i, i+1}
         U[
             i * blocksize : (i + 1) * blocksize,
             (i + 1) * blocksize : (i + 2) * blocksize,
