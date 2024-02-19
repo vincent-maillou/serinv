@@ -773,15 +773,11 @@ def top_sinv(
     S_arrow_bottom: np.ndarray,
     S_arrow_right: np.ndarray,
     S_global_arrow_tip: np.ndarray,
-    A_local: np.ndarray,
-    A_arrow_bottom: np.ndarray,
-    A_arrow_right: np.ndarray,
     L_local: np.ndarray,
     U_local: np.ndarray,
     L_arrow_bottom: np.ndarray,
     U_arrow_right: np.ndarray,
     diag_blocksize: int,
-    arrow_blocksize: int,
 ) -> [np.ndarray, np.ndarray, np.ndarray]:
 
     L_blk_inv = np.empty((diag_blocksize, diag_blocksize), dtype=L_local.dtype)
@@ -1237,15 +1233,11 @@ if __name__ == "__main__":
         S_arrow_bottom,
         S_arrow_right,
         S_global_arrow_tip,
-        A_local,
-        A_arrow_bottom,
-        A_arrow_right,
         L_local,
         U_local,
         L_arrow_bottom,
         U_arrow_right,
         diag_blocksize,
-        arrow_blocksize,
     )
 
     fig, axs = plt.subplots(2, 4)
