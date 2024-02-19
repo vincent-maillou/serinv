@@ -340,7 +340,6 @@ def middle_factorize(
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
-    Update_arrow_tip: np.ndarray,
     diag_blocksize: int,
     arrow_blocksize: int,
 ) -> [
@@ -357,6 +356,8 @@ def middle_factorize(
 
     L_arrow_bottom = np.zeros_like(A_arrow_bottom)
     U_arrow_right = np.zeros_like(A_arrow_right)
+    
+    Update_arrow_tip = np.zeros((arrow_blocksize, arrow_blocksize))
 
     n_blocks = A_local.shape[0] // diag_blocksize
 
@@ -370,6 +371,17 @@ def middle_factorize(
             permute_l=True,
         )
         
+        
+        # Compute lower factors
+        U_inv_temp = la.solve_triangular(
+            U_local[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ],
+            np.eye(diag_blocksize),
+            lower=False,
+        )
+        
         # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
         L_local[
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
@@ -377,11 +389,7 @@ def middle_factorize(
         ] = A_local[
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
             i * diag_blocksize : (i + 1) * diag_blocksize,
-        ] @ la.solve_triangular(
-            U_local[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize],
-            np.eye(diag_blocksize),
-            lower=False,
-        )
+        ] @ U_inv_temp
         
         # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
         L_local[
@@ -390,10 +398,17 @@ def middle_factorize(
         ] = A_local[
             0 : diag_blocksize,
             i * diag_blocksize : (i + 1) * diag_blocksize,
-        ] @ la.solve_triangular(
-            U_local[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize],
+        ] @ U_inv_temp
+        
+        
+        # Compute upper factors
+        L_inv_temp = la.solve_triangular(
+            L_local[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+            ],
             np.eye(diag_blocksize),
-            lower=False,
+            lower=True,
         )
         
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
@@ -401,14 +416,7 @@ def middle_factorize(
             i * diag_blocksize : (i + 1) * diag_blocksize,
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
         ] = (
-            la.solve_triangular(
-                L_local[
-                    i * diag_blocksize : (i + 1) * diag_blocksize,
-                    i * diag_blocksize : (i + 1) * diag_blocksize,
-                ],
-                np.eye(diag_blocksize),
-                lower=True,
-            )
+            L_inv_temp
             @ A_local[
                 i * diag_blocksize : (i + 1) * diag_blocksize,
                 (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
@@ -420,20 +428,15 @@ def middle_factorize(
             i * diag_blocksize : (i + 1) * diag_blocksize,
             0 : diag_blocksize,
         ] = (
-            la.solve_triangular(
-                L_local[
-                    i * diag_blocksize : (i + 1) * diag_blocksize,
-                    i * diag_blocksize : (i + 1) * diag_blocksize,
-                ],
-                np.eye(diag_blocksize),
-                lower=True,
-            )
+            L_inv_temp
             @ A_local[
                 i * diag_blocksize : (i + 1) * diag_blocksize,
                 0 : diag_blocksize,
             ]
         )
         
+        
+        # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
         A_local[
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
@@ -1116,7 +1119,7 @@ def psr_arrowhead(
 import copy as cp
 
 
-# ----- Local checking -----
+""" # ----- Local checking -----
 # ...of top process
 if __name__ == "__main__":
     nblocks = 5
@@ -1267,11 +1270,11 @@ if __name__ == "__main__":
     assert np.allclose(A_arrow_tip_refinv, S_global_arrow_tip)
     assert np.allclose(A_arrow_bottom_refinv, S_arrow_bottom)
     assert np.allclose(A_arrow_right_refinv, S_arrow_right)
-    assert np.allclose(A_local_refinv, S_local)
+    assert np.allclose(A_local_refinv, S_local) """
     
 
 
-""" # ----- Local checking -----
+# ----- Local checking -----
 # ...of middle
 if __name__ == "__main__":
     nblocks = 5
@@ -1305,7 +1308,6 @@ if __name__ == "__main__":
         A,
         A_arrow_bottom,
         A_arrow_right,
-        Update_arrow_tip,
         diag_blocksize,
         arrow_blocksize,
     )
@@ -1407,7 +1409,7 @@ if __name__ == "__main__":
     inv_norm = np.linalg.norm(A_ref_inv - S_local)
     print("Middle partition only inv norm = ", inv_norm)
     
-    plt.show() """
+    plt.show()
     
 
 
