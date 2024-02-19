@@ -766,157 +766,6 @@ def middle_sinv(
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
-    LU_local: np.ndarray,
-    L_arrow_bottom: np.ndarray,
-    U_arrow_right: np.ndarray,
-    blocksize: int,
-    arrow_blocksize: int,
-) -> [np.ndarray, np.ndarray, np.ndarray]:
-
-    # comm = MPI.COMM_WORLD
-    # comm_rank = comm.Get_rank()
-
-    # fig, ax = plt.subplots(1, 3)
-    # fig.suptitle(f"Rank {comm_rank}")
-    # ax[0].matshow(S_local)
-    # ax[0].set_title("S_local")
-    # ax[1].matshow(A_local)
-    # ax[1].set_title("A_local")
-    # ax[2].matshow(LU_local)
-    # ax[2].set_title("LU_local")
-    # plt.show()
-
-
-    n_blocks = A_local.shape[0] // blocksize
-
-    # S_local[bot, bot-1] = - S_local[bot, top] @ L[top, bot-1] - S_local[bot, bot] @ L[bot, bot-1]
-    S_local[
-        (n_blocks - 1) * blocksize : n_blocks * blocksize,
-        (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize,
-    ] = (
-        -S_local[(n_blocks - 1) * blocksize : n_blocks * blocksize, 0:blocksize]
-        @ LU_local[0:blocksize, (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize]
-        - S_local[
-            (n_blocks - 1) * blocksize : n_blocks * blocksize,
-            (n_blocks - 1) * blocksize : n_blocks * blocksize,
-        ]
-        @ LU_local[
-            (n_blocks - 1) * blocksize : n_blocks * blocksize,
-            (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize,
-        ]
-    )
-
-    # S_local[bot-1, bot] = - U[bot-1, bot] @ S_local[bot, bot] - U[bot-1, top] @ S_local[top, bot]
-    S_local[
-        (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize,
-        (n_blocks - 1) * blocksize : n_blocks * blocksize,
-    ] = (
-        -LU_local[
-            (n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize,
-            (n_blocks - 1) * blocksize : n_blocks * blocksize,
-        ]
-        @ S_local[
-            (n_blocks - 1) * blocksize : n_blocks * blocksize,
-            (n_blocks - 1) * blocksize : n_blocks * blocksize,
-        ]
-        - LU_local[(n_blocks - 2) * blocksize : (n_blocks - 1) * blocksize, 0:blocksize]
-        @ S_local[0:blocksize, (n_blocks - 1) * blocksize : n_blocks * blocksize]
-    )
-
-    for i in range(n_blocks - 2, 0, -1): # It was wrong in the paper
-        # S_local[top, i] = - S_local[top, top] @ L[top, i] - S_local[top, i+1] @ L[i+1, i]
-        S_local[0:blocksize, i * blocksize : (i + 1) * blocksize] = (
-            -S_local[0:blocksize, 0:blocksize]
-            @ LU_local[0:blocksize, i * blocksize : (i + 1) * blocksize]
-            - S_local[0:blocksize, (i + 1) * blocksize : (i + 2) * blocksize]
-            @ LU_local[
-                (i + 1) * blocksize : (i + 2) * blocksize,
-                i * blocksize : (i + 1) * blocksize,
-            ]
-        )
-
-        # S_local[i, top] = - U[i, i+1] @ S_local[i+1, top] - U[i, top] @ S_local[top, top]
-        S_local[i * blocksize : (i + 1) * blocksize, 0:blocksize] = (
-            -LU_local[
-                i * blocksize : (i + 1) * blocksize,
-                (i + 1) * blocksize : (i + 2) * blocksize,
-            ]
-            @ S_local[(i + 1) * blocksize : (i + 2) * blocksize, 0:blocksize]
-            - LU_local[i * blocksize : (i + 1) * blocksize, 0:blocksize]
-            @ S_local[0:blocksize, 0:blocksize]
-        )
-
-    for i in range(n_blocks - 2, 1, -1): # It was wrong in the paper
-        # S_local[i, i] = np.linalg.inv(A_local[i, i]) - U[i, top] @ S_local[top, i] - U[i, i+1] @ S_local[i+1, i]
-        S_local[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = (
-            np.linalg.inv(
-                A_local[
-                    i * blocksize : (i + 1) * blocksize,
-                    i * blocksize : (i + 1) * blocksize,
-                ]
-            )
-            - LU_local[i * blocksize : (i + 1) * blocksize, 0:blocksize]
-            @ S_local[0:blocksize, i * blocksize : (i + 1) * blocksize]
-            - LU_local[
-                i * blocksize : (i + 1) * blocksize,
-                (i + 1) * blocksize : (i + 2) * blocksize,
-            ]
-            @ S_local[
-                (i + 1) * blocksize : (i + 2) * blocksize,
-                i * blocksize : (i + 1) * blocksize,
-            ]
-        )
-
-        # S_local[i-1, i] = - U[i-1, top] @ S_local[top, i] - U[i-1, i] @ S_local[i, i]
-        S_local[
-            (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = (
-            -LU_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
-            @ S_local[0:blocksize, i * blocksize : (i + 1) * blocksize]
-            - LU_local[
-                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-            ]
-            @ S_local[
-                i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-            ]
-        )
-
-        # S_local[i, i-1] = - S_local[i, top] @ L[top, i-1] - S_local[i, i] @ L[i, i-1]
-        S_local[
-            i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        ] = (
-            -S_local[i * blocksize : (i + 1) * blocksize, 0:blocksize]
-            @ LU_local[0:blocksize, (i - 1) * blocksize : i * blocksize]
-            - S_local[
-                i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-            ]
-            @ LU_local[
-                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-            ]
-        )
-
-    # S_local[top+1, top+1] = np.linalg.inv(A_local[top+1, top+1]) - U[top+1, top] @ S_local[top, top+1] - U[top+1, top+2] @ S_local[top+2, top+1]
-    S_local[blocksize : 2 * blocksize, blocksize : 2 * blocksize] = (
-        np.linalg.inv(A_local[blocksize : 2 * blocksize, blocksize : 2 * blocksize])
-        - LU_local[blocksize : 2 * blocksize, 0:blocksize]
-        @ S_local[0:blocksize, blocksize : 2 * blocksize]
-        - LU_local[blocksize : 2 * blocksize, 2 * blocksize : 3 * blocksize]
-        @ S_local[2 * blocksize : 3 * blocksize, blocksize : 2 * blocksize]
-    )
-
-    return S_local, S_arrow_bottom, S_arrow_right
-
-
-def middle_sinv_sdr(
-    S_local: np.ndarray,
-    S_arrow_bottom: np.ndarray,
-    S_arrow_right: np.ndarray,
-    S_global_arrow_tip: np.ndarray,
-    A_local: np.ndarray,
-    A_arrow_bottom: np.ndarray,
-    A_arrow_right: np.ndarray,
     L_local: np.ndarray,
     U_local: np.ndarray,
     L_arrow_bottom: np.ndarray,
@@ -1330,8 +1179,7 @@ if __name__ == "__main__":
     # axs[0].set_title("A_ref_inv")    
     # axs[1].matshow(S_local)
     # axs[1].set_title("S_local")  
-    
-    plt.show() 
+    # plt.show() 
     
     # 4 corners blocks should be correct
     assert np.allclose(A_ref_inv[0:diag_blocksize, 0:diag_blocksize], S_local[0:diag_blocksize, 0:diag_blocksize])
@@ -1339,7 +1187,7 @@ if __name__ == "__main__":
     assert np.allclose(A_ref_inv[-diag_blocksize:, 0:diag_blocksize], S_local[-diag_blocksize:, 0:diag_blocksize])
     assert np.allclose(A_ref_inv[-diag_blocksize:, -diag_blocksize:], S_local[-diag_blocksize:, -diag_blocksize:])
 
-    S_local, S_arrow_bottom, S_arrow_right = middle_sinv_sdr(
+    S_local, S_arrow_bottom, S_arrow_right = middle_sinv(
         S_local,
         S_arrow_bottom,
         S_arrow_right,
@@ -1361,20 +1209,6 @@ if __name__ == "__main__":
     assert np.allclose(A_ref_inv[-diag_blocksize:, 0:diag_blocksize], S_local[-diag_blocksize:, 0:diag_blocksize])
     assert np.allclose(A_ref_inv[-diag_blocksize:, -diag_blocksize:], S_local[-diag_blocksize:, -diag_blocksize:])
 
-    # print("--- last lower block ---")
-    # print("A_ref_inv[-diag_blocksize:, -2*diag_blocksize:-diag_blocksize]: \n", A_ref_inv[-diag_blocksize:, -2*diag_blocksize:-diag_blocksize])
-    # print("S_local[-diag_blocksize:, -2*diag_blocksize:-diag_blocksize]: \n", S_local[-diag_blocksize:, -2*diag_blocksize:-diag_blocksize])
-
-    # print("--- last upper block ---")
-    # print("A_ref_inv[-2*diag_blocksize:-diag_blocksize, -diag_blocksize:]: \n", A_ref_inv[-2*diag_blocksize:-diag_blocksize, -diag_blocksize:])
-    # print("S_local[-2*diag_blocksize:-diag_blocksize, -diag_blocksize:]: \n", S_local[-2*diag_blocksize:-diag_blocksize, -diag_blocksize:])
-
-    # Check the 2 last Upper/Lower blocks
-    assert np.allclose(A_ref_inv[-diag_blocksize:, -2*diag_blocksize:-diag_blocksize], S_local[-diag_blocksize:, -2*diag_blocksize:-diag_blocksize])
-    assert np.allclose(A_ref_inv[-2*diag_blocksize:-diag_blocksize, -diag_blocksize:], S_local[-2*diag_blocksize:-diag_blocksize, -diag_blocksize:])
-
-
-
     fig, axs = plt.subplots(1, 2)
     axs[0].matshow(A_ref_inv)
     axs[0].set_title("A_ref_inv")
@@ -1391,8 +1225,6 @@ if __name__ == "__main__":
     print("Middle partition only inv norm = ", inv_norm)
     
     plt.show()
-    
-    # assert np.allclose(A_ref_inv, S_local)
     
 
 
