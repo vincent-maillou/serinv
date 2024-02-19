@@ -49,7 +49,7 @@ def lu_dcmp_tridiag(
             permute_l=True,
         )
 
-        # L_{i+1, i} = A_{i+1, i} @ U{i, i+1}^{-1}
+        # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
         L[
             (i + 1) * blocksize : (i + 2) * blocksize,
             i * blocksize : (i + 1) * blocksize,
@@ -62,7 +62,7 @@ def lu_dcmp_tridiag(
             lower=False,
         )
 
-        # U_{i, i+1} = L{i+1, i}^{-1} @ A_{i, i+1}
+        # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
         U[
             i * blocksize : (i + 1) * blocksize,
             (i + 1) * blocksize : (i + 2) * blocksize,
