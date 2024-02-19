@@ -697,7 +697,7 @@ def top_sinv(
     U_blk_inv = np.empty((blocksize, blocksize), dtype=U_local.dtype)
 
     n_blocks = A_local.shape[0] // blocksize
-    for i in range(n_blocks - 1, -1, -1):
+    for i in range(n_blocks - 2, -1, -1):
         # ----- Block-tridiagonal solver -----
         L_blk_inv = la.solve_triangular(
             L_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
@@ -774,9 +774,7 @@ def middle_sinv(
     arrow_blocksize: int,
 ) -> [np.ndarray, np.ndarray, np.ndarray]:
 
-    
     n_blocks = A_local.shape[0] // blocksize
-    
     for i in range(n_blocks - 2, 0, -1):
         # ----- Block-tridiagonal solver -----
         L_blk_inv = la.solve_triangular(
@@ -882,7 +880,8 @@ def psr_arrowhead(
             A_local,
             A_arrow_bottom,
             A_arrow_right,
-            LU_local,
+            L_local,
+            U_local,
             L_arrow_bottom,
             U_arrow_right,
             Update_arrow_tip,
@@ -899,7 +898,8 @@ def psr_arrowhead(
             A_local,
             A_arrow_bottom,
             A_arrow_right,
-            LU_local,
+            L_local,
+            U_local,
             L_arrow_bottom,
             U_arrow_right,
             Update_arrow_tip,
@@ -959,7 +959,8 @@ def psr_arrowhead(
             A_local,
             A_arrow_bottom,
             A_arrow_right,
-            LU_local,
+            L_local,
+            U_local,
             L_arrow_bottom,
             U_arrow_right,
             blocksize,
@@ -974,7 +975,8 @@ def psr_arrowhead(
             A_local,
             A_arrow_bottom,
             A_arrow_right,
-            LU_local,
+            L_local,
+            U_local,
             L_arrow_bottom,
             U_arrow_right,
             blocksize,
@@ -987,108 +989,110 @@ def psr_arrowhead(
 import copy as cp
 
 
-# # ----- Local checking -----
-# # ...of top process
-# if __name__ == "__main__":
-#     nblocks = 5
-#     diag_blocksize = 3
-#     diagonal_dominant = True
-#     seed = 63
+""" # ----- Local checking -----
+# ...of top process
+if __name__ == "__main__":
+    nblocks = 5
+    diag_blocksize = 3
+    diagonal_dominant = True
+    seed = 63
 
-#     A = matrix_generation.generate_blocktridiag(
-#         nblocks, diag_blocksize, diagonal_dominant, seed
-#     )
+    A = matrix_generation.generate_blocktridiag(
+        nblocks, diag_blocksize, diagonal_dominant, seed
+    )
 
-#     A_ref_init = cp.deepcopy(A)
+    A_ref_init = cp.deepcopy(A)
 
-#     A_ref_inv = np.linalg.inv(A_ref_init)
+    A_ref_inv = np.linalg.inv(A_ref_init)
 
-#     # ----- Osef
-#     A_arrow_bottom = np.zeros((diag_blocksize, diag_blocksize))
-#     A_arrow_right = np.zeros((diag_blocksize, diag_blocksize))
-#     Update_arrow_tip = np.zeros((diag_blocksize, diag_blocksize))
-#     arrow_blocksize = 2
-#     # ----- Osef
+    # ----- Osef
+    A_arrow_bottom = np.zeros((diag_blocksize, diag_blocksize))
+    A_arrow_right = np.zeros((diag_blocksize, diag_blocksize))
+    Update_arrow_tip = np.zeros((diag_blocksize, diag_blocksize))
+    arrow_blocksize = 2
+    # ----- Osef
 
-#     (
-#         A_local, 
-#         A_arrow_bottom, 
-#         A_arrow_right, 
-#         L_local, 
-#         U_local, 
-#         L_arrow_bottom, 
-#         U_arrow_right, 
-#         Update_arrow_tip
-#     ) = top_factorize(
-#         A,
-#         A_arrow_bottom,
-#         A_arrow_right,
-#         Update_arrow_tip,
-#         diag_blocksize,
-#         arrow_blocksize,
-#     )
+    (
+        A_local, 
+        A_arrow_bottom, 
+        A_arrow_right, 
+        L_local, 
+        U_local, 
+        L_arrow_bottom, 
+        U_arrow_right, 
+        Update_arrow_tip
+    ) = top_factorize(
+        A,
+        A_arrow_bottom,
+        A_arrow_right,
+        Update_arrow_tip,
+        diag_blocksize,
+        arrow_blocksize,
+    )
 
-#     fig, axs = plt.subplots(1, 4)
-#     axs[0].matshow(A_ref_init)
-#     axs[0].set_title("A_ref_init")
-#     axs[1].matshow(A_local)
-#     axs[1].set_title("A_local")
-#     axs[2].matshow(L_local)
-#     axs[2].set_title("L_local")
-#     axs[3].matshow(U_local)
-#     axs[3].set_title("U_local")
-#     plt.show()
+    fig, axs = plt.subplots(1, 4)
+    axs[0].matshow(A_ref_init)
+    axs[0].set_title("A_ref_init")
+    axs[1].matshow(A_local)
+    axs[1].set_title("A_local")
+    axs[2].matshow(L_local)
+    axs[2].set_title("L_local")
+    axs[3].matshow(U_local)
+    axs[3].set_title("U_local")
+    plt.show()
 
-#     S_local = np.zeros_like(A_local)
-#     S_arrow_bottom = np.zeros_like(A_arrow_bottom)
-#     S_arrow_right = np.zeros_like(A_arrow_right)
-#     S_global_arrow_tip = np.zeros_like(Update_arrow_tip)
+    S_local = np.zeros_like(A_local)
+    S_arrow_bottom = np.zeros_like(A_arrow_bottom)
+    S_arrow_right = np.zeros_like(A_arrow_right)
+    S_global_arrow_tip = np.zeros_like(Update_arrow_tip)
 
-#     S_last_block_inv = np.linalg.inv(A_local[-diag_blocksize:, -diag_blocksize:])
+    S_last_block_inv = np.linalg.inv(A_local[-diag_blocksize:, -diag_blocksize:])
 
-#     # for now initialize S_local[nblocks, nblocks] = inv(A_local[nblocks, nblocks])
-#     S_local[-diag_blocksize:, -diag_blocksize:] = S_last_block_inv
+    # for now initialize S_local[nblocks, nblocks] = inv(A_local[nblocks, nblocks])
+    S_local[-diag_blocksize:, -diag_blocksize:] = S_last_block_inv
     
     
-#     ref_last_block_inv = A_ref_inv[-diag_blocksize:, -diag_blocksize:]
+    ref_last_block_inv = A_ref_inv[-diag_blocksize:, -diag_blocksize:]
     
-#     norme_diff_last_block_inv = np.linalg.norm(S_last_block_inv - ref_last_block_inv)
-#     print("Norme diff last block inv = ", norme_diff_last_block_inv)
+    norme_diff_last_block_inv = np.linalg.norm(S_last_block_inv - ref_last_block_inv)
+    print("Norme diff last block inv = ", norme_diff_last_block_inv)
     
-#     # ----- Selected inversion part -----
-#     S_local, S_arrow_bottom, S_arrow_right = top_sinv(
-#         S_local,
-#         S_arrow_bottom,
-#         S_arrow_right,
-#         S_global_arrow_tip,
-#         A_local,
-#         A_arrow_bottom,
-#         A_arrow_right,
-#         L_local,
-#         U_local,
-#         L_arrow_bottom,
-#         U_arrow_right,
-#         diag_blocksize,
-#         arrow_blocksize,
-#     )
+    # ----- Selected inversion part -----
+    S_local, S_arrow_bottom, S_arrow_right = top_sinv(
+        S_local,
+        S_arrow_bottom,
+        S_arrow_right,
+        S_global_arrow_tip,
+        A_local,
+        A_arrow_bottom,
+        A_arrow_right,
+        L_local,
+        U_local,
+        L_arrow_bottom,
+        U_arrow_right,
+        diag_blocksize,
+        arrow_blocksize,
+    )
 
-#     A_ref_inv = mt.cut_to_blocktridiag(A_ref_inv, diag_blocksize)
+    A_ref_inv = mt.cut_to_blocktridiag(A_ref_inv, diag_blocksize)
 
-#     inv_norm = np.linalg.norm(A_ref_inv - S_local)
-#     print("Top partition only inv norm = ", inv_norm)
+    inv_norm = np.linalg.norm(A_ref_inv - S_local)
+    print("Top partition only inv norm = ", inv_norm)
+    
+    assert np.allclose(A_ref_inv, S_local)
 
-#     fig, axs = plt.subplots(1, 2)
-#     axs[0].matshow(A_ref_inv)
-#     axs[0].set_title("A_ref_inv")
-#     axs[1].matshow(S_local)
-#     axs[1].set_title("S_local")
-#     fig.suptitle("Results")
+    fig, axs = plt.subplots(1, 2)
+    axs[0].matshow(A_ref_inv)
+    axs[0].set_title("A_ref_inv")
+    axs[1].matshow(S_local)
+    axs[1].set_title("S_local")
+    fig.suptitle("Results")
 
-#     plt.show()
+    plt.show() """
 
 
 
-# ----- Local checking -----
+""" # ----- Local checking -----
 # ...of middle
 if __name__ == "__main__":
     nblocks = 5
@@ -1224,135 +1228,135 @@ if __name__ == "__main__":
     inv_norm = np.linalg.norm(A_ref_inv - S_local)
     print("Middle partition only inv norm = ", inv_norm)
     
-    plt.show()
+    plt.show() """
     
 
 
 
 
-# # ----- Integration test -----
-# if __name__ == "__main__":
-#     nblocks = 13
-#     diag_blocksize = 3
-#     arrow_blocksize = 2
-#     symmetric = False
-#     diagonal_dominant = True
-#     seed = 63
+# ----- Integration test -----
+if __name__ == "__main__":
+    nblocks = 13
+    diag_blocksize = 3
+    arrow_blocksize = 2
+    symmetric = False
+    diagonal_dominant = True
+    seed = 63
 
-#     A = matrix_generation.generate_blocktridiag_arrowhead(
-#         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
-#     )
+    A = matrix_generation.generate_blocktridiag_arrowhead(
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
+    )
 
-#     comm = MPI.COMM_WORLD
-#     comm_rank = comm.Get_rank()
-#     comm_size = comm.Get_size()
+    comm = MPI.COMM_WORLD
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
-#     n_partitions = comm_size
+    n_partitions = comm_size
 
-#     start_blockrows, partition_sizes, end_blockrows = get_partitions_indices(
-#         n_partitions=n_partitions, total_size=nblocks - 1
-#     )
+    start_blockrows, partition_sizes, end_blockrows = get_partitions_indices(
+        n_partitions=n_partitions, total_size=nblocks - 1
+    )
 
-#     # ----- Reference/Checkign data -----
-#     A_ref = np.zeros_like(A)
-#     A_ref[:-arrow_blocksize, :-arrow_blocksize] = A[:-arrow_blocksize, :-arrow_blocksize]
+    # ----- Reference/Checkign data -----
+    A_ref = np.zeros_like(A)
+    A_ref[:-arrow_blocksize, :-arrow_blocksize] = A[:-arrow_blocksize, :-arrow_blocksize]
     
-#     A_inv_ref = np.zeros_like(A_ref)
-#     A_inv_ref[:-arrow_blocksize, :-arrow_blocksize] = np.linalg.inv(A_ref[:-arrow_blocksize, :-arrow_blocksize])
+    A_inv_ref = np.zeros_like(A_ref)
+    A_inv_ref[:-arrow_blocksize, :-arrow_blocksize] = np.linalg.inv(A_ref[:-arrow_blocksize, :-arrow_blocksize])
     
-#     A_inv_ref_cut_tridiag = mt.cut_to_blocktridiag(A_inv_ref, diag_blocksize)
+    A_inv_ref_cut_tridiag = mt.cut_to_blocktridiag(A_inv_ref, diag_blocksize)
 
-#     A_inv_ref_local, A_ref_arrow_bottom, A_ref_arrow_right = extract_partition(
-#         A_inv_ref_cut_tridiag,
-#         start_blockrows[comm_rank],
-#         partition_sizes[comm_rank],
-#         diag_blocksize,
-#         arrow_blocksize,
-#     )
+    A_inv_ref_local, A_ref_arrow_bottom, A_ref_arrow_right = extract_partition(
+        A_inv_ref_cut_tridiag,
+        start_blockrows[comm_rank],
+        partition_sizes[comm_rank],
+        diag_blocksize,
+        arrow_blocksize,
+    )
     
-#     Bridges_upper_inv_ref, Bridges_lower_inv_ref = extract_bridges(
-#         A_inv_ref_cut_tridiag, diag_blocksize, start_blockrows
-#     )
-#     # ----- Reference/Checking data -----
+    Bridges_upper_inv_ref, Bridges_lower_inv_ref = extract_bridges(
+        A_inv_ref_cut_tridiag, diag_blocksize, start_blockrows
+    )
+    # ----- Reference/Checking data -----
     
-#     Bridges_upper, Bridges_lower = extract_bridges(
-#         A, diag_blocksize, start_blockrows
-#     )
+    Bridges_upper, Bridges_lower = extract_bridges(
+        A, diag_blocksize, start_blockrows
+    )
 
-#     A_arrow_tip = A[-arrow_blocksize:, -arrow_blocksize:]
+    A_arrow_tip = A[-arrow_blocksize:, -arrow_blocksize:]
 
-#     A_local, A_arrow_bottom, A_arrow_right = extract_partition(
-#         A,
-#         start_blockrows[comm_rank],
-#         partition_sizes[comm_rank],
-#         diag_blocksize,
-#         arrow_blocksize,
-#     )
+    A_local, A_arrow_bottom, A_arrow_right = extract_partition(
+        A,
+        start_blockrows[comm_rank],
+        partition_sizes[comm_rank],
+        diag_blocksize,
+        arrow_blocksize,
+    )
 
-#     S_local, S_bridges_upper, S_bridges_lower, S_arrow_bottom, S_arrow_right, S_global_arrow_tip = psr_arrowhead(
-#         A_local,
-#         A_arrow_bottom,
-#         A_arrow_right,
-#         A_arrow_tip,
-#         Bridges_upper,
-#         Bridges_lower,
-#         diag_blocksize,
-#         arrow_blocksize,
-#     )
+    S_local, S_bridges_upper, S_bridges_lower, S_arrow_bottom, S_arrow_right, S_global_arrow_tip = psr_arrowhead(
+        A_local,
+        A_arrow_bottom,
+        A_arrow_right,
+        A_arrow_tip,
+        Bridges_upper,
+        Bridges_lower,
+        diag_blocksize,
+        arrow_blocksize,
+    )
 
-#     S_local_cut_tridiag = mt.cut_to_blocktridiag(S_local, diag_blocksize)
+    S_local_cut_tridiag = mt.cut_to_blocktridiag(S_local, diag_blocksize)
 
 
-#     # ----- VERFIFYING THE RESULTS -----
+    # ----- VERFIFYING THE RESULTS -----
 
-#     # fig, ax = plt.subplots(1, 3)
-#     # fig.suptitle("Process: " + str(comm_rank))
-#     # ax[0].matshow(A_inv_ref_local)
-#     # ax[0].set_title("A_inv_ref_local")
-#     # ax[1].matshow(S_local)
-#     # ax[1].set_title("S_local")
-#     # ax[2].matshow(S_local_cut_tridiag)
-#     # ax[2].set_title("S_local_cut_tridiag")
-#     # plt.show()
+    # fig, ax = plt.subplots(1, 3)
+    # fig.suptitle("Process: " + str(comm_rank))
+    # ax[0].matshow(A_inv_ref_local)
+    # ax[0].set_title("A_inv_ref_local")
+    # ax[1].matshow(S_local)
+    # ax[1].set_title("S_local")
+    # ax[2].matshow(S_local_cut_tridiag)
+    # ax[2].set_title("S_local_cut_tridiag")
+    # plt.show()
     
-#     # DIFF = A_inv_ref_local - S_local_cut_tridiag
-#     # plt.matshow(DIFF)
-#     # plt.title("DIFF Process: " + str(comm_rank))
-#     # plt.show()
+    # DIFF = A_inv_ref_local - S_local_cut_tridiag
+    # plt.matshow(DIFF)
+    # plt.title("DIFF Process: " + str(comm_rank))
+    # plt.show()
 
-#     # Check for partitions correctness
-#     Norme_A_inv_ref_local = np.linalg.norm(A_inv_ref_local)
-#     Norme_S_local = np.linalg.norm(S_local_cut_tridiag)
-#     Norme_diff = np.linalg.norm(A_inv_ref_local - S_local_cut_tridiag)
+    # Check for partitions correctness
+    Norme_A_inv_ref_local = np.linalg.norm(A_inv_ref_local)
+    Norme_S_local = np.linalg.norm(S_local_cut_tridiag)
+    Norme_diff = np.linalg.norm(A_inv_ref_local - S_local_cut_tridiag)
     
-#     assert np.allclose(A_inv_ref_local, S_local_cut_tridiag)
+    assert np.allclose(A_inv_ref_local, S_local_cut_tridiag)
 
-#     print("Partition n", comm_rank, " \n     norme ref = ", Norme_A_inv_ref_local, "  norm psr = ", Norme_S_local, "  norm diff = ", Norme_diff)
+    print("Partition n", comm_rank, " \n     norme ref = ", Norme_A_inv_ref_local, "  norm psr = ", Norme_S_local, "  norm diff = ", Norme_diff)
 
-#     # Check for bridges correctness
-#     print("     Bridges correctness:")
-#     if comm_rank == 0:
-#         norme_upper_bridge_ref_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank])
-#         norme_upper_bridge_psr_i = np.linalg.norm(S_bridges_upper[comm_rank])
-#         norme_diff_upper_bridge_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank] - S_bridges_upper[comm_rank])
+    # Check for bridges correctness
+    print("     Bridges correctness:")
+    if comm_rank == 0:
+        norme_upper_bridge_ref_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank])
+        norme_upper_bridge_psr_i = np.linalg.norm(S_bridges_upper[comm_rank])
+        norme_diff_upper_bridge_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank] - S_bridges_upper[comm_rank])
         
-#         print("          Upper bridge n", comm_rank, "  norme ref = ", norme_upper_bridge_ref_i, " norm psr = ", norme_upper_bridge_psr_i, " norm diff = ", norme_diff_upper_bridge_i)            
+        print("          Upper bridge n", comm_rank, "  norme ref = ", norme_upper_bridge_ref_i, " norm psr = ", norme_upper_bridge_psr_i, " norm diff = ", norme_diff_upper_bridge_i)            
                         
-#     elif comm_rank == comm_size-1:
-#         norme_lower_bridge_ref_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1])
-#         norme_lower_bridge_psr_i = np.linalg.norm(S_bridges_lower[comm_rank-1])
-#         norme_diff_lower_bridge_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1] - S_bridges_lower[comm_rank-1])
+    elif comm_rank == comm_size-1:
+        norme_lower_bridge_ref_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1])
+        norme_lower_bridge_psr_i = np.linalg.norm(S_bridges_lower[comm_rank-1])
+        norme_diff_lower_bridge_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1] - S_bridges_lower[comm_rank-1])
         
-#         print("          Lower bridge n", comm_rank, "  norme ref = ", norme_lower_bridge_ref_i, " norm psr = ", norme_lower_bridge_psr_i, " norm diff = ", norme_diff_lower_bridge_i)
+        print("          Lower bridge n", comm_rank, "  norme ref = ", norme_lower_bridge_ref_i, " norm psr = ", norme_lower_bridge_psr_i, " norm diff = ", norme_diff_lower_bridge_i)
         
-#     else:
-#         norme_upper_bridge_ref_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank])
-#         norme_upper_bridge_psr_i = np.linalg.norm(S_bridges_upper[comm_rank])
-#         norme_diff_upper_bridge_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank] - S_bridges_upper[comm_rank])
+    else:
+        norme_upper_bridge_ref_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank])
+        norme_upper_bridge_psr_i = np.linalg.norm(S_bridges_upper[comm_rank])
+        norme_diff_upper_bridge_i = np.linalg.norm(Bridges_upper_inv_ref[comm_rank] - S_bridges_upper[comm_rank])
         
-#         norme_lower_bridge_ref_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1])
-#         norme_lower_bridge_psr_i = np.linalg.norm(S_bridges_lower[comm_rank-1])
-#         norme_diff_lower_bridge_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1] - S_bridges_lower[comm_rank-1])
+        norme_lower_bridge_ref_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1])
+        norme_lower_bridge_psr_i = np.linalg.norm(S_bridges_lower[comm_rank-1])
+        norme_diff_lower_bridge_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1] - S_bridges_lower[comm_rank-1])
         
-#         print("          Upper bridge n", comm_rank, "  norme ref = ", norme_upper_bridge_ref_i, " norm psr = ", norme_upper_bridge_psr_i, " norm diff = ", norme_diff_upper_bridge_i)            
-#         print("          Lower bridge n", comm_rank, "  norme ref = ", norme_lower_bridge_ref_i, " norm psr = ", norme_lower_bridge_psr_i, " norm diff = ", norme_diff_lower_bridge_i)
+        print("          Upper bridge n", comm_rank, "  norme ref = ", norme_upper_bridge_ref_i, " norm psr = ", norme_upper_bridge_psr_i, " norm diff = ", norme_diff_upper_bridge_i)            
+        print("          Lower bridge n", comm_rank, "  norme ref = ", norme_lower_bridge_ref_i, " norm psr = ", norme_lower_bridge_psr_i, " norm diff = ", norme_diff_lower_bridge_i)
