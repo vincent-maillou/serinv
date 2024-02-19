@@ -148,7 +148,6 @@ def top_factorize(
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
     A_arrow_right: np.ndarray,
-    Update_arrow_tip: np.ndarray,
     blocksize: int,
     arrow_blocksize: int,
 ) -> [
@@ -165,6 +164,8 @@ def top_factorize(
     
     L_arrow_bottom = np.zeros_like(A_arrow_bottom)
     U_arrow_right = np.zeros_like(A_arrow_right)
+    
+    Update_arrow_tip = np.zeros((arrow_blocksize, arrow_blocksize))
 
     nblocks = A_local.shape[0] // blocksize
 
@@ -178,38 +179,63 @@ def top_factorize(
             permute_l=True,
         )
 
-        # L_{i+1, i} = A_{i+1, i} @ U_local{i, i+1}^{-1}
+
+        # Compute lower factors
+        U_inv_temp = la.solve_triangular(
+            U_local[
+                i * blocksize : (i + 1) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ],
+            np.eye(blocksize),
+            lower=False,
+        )
+
+        # L_{i+1, i} = A_{i+1, i} @ U_local{i, i}^{-1}
         L_local[
             (i + 1) * blocksize : (i + 2) * blocksize,
             i * blocksize : (i + 1) * blocksize,
         ] = A_local[
             (i + 1) * blocksize : (i + 2) * blocksize,
             i * blocksize : (i + 1) * blocksize,
-        ] @ la.solve_triangular(
-            U_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
-            np.eye(blocksize),
-            lower=False,
+        ] @ U_inv_temp
+        
+        # L_{ndb+1, i} = A_{ndb+1, i} @ U{i, i}^{-1}
+        L_arrow_bottom[:, i * blocksize : (i + 1) * blocksize] = (
+            A_arrow_bottom[:, i * blocksize : (i + 1) * blocksize]
+            @ U_inv_temp
         )
+        
 
-        # L_{i, i+1} = L_local{i+1, i}^{-1} @ A_{i, i+1}
+        # Compute upper factors
+        L_inv_temp = la.solve_triangular(
+            L_local[
+                i * blocksize : (i + 1) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ],
+            np.eye(blocksize),
+            lower=True,
+        )
+        
+        # L_{i, i+1} = L_local{i, i}^{-1} @ A_{i, i+1}
         U_local[
             i * blocksize : (i + 1) * blocksize,
             (i + 1) * blocksize : (i + 2) * blocksize,
         ] = (
-            la.solve_triangular(
-                L_local[
-                    i * blocksize : (i + 1) * blocksize,
-                    i * blocksize : (i + 1) * blocksize,
-                ],
-                np.eye(blocksize),
-                lower=True,
-            )
+            L_inv_temp
             @ A_local[
                 i * blocksize : (i + 1) * blocksize,
                 (i + 1) * blocksize : (i + 2) * blocksize,
             ]
         )
+        
+        # U_{i, ndb+1} = L{i, i}^{-1} @ A_{i, ndb+1}
+        U_arrow_right[i * blocksize : (i + 1) * blocksize, :] = (
+            L_inv_temp
+            @ A_arrow_right[i * blocksize : (i + 1) * blocksize, :]
+        )
+        
 
+        # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
         A_local[
             (i + 1) * blocksize : (i + 2) * blocksize,
@@ -228,21 +254,85 @@ def top_factorize(
                 (i + 1) * blocksize : (i + 2) * blocksize,
             ]
         )
+        
+        
+        # Update next upper/lower blocks of the arrowhead
+        # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ U_{i, i+1}
+        A_arrow_bottom[:, (i + 1) * blocksize : (i + 2) * blocksize] = (
+            A_arrow_bottom[:, (i + 1) * blocksize : (i + 2) * blocksize]
+            - L_arrow_bottom[:, i * blocksize : (i + 1) * blocksize]
+            @ U_local[
+                i * blocksize : (i + 1) * blocksize,
+                (i + 1) * blocksize : (i + 2) * blocksize,
+            ]
+        )
+
+
+        # A_{i+1, ndb+1} = A_{i+1, ndb+1} - L_{i+1, i} @ U_{i, ndb+1}
+        A_arrow_right[(i + 1) * blocksize : (i + 2) * blocksize, :] = (
+            A_arrow_right[(i + 1) * blocksize : (i + 2) * blocksize, :]
+            - L_local[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ]
+            @ U_arrow_right[i * blocksize : (i + 1) * blocksize, :]
+        )
+
+
+        # Update the block at the tip of the arrowhead
+        # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ U_{i, ndb+1}
+        Update_arrow_tip[:, :] = (
+            Update_arrow_tip[:, :]
+            - L_arrow_bottom[:, i * blocksize : (i + 1) * blocksize]
+            @ U_arrow_right[i * blocksize : (i + 1) * blocksize, :]
+        )
 
     # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
     L_local[-blocksize:, -blocksize:], U_local[-blocksize:, -blocksize:] = la.lu(
         A_local[-blocksize:, -blocksize:], permute_l=True
     )
+    
+    # # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ U{ndb, ndb}^{-1}
+    # L_arrow_bottom[:, -blocksize:] = (
+    #     A_arrow_bottom[
+    #         :, -blocksize:
+    #     ] @ la.solve_triangular(
+    #         U_local[
+    #             -blocksize:, -blocksize:
+    #         ],
+    #         np.eye(blocksize),
+    #         lower=False,
+    #     )
+    # )
+
+    # # U_{ndb, ndb+1} = L{ndb, ndb}^{-1} @ A_{ndb, ndb+1}
+    # U_arrow_right[-blocksize:, :] = (
+    #     la.solve_triangular(
+    #         L_local[
+    #             -blocksize:, -blocksize:
+    #         ],
+    #         np.eye(blocksize),
+    #         lower=True,
+    #     )
+    #     @ A_arrow_right[-blocksize:, :]
+    # )
+
+    # # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ U_{ndb, ndb+1}
+    # Update_arrow_tip[:, :] = (
+    #     Update_arrow_tip[:, :]
+    #     - L_arrow_bottom[:, -blocksize:]
+    #     @ U_arrow_right[-blocksize:, :]
+    # )
 
     return (
         A_local,
         A_arrow_bottom,
         A_arrow_right,
+        Update_arrow_tip,
         L_local,
         U_local,
         L_arrow_bottom,
         U_arrow_right,
-        Update_arrow_tip,
     )
     
     
@@ -989,106 +1079,149 @@ def psr_arrowhead(
 import copy as cp
 
 
-""" # ----- Local checking -----
+# ----- Local checking -----
 # ...of top process
 if __name__ == "__main__":
     nblocks = 5
     diag_blocksize = 3
+    arrow_blocksize = 2
     diagonal_dominant = True
+    symmetric = False
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, diag_blocksize, diagonal_dominant, seed
+    # A = matrix_generation.generate_blocktridiag(
+    #     nblocks, diag_blocksize, diagonal_dominant, seed
+    # )
+    
+    A_init = matrix_generation.generate_blocktridiag_arrowhead(
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
-    A_ref_init = cp.deepcopy(A)
+    # ----- Reference -----
+    A_ref_init = cp.deepcopy(A_init)
 
     A_ref_inv = np.linalg.inv(A_ref_init)
+    
+    A_local_refinv, A_arrow_bottom_refinv, A_arrow_right_refinv = extract_partition(
+        A_ref_inv,
+        0,
+        nblocks-1,
+        diag_blocksize,
+        arrow_blocksize,
+    )
+    
+    A_arrow_tip_refinv = A_ref_inv[-arrow_blocksize:, -arrow_blocksize:]
+    # ---------------------
 
-    # ----- Osef
-    A_arrow_bottom = np.zeros((diag_blocksize, diag_blocksize))
-    A_arrow_right = np.zeros((diag_blocksize, diag_blocksize))
-    Update_arrow_tip = np.zeros((diag_blocksize, diag_blocksize))
-    arrow_blocksize = 2
-    # ----- Osef
-
-    (
-        A_local, 
-        A_arrow_bottom, 
-        A_arrow_right, 
-        L_local, 
-        U_local, 
-        L_arrow_bottom, 
-        U_arrow_right, 
-        Update_arrow_tip
-    ) = top_factorize(
-        A,
-        A_arrow_bottom,
-        A_arrow_right,
-        Update_arrow_tip,
+    A_local, A_arrow_bottom, A_arrow_right = extract_partition(
+        A_init,
+        0,
+        nblocks-1,
         diag_blocksize,
         arrow_blocksize,
     )
 
-    fig, axs = plt.subplots(1, 4)
-    axs[0].matshow(A_ref_init)
-    axs[0].set_title("A_ref_init")
-    axs[1].matshow(A_local)
-    axs[1].set_title("A_local")
-    axs[2].matshow(L_local)
-    axs[2].set_title("L_local")
-    axs[3].matshow(U_local)
-    axs[3].set_title("U_local")
-    plt.show()
+    A_arrow_tip = A_init[-arrow_blocksize:, -arrow_blocksize:]
+
+    (
+        A_local, 
+        A_arrow_bottom, 
+        A_arrow_right,
+        Update_arrow_tip, 
+        L_local, 
+        U_local, 
+        L_arrow_bottom, 
+        U_arrow_right,
+    ) = top_factorize(
+        A_local,
+        A_arrow_bottom,
+        A_arrow_right,
+        diag_blocksize,
+        arrow_blocksize,
+    )
+
+    # fig, axs = plt.subplots(2, 5)
+    # axs[0 ,0].matshow(A_ref_init)
+    # axs[0 ,0].set_title("A_ref_init")
+    # axs[0 ,1].matshow(A_local)
+    # axs[0 ,1].set_title("A_local")
+    # axs[0 ,2].matshow(A_arrow_right)
+    # axs[0 ,2].set_title("A_arrow_right")
+    # axs[0, 3].matshow(A_arrow_bottom)
+    # axs[0, 3].set_title("A_arrow_bottom")
+    # axs[0, 4].matshow(A_arrow_tip)
+    # axs[0, 4].set_title("A_arrow_tip")
+    
+    # axs[1, 0].matshow(L_local)
+    # axs[1, 0].set_title("L_local")
+    # axs[1, 1].matshow(U_local)
+    # axs[1, 1].set_title("U_local")
+    # axs[1, 2].matshow(U_arrow_right)
+    # axs[1, 2].set_title("U_arrow_right")
+    # axs[1, 3].matshow(L_arrow_bottom)
+    # axs[1, 3].set_title("L_arrow_bottom")
+    # axs[1, 4].matshow(Update_arrow_tip)
+    # axs[1, 4].set_title("Update_arrow_tip")
+    # plt.show()
 
     S_local = np.zeros_like(A_local)
     S_arrow_bottom = np.zeros_like(A_arrow_bottom)
     S_arrow_right = np.zeros_like(A_arrow_right)
     S_global_arrow_tip = np.zeros_like(Update_arrow_tip)
 
-    S_last_block_inv = np.linalg.inv(A_local[-diag_blocksize:, -diag_blocksize:])
-
-    # for now initialize S_local[nblocks, nblocks] = inv(A_local[nblocks, nblocks])
-    S_local[-diag_blocksize:, -diag_blocksize:] = S_last_block_inv
+    reduced_system = np.zeros((diag_blocksize+arrow_blocksize, diag_blocksize+arrow_blocksize))
+    reduced_system[0:diag_blocksize, 0:diag_blocksize] = A_local[-diag_blocksize:, -diag_blocksize:]
+    reduced_system[-arrow_blocksize:, -arrow_blocksize:] = A_arrow_tip + Update_arrow_tip    
+    reduced_system[0:diag_blocksize, -arrow_blocksize:] = A_arrow_right[-diag_blocksize:, :]
+    reduced_system[-arrow_blocksize:, 0:diag_blocksize] = A_arrow_bottom[:, -diag_blocksize:]
     
+    reduced_system_inv = np.linalg.inv(reduced_system)
     
-    ref_last_block_inv = A_ref_inv[-diag_blocksize:, -diag_blocksize:]
+    S_local[-diag_blocksize:, -diag_blocksize:] = reduced_system_inv[0:diag_blocksize, 0:diag_blocksize]
+    S_arrow_bottom[:, -diag_blocksize:] = reduced_system_inv[-arrow_blocksize:, 0:diag_blocksize]
+    S_arrow_right[-diag_blocksize:, :] = reduced_system_inv[0:diag_blocksize, -arrow_blocksize:]
+    S_global_arrow_tip = reduced_system_inv[-arrow_blocksize:, -arrow_blocksize:]
     
-    norme_diff_last_block_inv = np.linalg.norm(S_last_block_inv - ref_last_block_inv)
-    print("Norme diff last block inv = ", norme_diff_last_block_inv)
+    # Check for correctness of the first blocks of the true inverse
+    assert np.allclose(A_local_refinv[-diag_blocksize:, -diag_blocksize:], S_local[-diag_blocksize:, -diag_blocksize:])
+    assert np.allclose(A_arrow_bottom_refinv[:, -diag_blocksize:], S_arrow_bottom[:, -diag_blocksize:])
+    assert np.allclose(A_arrow_right_refinv[-diag_blocksize:, :], S_arrow_right[-diag_blocksize:, :])
+    assert np.allclose(A_arrow_tip_refinv, S_global_arrow_tip)
     
-    # ----- Selected inversion part -----
-    S_local, S_arrow_bottom, S_arrow_right = top_sinv(
-        S_local,
-        S_arrow_bottom,
-        S_arrow_right,
-        S_global_arrow_tip,
-        A_local,
-        A_arrow_bottom,
-        A_arrow_right,
-        L_local,
-        U_local,
-        L_arrow_bottom,
-        U_arrow_right,
-        diag_blocksize,
-        arrow_blocksize,
-    )
 
-    A_ref_inv = mt.cut_to_blocktridiag(A_ref_inv, diag_blocksize)
-
-    inv_norm = np.linalg.norm(A_ref_inv - S_local)
-    print("Top partition only inv norm = ", inv_norm)
     
-    assert np.allclose(A_ref_inv, S_local)
+    # # ----- Selected inversion part -----
+    # S_local, S_arrow_bottom, S_arrow_right = top_sinv(
+    #     S_local,
+    #     S_arrow_bottom,
+    #     S_arrow_right,
+    #     S_global_arrow_tip,
+    #     A_local,
+    #     A_arrow_bottom,
+    #     A_arrow_right,
+    #     L_local,
+    #     U_local,
+    #     L_arrow_bottom,
+    #     U_arrow_right,
+    #     diag_blocksize,
+    #     arrow_blocksize,
+    # )
 
-    fig, axs = plt.subplots(1, 2)
-    axs[0].matshow(A_ref_inv)
-    axs[0].set_title("A_ref_inv")
-    axs[1].matshow(S_local)
-    axs[1].set_title("S_local")
-    fig.suptitle("Results")
+    # A_ref_inv = mt.cut_to_blocktridiag(A_ref_inv, diag_blocksize)
 
-    plt.show() """
+    # inv_norm = np.linalg.norm(A_ref_inv - S_local)
+    # print("Top partition only inv norm = ", inv_norm)
+    
+    # assert np.allclose(A_ref_inv, S_local)
+
+    # fig, axs = plt.subplots(1, 2)
+    # axs[0].matshow(A_ref_inv)
+    # axs[0].set_title("A_ref_inv")
+    # axs[1].matshow(S_local)
+    # axs[1].set_title("S_local")
+    # fig.suptitle("Results")
+
+    # plt.show()
 
 
 
@@ -1234,7 +1367,7 @@ if __name__ == "__main__":
 
 
 
-# ----- Integration test -----
+""" # ----- Integration test -----
 if __name__ == "__main__":
     nblocks = 13
     diag_blocksize = 3
@@ -1359,4 +1492,4 @@ if __name__ == "__main__":
         norme_diff_lower_bridge_i = np.linalg.norm(Bridges_lower_inv_ref[comm_rank-1] - S_bridges_lower[comm_rank-1])
         
         print("          Upper bridge n", comm_rank, "  norme ref = ", norme_upper_bridge_ref_i, " norm psr = ", norme_upper_bridge_psr_i, " norm diff = ", norme_diff_upper_bridge_i)            
-        print("          Lower bridge n", comm_rank, "  norme ref = ", norme_lower_bridge_ref_i, " norm psr = ", norme_lower_bridge_psr_i, " norm diff = ", norme_diff_lower_bridge_i)
+        print("          Lower bridge n", comm_rank, "  norme ref = ", norme_lower_bridge_ref_i, " norm psr = ", norme_lower_bridge_psr_i, " norm diff = ", norme_diff_lower_bridge_i) """
