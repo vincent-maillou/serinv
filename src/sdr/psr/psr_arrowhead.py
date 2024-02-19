@@ -244,8 +244,8 @@ def top_factorize(
         U_arrow_right,
         Update_arrow_tip,
     )
-
-
+    
+    
 def middle_factorize(
     A_local: np.ndarray,
     A_arrow_bottom: np.ndarray,
@@ -270,125 +270,7 @@ def middle_factorize(
 
     n_blocks = A_local.shape[0] // blocksize
 
-    for i in range(2, n_blocks):
-        A_im1im1_inv = np.linalg.inv(
-            A_local[
-                (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
-            ]
-        )
-
-        # L[i, i-1] = A[i, i-1] @ A[i-1, i-1]^(-1)
-        L_local[
-            i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        ] = (
-            A_local[
-                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-            ]
-            @ A_im1im1_inv
-        )
-
-        # L[top, i-1] = A[top, i-1] @ A[i-1, i-1]^(-1)
-        L_local[0:blocksize, (i - 1) * blocksize : i * blocksize] = (
-            A_local[0:blocksize, (i - 1) * blocksize : i * blocksize] @ A_im1im1_inv
-        )
-
-        # U[i-1, i] = A[i-1, i-1]^(-1) @ A[i-1, i]
-        U_local[
-            (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = (
-            A_im1im1_inv
-            @ A_local[
-                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-            ]
-        )
-
-        # U[i-1, top] = A[i-1, i-1]^(-1) @ A[i-1, top]
-        U_local[(i - 1) * blocksize : i * blocksize, 0:blocksize] = (
-            A_im1im1_inv @ A_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
-        )
-
-        # A_local[i, i] = A[i, i] - L[i, i-1] @ A_local[i-1, i]
-        A_local[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = (
-            A_local[
-                i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-            ]
-            - L_local[
-                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-            ]
-            @ A_local[
-                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-            ]
-        )
-
-        # A_local[top, top] = A[top, top] - L[top, i-1] @ A_local[i-1, top]
-        A_local[0:blocksize, 0:blocksize] = (
-            A_local[0:blocksize, 0:blocksize]
-            - L_local[0:blocksize, (i - 1) * blocksize : i * blocksize]
-            @ A_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
-        )
-
-        # A_local[i, top] = - L[i, i-1] @ A_local[i-1, top]
-        A_local[i * blocksize : (i + 1) * blocksize, 0:blocksize] = (
-            -L_local[
-                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-            ]
-            @ A_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
-        )
-
-        # A_local[top, i] = - L[top, i-1] @ A_local[i-1, i]
-        A_local[0:blocksize, i * blocksize : (i + 1) * blocksize] = (
-            -L_local[0:blocksize, (i - 1) * blocksize : i * blocksize]
-            @ A_local[
-                (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-            ]
-        )
-
-    return (
-        A_local,
-        A_arrow_bottom,
-        A_arrow_right,
-        L_local,
-        U_local,
-        L_arrow_bottom,
-        U_arrow_right,
-        Update_arrow_tip,
-    )
-    
-    
-def middle_factorize_sdr(
-    A_local: np.ndarray,
-    A_arrow_bottom: np.ndarray,
-    A_arrow_right: np.ndarray,
-    Update_arrow_tip: np.ndarray,
-    blocksize: int,
-    arrow_blocksize: int,
-) -> [
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-]:
-    L_local = np.zeros_like(A_local)
-    U_local = np.zeros_like(A_local)
-
-    L_arrow_bottom = np.zeros_like(A_arrow_bottom)
-    U_arrow_right = np.zeros_like(A_arrow_right)
-
-    n_blocks = A_local.shape[0] // blocksize
-
     for i in range(1, n_blocks-1):
-        # # A_{i-1, i-1}^{-1}
-        # A_im1im1_inv = np.linalg.inv(
-        #     A_local[
-        #         (i - 1) * blocksize : i * blocksize, (i - 1) * blocksize : i * blocksize
-        #     ]
-        # )
-        
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
             L_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
@@ -397,18 +279,8 @@ def middle_factorize_sdr(
             A_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
             permute_l=True,
         )
-
-        # # L[i, i-1] = A[i, i-1] @ A[i-1, i-1]^(-1)
-        # L_local[
-        #     i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        # ] = (
-        #     A_local[
-        #         i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        #     ]
-        #     @ A_im1im1_inv
-        # )
         
-        # L_{i+1, i} = A_{i+1, i} @ U{i, i+1}^{-1}
+        # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
         L_local[
             (i + 1) * blocksize : (i + 2) * blocksize,
             i * blocksize : (i + 1) * blocksize,
@@ -420,25 +292,21 @@ def middle_factorize_sdr(
             np.eye(blocksize),
             lower=False,
         )
-
-        # # L[top, i-1] = A[top, i-1] @ A[i-1, i-1]^(-1)
-        # L_local[0:blocksize, (i - 1) * blocksize : i * blocksize] = (
-        #     A_local[0:blocksize, (i - 1) * blocksize : i * blocksize] @ A_im1im1_inv
-        # )
-
-
-
-        # # U[i-1, i] = A[i-1, i-1]^(-1) @ A[i-1, i]
-        # U_local[
-        #     (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        # ] = (
-        #     A_im1im1_inv
-        #     @ A_local[
-        #         (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        #     ]
-        # )
         
-        # U_{i, i+1} = L{i+1, i}^{-1} @ A_{i, i+1}
+        # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
+        L_local[
+            0 : blocksize,
+            i * blocksize : (i + 1) * blocksize,
+        ] = A_local[
+            0 : blocksize,
+            i * blocksize : (i + 1) * blocksize,
+        ] @ la.solve_triangular(
+            U_local[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+            np.eye(blocksize),
+            lower=False,
+        )
+        
+        # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
         U_local[
             i * blocksize : (i + 1) * blocksize,
             (i + 1) * blocksize : (i + 2) * blocksize,
@@ -456,28 +324,25 @@ def middle_factorize_sdr(
                 (i + 1) * blocksize : (i + 2) * blocksize,
             ]
         )
-
-        # # U[i-1, top] = A[i-1, i-1]^(-1) @ A[i-1, top]
-        # U_local[(i - 1) * blocksize : i * blocksize, 0:blocksize] = (
-        #     A_im1im1_inv @ A_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
-        # )
-
-
-
-        # # A_local[i, i] = A[i, i] - L[i, i-1] @ A_local[i-1, i]
-        # A_local[
-        #     i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        # ] = (
-        #     A_local[
-        #         i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        #     ]
-        #     - L_local[
-        #         i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        #     ]
-        #     @ A_local[
-        #         (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        #     ]
-        # )
+        
+        # U_{i, top} = L{i, i}^{-1} @ A_{i, top}
+        U_local[
+            i * blocksize : (i + 1) * blocksize,
+            0 : blocksize,
+        ] = (
+            la.solve_triangular(
+                L_local[
+                    i * blocksize : (i + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
+                ],
+                np.eye(blocksize),
+                lower=True,
+            )
+            @ A_local[
+                i * blocksize : (i + 1) * blocksize,
+                0 : blocksize,
+            ]
+        )
         
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
         A_local[
@@ -497,37 +362,92 @@ def middle_factorize_sdr(
                 (i + 1) * blocksize : (i + 2) * blocksize,
             ]
         )
-
-        # # A_local[top, top] = A[top, top] - L[top, i-1] @ A_local[i-1, top]
-        # A_local[0:blocksize, 0:blocksize] = (
-        #     A_local[0:blocksize, 0:blocksize]
-        #     - L_local[0:blocksize, (i - 1) * blocksize : i * blocksize]
-        #     @ A_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
-        # )
-
-
-
-        # # A_local[i, top] = - L[i, i-1] @ A_local[i-1, top]
-        # A_local[i * blocksize : (i + 1) * blocksize, 0:blocksize] = (
-        #     -L_local[
-        #         i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-        #     ]
-        #     @ A_local[(i - 1) * blocksize : i * blocksize, 0:blocksize]
-        # )
-
-
-
-        # # A_local[top, i] = - L[top, i-1] @ A_local[i-1, i]
-        # A_local[0:blocksize, i * blocksize : (i + 1) * blocksize] = (
-        #     -L_local[0:blocksize, (i - 1) * blocksize : i * blocksize]
-        #     @ A_local[
-        #         (i - 1) * blocksize : i * blocksize, i * blocksize : (i + 1) * blocksize
-        #     ]
-        # )
+        
+        # A_{top, top} = A_{top, top} - L_{top, i} @ U_{i, top}
+        A_local[
+            0 : blocksize,
+            0 : blocksize,
+        ] = (
+            A_local[
+                0 : blocksize,
+                0 : blocksize,
+            ]
+            - L_local[
+                0 : blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ]
+            @ U_local[
+                i * blocksize : (i + 1) * blocksize,
+                0 : blocksize,
+            ]
+        )
+        
+        # A_{i+1, top} = - L_{i+1, i} @ U_{i, top}
+        A_local[
+            (i + 1) * blocksize : (i + 2) * blocksize,
+            0 : blocksize,
+        ] = (
+            - L_local[
+                (i + 1) * blocksize : (i + 2) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ]
+            @ U_local[
+                i * blocksize : (i + 1) * blocksize,
+                0 : blocksize,
+            ]
+        )
+        
+        # A_local[top, i+1] = - L[top, i] @ A_local[i, i+1]
+        A_local[
+            0 : blocksize,
+            (i + 1) * blocksize : (i + 2) * blocksize
+        ] = (
+            - L_local[
+                0 : blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ]
+            @ U_local[
+                i * blocksize : (i + 1) * blocksize,
+                (i + 1) * blocksize : (i + 2) * blocksize,
+            ]
+        )
+        
         
     # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
     L_local[-blocksize:, -blocksize:], U_local[-blocksize:, -blocksize:] = la.lu(
         A_local[-blocksize:, -blocksize:], permute_l=True
+    )
+    
+    # L_{top, nblocks} = A_{top, nblocks} @ U{nblocks, nblocks}^{-1}
+    L_local[
+        0 : blocksize,
+        -blocksize:,
+    ] = A_local[
+        0 : blocksize,
+        -blocksize:,
+    ] @ la.solve_triangular(
+        U_local[-blocksize:, -blocksize:],
+        np.eye(blocksize),
+        lower=False,
+    )
+    
+    # U_{nblocks, top} = L{nblocks, nblocks}^{-1} @ A_{nblocks, top}
+    U_local[
+        -blocksize:,
+        0 : blocksize,
+    ] = (
+        la.solve_triangular(
+            L_local[
+                -blocksize:,
+                -blocksize:,
+            ],
+            np.eye(blocksize),
+            lower=True,
+        )
+        @ A_local[
+            -blocksize:,
+            0 : blocksize,
+        ]
     )
 
     return (
@@ -1241,7 +1161,7 @@ if __name__ == "__main__":
         L_arrow_bottom, 
         U_arrow_right, 
         Update_arrow_tip
-    ) = middle_factorize_sdr(
+    ) = middle_factorize(
         A,
         A_arrow_bottom,
         A_arrow_right,
@@ -1302,13 +1222,13 @@ if __name__ == "__main__":
     axs[0].set_title("A_ref_inv")    
     axs[1].matshow(S_local)
     axs[1].set_title("S_local")  
-    plt.show() 
     
     assert np.allclose(A_ref_inv[0:diag_blocksize, 0:diag_blocksize], S_local[0:diag_blocksize, 0:diag_blocksize])
     assert np.allclose(A_ref_inv[0:diag_blocksize, -diag_blocksize:], S_local[0:diag_blocksize, -diag_blocksize:])
     assert np.allclose(A_ref_inv[-diag_blocksize:, 0:diag_blocksize], S_local[-diag_blocksize:, 0:diag_blocksize])
     assert np.allclose(A_ref_inv[-diag_blocksize:, -diag_blocksize:], S_local[-diag_blocksize:, -diag_blocksize:])
     
+    plt.show() 
     
 
 
