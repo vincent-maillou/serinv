@@ -1530,7 +1530,6 @@ if __name__ == "__main__":
     # plt.show()
 
 
-
     global_arrow_tip = np.zeros((arrow_blocksize, arrow_blocksize))
     global_arrow_tip = A_arrow_tip + Update_arrow_tip
 
@@ -1564,7 +1563,6 @@ if __name__ == "__main__":
     reduced_system[-arrow_blocksize:, -arrow_blocksize:] = global_arrow_tip
     
     
-    
     # fig, axs = plt.subplots(1, 5)
     # fig.suptitle("Reduced system construction")
     # axs[0].matshow(A_local)
@@ -1579,64 +1577,117 @@ if __name__ == "__main__":
     # axs[4].set_title("reduced_system")  
     # plt.show() 
     
-
-
+    
     reduced_system_inv = np.linalg.inv(reduced_system)
 
 
-    # S_local = np.zeros_like(A_local)
-    # S_arrow_bottom = np.zeros_like(A_arrow_bottom)
-    # S_arrow_right = np.zeros_like(A_arrow_right)
-    # S_global_arrow_tip = np.zeros_like(Update_arrow_tip)
+    S_local = np.zeros_like(A_local)
+    S_arrow_bottom = np.zeros_like(A_arrow_bottom)
+    S_arrow_right = np.zeros_like(A_arrow_right)
+    S_global_arrow_tip = np.zeros_like(global_arrow_tip)
+    
+    # (top, top)
+    S_local[0:diag_blocksize, 0:diag_blocksize] = reduced_system_inv[0:diag_blocksize, 0:diag_blocksize]
+    
+    # (top, nblocks)
+    S_local[0:diag_blocksize, -diag_blocksize:] = reduced_system_inv[0:diag_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize]
+    
+    # (top, ndb+1)
+    S_arrow_right[0:diag_blocksize, :] = reduced_system_inv[0:diag_blocksize, -arrow_blocksize:]
+    
+    # (nblocks, top)
+    S_local[-diag_blocksize:, 0:diag_blocksize] = reduced_system_inv[-diag_blocksize-arrow_blocksize:-arrow_blocksize, 0:diag_blocksize]
+    
+    # (ndb+1, top)
+    S_arrow_bottom[:, 0:diag_blocksize] = reduced_system_inv[-arrow_blocksize:, 0:diag_blocksize]
+    
+    # (nblocks, nblocks)
+    S_local[-diag_blocksize:, -diag_blocksize:] = reduced_system_inv[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize] 
+    
+    # (nblocks, ndb+1)
+    S_arrow_right[-diag_blocksize:, :] = reduced_system_inv[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -arrow_blocksize:]
+    
+    # (ndb+1, nblocks)
+    S_arrow_bottom[:, -diag_blocksize:] = reduced_system_inv[-arrow_blocksize:, -diag_blocksize-arrow_blocksize:-arrow_blocksize]
+    
+    # (ndb+1, ndb+1)
+    S_global_arrow_tip = reduced_system_inv[-arrow_blocksize:, -arrow_blocksize:]
 
-    # S_local[0:diag_blocksize, 0:diag_blocksize] = reduced_system_inv[
-    #     0:diag_blocksize, 0:diag_blocksize
-    # ]
-
-    # S_local[-diag_blocksize:, -diag_blocksize:] = reduced_system_inv[
-    #     -diag_blocksize:, -diag_blocksize:
-    # ]
-
-    # S_local[0:diag_blocksize, -diag_blocksize:] = reduced_system_inv[
-    #     0:diag_blocksize, -diag_blocksize:
-    # ]
-
-    # S_local[-diag_blocksize:, 0:diag_blocksize] = reduced_system_inv[
-    #     -diag_blocksize:, 0:diag_blocksize
-    # ]
+    
+    fig, axs = plt.subplots(2, 4)
+    fig.suptitle("After inversion of reduced system")
+    axs[0 ,0].matshow(A_local_refinv)
+    axs[0 ,0].set_title("A_local_refinv")
+    axs[0 ,1].matshow(A_arrow_bottom_refinv)
+    axs[0 ,1].set_title("A_arrow_bottom_refinv")
+    axs[0 ,2].matshow(A_arrow_right_refinv)
+    axs[0 ,2].set_title("A_arrow_right_refinv")
+    axs[0, 3].matshow(A_arrow_tip_refinv)
+    axs[0, 3].set_title("A_arrow_tip_refinv")
+    
+    axs[1, 0].matshow(S_local)
+    axs[1, 0].set_title("S_local")
+    axs[1, 1].matshow(S_arrow_bottom)
+    axs[1, 1].set_title("S_arrow_bottom")
+    axs[1, 2].matshow(S_arrow_right)
+    axs[1, 2].set_title("S_arrow_right")
+    axs[1, 3].matshow(S_global_arrow_tip)
+    axs[1, 3].set_title("S_global_arrow_tip")
+    plt.show()
     
     
-    fig, axs = plt.subplots(1, 2)
-    fig.suptitle("After reduced system inversion")
-    axs[0].matshow(A_ref_inv)
-    axs[0].set_title("A_ref_inv")    
-    axs[1].matshow(reduced_system_inv)
-    axs[1].set_title("reduced_system_inv")  
-    plt.show() 
+    # (top, top)
+    # S_local[0:diag_blocksize, 0:diag_blocksize] == A_local_refinv[0:diag_blocksize, 0:diag_blocksize]
+    assert np.allclose(A_local_refinv[0:diag_blocksize, 0:diag_blocksize], S_local[0:diag_blocksize, 0:diag_blocksize])
     
-    # # 4 corners blocks should be correct
-    # assert np.allclose(A_ref_inv[0:diag_blocksize, 0:diag_blocksize], S_local[0:diag_blocksize, 0:diag_blocksize])
-    # assert np.allclose(A_ref_inv[0:diag_blocksize, -diag_blocksize:], S_local[0:diag_blocksize, -diag_blocksize:])
-    # assert np.allclose(A_ref_inv[-diag_blocksize:, 0:diag_blocksize], S_local[-diag_blocksize:, 0:diag_blocksize])
-    # assert np.allclose(A_ref_inv[-diag_blocksize:, -diag_blocksize:], S_local[-diag_blocksize:, -diag_blocksize:])
+    # (top, nblocks)
+    # S_local[0:diag_blocksize, -diag_blocksize:] == A_local_refinv[0:diag_blocksize, -diag_blocksize:]
+    assert np.allclose(A_local_refinv[0:diag_blocksize, -diag_blocksize:], S_local[0:diag_blocksize, -diag_blocksize:])
+    
+    # (top, ndb+1)
+    # S_arrow_right[0:diag_blocksize, :] == A_arrow_right_refinv[0:diag_blocksize, :]
+    assert np.allclose(A_arrow_right_refinv[0:diag_blocksize, :], S_arrow_right[0:diag_blocksize, :])
+    
+    # (nblocks, top)
+    # S_local[-diag_blocksize:, 0:diag_blocksize] == A_local_refinv[-diag_blocksize:, 0:diag_blocksize]
+    assert np.allclose(A_local_refinv[-diag_blocksize:, 0:diag_blocksize], S_local[-diag_blocksize:, 0:diag_blocksize])
+    
+    # (ndb+1, top)
+    # S_arrow_bottom[:, 0:diag_blocksize] == A_arrow_bottom_refinv[:, 0:diag_blocksize]
+    assert np.allclose(A_arrow_bottom_refinv[:, 0:diag_blocksize], S_arrow_bottom[:, 0:diag_blocksize])
+    
+    # (nblocks, nblocks)
+    # S_local[-diag_blocksize:, -diag_blocksize:] == A_local_refinv[-diag_blocksize:, -diag_blocksize:]
+    assert np.allclose(A_local_refinv[-diag_blocksize:, -diag_blocksize:], S_local[-diag_blocksize:, -diag_blocksize:])
+    
+    # (nblocks, ndb+1)
+    # S_arrow_right[-diag_blocksize:, :] == A_arrow_right_refinv[-diag_blocksize:, :]
+    assert np.allclose(A_arrow_right_refinv[-diag_blocksize:, :], S_arrow_right[-diag_blocksize:, :])
+    
+    # (ndb+1, nblocks)
+    # S_arrow_bottom[:, -diag_blocksize:] == A_arrow_bottom_refinv[:, -diag_blocksize:]
+    assert np.allclose(A_arrow_bottom_refinv[:, -diag_blocksize:], S_arrow_bottom[:, -diag_blocksize:])
+        
+    # (ndb+1, ndb+1)
+    # S_global_arrow_tip == A_arrow_tip_refinv
+    assert np.allclose(A_arrow_tip_refinv, S_global_arrow_tip)
+    
 
-
-
-    # S_local, S_arrow_bottom, S_arrow_right = middle_sinv(
-    #     S_local,
-    #     S_arrow_bottom,
-    #     S_arrow_right,
-    #     S_global_arrow_tip,
-    #     A_local,
-    #     A_arrow_bottom,
-    #     A_arrow_right,
-    #     L_local,
-    #     U_local,
-    #     L_arrow_bottom,
-    #     U_arrow_right,
-    #     diag_blocksize,
-    #     arrow_blocksize,
-    # )
+    S_local, S_arrow_bottom, S_arrow_right = middle_sinv(
+        S_local,
+        S_arrow_bottom,
+        S_arrow_right,
+        S_global_arrow_tip,
+        A_local,
+        A_arrow_bottom,
+        A_arrow_right,
+        L_local,
+        U_local,
+        L_arrow_bottom,
+        U_arrow_right,
+        diag_blocksize,
+        arrow_blocksize,
+    )
     
     # # 4 corners blocks should still be correct (un-touched by the middle_sinv_sdr function)
     # assert np.allclose(A_ref_inv[0:diag_blocksize, 0:diag_blocksize], S_local[0:diag_blocksize, 0:diag_blocksize])
