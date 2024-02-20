@@ -1093,7 +1093,20 @@ def middle_sinv(
             lower=False,
         )
         
-        # X_{i+1, i} = (- X_{i+1, top} L_{top, i} - X_{i+1, i+1} L_{i+1, i}) L_{i, i}^{-1}
+        
+        # Off-diagonal blocks
+        # # X_{i+1, i} = (- X_{i+1, top} L_{top, i} - X_{i+1, i+1} L_{i+1, i}) L_{i, i}^{-1}
+        # S_local[
+        #     (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+        #     i * diag_blocksize : (i + 1) * diag_blocksize,
+        # ] = (
+        #     (
+        #         - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize] @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
+        #         - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+        #     ) @ L_blk_inv
+        # )
+        
+        # X_{i+1, i} = (- X_{i+1, top} L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         S_local[
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
             i * diag_blocksize : (i + 1) * diag_blocksize,
@@ -1101,10 +1114,22 @@ def middle_sinv(
             (
                 - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize] @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
                 - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+                - S_arrow_right[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             ) @ L_blk_inv
         )
         
-        # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, top} X_{top, i+1})
+        # # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, top} X_{top, i+1})
+        # S_local[
+        #     i * diag_blocksize : (i + 1) * diag_blocksize,
+        #     (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+        # ] = (
+        #     U_blk_inv @ (
+        #         - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+        #         - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] 
+        #     )
+        # )
+        
+        # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, top} X_{top, i+1} - U_{i, ndb+1} X_{ndb+1, i+1})
         S_local[
             i * diag_blocksize : (i + 1) * diag_blocksize,
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
@@ -1112,10 +1137,24 @@ def middle_sinv(
             U_blk_inv @ (
                 - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
                 - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] 
+                - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_arrow_bottom[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
             )
         )
         
-        # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i}) L_{i, i}^{-1}
+        
+        # 2-sided pattern
+        # # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i}) L_{i, i}^{-1}
+        # S_local[
+        #     0:diag_blocksize,
+        #     i * diag_blocksize : (i + 1) * diag_blocksize,
+        # ] = (
+        #     (
+        #         - S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
+        #         - S_local[0:diag_blocksize, 0:diag_blocksize] @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+        #     ) @ L_blk_inv
+        # )
+        
+        # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{top, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         S_local[
             0:diag_blocksize,
             i * diag_blocksize : (i + 1) * diag_blocksize,
@@ -1123,10 +1162,22 @@ def middle_sinv(
             (
                 - S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
                 - S_local[0:diag_blocksize, 0:diag_blocksize] @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+                - S_arrow_right[0:diag_blocksize, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             ) @ L_blk_inv
         )
-    
-        # X_{i, top} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, top} - U_{i, top} X_{top, top})
+        
+        # # X_{i, top} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, top} - U_{i, top} X_{top, top})
+        # S_local[
+        #     i * diag_blocksize : (i + 1) * diag_blocksize,
+        #     0:diag_blocksize,
+        # ] = (
+        #     U_blk_inv @ (
+        #         - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize]
+        #         - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, 0:diag_blocksize] 
+        #     )
+        # )
+        
+        # X_{i, top} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, top} - U_{i, top} X_{top, top} - U_{i, ndb+1} X_{ndb+1, top})
         S_local[
             i * diag_blocksize : (i + 1) * diag_blocksize,
             0:diag_blocksize,
@@ -1134,10 +1185,61 @@ def middle_sinv(
             U_blk_inv @ (
                 - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize]
                 - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, 0:diag_blocksize] 
+                - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_arrow_bottom[:, 0:diag_blocksize]
             )
         )
+
+
+        # Arrowhead
+        # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, top} L_{top, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+        S_arrow_bottom[
+            :, i * diag_blocksize : (i + 1) * diag_blocksize
+        ] = (
+            (
+                - S_arrow_bottom[:, (i+1) * diag_blocksize : (i+2) * diag_blocksize] @ L_local[(i+1) * diag_blocksize : (i+2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
+                - S_arrow_bottom[:, 0 : diag_blocksize] @ L_local[0 : diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+                - S_global_arrow_tip[:, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+            ) @ L_blk_inv
+        )
+
+        # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, top} X_{top, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
+        S_arrow_right[
+            i * diag_blocksize : (i + 1) * diag_blocksize, :
+        ] = (
+            U_blk_inv @ (
+                - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i+1) * diag_blocksize : (i+2) * diag_blocksize] @ S_arrow_right[(i+1) * diag_blocksize : (i+2) * diag_blocksize, :]
+                - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0 : diag_blocksize] @ S_arrow_right[0 : diag_blocksize, :] 
+                - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_global_arrow_tip[:, :]
+            )
+        )
+
         
-        # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, top} L_{top, i}) L_{i, i}^{-1}
+        # Produce diagonal block
+        # # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, top} L_{top, i}) L_{i, i}^{-1}
+        # S_local[
+        #     i * diag_blocksize : (i + 1) * diag_blocksize,
+        #     i * diag_blocksize : (i + 1) * diag_blocksize,
+        # ] = (
+        #     U_blk_inv
+        #     - S_local[
+        #         i * diag_blocksize : (i + 1) * diag_blocksize,
+        #         (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+        #     ]
+        #     @ L_local[
+        #         (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+        #         i * diag_blocksize : (i + 1) * diag_blocksize,
+        #     ]
+        #     - S_local[
+        #         i * diag_blocksize : (i + 1) * diag_blocksize, 
+        #         0:diag_blocksize:
+        #     ]
+        #     @ L_local[
+        #         0:diag_blocksize, 
+        #         i * diag_blocksize : (i + 1) * diag_blocksize
+        #     ]
+        # ) @ L_blk_inv
+        
+        # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, top} L_{top, i} - X_{i, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         S_local[
             i * diag_blocksize : (i + 1) * diag_blocksize,
             i * diag_blocksize : (i + 1) * diag_blocksize,
@@ -1159,7 +1261,17 @@ def middle_sinv(
                 0:diag_blocksize, 
                 i * diag_blocksize : (i + 1) * diag_blocksize
             ]
+            - S_arrow_right[
+                i * diag_blocksize : (i + 1) * diag_blocksize, 
+                :
+            ]
+            @ L_arrow_bottom[
+                :, 
+                i * diag_blocksize : (i + 1) * diag_blocksize
+            ]
         ) @ L_blk_inv
+        
+        
     
     return S_local, S_arrow_bottom, S_arrow_right
 
@@ -1671,6 +1783,7 @@ if __name__ == "__main__":
     # (ndb+1, ndb+1)
     # S_global_arrow_tip == A_arrow_tip_refinv
     assert np.allclose(A_arrow_tip_refinv, S_global_arrow_tip)
+    print("...reduced system inversion is correct")
     
 
     S_local, S_arrow_bottom, S_arrow_right = middle_sinv(
@@ -1689,28 +1802,75 @@ if __name__ == "__main__":
         arrow_blocksize,
     )
     
-    # # 4 corners blocks should still be correct (un-touched by the middle_sinv_sdr function)
-    # assert np.allclose(A_ref_inv[0:diag_blocksize, 0:diag_blocksize], S_local[0:diag_blocksize, 0:diag_blocksize])
-    # assert np.allclose(A_ref_inv[0:diag_blocksize, -diag_blocksize:], S_local[0:diag_blocksize, -diag_blocksize:])
-    # assert np.allclose(A_ref_inv[-diag_blocksize:, 0:diag_blocksize], S_local[-diag_blocksize:, 0:diag_blocksize])
-    # assert np.allclose(A_ref_inv[-diag_blocksize:, -diag_blocksize:], S_local[-diag_blocksize:, -diag_blocksize:])
+    
+    # These 9 blocks should still be correct after the middle_sinv call (un-touched)
+    # (top, top)
+    # S_local[0:diag_blocksize, 0:diag_blocksize] == A_local_refinv[0:diag_blocksize, 0:diag_blocksize]
+    assert np.allclose(A_local_refinv[0:diag_blocksize, 0:diag_blocksize], S_local[0:diag_blocksize, 0:diag_blocksize])
+    
+    # (top, nblocks)
+    # S_local[0:diag_blocksize, -diag_blocksize:] == A_local_refinv[0:diag_blocksize, -diag_blocksize:]
+    assert np.allclose(A_local_refinv[0:diag_blocksize, -diag_blocksize:], S_local[0:diag_blocksize, -diag_blocksize:])
+    
+    # (top, ndb+1)
+    # S_arrow_right[0:diag_blocksize, :] == A_arrow_right_refinv[0:diag_blocksize, :]
+    assert np.allclose(A_arrow_right_refinv[0:diag_blocksize, :], S_arrow_right[0:diag_blocksize, :])
+    
+    # (nblocks, top)
+    # S_local[-diag_blocksize:, 0:diag_blocksize] == A_local_refinv[-diag_blocksize:, 0:diag_blocksize]
+    assert np.allclose(A_local_refinv[-diag_blocksize:, 0:diag_blocksize], S_local[-diag_blocksize:, 0:diag_blocksize])
+    
+    # (ndb+1, top)
+    # S_arrow_bottom[:, 0:diag_blocksize] == A_arrow_bottom_refinv[:, 0:diag_blocksize]
+    assert np.allclose(A_arrow_bottom_refinv[:, 0:diag_blocksize], S_arrow_bottom[:, 0:diag_blocksize])
+    
+    # (nblocks, nblocks)
+    # S_local[-diag_blocksize:, -diag_blocksize:] == A_local_refinv[-diag_blocksize:, -diag_blocksize:]
+    assert np.allclose(A_local_refinv[-diag_blocksize:, -diag_blocksize:], S_local[-diag_blocksize:, -diag_blocksize:])
+    
+    # (nblocks, ndb+1)
+    # S_arrow_right[-diag_blocksize:, :] == A_arrow_right_refinv[-diag_blocksize:, :]
+    assert np.allclose(A_arrow_right_refinv[-diag_blocksize:, :], S_arrow_right[-diag_blocksize:, :])
+    
+    # (ndb+1, nblocks)
+    # S_arrow_bottom[:, -diag_blocksize:] == A_arrow_bottom_refinv[:, -diag_blocksize:]
+    assert np.allclose(A_arrow_bottom_refinv[:, -diag_blocksize:], S_arrow_bottom[:, -diag_blocksize:])
+        
+    # (ndb+1, ndb+1)
+    # S_global_arrow_tip == A_arrow_tip_refinv
+    assert np.allclose(A_arrow_tip_refinv, S_global_arrow_tip)
+    print("...reduced system blocks stayed untouched after middle_sinv call")
+    
 
-    # fig, axs = plt.subplots(1, 2)
-    # axs[0].matshow(A_ref_inv)
-    # axs[0].set_title("A_ref_inv")
-    # axs[1].matshow(S_local)
-    # axs[1].set_title("S_local")
-    # fig.suptitle("Final results")
+    fig, axs = plt.subplots(2, 4)
+    fig.suptitle("After sinv")
+    axs[0 ,0].matshow(A_local_refinv)
+    axs[0 ,0].set_title("A_local_refinv")
+    axs[0 ,1].matshow(A_arrow_bottom_refinv)
+    axs[0 ,1].set_title("A_arrow_bottom_refinv")
+    axs[0 ,2].matshow(A_arrow_right_refinv)
+    axs[0 ,2].set_title("A_arrow_right_refinv")
+    axs[0, 3].matshow(A_arrow_tip_refinv)
+    axs[0, 3].set_title("A_arrow_tip_refinv")
     
-    # A_ref_inv = mt.cut_to_blocktridiag(A_ref_inv, diag_blocksize)
-    # S_local = mt.cut_to_blocktridiag(S_local, diag_blocksize)
+    axs[1, 0].matshow(S_local)
+    axs[1, 0].set_title("S_local")
+    axs[1, 1].matshow(S_arrow_bottom)
+    axs[1, 1].set_title("S_arrow_bottom")
+    axs[1, 2].matshow(S_arrow_right)
+    axs[1, 2].set_title("S_arrow_right")
+    axs[1, 3].matshow(S_global_arrow_tip)
+    axs[1, 3].set_title("S_global_arrow_tip")
+    plt.show()
     
-    # assert np.allclose(A_ref_inv, S_local)
     
-    # inv_norm = np.linalg.norm(A_ref_inv - S_local)
-    # print("Middle partition only inv norm = ", inv_norm)
+    A_local_refinv = mt.cut_to_blocktridiag(A_local_refinv, diag_blocksize)
+    S_local = mt.cut_to_blocktridiag(S_local, diag_blocksize)
     
-    # plt.show()
+    assert np.allclose(A_local_refinv, S_local)
+    assert np.allclose(A_arrow_bottom_refinv, S_arrow_bottom)
+    assert np.allclose(A_arrow_right_refinv, S_arrow_right)
+    assert np.allclose(A_arrow_tip_refinv, S_global_arrow_tip)
     
 
 
