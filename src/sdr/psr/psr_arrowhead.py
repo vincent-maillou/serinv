@@ -291,38 +291,6 @@ def top_factorize(
     L_local[-diag_blocksize:, -diag_blocksize:], U_local[-diag_blocksize:, -diag_blocksize:] = la.lu(
         A_local[-diag_blocksize:, -diag_blocksize:], permute_l=True
     )
-    
-    # # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ U{ndb, ndb}^{-1}
-    # L_arrow_bottom[:, -diag_blocksize:] = (
-    #     A_arrow_bottom[
-    #         :, -diag_blocksize:
-    #     ] @ la.solve_triangular(
-    #         U_local[
-    #             -diag_blocksize:, -diag_blocksize:
-    #         ],
-    #         np.eye(diag_blocksize),
-    #         lower=False,
-    #     )
-    # )
-
-    # # U_{ndb, ndb+1} = L{ndb, ndb}^{-1} @ A_{ndb, ndb+1}
-    # U_arrow_right[-diag_blocksize:, :] = (
-    #     la.solve_triangular(
-    #         L_local[
-    #             -diag_blocksize:, -diag_blocksize:
-    #         ],
-    #         np.eye(diag_blocksize),
-    #         lower=True,
-    #     )
-    #     @ A_arrow_right[-diag_blocksize:, :]
-    # )
-
-    # # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ U_{ndb, ndb+1}
-    # Update_arrow_tip[:, :] = (
-    #     Update_arrow_tip[:, :]
-    #     - L_arrow_bottom[:, -diag_blocksize:]
-    #     @ U_arrow_right[-diag_blocksize:, :]
-    # )
 
     return (
         A_local,
@@ -1093,19 +1061,6 @@ def middle_sinv(
             lower=False,
         )
         
-        
-        # Off-diagonal blocks
-        # # X_{i+1, i} = (- X_{i+1, top} L_{top, i} - X_{i+1, i+1} L_{i+1, i}) L_{i, i}^{-1}
-        # S_local[
-        #     (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-        #     i * diag_blocksize : (i + 1) * diag_blocksize,
-        # ] = (
-        #     (
-        #         - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize] @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
-        #         - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
-        #     ) @ L_blk_inv
-        # )
-        
         # X_{i+1, i} = (- X_{i+1, top} L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         S_local[
             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
@@ -1117,17 +1072,6 @@ def middle_sinv(
                 - S_arrow_right[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             ) @ L_blk_inv
         )
-        
-        # # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, top} X_{top, i+1})
-        # S_local[
-        #     i * diag_blocksize : (i + 1) * diag_blocksize,
-        #     (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-        # ] = (
-        #     U_blk_inv @ (
-        #         - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-        #         - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] 
-        #     )
-        # )
         
         # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, top} X_{top, i+1} - U_{i, ndb+1} X_{ndb+1, i+1})
         S_local[
@@ -1141,19 +1085,6 @@ def middle_sinv(
             )
         )
         
-        
-        # 2-sided pattern
-        # # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i}) L_{i, i}^{-1}
-        # S_local[
-        #     0:diag_blocksize,
-        #     i * diag_blocksize : (i + 1) * diag_blocksize,
-        # ] = (
-        #     (
-        #         - S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
-        #         - S_local[0:diag_blocksize, 0:diag_blocksize] @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
-        #     ) @ L_blk_inv
-        # )
-        
         # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{top, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         S_local[
             0:diag_blocksize,
@@ -1165,17 +1096,6 @@ def middle_sinv(
                 - S_arrow_right[0:diag_blocksize, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             ) @ L_blk_inv
         )
-        
-        # # X_{i, top} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, top} - U_{i, top} X_{top, top})
-        # S_local[
-        #     i * diag_blocksize : (i + 1) * diag_blocksize,
-        #     0:diag_blocksize,
-        # ] = (
-        #     U_blk_inv @ (
-        #         - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize]
-        #         - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, 0:diag_blocksize] 
-        #     )
-        # )
         
         # X_{i, top} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, top} - U_{i, top} X_{top, top} - U_{i, ndb+1} X_{ndb+1, top})
         S_local[
@@ -1212,32 +1132,7 @@ def middle_sinv(
                 - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_global_arrow_tip[:, :]
             )
         )
-
         
-        # Produce diagonal block
-        # # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, top} L_{top, i}) L_{i, i}^{-1}
-        # S_local[
-        #     i * diag_blocksize : (i + 1) * diag_blocksize,
-        #     i * diag_blocksize : (i + 1) * diag_blocksize,
-        # ] = (
-        #     U_blk_inv
-        #     - S_local[
-        #         i * diag_blocksize : (i + 1) * diag_blocksize,
-        #         (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-        #     ]
-        #     @ L_local[
-        #         (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-        #         i * diag_blocksize : (i + 1) * diag_blocksize,
-        #     ]
-        #     - S_local[
-        #         i * diag_blocksize : (i + 1) * diag_blocksize, 
-        #         0:diag_blocksize:
-        #     ]
-        #     @ L_local[
-        #         0:diag_blocksize, 
-        #         i * diag_blocksize : (i + 1) * diag_blocksize
-        #     ]
-        # ) @ L_blk_inv
         
         # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, top} L_{top, i} - X_{i, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         S_local[
