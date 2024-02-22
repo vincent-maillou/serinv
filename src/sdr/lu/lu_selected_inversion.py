@@ -10,12 +10,13 @@ Copyright 2023 ETH Zurich and USI. All rights reserved.
 
 
 import copy
+import random
 import numpy as np
 import scipy.linalg as la
 from sdr.lu.lu_decompose import lu_dcmp_tridiag_explicit, lu_dcmp_tridiag
 
 from sdr.utils import matrix_generation
-from tracing import CDAG, Vertex, Edge, sinv_cdag, invert_LU_explicit, lu_dcmp_explicit, MMM_explicit, subs_explicit
+from tracing import CDAG, Vertex, Edge, sinv_cdag, invert_LU_explicit, lu_dcmp_explicit, MMM_explicit, subs_explicit, create_permutation_matrix
 
 
     # return U + np.tril(L, k=-1)
@@ -136,42 +137,74 @@ def sinv_ndiags_greg2(
     # p, l, u = la.lu(in_A)
     # ref_lu = u + np.tril(l, k=-1)
     # ref_inv_lu = np.linalg.inv(u) + np.tril(np.linalg.inv(l), k=-1)
-    ref_inv_A = la.inv(in_A)
+    # ref_inv_A = la.inv(in_A)
     # orginal = lu_sinv_tridiag(l, u, ndiags)
     # oringal_l = cut_to_banded(np.tril(orginal, k=-1), ndiags)
     # another = lu_sinv_tridiag_explicit(l, u, ndiags)
     # another2 = lu_sinv_ndiags_explicit(l, u, 2*ndiags, 1)
 
-    A_inv = np.zeros(in_A.shape, dtype=in_A.dtype)
+    counter = 0
+    try:
+        A_inv = np.zeros(in_A.shape, dtype=in_A.dtype)
+    except:
+        from sympy import Matrix, MatrixSymbol
+        A_inv = Matrix(np.zeros(in_A.shape))
     A = copy.deepcopy(in_A)
     n = A.shape[0]
+
+    import scipy as sp
+    p, l, u = sp.linalg.lu(in_A)
+    ref_lu = u + np.tril(l, k=-1)
+    ref_invL = np.linalg.inv(l)
+    ref_invU = np.linalg.inv(u)
+    ref_invA = np.linalg.inv(in_A)
+    ref_invLU = ref_invU + np.tril(ref_invL, k=-1)
+    invL = invert_L(l)
+    invU = invert_U(u)
+    invLU = invert_LU(ref_lu)
+    np.allclose(invert_LU(ref_lu), ref_invLU)
     for k in range(n):
         # BEGIN in-place LU decomposition without pivoting
         sinv_cdag.add([Vertex("A", A, (k, k), output=False)], Vertex("A", A, (k, k), output=True))
         A[k, k] = 1 / A[k, k]  # <- this is NOT the part of LU! This is already a first step of INVERSION
 
         # for i in range(k+1,min(n, n)): #(n-1, k, -1)
+        # rng_i = list(range(k+1,min(k+1 + ndiags, n)))
+        # random.shuffle(rng_i)
+        # for i in rng_i:
         for i in range(k+1,min(k+1 + ndiags, n)): #(n-1, k, -1)
             sinv_cdag.add([Vertex("A", A, (i, k), output=False), Vertex("A", A, (k, k), output=False)], Vertex("A", A, (i, k), output=True))
             A[i, k] = A[i,k] * A[k,k]
+            counter += 1
             # for j in range(k+1,min(n, n)): #range(n-1, k, -1): 
-            for j in range(k+1,min(k+1 + ndiags, n)): #range(n-1, k, -1): 
+            rng_j = list(range(k+1,min(k+1 + ndiags, n)))
+            random.shuffle(rng_j)
+            for j in rng_j:
+            # for j in range(k+1,min(k+1 + ndiags, n)): #range(n-1, k, -1): 
                 sinv_cdag.add([Vertex("A", A, (i, j), output=False), 
                                Vertex("A", A, (i, k), output=False), 
                                Vertex("A", A, (k, j), output=False)], 
                                Vertex("A", A, (i, j), output=True))
                 A[i,j]  -= A[i,k]*A[k,j]      
+                counter += 1
         # END in-place LU decomposition without pivoting
 
     for k in range(n-1, -1, -1):
+        sinv_cdag.add([Vertex("A", A, (k, k), output=False)], Vertex("A_inv", A_inv, (k, k), output=True))
         A_inv[k, k] = A[k,k]
         # Off-diagonal block part
-        for i in range(min(k+ndiags, n-1), k, -1):
-            for j in range(k+1, min(k+ndiags+1, n)):
+        rng_i = list(range(min(k+ndiags, n-1), k, -1))
+        random.shuffle(rng_i)
+        for i in rng_i:
+        # for i in range(min(k+ndiags, n-1), k, -1):
+            rng_j = list(range(k+1, min(k+ndiags+1, n)))
+            random.shuffle(rng_j)
+            for j in rng_j:
+            # for j in range(k+1, min(k+ndiags+1, n)):
                 if j == k+1:
                     sinv_cdag.add([Vertex("A", A, (j, k), output=False),
                                     Vertex("A_inv", A_inv, (i, j), output=False),
-                                    Vertex("A_inv", A_inv, (i, k), output=False, is_zero=False)],
+                                    Vertex("A_inv", A_finv, (i, k), output=False, is_zero=False)],
                                     Vertex("A_inv", A_inv, (i, k), output=True))
                     
                     sinv_cdag.add([Vertex("A", A, (k, j), output=False),
@@ -190,9 +223,11 @@ def sinv_ndiags_greg2(
                                  Vertex("A_inv", A_inv, (k, i), output=True))
 
                 # X_{i, k} = X_{i, k} - X_{i, j} L_{j, k}
+                counter += 1
                 A_inv[i, k] -= A_inv[i, j] * A[j, k]
                 # X_{k, i} = X_{k, i} - U_{k, j} X_{j, i}
                 A_inv[k, i] -= A[k, j] * A_inv[j, i]
+                counter += 1
 
                 # A[i, k] -= A[i, j] * A[j, k]
                 # # X_{k, i} = X_{k, i} - U_{k, j} X_{j, i}
@@ -202,20 +237,132 @@ def sinv_ndiags_greg2(
             sinv_cdag.add([Vertex("A", A, (k, k), output=False),
                             Vertex("A_inv", A_inv, (k, i), output=False)],
                             Vertex("A_inv", A_inv, (k, i), output=True))                            
-            sinv_cdag.add([Vertex("A", A, (k, k), output=False)], Vertex("A_inv", A_inv, (k, k), output=True))
-
             A_inv[k, i] = A_inv[k, i]  * A[k,k]
+            counter += 1
+
+            sinv_cdag.add([Vertex("A", A, (i, k), output=False),
+                            Vertex("A_inv", A_inv, (k, i), output=False),
+                            Vertex("A_inv", A_inv, (k, k), output=False)],
+                            Vertex("A_inv", A_inv, (k, k), output=True))
             A_inv[k, k] -= A_inv[k, i] * A[i, k]
+            counter += 1
 
             # A[k, i] = A[k, i]  * A[k,k]
             # A[k, k] -= A[k, i] * A[i, k]
 
 
 
-    # sinv_cdag.plot()
+    sinv_cdag.plot()
     return A_inv
 
 
+def sinv_ndiags_with_enough_parallelism(in_A: np.ndarray,
+            ndiags: int,
+            b: int = 1
+) -> np.ndarray:
+    """ 
+    Perform the selected inversion on the given input matrix in_A. The sparsity structure is encoded in the loop ranges.
+    Parameter b (block size) increases paralellism for GPU exectuion.
+    
+    Parameters
+    ----------
+    A : np.ndarray
+        Input matrix to decompose.
+    ndiags : int
+        Number of diagonals of the matrix above the main diagonal. The total number of diagonals is 2*ndiags+1.
+    b : int
+        Blocking parameter for additional dimension of parallelism. a tunable block size, such that  
+        ndiags * ndiags * b saturates GPU threads. Generally, b should be the 
+        smallest possible number such that ndiags * ndiags * b >= # hardware_treads
+    
+    """
+    A = copy.deepcopy(in_A)
+    n = A.shape[0]
+    A_inv = np.zeros(in_A.shape, dtype=in_A.dtype)
+
+    # used for 2D parallelism of the second k loop
+    temp_2d_gemm_buffer_L = np.zeros((ndiags, ndiags))
+    temp_2d_gemm_buffer_U = np.zeros((ndiags, ndiags))
+
+
+
+    # debug only
+    import scipy as sp
+    p, l, u = sp.linalg.lu(in_A)
+    ref_lu = u + np.tril(l, k=-1)
+    ref_invL = np.linalg.inv(l)
+    ref_invU = np.linalg.inv(u)
+    ref_invA = np.linalg.inv(in_A)
+    ref_invLU = ref_invU + np.tril(ref_invL, k=-1)
+    invL = invert_L(l)
+    invU = invert_U(u)
+    # invLU = invert_LU(ref_lu)
+
+    # in the following, we denote an additional iteration variable kk that would loop over b (for k in range(b))
+    # to expose additinal degree of paralellism.
+
+    b = 2
+    A = copy.deepcopy(in_A)
+    for k in range(0, n, b):
+       # the following can be done e.g., using numpy.linalg.inv, or cupy.linalg.inv
+    #    A[k: k+b, k:k+b] = invert_matrix(A[k: k+b, k:k+b])
+        A[k:k+b, k:k+b] = inplace_LU(A[k: k+b, k:k+b], b)
+
+        start = k+b
+        end = min(k+b+ndiags, n)
+        # toblerone solve
+        A[start:end, k:start], A[k:start, start:end] = \
+            inplace_double_trsm(A[k:start, k:start],
+                                A[start:end, k:start],
+                                A[k:start, start:end])
+
+        # oh nice oh nice oh nice, a sweet perfect fatty 3D parallel GEMM is coming!
+        # Notice that the third argument (matrix C) is inverted, because we are doing
+        # C = C - A @ B, so effectively we are doing C = -GEMM(A, B, -C)
+        A[start:end, start:end] =  -inplace_GEMM(
+            A[start:end, k:start],
+            A[k:start, start:end],
+            -A[start:end, start:end])
+        # END in-place LU decomposition without pivoting
+
+    for k in range(n-b, -b, -b):        
+        a00_start = k
+        a11_start = k+b
+        a11_end=min(k+b+ndiags,n)
+
+        A_inv[a00_start:a11_start, a00_start:a11_start] = \
+                invert_LU(A[a00_start:a11_start, a00_start:a11_start])
+
+        L_inv = np.tril(A_inv[a00_start:a11_start, a00_start:a11_start], k=-1) + np.eye(b)
+        U_inv = np.triu(A_inv[a00_start:a11_start, a00_start:a11_start], k=0)
+        
+        # if k < n-b:
+        # col = A @ col
+        A_inv[a11_start:a11_end, a00_start:a11_start] =  \
+                A_inv[a11_start:a11_end, a00_start:a11_start] - \
+                A_inv[a11_start:a11_end, a11_start:a11_end] @ \
+                    A[a11_start:a11_end, a00_start:a11_start]  @ L_inv
+        
+    
+        # row = row @ A   <- the same A as above! Reuse?
+        A_inv[a00_start:a11_start, a11_start:a11_end] = \
+            A_inv[a00_start:a11_start, a11_start:a11_end] - \
+                U_inv @ A[a00_start:a11_start, a11_start:a11_end] @ \
+                A_inv[a11_start:a11_end, a11_start:a11_end]
+            
+
+
+        A_inv[a00_start:a11_start, a00_start:a11_start]  = \
+            -(A_inv[a00_start:a11_start, a11_start:a11_end] @ \
+            A[a11_start:a11_end, a00_start:a11_start] - \
+            U_inv) @ \
+            L_inv
+
+        # A_inv[a00_start:a11_start, a00_start:a11_start] = \
+        #     GEMM_UL( A_inv[a00_start:a11_start, a00_start:a11_start])
+        
+    return A_inv
+        
 
 
 
@@ -471,9 +618,9 @@ def lu_sinv_tridiag(
         )
 
         # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i}) L_{i, i}^{-1}
-        print(f"U_blk_inv:")
-        print(U_blk_inv)
-        print(f"X[i*blocksize:(i+1)*blocksize, (i+1)*blocksize:(i+2)*blocksize]:")
+        # print(f"U_blk_inv:")
+        # print(U_blk_inv)
+        # print(f"X[i*blocksize:(i+1)*blocksize, (i+1)*blocksize:(i+2)*blocksize]:")
         X[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
             U_blk_inv
             - X[i * blocksize : (i + 1) * blocksize, (i + 1) * blocksize : (i + 2) * blocksize]
@@ -677,16 +824,33 @@ def lu_sinv_ndiags(
         for j in range(min(i+n_offdiags_blk, nblocks-1), i, -1):
             for k in range(i+1, min(i+n_offdiags_blk+1, nblocks), 1):
                 # X_{j, i} = X_{j, i} - X_{j, k} L_{k, i}
-                X[j*blocksize:(j+1)*blocksize, i*blocksize:(i+1)*blocksize] -= X[j*blocksize:(j+1)*blocksize, k*blocksize:(k+1)*blocksize] @ L[k*blocksize:(k+1)*blocksize, i*blocksize:(i+1)*blocksize]
+                X[j*blocksize:(j+1)*blocksize, i*blocksize:(i+1)*blocksize] -= \
+                    X[j*blocksize:(j+1)*blocksize, k*blocksize:(k+1)*blocksize] @ \
+                    L[k*blocksize:(k+1)*blocksize, i*blocksize:(i+1)*blocksize]
 
                 # X_{i, j} = X_{i, j} - U_{i, k} X_{k, j}
-                X[i*blocksize:(i+1)*blocksize, j*blocksize:(j+1)*blocksize] -= U[i*blocksize:(i+1)*blocksize, k*blocksize:(k+1)*blocksize] @ X[k*blocksize:(k+1)*blocksize, j*blocksize:(j+1)*blocksize]
+                X[i*blocksize:(i+1)*blocksize, j*blocksize:(j+1)*blocksize] -= \
+                    U[i*blocksize:(i+1)*blocksize, k*blocksize:(k+1)*blocksize] @ \
+                    X[k*blocksize:(k+1)*blocksize, j*blocksize:(j+1)*blocksize]
+                
+                print(f"X{[j*blocksize,(j+1)*blocksize, i*blocksize,(i+1)*blocksize]} -=\
+                    X{[j*blocksize,(j+1)*blocksize, k*blocksize,(k+1)*blocksize]} @ \
+                    L{[k*blocksize,(k+1)*blocksize, i*blocksize,(i+1)*blocksize]}")
+
+                # X_{i, j} = X_{i, j} - U_{i, k} X_{k, j}
+                print(f"X{[i*blocksize,(i+1)*blocksize, j*blocksize,(j+1)*blocksize]} -= \
+                    U{[i*blocksize,(i+1)*blocksize, k*blocksize,(k+1)*blocksize]},\
+                    X{[k*blocksize,(k+1)*blocksize, j*blocksize,(j+1)*blocksize]}")
 
             # X_{j, i} = X_{j, i} L_{i, i}^{-1}
-            X[j*blocksize:(j+1)*blocksize, i*blocksize:(i+1)*blocksize] = X[j*blocksize:(j+1)*blocksize, i*blocksize:(i+1)*blocksize] @ L_blk_inv
+            X[j*blocksize:(j+1)*blocksize, i*blocksize:(i+1)*blocksize] = \
+                X[j*blocksize:(j+1)*blocksize, i*blocksize:(i+1)*blocksize] @ \
+                    L_blk_inv
         
             # X_{i, j} = U_{i, i}^{-1} X_{i, j}
-            X[i*blocksize:(i+1)*blocksize, j*blocksize:(j+1)*blocksize] = U_blk_inv @ X[i*blocksize:(i+1)*blocksize, j*blocksize:(j+1)*blocksize]
+            X[i*blocksize:(i+1)*blocksize, j*blocksize:(j+1)*blocksize] = \
+                U_blk_inv @ \
+                    X[i*blocksize:(i+1)*blocksize, j*blocksize:(j+1)*blocksize]
 
 
         # Diagonal block part
@@ -697,7 +861,9 @@ def lu_sinv_ndiags(
 
         for k in range(i+1, min(i+n_offdiags_blk+1, nblocks), 1):
             # X_{i, i} = X_{i, i} - X_{i, k} L_{k, i}
-            X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] -= X[i*blocksize:(i+1)*blocksize, k*blocksize:(k+1)*blocksize] @ L[k*blocksize:(k+1)*blocksize, i*blocksize:(i+1)*blocksize]
+            X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] -= \
+                X[i*blocksize:(i+1)*blocksize, k*blocksize:(k+1)*blocksize] @ \
+                    L[k*blocksize:(k+1)*blocksize, i*blocksize:(i+1)*blocksize]
 
         # X_{i, i} = X_{i, i} L_{i, i}^{-1}
         X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] = X[i*blocksize:(i+1)*blocksize, i*blocksize:(i+1)*blocksize] @ L_blk_inv
@@ -976,3 +1142,181 @@ def lu_sinv_ndiags_arrowhead(
    
     return X
 
+
+
+
+
+
+
+
+
+
+
+def GEMM_UL(invLU: np.ndarray) -> np.ndarray:
+    """
+    Perfom A_inv = U_inv @ L_inv
+    Input invLU = L^(-1) + U^(-1) - eye(n)
+    """
+    C = np.zeros(invLU.shape, dtype=invLU.dtype)
+    n = invLU.shape[0]
+
+    # this is a triangular GEMM, observe the loop ranges.
+    # also! The diagonal is a tricky one becasuse the diagonal
+    # of matrix L^(1) is 1, so it is ommited. The elements on the 
+    # diagonal of matrix invLU belong to U^(^1). When counting the 
+    # diagonal A_inv, we don't want to square the diagonal!
+    
+    # We can explictly materialize L^(-1) with "proper" diagonal 
+    # with ones on it, and U^(-1) separately. What would make more sense?
+    for k in range(n):
+        for i in range(k+1):            
+            for j in range(k):
+                C[i,j] += invLU[i,k]*invLU[k,j]
+            C[i,k] += invLU[i,k]
+
+    return C    
+    # this is 
+
+
+def invert_LU(in_LU: np.ndarray) -> np.ndarray:
+    """
+    NOTE: input matrix LU already has the inverted diagonal!
+    """
+    LU = copy.deepcopy(in_LU)
+    n = LU.shape[0]
+    A_inv = np.zeros(LU.shape, dtype=LU.dtype)
+    for k in range(n):
+        kk = n - k - 1
+        # A_inv[kk, kk] = 1/LU[kk,kk]
+        A_inv[kk, kk] = LU[kk,kk]
+        for i in range(k):
+            ii = n - i - 1
+            # l = LU[k,i]
+            # u = LU[kk,ii] * A_inv[ii, ii]
+            LU[kk,ii]  = LU[kk,ii] * A_inv[ii, ii]
+
+            for j in range(i+1, k):
+                jj = n - j - 1
+                # l += LU[k,j] * A_inv[j, i]
+                LU[k,i] += LU[k,j] * A_inv[j, i]
+                # u += LU[kk,jj] * A_inv[jj, ii]
+                LU[kk,ii] += LU[kk,jj] * A_inv[jj, ii]
+            # A_inv[k, i] = -l
+            A_inv[k, i] = -LU[k,i]
+            # A_inv[kk, ii] = -u * A_inv[kk,kk]
+            A_inv[kk, ii] = -LU[kk,ii] * A_inv[kk,kk]
+    return A_inv
+
+
+def invert_L(L: np.ndarray) -> np.ndarray:
+    n = L.shape[0]
+    L_inv = np.zeros(L.shape, dtype=L.dtype)
+    for k in range(n):
+        L_inv[k, k] = 1 # 1/L[k,k]
+        for i in range(k):
+            s = 0
+            for j in range(i, k):
+                s = s+ L[k,j] * L_inv[j, i]
+                # L_inv[i, k] -= L_inv[i, j] * L[j, k]
+            # L_inv[k, i] = 0
+            L_inv[k, i] = -s * L[k,k]
+    return L_inv
+
+
+def invert_U(U: np.ndarray) -> np.ndarray:
+    n = U.shape[0]
+    U_inv = np.zeros(U.shape, dtype=U.dtype)
+    for kk in range(n):
+        k = n - kk - 1
+        U_inv[k, k] = 1/U[k,k]
+        for ii in range(kk):
+            i = n - ii - 1
+            s = 0
+            for jj in range(ii, kk):
+                j = n - jj - 1
+                s = s+ U[k,j] * U_inv[j, i]
+                # L_inv[i, k] -= L_inv[i, j] * L[j, k]
+            # L_inv[k, i] = 0
+            U_inv[k, i] = -s * U_inv[k,k]
+    return U_inv
+
+
+def inplace_LU(in_A: np.ndarray,
+            ndiags: int
+) -> np.ndarray:
+    """
+    In-place LU decomposition of a matrix with a block n-diagonals structure."""
+    A = copy.deepcopy(in_A)
+    n = A.shape[0]
+    # this is purely sequential
+    for k in range(n):
+        A[k, k] = 1 / A[k, k]  # <- this is NOT the part of LU! This is already a first step of INVERSION
+
+        # 1D parallelism (order of size of the band)
+        for i in range(k+1,min(k+1 + ndiags, n)):
+            A[i, k] = A[i,k] * A[k,k]
+        
+        # 2D parallelism (order of size of the band^2).
+        # this is a purest form of a GEMM call
+        for i in range(k+1,min(k+1 + ndiags, n)):
+            for j in range(k+1,min(k+1 + ndiags, n)):
+                A[i,j]  -= A[i,k]*A[k,j]     
+    return A
+
+
+
+
+def inplace_double_trsm(in_A: np.ndarray,
+                 in_B: np.ndarray,
+                 in_C: np.ndarray):
+    """
+    In-place double triangular solve with multiple right-hand sides:
+    B = tril(A)^-1 * B,
+    C = triu(A)^-1 * B,
+    where tril and triu are lower and upper triangular matrices, respectively.
+    A is a result of in-place LU decomposition of A', so tril(A) = L, triu(A) = U, such that A' = L*U.
+    
+    !!! Note !!!
+    The diagonal of A is already inverted! Normally, in-place LU decomposition does not invert the diagonal of A,
+    and you need to DIVIDE by A[k,k]. Here, we MULTIPLY by A[k,k] instead, because later on, we need an inverse of
+    this diagonal in the backward substitution step.
+    Parameters:
+    -----------
+    in_A : np.ndarray
+        Input in-place LU-factorized matrix,
+    in_B : np.ndarray
+        Tall-and-skinny matrix (vertical toblerone),
+    in_C : np.ndarray
+        short-and-fat matrix (horizontal toblerone),
+    """
+    B = copy.deepcopy(in_B)
+    C = copy.deepcopy(in_C)
+    n, b = in_B.shape
+    for k in range(b):
+        for i in range(n):
+            # trailing column of B has to be divided by the diagonal element of L
+            B[i, k] = B[i,k ] * in_A[k,k ]
+        for i in range(n):
+            for j in range(k+1,b):
+                B[i,j]  -= B[i,k]*in_A[k,j]
+
+                C[j,i]  -= C[k,i]*in_A[j,k]
+
+    return B,C
+
+
+
+def inplace_GEMM(in_A: np.ndarray,
+                 in_B: np.ndarray,
+                 in_C: np.ndarray):
+    """
+    Nothing to add. Just good ol' GEMM  C = A*B + C
+    """
+    C = copy.deepcopy(in_C)
+    M,K = in_A.shape
+    N = in_B.shape[1]
+    for k in range(K):
+        for i in range(N):
+            for j in range(M):
+                C[i,j] += in_A[i,k]*in_B[k,j]
+    return C

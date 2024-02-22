@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from collections import Counter, defaultdict
 import numpy as np
 import networkx as nx
+import matplotlib.patches as patches
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 @dataclass
 class Vertex:
@@ -12,7 +14,9 @@ class Vertex:
     version: int
     is_zero: bool = False
 
-    def __init__(self, arr:str, arr_obj: np.ndarray, ind: tuple[int, ...], output: bool = False, version: int = -1, is_zero: bool = None):
+    def __init__(self, arr:str, arr_obj: np.ndarray, ind: tuple[int, ...], output: bool = False, version: int = -1, is_zero: bool = None, tracing:bool = True):
+        if not tracing:
+            return
         self.arr = arr
         self.ind = ind
         self.is_zero = is_zero
@@ -75,7 +79,7 @@ class CDAG:
     '''
     Implement method to add all edges to all pairs of u's to v
     '''
-    def add(self, us: list[Vertex], v: Vertex, ignore_zeros: bool = True, tracing: bool = False):
+    def add(self, us: list[Vertex], v: Vertex, ignore_zeros: bool = True, tracing: bool = True):
         if not tracing:
             return
         for u in us:
@@ -99,15 +103,17 @@ class CDAG:
     Plot the directed acyclic graph in a 3D space. X and Y coordinates of vertices
     are i and j indices of the matrix, and Z coordinate is the version of the vertex.
     """
-    def plot(self, input_array_only: bool = False):
+    def plot(self, input_array_only: bool = False, flat: bool = False):
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
-        from matplotlib.patches import FancyArrowPatch
+        from matplotlib.patches import FancyArrowPatch, ArrowStyle
         from mpl_toolkits.mplot3d.proj3d import proj_transform
 
+        flat = int(not flat)
+        style = ArrowStyle('Fancy', head_length=1, head_width=1.5, tail_width=0.5)
         class Arrow3D(FancyArrowPatch):
             def __init__(self, x, y, z, dx, dy, dz, *args, **kwargs):
-                super().__init__((0, 0), (0, 0), *args, **kwargs)
+                super().__init__((0, 0), (0, 0),arrowstyle=style, *args, **kwargs)
                 self._xyz = (x, y, z)
                 self._dxdydz = (dx, dy, dz)
 
@@ -140,7 +146,7 @@ class CDAG:
         arrs = {a:i for (i,a) in enumerate(sorted(set([v.arr for v in self.vertices])))}
 
         "Get the maximum array dimension"
-        max_dim = max([max(v.ind) for v in self.vertices]) + 2
+        max_dim = max([max(v.ind) for v in self.vertices]) + 5
 
         fig = plt.figure()
         # ax = Axes3D(fig)
@@ -149,17 +155,37 @@ class CDAG:
             if input_array_only and v.arr != 'A':
                 continue
             x_offset = arrs[v.arr] * max_dim
-            ax.scatter(v.ind[0] + x_offset, v.ind[1], v.version, color='b')
+            ax.scatter(v.ind[0] + x_offset, v.ind[1], v.version * flat, color='r', s=100)
         for e in self.edges:
             if input_array_only and (e.u.arr != 'A' or e.v.arr != 'A'):
                 continue
             xu_offset = arrs[e.u.arr] * max_dim
             xv_offset = arrs[e.v.arr] * max_dim
-            ax.arrow3D(e.u.ind[0] + xu_offset, e.u.ind[1], e.u.version,
-                e.v.ind[0] + xv_offset - e.u.ind[0] - xu_offset, e.v.ind[1] - e.u.ind[1], e.v.version - e.u.version,
-                mutation_scale=10,
-                ec ='green',
-                fc='red')
+
+            if e.u.ind[0] == e.v.ind[0] and e.u.ind[1] == e.v.ind[1]:
+                ax.arrow3D(e.u.ind[0] + xu_offset, e.u.ind[1], e.u.version * flat,
+                    e.v.ind[0] + xv_offset - e.u.ind[0] - xu_offset, e.v.ind[1] - e.u.ind[1], (e.v.version - e.u.version)*flat,
+                    mutation_scale=10,
+                    ec ='green',
+                    fc='red')
+            else:
+                ax.arrow3D(e.u.ind[0] + xu_offset, e.u.ind[1], e.u.version * flat,
+                    e.v.ind[0] + xv_offset - e.u.ind[0] - xu_offset, e.v.ind[1] - e.u.ind[1], (e.v.version - e.u.version)*flat,
+                    mutation_scale=10)
+                    # ec ='green',
+                    # fc='red')
+
+        x = [0,3,3,0]
+        y = [0,0,3,3]
+        z = [0,0,0,0]
+        verts = [list(zip(x,y,z))]
+        ax.add_collection3d(Poly3DCollection(verts, facecolors='y'))
+
+        x = [8,8,11,11]
+        y = [0,3, 3,0]
+        z = [0,0,0,0]
+        verts = [list(zip(x,y,z))]
+        ax.add_collection3d(Poly3DCollection(verts, facecolors='g'))
 
         plt.show()
         self.find_redundant_vertices()
@@ -371,3 +397,20 @@ def tmp():
     plt.show()
 
 sinv_cdag = CDAG()
+
+
+def create_permutation_matrix(
+    mat_size: int,
+) -> np.ndarray:
+    P = np.zeros((mat_size, mat_size))
+
+    offset = 0
+    half = mat_size // 2
+    for i in range(mat_size):
+        if i % 2 == 0:
+            P[i, half + offset] = 1
+            offset += 1
+        else:
+            P[i, half - offset] = 1
+
+    return P
