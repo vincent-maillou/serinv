@@ -98,7 +98,7 @@ def getcost_bta_middle_dist_sinv(
 
 
 
-if __name__ == "__main__":
+""" if __name__ == "__main__":
     n_blocks = 250
     diag_blocksize = 4000
     arrowhead_blocksize = 4
@@ -148,6 +148,57 @@ if __name__ == "__main__":
     plt.ylabel("Cost ratio")
     plt.title("BTA Sequential vs BTA Distributed")
     plt.legend()
-    plt.show()
+    plt.show() """
 
     
+if __name__ == "__main__":
+    diag_blocksize = 4000
+    arrowhead_blocksize = 4
+
+    max_n_blocks = 10000
+    max_partitions = 128
+
+    cost_matrix = np.zeros((max_partitions, max_n_blocks))
+
+    for n_blocks in range(1, max_n_blocks):
+        for n_partitions in range(1, max_partitions):
+            # Compute the cost of the BTA sequential algorithm
+            cost_bta_seq_factorization = getcost_bta_seq_factorization(n_blocks, diag_blocksize, arrowhead_blocksize)
+            cost_bta_seq_sinv = getcost_bta_seq_sinv(n_blocks, diag_blocksize, arrowhead_blocksize)
+
+            cost_bta_seq = sp.simplify(cost_bta_seq_factorization)
+
+
+            # Compute the cost of the BTA distributed algorithm
+            n_blocks_partition = get_partition_size(n_blocks, n_partitions)
+            reduced_system_size = get_reduced_system_size(n_partitions)
+
+            cost_bta_dist_middle_process_factorization = getcost_bta_middle_dist_factorization(n_blocks_partition, diag_blocksize, arrowhead_blocksize)
+            cost_bta_dist_reduced_system_solve = getcost_bta_seq_factorization(reduced_system_size, diag_blocksize, arrowhead_blocksize) + getcost_bta_seq_sinv(reduced_system_size, diag_blocksize, arrowhead_blocksize)
+            cost_bta_dist_middle_process_sinv = getcost_bta_middle_dist_sinv(n_blocks_partition, diag_blocksize, arrowhead_blocksize)
+
+            cost_bta_dist = sp.simplify(cost_bta_dist_middle_process_factorization + cost_bta_dist_reduced_system_solve + cost_bta_dist_middle_process_sinv)
+
+            cost_matrix[n_partitions, n_blocks] = cost_bta_seq / cost_bta_dist
+
+
+    print(f"Bench up to: {max_n_blocks} blocks and {max_partitions} partitions")
+    print(f"diagonal_blocksize {diag_blocksize}, arrowhead_blocksize {arrowhead_blocksize}")
+
+    n_processes = [1, 2, 4, 8, 16, 32, 64, 128]
+    for p in n_processes:
+        max_ratio = np.max(cost_matrix[p-1, :])
+        max_ratio_nblocks = np.argmax(cost_matrix[p-1, :])
+
+        print(f"Max ratio for {p} processes: {max_ratio} occurs for {max_ratio_nblocks} blocks")
+
+    plt.imshow(cost_matrix, cmap='hot', interpolation='nearest')
+    plt.xlabel("Number of Blocks")
+    plt.ylabel("Number of Partitions")
+
+    # Create a colorbar and put it horizontaly at the bottom
+    plt.colorbar()
+    plt.suptitle("BTA Sequential vs BTA Distributed")
+    plt.title(f"Diagonal block size: {diag_blocksize}, Arrowhead block size: {arrowhead_blocksize}")
+
+    plt.show()
