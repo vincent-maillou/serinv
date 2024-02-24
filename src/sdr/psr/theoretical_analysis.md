@@ -17,6 +17,17 @@
     diag_blocksize : size of the diagonal blocks
     arrowhead_blocksize : size of the arrowhead blocks
 
+#### BTA-seq input matrix memory cost
+
+| Section                   | Memory cost             |
+| ------------------------- | ----------------------- |
+| Diagonal blocks           | $ n\_blocks * diag\_blocksize^2 $     |
+| Lower diagonal blocks     | $ (n\_blocks-1) * diag\_blocksize^2 $ |
+| Upper diagonal blocks     | $ (n\_blocks-1) * diag\_blocksize^2 $ |
+| Arrow lower blocks        | $ n\_blocks * diag\_blocksize * arrowhead\_blocksize $       |
+| Arrow Upper blocks        | $ n\_blocks * diag\_blocksize * arrowhead\_blocksize $       |
+| Arrow tip block           | $ arrowhead\_blocksize^2 $       |
+
 ### BTA-seq factorization algorithm
 
 $$
@@ -64,6 +75,18 @@ $$
 | OpD(diag\_blocksize, arrowhead\_blocksize)                       | $ 2 * (n\_blocks - 1) $ | $ O((n\_blocks - 1) * diag\_blocksize * arrowhead\_blocksize) $       |
 | OpD(arrowhead\_blocksize, arrowhead\_blocksize)                  | $ n\_blocks $           | $ O((n\_blocks - 1) * arrowhead\_blocksize^2) $                       |
 
+#### BTA-seq factorization memory cost
+
+| Section                   | Memory cost             |
+| ------------------------- | ----------------------- |
+| L tridiagonal blocks      | $ n\_blocks * diag\_blocksize^2 + (n\_blocks - 1) * diag\_blocksize^2 $     |
+| L arrow blocks            | $ n\_blocks * diag\_blocksize * arrowhead\_blocksize $     |
+| L arrow tip block         | $ n\_blocks * arrowhead\_blocksize^2 $     |
+| U tridiagonal blocks      | $ n\_blocks * diag\_blocksize^2 + (n\_blocks - 1) * diag\_blocksize^2 $     |
+| U arrow blocks            | $ n\_blocks * diag\_blocksize * arrowhead\_blocksize $     |
+| U arrow tip block         | $ n\_blocks * arrowhead\_blocksize^2 $     |
+| LU inversion buffers      | $ 2 * diag\_blocksize^2 $ |
+
 ### BTA-seq selected inversion
 
 $$
@@ -97,6 +120,20 @@ $$
 | OpD(diag\_blocksize, diag\_blocksize)                            | $ 4 * (n\_blocks - 1) + 1 $ | $ O((4 * (n\_blocks - 1) + 1) * diag\_blocksize^2) $                  |
 | OpD(diag\_blocksize, arrowhead\_blocksize)                       | $ 2 * (n\_blocks - 1) $     | $ O(2 * (n\_blocks - 1) * diag\_blocksize * arrowhead\_blocksize) $   |
 
+#### BTA-seq selected inversion memory cost
+
+Storage of the selected inversion of A, same memory cost arrowhead\_blocksize A.
+
+| Section                   | Memory cost             |
+| ------------------------- | ----------------------- |
+| Diagonal blocks           | $ n\_blocks * diag\_blocksize^2 $     |
+| Lower diagonal blocks     | $ (n\_blocks-1) * diag\_blocksize^2 $ |
+| Upper diagonal blocks     | $ (n\_blocks-1) * diag\_blocksize^2 $ |
+| Arrow lower blocks        | $ n\_blocks * diag\_blocksize * arrowhead\_blocksize $       |
+| Arrow Upper blocks        | $ n\_blocks * diag\_blocksize * arrowhead\_blocksize $       |
+| Arrow tip block           | $ arrowhead\_blocksize^2 $       |
+| LU inversion buffers      | $ 2 * diag\_blocksize^2 $ |
+
 ## 3. BTA-distributed algorithm analysis
 
 ### BTA-dist problem parameters
@@ -104,12 +141,23 @@ $$
     n_blocks = "ndb" : number of diagonals blocks in the matrix
     diag_blocksize : size of the diagonal blocks
     arrowhead_blocksize : size of the arrowhead blocks
-
+    
     n_processes = MPI.COMM_WORLD : number of processes
     n_partitions = n_processes : number of distributed partitions
-    n_blocks_partition = "ndb\_p" = n_blocks / n_partitions : number of blocks per partition
+    n\_blocks\_partition = "ndb\_p" = n_blocks / n_partitions : number of blocks per partition
 
     reduced_system_n_blocks = 2 * (n_processes - 1) : number of blocks in the reduced system
+
+#### BTA-dist local matrix input memory cost
+
+| Section                   | Memory cost             |
+| ------------------------- | ----------------------- |
+| Diagonal blocks           | $ n\_blocks\_partition * diag\_blocksize^2 $     |
+| Lower diagonal blocks     | $ (n\_blocks\_partition-1) * diag\_blocksize^2 $ |
+| Upper diagonal blocks     | $ (n\_blocks\_partition-1) * diag\_blocksize^2 $ |
+| Arrow lower blocks        | $ n\_blocks\_partition * diag\_blocksize * arrowhead\_blocksize $       |
+| Arrow Upper blocks        | $ n\_blocks\_partition * diag\_blocksize * arrowhead\_blocksize $       |
+| Arrow tip block           | $ arrowhead\_blocksize^2 $       |
 
 ### BTA-dist partitions distribution
 
@@ -221,6 +269,18 @@ $$
 | OpD(diag\_blocksize, arrowhead\_blocksize)                       | $ 4 * (n\_blocks\_partition - 2) $     | $ O(4 * (n\_blocks\_partition - 2) * diag\_blocksize * arrowhead\_blocksize) $         |
 | OpD(arrowhead\_blocksize, arrowhead\_blocksize)                  | $ (n\_blocks\_partition - 2) $         | $ O((n\_blocks\_partition - 2) * arrowhead\_blocksize^2) $                             |
 
+#### BTA-dist middle processes factorization memory cost
+
+| Section                   | Memory cost             |
+| ------------------------- | ----------------------- |
+| L tridiagonal blocks      | $ n\_blocks\_partition * diag\_blocksize^2 + (n\_blocks\_partition - 1) * diag\_blocksize^2 $     |
+| L arrow blocks            | $ n\_blocks\_partition * diag\_blocksize * arrowhead\_blocksize $     |
+| L 2-sided patern          | $ (n\_blocks\_partition - 1) * diag\_blocksize^2 $     |
+| U tridiagonal blocks      | $ n\_blocks\_partition * diag\_blocksize^2 + (n\_blocks\_partition - 1) * diag\_blocksize^2 $     |
+| U arrow blocks            | $ n\_blocks\_partition * diag\_blocksize * arrowhead\_blocksize $     |
+| U 2-sided patern          | $ (n\_blocks\_partition - 1) * diag\_blocksize^2 $     |
+| LU inversion buffers      | $ 2 * arrowhead\_blocksize^2 $ |
+
 ### Reduced system communication
 
 ### Inversion of reduced system
@@ -283,3 +343,15 @@ $$
 | OpC(diag\_blocksize, arrowhead\_blocksize, arrowhead\_blocksize) | $ 2 * (n\_blocks\_partition - 1) $  | $ O(2 * (n\_blocks\_partition - 1) * diag\_blocksize * arrowhead\_blocksize^2) $  |
 | OpD(diag\_blocksize, diag\_blocksize)                            | $ 11 * (n\_blocks\_partition - 1) $ | $ O(11 *(n\_blocks\_partition - 1) * diag\_blocksize^2) $                         |
 | OpD(diag\_blocksize, arrowhead\_blocksize)                       | $ 4 * (n\_blocks\_partition - 1) $  | $ O(4 *(n\_blocks\_partition - 1) * diag\_blocksize * arrowhead\_blocksize) $     |
+
+#### BTA-dist middle processes selected inversion memory cost
+
+| Section                   | Memory cost             |
+| ------------------------- | ----------------------- |
+| Diagonal blocks           | $ n\_blocks\_partition * diag\_blocksize^2 $     |
+| Lower diagonal blocks     | $ (n\_blocks\_partition-1) * diag\_blocksize^2 $ |
+| Upper diagonal blocks     | $ (n\_blocks\_partition-1) * diag\_blocksize^2 $ |
+| Arrow lower blocks        | $ n\_blocks\_partition * diag\_blocksize * arrowhead\_blocksize $       |
+| Arrow Upper blocks        | $ n\_blocks\_partition * diag\_blocksize * arrowhead\_blocksize $       |
+| Arrow tip block           | $ arrowhead\_blocksize^2 $       |
+| LU inversion buffers           | $ 2*diag\_blocksize^2 $       |

@@ -79,7 +79,7 @@ def getcost_bta_middle_dist_sinv(
     cost_bta_seq_factorization = getcost_bta_seq_factorization(n_blocks, diag_blocksize, arrowhead_blocksize)
     cost_bta_seq_sinv = getcost_bta_seq_sinv(n_blocks, diag_blocksize, arrowhead_blocksize)
 
-    cost_bta_seq = sp.simplify(cost_bta_seq_factorization)
+    cost_bta_seq = sp.simplify(cost_bta_seq_factorization + cost_bta_seq_sinv)
 
     print("cost_bta_dist: \n", cost_bta_seq)
 
@@ -114,7 +114,7 @@ def getcost_bta_middle_dist_sinv(
         cost_bta_seq_factorization = getcost_bta_seq_factorization(n_blocks, diag_blocksize, arrowhead_blocksize)
         cost_bta_seq_sinv = getcost_bta_seq_sinv(n_blocks, diag_blocksize, arrowhead_blocksize)
 
-        cost_bta_seq = sp.simplify(cost_bta_seq_factorization)
+        cost_bta_seq = sp.simplify(cost_bta_seq_factorization + cost_bta_seq_sinv)
 
         # print("cost_bta_dist: \n", cost_bta_seq)
         costs_bta_seq.append(cost_bta_seq)
@@ -166,7 +166,7 @@ if __name__ == "__main__":
             cost_bta_seq_factorization = getcost_bta_seq_factorization(n_blocks, diag_blocksize, arrowhead_blocksize)
             cost_bta_seq_sinv = getcost_bta_seq_sinv(n_blocks, diag_blocksize, arrowhead_blocksize)
 
-            cost_bta_seq = sp.simplify(cost_bta_seq_factorization)
+            cost_bta_seq = sp.simplify(cost_bta_seq_factorization + cost_bta_seq_sinv)
 
 
             # Compute the cost of the BTA distributed algorithm
@@ -180,18 +180,18 @@ if __name__ == "__main__":
             cost_bta_dist = sp.simplify(cost_bta_dist_middle_process_factorization + cost_bta_dist_reduced_system_solve + cost_bta_dist_middle_process_sinv)
 
 
-            """ # Divid and conquer algorithm aproach for the reduced system inversion
-            cost_bta_dist_middle_process_factorization = getcost_bta_middle_dist_factorization(n_blocks_partition, diag_blocksize, arrowhead_blocksize)
+            # # Divid and conquer algorithm aproach for the reduced system inversion
+            # cost_bta_dist_middle_process_factorization = getcost_bta_middle_dist_factorization(n_blocks_partition, diag_blocksize, arrowhead_blocksize)
             
-            blocks_per_process = 3
-            n_processes_inverting_reduced_system = reduced_system_size // blocks_per_process
-            reduced_system_sub_partition_size = get_reduced_system_size(n_processes_inverting_reduced_system)
-            cost_bta_dist_reduced_system_solve = getcost_bta_middle_dist_factorization(blocks_per_process, diag_blocksize, arrowhead_blocksize) + getcost_bta_middle_dist_sinv(blocks_per_process, diag_blocksize, arrowhead_blocksize)
-            cost_bta_dist_reduced_system_solve += getcost_bta_seq_factorization(reduced_system_sub_partition_size, diag_blocksize, arrowhead_blocksize) + getcost_bta_seq_sinv(reduced_system_sub_partition_size, diag_blocksize, arrowhead_blocksize)
+            # blocks_per_process = 3
+            # n_processes_inverting_reduced_system = reduced_system_size // blocks_per_process
+            # reduced_system_sub_partition_size = get_reduced_system_size(n_processes_inverting_reduced_system)
+            # cost_bta_dist_reduced_system_solve = getcost_bta_middle_dist_factorization(blocks_per_process, diag_blocksize, arrowhead_blocksize) + getcost_bta_middle_dist_sinv(blocks_per_process, diag_blocksize, arrowhead_blocksize)
+            # cost_bta_dist_reduced_system_solve += getcost_bta_seq_factorization(reduced_system_sub_partition_size, diag_blocksize, arrowhead_blocksize) + getcost_bta_seq_sinv(reduced_system_sub_partition_size, diag_blocksize, arrowhead_blocksize)
             
-            cost_bta_dist_middle_process_sinv = getcost_bta_middle_dist_sinv(n_blocks_partition, diag_blocksize, arrowhead_blocksize)
+            # cost_bta_dist_middle_process_sinv = getcost_bta_middle_dist_sinv(n_blocks_partition, diag_blocksize, arrowhead_blocksize)
             
-            cost_bta_dist = sp.simplify(cost_bta_dist_middle_process_factorization + cost_bta_dist_reduced_system_solve + cost_bta_dist_middle_process_sinv) """
+            # cost_bta_dist = sp.simplify(cost_bta_dist_middle_process_factorization + cost_bta_dist_reduced_system_solve + cost_bta_dist_middle_process_sinv)
 
 
 
@@ -204,7 +204,9 @@ if __name__ == "__main__":
 
 
     # Extract the trend of the break-even point
-    break_even_points = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+    max_break_point = 15
+    step = 1
+    break_even_points = np.arange(1, max_break_point+step, step)
     
     optimal_n_blocks = np.ndarray((len(break_even_points), max_partitions))
     
@@ -218,6 +220,7 @@ if __name__ == "__main__":
         plt.plot(non_zero_indices, optimal_n_blocks[i, non_zero_indices], label=f"break-even ratio >= {break_even_point}")
         
     plt.title("Number of blocks from which each processes of BTA-dist are doing less than the break-even ration work then BTA-seq")
+    # plt.title("Number of blocks from which each processes of BTA-dist are doing less than the break-even ration work then BTA-seq, 1 D&C iteration")
     plt.xlabel("Number of processes")
     plt.ylabel("Number of Blocks")
     plt.legend()
