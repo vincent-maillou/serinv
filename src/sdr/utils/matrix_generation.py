@@ -8,7 +8,7 @@ Matrix generations routines.
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils.matrix_transform import make_diagonally_dominante_dense, make_diagonally_dominante_tridiagonal_arrays
+from sdr.utils import matrix_transform as mt
 
 import numpy as np
 
@@ -56,7 +56,7 @@ def generate_tridiag_dense(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante_dense(A)
+        A = mt.make_diagonally_dominante_dense(A)
 
     return A  
 
@@ -102,13 +102,14 @@ def generate_tridiag_array(
             A_lower_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = np.random.rand(blocksize, blocksize)
 
     if symmetric:
-        for i in range(nblocks):
-            A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] + A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize].T
-            if i < nblocks-1:
-                A_lower_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = A_upper_diagonal_blocks[:, i*blocksize:(i+1)*blocksize].T
+        (
+            A_diagonal_blocks, 
+            A_lower_diagonal_blocks,
+            A_upper_diagonal_blocks
+        ) = mt.make_symmetric_tridiagonal_arrays(A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks)
 
     if diagonal_dominant:
-        A_diagonal_blocks = make_diagonally_dominante_tridiagonal_arrays(A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks)
+        A_diagonal_blocks = mt.make_diagonally_dominante_tridiagonal_arrays(A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks)
 
     return A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks   
 
@@ -170,13 +171,13 @@ def generate_block_ndiags(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante_dense(A)
+        A = mt.make_diagonally_dominante_dense(A)
 
     return A        
 
 
 
-def generate_tridiag_dense_arrowhead(
+def generate_tridiag_arrowhead_dense(
     nblocks: int,
     diag_blocksize: int,    
     arrow_blocksize: int,    
@@ -231,10 +232,81 @@ def generate_tridiag_dense_arrowhead(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante_dense(A)
+        A = mt.make_diagonally_dominante_dense(A)
         
     return A
 
+
+def generate_tridiag_arrowhead_arrays(
+    nblocks: int,
+    diag_blocksize: int,    
+    arrow_blocksize: int,    
+    symmetric: bool = False,
+    diagonal_dominant: bool = False,  
+    seed: int = None,
+) -> [np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """ Generate a block tridiagonal arrowhead matrix.
+
+    Parameters
+    ----------
+    nblocks : int
+        Number of diagonal blocks.
+    diag_blocksize : int
+        Size of the diagonal blocks.
+    arrow_blocksize : int
+        Size of the arrowhead blocks. These blocks will be of sizes: 
+        (arrow_blocksize*diag_blocksize).
+    symmetric : bool, optional
+        If True, the matrix will be symmetric.
+    seed : int, optional
+        Seed for the random number generator.
+
+    Returns
+    -------
+    TODO:docstring
+    """
+
+    if seed is not None:
+        np.random.seed(seed)
+
+    n_diag_blocks = nblocks - 1
+
+    (
+        A_diagonal_blocks, 
+        A_lower_diagonal_blocks,
+        A_upper_diagonal_blocks
+    ) = generate_tridiag_array(n_diag_blocks, diag_blocksize, symmetric, diagonal_dominant, seed)
+    
+    A_arrow_bottom_blocks  = np.random.rand(arrow_blocksize, n_diag_blocks*diag_blocksize)
+    A_arrow_right_blocks = np.random.rand(arrow_blocksize, n_diag_blocks*diag_blocksize)
+    
+    A_arrow_tip_block = np.random.rand(arrow_blocksize, arrow_blocksize)
+
+    if symmetric:
+        (
+            A_diagonal_blocks, 
+            A_lower_diagonal_blocks,
+            A_upper_diagonal_blocks, 
+        ) = mt.make_symmetric_tridiagonal_arrays(A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks)
+        
+        for i in range(n_diag_blocks):
+            A_arrow_bottom_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] = A_arrow_right_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize].T
+
+        A_arrow_tip_block += A_arrow_tip_block.T
+
+    if diagonal_dominant:
+        (
+            A_diagonal_blocks
+        ) = mt.make_diagonally_dominante_tridiagonal_arrowhead_arrays(
+            A_diagonal_blocks, 
+            A_lower_diagonal_blocks, 
+            A_upper_diagonal_blocks, 
+            A_arrow_bottom_blocks, 
+            A_arrow_right_blocks, 
+            A_arrow_tip_block
+        )
+        
+    return A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks, A_arrow_bottom_blocks, A_arrow_right_blocks, A_arrow_tip_block
 
 
 def generate_ndiags_arrowhead(
@@ -300,7 +372,7 @@ def generate_ndiags_arrowhead(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante_dense(A)
+        A = mt.make_diagonally_dominante_dense(A)
         
     return A
 

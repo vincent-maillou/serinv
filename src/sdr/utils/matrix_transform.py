@@ -170,6 +170,22 @@ def cut_to_blockndiags_arrowhead(
     return A_cut
 
 
+def make_symmetric_tridiagonal_arrays(
+    A_diagonal_blocks: np.ndarray,
+    A_lower_diagonal_blocks: np.ndarray,
+    A_upper_diagonal_blocks: np.ndarray,
+) -> [np.ndarray, np.ndarray, np.ndarray]:
+    
+    blocksize = A_diagonal_blocks.shape[0]
+    nblocks = A_diagonal_blocks.shape[1] // blocksize
+    
+    for i in range(nblocks):
+        A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] += A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize].T
+        if i < nblocks-1:
+            A_lower_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = A_upper_diagonal_blocks[:, i*blocksize:(i+1)*blocksize].T
+
+    return A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
+
 
 def make_diagonally_dominante_dense(
     A: np.ndarray,
@@ -218,7 +234,7 @@ def make_diagonally_dominante_tridiagonal_arrays(
     nblocks = A_diagonal_blocks.shape[1] // blocksize
     
     for i in range(0, nblocks):
-        A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = np.diag(np.sum(np.abs(A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize]), axis=1))
+        A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] += np.diag(np.sum(np.abs(A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize]), axis=1))
         if i > 0:
             A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] += np.diag(np.sum(np.abs(A_upper_diagonal_blocks[:, (i-1)*blocksize:i*blocksize]), axis=1))
         if i < nblocks-1:
@@ -227,10 +243,37 @@ def make_diagonally_dominante_tridiagonal_arrays(
     return A_diagonal_blocks
 
 
+def make_diagonally_dominante_tridiagonal_arrowhead_arrays(
+    A_diagonal_blocks: np.ndarray,
+    A_lower_diagonal_blocks: np.ndarray,
+    A_upper_diagonal_blocks: np.ndarray,
+    A_arrow_bottom_blocks: np.ndarray,
+    A_arrow_right_blocks: np.ndarray,
+    A_arrow_tip_block: np.ndarray,
+) -> np.ndarray:
+    
+    diag_blocksize = A_diagonal_blocks.shape[0]
+    arrowhead_blocksize = A_arrow_bottom_blocks.shape[0]
+    
+    n_diag_blocks = A_diagonal_blocks.shape[1] // diag_blocksize
+    for i in range(0, n_diag_blocks):
+        A_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] += np.diag(np.sum(np.abs(A_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize]), axis=1))
+        if i < n_diag_blocks-1:
+            A_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] += np.diag(np.sum(np.abs(A_upper_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize]), axis=1))
+            A_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] += np.diag(np.sum(np.abs(A_arrow_right_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize]), axis=1))
+        if i > 0:
+            A_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] += np.diag(np.sum(np.abs(A_lower_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize]), axis=1))
+        
+        A_arrow_tip_block += np.diag(np.sum(np.abs(A_arrow_tip_block), axis=1))
+        A_arrow_tip_block += np.diag(np.sum(np.abs(A_arrow_bottom_blocks), axis=1))
+        
+    return A_diagonal_blocks
+
+
 def from_tridiagonal_arrays_to_dense(
     A_diagonal_blocks: np.ndarray,
-    A_upper_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
+    A_upper_diagonal_blocks: np.ndarray,
 ) -> np.ndarray:
     """ Convert a tridiagonal matrix to a dense matrix.
 
@@ -300,3 +343,60 @@ def from_dense_to_tridiagonal_arrays(
             A_lower_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = A[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize]
 
     return A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
+
+
+def from_arrowhead_arrays_to_dense(
+    A_diagonal_blocks: np.ndarray,
+    A_lower_diagonal_blocks: np.ndarray,
+    A_upper_diagonal_blocks: np.ndarray,
+    A_arrow_bottom_blocks: np.ndarray,
+    A_arrow_right_blocks: np.ndarray,
+    A_arrow_tip_block: np.ndarray,
+) -> np.ndarray:
+    
+    diag_blocksize = A_diagonal_blocks.shape[0]
+    arrowhead_blocksize = A_arrow_bottom_blocks.shape[0]
+    
+    n_diag_blocks = A_diagonal_blocks.shape[1] // diag_blocksize
+    
+    A = np.zeros((n_diag_blocks * diag_blocksize + arrowhead_blocksize, n_diag_blocks * diag_blocksize + arrowhead_blocksize))
+    
+    for i in range(0, n_diag_blocks):
+        A[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = A_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize]
+        if i < n_diag_blocks-1:
+            A[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = A_lower_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize]
+            A[i*diag_blocksize:(i+1)*diag_blocksize, (i+1)*diag_blocksize:(i+2)*diag_blocksize] = A_upper_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize]
+        
+    A[-arrowhead_blocksize:, :] = A_arrow_bottom_blocks
+    A[:, -arrowhead_blocksize:] = A_arrow_right_blocks
+    A[-arrowhead_blocksize:, -arrowhead_blocksize:] = A_arrow_tip_block
+    
+    return A
+
+
+def from_dense_to_arrowhead_arrays(
+    A: np.ndarray,
+    diag_blocksize: int,
+    arrow_blocksize: int,
+) -> [np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    
+    n_diag_blocks = (A.shape[0]-arrow_blocksize) // diag_blocksize
+    
+    A_diagonal_blocks = np.empty((diag_blocksize, n_diag_blocks*diag_blocksize))
+    A_lower_diagonal_blocks = np.empty((diag_blocksize, (n_diag_blocks - 1)*diag_blocksize))
+    A_upper_diagonal_blocks = np.empty((diag_blocksize, (n_diag_blocks - 1)*diag_blocksize))
+    A_arrow_bottom_blocks = np.empty((arrow_blocksize, n_diag_blocks*diag_blocksize))
+    A_arrow_right_blocks = np.empty((arrow_blocksize, n_diag_blocks*diag_blocksize))
+    A_arrow_tip_block = np.empty((arrow_blocksize, arrow_blocksize))
+    
+    for i in range(0, n_diag_blocks):
+        A_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] = A[i*diag_blocksize:(i+1)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize]
+        if i < n_diag_blocks-1:
+            A_lower_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] = A[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize]
+            A_upper_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] = A[i*diag_blocksize:(i+1)*diag_blocksize, (i+1)*diag_blocksize:(i+2)*diag_blocksize]
+            
+    A_arrow_bottom_blocks = A[-arrow_blocksize:, :]
+    A_arrow_right_blocks = A[:, -arrow_blocksize:]
+    A_arrow_tip_block = A[-arrow_blocksize:, -arrow_blocksize:]
+    
+    return A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks, A_arrow_bottom_blocks, A_arrow_right_blocks, A_arrow_tip_block

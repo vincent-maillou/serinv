@@ -1,9 +1,9 @@
 """
 @author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2023-11
+@date: 2024-02
 
-Tests for lu selected decompositions routines.
+Tests for lu tridiagonal arrowhead matrices selected factorization routine.
 
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """

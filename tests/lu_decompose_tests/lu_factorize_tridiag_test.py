@@ -1,16 +1,16 @@
 """
 @author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2023-11
+@date: 2024-02
 
-Tests for lu selected decompositions routines.
+Tests for lu tridiagonal matrices selected factorization routine.
 
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
 from sdr.utils.matrix_transform import from_dense_to_tridiagonal_arrays, from_tridiagonal_arrays_to_dense
-from sdr.lu.lu_decompose import lu_factorize_tridiag
+from sdr.lu.lu_factorize import lu_factorize_tridiag
 
 import numpy as np
 import scipy.linalg as la
@@ -54,17 +54,16 @@ if __name__ == "__main__":
         A_upper_diagonal_blocks, 
     )
     
-    
     L_sdr_dense = from_tridiagonal_arrays_to_dense(
         L_sdr[:blocksize, :], 
+        L_sdr[blocksize:, blocksize:],
         np.zeros((blocksize, (nblocks-1)*blocksize)),
-        L_sdr[blocksize:, blocksize:]
     )
     
     U_sdr_dense = from_tridiagonal_arrays_to_dense(
         U_sdr[blocksize:, :], 
-        U_sdr[:blocksize, :-blocksize],
         np.zeros((blocksize, (nblocks-1)*blocksize)),
+        U_sdr[:blocksize, :-blocksize],
     )
     
     fig, ax = plt.subplots(2, 3)
@@ -143,14 +142,14 @@ def test_lu_decompose_tridiag(
     
     L_sdr_dense = from_tridiagonal_arrays_to_dense(
         L_sdr[:blocksize, :], 
+        L_sdr[blocksize:, blocksize:],
         np.zeros((blocksize, (nblocks-1)*blocksize)),
-        L_sdr[blocksize:, blocksize:]
     )
     
     U_sdr_dense = from_tridiagonal_arrays_to_dense(
         U_sdr[blocksize:, :], 
-        U_sdr[:blocksize, :-blocksize],
         np.zeros((blocksize, (nblocks-1)*blocksize)),
+        U_sdr[:blocksize, :-blocksize],
     )
 
     assert np.allclose(L_ref, L_sdr_dense)
