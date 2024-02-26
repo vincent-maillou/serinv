@@ -19,7 +19,7 @@ seed = 63
 np.set_printoptions(edgeitems=30, linewidth=100000, 
     formatter=dict(float=lambda x: "%.3g" % x))
 
-A = matrix_generation.generate_blocktridiag(
+A = matrix_generation.generate_tridiag_dense(
     nblocks, blocksize, symmetric, diagonal_dominant, seed
 )
 

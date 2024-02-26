@@ -8,17 +8,19 @@ Matrix generations routines.
 Copyright 2023 ETH Zurich and USI. All rights reserved.
 """
 
+from sdr.utils.matrix_transform import make_diagonally_dominante_dense, make_diagonally_dominante_tridiagonal_arrays
+
 import numpy as np
 
 
-def generate_blocktridiag(
+def generate_tridiag_dense(
     nblocks: int,
     blocksize: int,    
     symmetric: bool = False,  
     diagonal_dominant: bool = False,
     seed: int = None,
 ) -> np.ndarray:
-    """ Generate a block tridiagonal matrix.
+    """ Generate a block tridiagonal matrix, returned as dense matrix.
 
     Parameters
     ----------
@@ -54,10 +56,61 @@ def generate_blocktridiag(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante(A)
+        A = make_diagonally_dominante_dense(A)
 
-    return A        
+    return A  
 
+
+def generate_tridiag_array(
+    nblocks: int,
+    blocksize: int,    
+    symmetric: bool = False,  
+    diagonal_dominant: bool = False,
+    seed: int = None,
+) -> [np.ndarray, np.ndarray, np.ndarray]:
+    """ Generate a block tridiagonal matrix returned as three arrays.
+
+    Parameters
+    ----------
+    nblocks : int
+        Number of diagonal blocks.
+    blocksize : int
+        Size of the blocks.
+    symmetric : bool, optional
+        If True, the matrix will be symmetric.
+    seed : int, optional
+        Seed for the random number generator.
+        
+    Returns
+    -------
+    A : np.ndarray
+        Block tridiagonal matrix.
+    """
+
+    if seed is not None:
+        np.random.seed(seed)
+
+    A_diagonal_blocks = np.empty((blocksize, nblocks*blocksize))
+    A_upper_diagonal_blocks = np.empty((blocksize, (nblocks-1)*blocksize))
+    A_lower_diagonal_blocks = np.empty((blocksize, (nblocks-1)*blocksize))
+
+    for i in range(nblocks):
+        A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = np.random.rand(blocksize, blocksize)
+        if i > 0:
+            A_upper_diagonal_blocks[:, (i-1)*blocksize:i*blocksize] = np.random.rand(blocksize, blocksize)
+        if i < nblocks-1:
+            A_lower_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = np.random.rand(blocksize, blocksize)
+
+    if symmetric:
+        for i in range(nblocks):
+            A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] + A_diagonal_blocks[:, i*blocksize:(i+1)*blocksize].T
+            if i < nblocks-1:
+                A_lower_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = A_upper_diagonal_blocks[:, i*blocksize:(i+1)*blocksize].T
+
+    if diagonal_dominant:
+        A_diagonal_blocks = make_diagonally_dominante_tridiagonal_arrays(A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks)
+
+    return A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks   
 
 
 def generate_block_ndiags(
@@ -117,13 +170,13 @@ def generate_block_ndiags(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante(A)
+        A = make_diagonally_dominante_dense(A)
 
     return A        
 
 
 
-def generate_blocktridiag_arrowhead(
+def generate_tridiag_dense_arrowhead(
     nblocks: int,
     diag_blocksize: int,    
     arrow_blocksize: int,    
@@ -178,7 +231,7 @@ def generate_blocktridiag_arrowhead(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante(A)
+        A = make_diagonally_dominante_dense(A)
         
     return A
 
@@ -247,28 +300,8 @@ def generate_ndiags_arrowhead(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante(A)
+        A = make_diagonally_dominante_dense(A)
         
     return A
 
 
-
-def make_diagonally_dominante(
-    A: np.ndarray,
-) -> np.ndarray:
-    """ Make a matrix diagonally dominant.
-
-    Parameters
-    ----------
-    A : np.ndarray
-        Input matrix.
-
-    Returns
-    -------
-    A : np.ndarray
-        Diagonally dominant matrix.
-    """
-
-    A = A + np.diag(np.sum(np.abs(A), axis=1))
-
-    return A

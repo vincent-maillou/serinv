@@ -29,7 +29,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag_arrowhead(
+    A = matrix_generation.generate_tridiag_dense_arrowhead(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
         seed
     )
@@ -80,7 +80,7 @@ def test_cholesky_sinv_tridiag_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag_arrowhead(
+    A = matrix_generation.generate_tridiag_dense_arrowhead(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
         seed
     )

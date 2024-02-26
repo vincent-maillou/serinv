@@ -47,7 +47,8 @@ reduced system size is constant. We use the **FLOPS count model** and the
 We run strong scaling in some relevant test-cases.
 
 - **FLOPS count model**
-- **operations ratios model** 
+
+- **operations ratios model**
 
 ### 4. Communication analysis
 

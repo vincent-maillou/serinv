@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sdr.utils.matrix_generation import generate_blocktridiag_arrowhead
+from sdr.utils.matrix_generation import generate_tridiag_dense_arrowhead
 from sdr.utils.matrix_transform import cut_to_blocktridiag_arrowhead
 
 from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     # A = tridiag_matrix(mat_size)
 
-    A = generate_blocktridiag_arrowhead(n_blocks, diag_blocksize, arrow_blocksize, symmetric, diag_dom, seed)
+    A = generate_tridiag_dense_arrowhead(n_blocks, diag_blocksize, arrow_blocksize, symmetric, diag_dom, seed)
 
     ref_inverse = np.linalg.inv(A)
     ref_inverse = cut_to_blocktridiag_arrowhead(ref_inverse, diag_blocksize, arrow_blocksize)   
