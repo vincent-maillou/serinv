@@ -15,27 +15,13 @@ from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
 
 import numpy as np
 import scipy.linalg as la
-import pytest
-    
+import matplotlib.pyplot as plt
 
-@pytest.mark.parametrize(
-    "nblocks, blocksize", 
-    [
-        (2, 2),
-        (10, 2),
-        (100, 2),
-        (2, 3),
-        (10, 3),
-        (100, 3),
-        (2, 100),
-        (5, 100),
-        (10, 100),
-    ]
-)
-def test_lu_sinv_tridiag(
-    nblocks: int,
-    blocksize: int,  
-):
+
+# Testing of block tridiagonal lu sinv
+if __name__ == "__main__":
+    nblocks = 5
+    blocksize = 2
     symmetric = False
     diagonal_dominant = True
     seed = 63
@@ -43,6 +29,7 @@ def test_lu_sinv_tridiag(
     A = matrix_generation.generate_tridiag_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
+
 
     # --- Inversion ---
 
@@ -82,5 +69,18 @@ def test_lu_sinv_tridiag(
         X_sdr_lower_diagonal_blocks,
         X_sdr_upper_diagonal_blocks,
     )
+    
+    X_diff = X_ref - X_sdr_dense
 
+    fig, ax = plt.subplots(1, 3)
+    ax[0].set_title("X_ref: Scipy reference inversion")
+    ax[0].matshow(X_ref)
+    ax[1].set_title("X_sdr: LU selected inversion")
+    ax[1].matshow(X_sdr_dense)
+    ax[2].set_title("X_diff: Difference between X_ref and X_sdr")
+    ax[2].matshow(X_diff)
+    fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
+
+    plt.show()
+    
     assert np.allclose(X_ref, X_sdr_dense)
