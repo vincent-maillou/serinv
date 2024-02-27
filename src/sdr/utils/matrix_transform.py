@@ -367,9 +367,9 @@ def from_arrowhead_arrays_to_dense(
             A[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize] = A_lower_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize]
             A[i*diag_blocksize:(i+1)*diag_blocksize, (i+1)*diag_blocksize:(i+2)*diag_blocksize] = A_upper_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize]
         
-    A[-arrowhead_blocksize:, :] = A_arrow_bottom_blocks
-    A[:, -arrowhead_blocksize:] = A_arrow_right_blocks
-    A[-arrowhead_blocksize:, -arrowhead_blocksize:] = A_arrow_tip_block
+    A[-arrowhead_blocksize:, :-arrowhead_blocksize] = A_arrow_bottom_blocks[:,:]
+    A[:-arrowhead_blocksize, -arrowhead_blocksize:] = A_arrow_right_blocks[:,:]
+    A[-arrowhead_blocksize:, -arrowhead_blocksize:] = A_arrow_tip_block[:,:]
     
     return A
 
@@ -395,8 +395,8 @@ def from_dense_to_arrowhead_arrays(
             A_lower_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] = A[(i+1)*diag_blocksize:(i+2)*diag_blocksize, i*diag_blocksize:(i+1)*diag_blocksize]
             A_upper_diagonal_blocks[:, i*diag_blocksize:(i+1)*diag_blocksize] = A[i*diag_blocksize:(i+1)*diag_blocksize, (i+1)*diag_blocksize:(i+2)*diag_blocksize]
             
-    A_arrow_bottom_blocks = A[-arrow_blocksize:, :]
-    A_arrow_right_blocks = A[:, -arrow_blocksize:]
+    A_arrow_bottom_blocks = A[-arrow_blocksize:, :-arrow_blocksize]
+    A_arrow_right_blocks = A[:-arrow_blocksize, -arrow_blocksize:]
     A_arrow_tip_block = A[-arrow_blocksize:, -arrow_blocksize:]
     
     return A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks, A_arrow_bottom_blocks, A_arrow_right_blocks, A_arrow_tip_block
