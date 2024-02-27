@@ -46,8 +46,10 @@ if __name__ == "__main__":
     ) = from_dense_to_tridiagonal_arrays(A, blocksize)
 
     (
-        L_sdr, 
-        U_sdr
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+        U_diagonal_blocks,
+        U_upper_diagonal_blocks,
     ) = lu_factorize_tridiag(
         A_diagonal_blocks, 
         A_lower_diagonal_blocks,
@@ -55,15 +57,15 @@ if __name__ == "__main__":
     )
     
     L_sdr_dense = from_tridiagonal_arrays_to_dense(
-        L_sdr[:blocksize, :], 
-        L_sdr[blocksize:, blocksize:],
+        L_diagonal_blocks, 
+        L_lower_diagonal_blocks,
         np.zeros((blocksize, (nblocks-1)*blocksize)),
     )
     
     U_sdr_dense = from_tridiagonal_arrays_to_dense(
-        U_sdr[blocksize:, :], 
+        U_diagonal_blocks, 
         np.zeros((blocksize, (nblocks-1)*blocksize)),
-        U_sdr[:blocksize, :-blocksize],
+        U_upper_diagonal_blocks,
     )
     
     fig, ax = plt.subplots(2, 3)
