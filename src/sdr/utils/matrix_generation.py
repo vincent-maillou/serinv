@@ -5,7 +5,7 @@
 
 Matrix generations routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_transform as mt
