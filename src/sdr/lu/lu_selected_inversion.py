@@ -132,110 +132,79 @@ def lu_sinv_tridiag_arrowhead(
     L_last_blk_inv = np.zeros((arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype)
     U_last_blk_inv = np.zeros((arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype)
 
-    # L_last_blk_inv = la.solve_triangular(
-    #     L[-arrow_blocksize:, -arrow_blocksize:], np.eye(arrow_blocksize), lower=True
-    # )
-    # U_last_blk_inv = la.solve_triangular(
-    #     U[-arrow_blocksize:, -arrow_blocksize:], np.eye(arrow_blocksize), lower=False
-    # )
+    L_last_blk_inv = la.solve_triangular(
+        L_arrow_bottom_blocks[:, -arrow_blocksize:], 
+        np.eye(arrow_blocksize), 
+        lower=True
+    )
+    U_last_blk_inv = la.solve_triangular(
+        U_arrow_right_blocks[-arrow_blocksize:, :], 
+        np.eye(arrow_blocksize), 
+        lower=False
+    )
 
-    # X[-arrow_blocksize:, -arrow_blocksize:] = U_last_blk_inv @ L_last_blk_inv
+    X_sdr_arrow_tip_block[:, :] = U_last_blk_inv @ L_last_blk_inv
 
-    # L_blk_inv = np.zeros((diag_blocksize, diag_blocksize), dtype=L.dtype)
-    # U_blk_inv = np.zeros((diag_blocksize, diag_blocksize), dtype=L.dtype)
+    L_blk_inv = la.solve_triangular(
+        L_diagonal_blocks[:, -diag_blocksize:],
+        np.eye(diag_blocksize),
+        lower=True,
+    )
+    U_blk_inv = la.solve_triangular(
+        U_diagonal_blocks[:, -diag_blocksize:],
+        np.eye(diag_blocksize),
+        lower=False,
+    )
 
-    # L_blk_inv = la.solve_triangular(
-    #     L[
-    #         -arrow_blocksize - diag_blocksize : -arrow_blocksize,
-    #         -arrow_blocksize - diag_blocksize : -arrow_blocksize,
-    #     ],
-    #     np.eye(diag_blocksize),
-    #     lower=True,
-    # )
-    # U_blk_inv = la.solve_triangular(
-    #     U[
-    #         -arrow_blocksize - diag_blocksize : -arrow_blocksize,
-    #         -arrow_blocksize - diag_blocksize : -arrow_blocksize,
-    #     ],
-    #     np.eye(diag_blocksize),
-    #     lower=False,
-    # )
+    # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
+    X_sdr_arrow_bottom_blocks[:, -diag_blocksize:] = (
+        -X_sdr_arrow_tip_block[:, :]
+        @ L_arrow_bottom_blocks[:, -diag_blocksize:]
+        @ L_blk_inv
+    )
 
-    # # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
-    # X[-arrow_blocksize:, -arrow_blocksize - diag_blocksize : -arrow_blocksize] = (
-    #     -X[-arrow_blocksize:, -arrow_blocksize:]
-    #     @ L[-arrow_blocksize:, -arrow_blocksize - diag_blocksize : -arrow_blocksize]
-    #     @ L_blk_inv
-    # )
+    # X_{ndb, ndb+1} = -U_{ndb, ndb}^{-1} U_{ndb, ndb+1} X_{ndb+1, ndb+1}
+    X_sdr_arrow_right_blocks[-diag_blocksize:, :] = (
+        -U_blk_inv
+        @ U_arrow_right_blocks[-diag_blocksize:, :]
+        @ X_sdr_arrow_tip_block[:, :]
+    )
 
-    # # X_{ndb, ndb+1} = -U_{ndb, ndb}^{-1} U_{ndb, ndb+1} X_{ndb+1, ndb+1}
-    # X[-arrow_blocksize - diag_blocksize : -arrow_blocksize, -arrow_blocksize:] = (
-    #     -U_blk_inv
-    #     @ U[-arrow_blocksize - diag_blocksize : -arrow_blocksize, -arrow_blocksize:]
-    #     @ X[-arrow_blocksize:, -arrow_blocksize:]
-    # )
-
-    # # X_{ndb, ndb} = (U_{ndb, ndb}^{-1} - X_{ndb, ndb+1} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
-    # X[
-    #     -arrow_blocksize - diag_blocksize : -arrow_blocksize,
-    #     -arrow_blocksize - diag_blocksize : -arrow_blocksize,
-    # ] = (
-    #     U_blk_inv
-    #     - X[-arrow_blocksize - diag_blocksize : -arrow_blocksize, -arrow_blocksize:]
-    #     @ L[-arrow_blocksize:, -arrow_blocksize - diag_blocksize : -arrow_blocksize]
-    # ) @ L_blk_inv
+    # X_{ndb, ndb} = (U_{ndb, ndb}^{-1} - X_{ndb, ndb+1} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
+    X_sdr_diagonal_blocks[-diag_blocksize:, -diag_blocksize:] = (
+        U_blk_inv
+        - X_sdr_arrow_right_blocks[-diag_blocksize:, :]
+        @ L_arrow_bottom_blocks[:, -diag_blocksize:]
+    ) @ L_blk_inv
 
     # for i in range(n_diag_blocks - 2, -1, -1):
     #     L_blk_inv = la.solve_triangular(
-    #         L[
-    #             i * diag_blocksize : (i + 1) * diag_blocksize,
-    #             i * diag_blocksize : (i + 1) * diag_blocksize,
-    #         ],
+    #         L_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
     #         np.eye(diag_blocksize),
     #         lower=True,
     #     )
+
     #     U_blk_inv = la.solve_triangular(
-    #         U[
-    #             i * diag_blocksize : (i + 1) * diag_blocksize,
-    #             i * diag_blocksize : (i + 1) * diag_blocksize,
-    #         ],
+    #         U_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
     #         np.eye(diag_blocksize),
     #         lower=False,
     #     )
 
     #     # --- Off-diagonal block part ---
     #     # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-    #     X[
-    #         (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-    #         i * diag_blocksize : (i + 1) * diag_blocksize,
-    #     ] = (
-    #         -X[
-    #             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-    #             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-    #         ]
-    #         @ L[
-    #             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-    #             i * diag_blocksize : (i + 1) * diag_blocksize,
-    #         ]
-    #         - X[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, -arrow_blocksize:]
-    #         @ L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
+    #     X_sdr_lower_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
+    #         -X_sdr_diagonal_blocks[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+    #         @ L_lower_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+    #         - X_sdr_arrow_right_blocks[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :]
+    #         @ L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
     #     ) @ L_blk_inv
 
     #     # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, ndb+1} X_{ndb+1, i+1})
-    #     X[
-    #         i * diag_blocksize : (i + 1) * diag_blocksize,
-    #         (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-    #     ] = U_blk_inv @ (
-    #         -U[
-    #             i * diag_blocksize : (i + 1) * diag_blocksize,
-    #             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-    #         ]
-    #         @ X[
-    #             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-    #             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-    #         ]
-    #         - U[i * diag_blocksize : (i + 1) * diag_blocksize, -arrow_blocksize:]
-    #         @ X[-arrow_blocksize:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+    #     X_sdr_upper_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = U_blk_inv @ (
+    #         -U_upper_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+    #         @ X_sdr_diagonal_blocks[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+    #         - U_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :]
+    #         @ X_sdr_arrow_bottom_blocks[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
     #     )
 
     #     # --- Arrowhead part ---
