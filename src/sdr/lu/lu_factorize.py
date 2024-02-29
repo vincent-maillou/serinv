@@ -40,11 +40,11 @@ def lu_factorize_tridiag(
     blocksize = A_diagonal_blocks.shape[0]
     nblocks = A_diagonal_blocks.shape[1] // blocksize
 
-    L_diagonal_blocks = np.empty((blocksize, nblocks*blocksize))
-    L_lower_diagonal_blocks = np.empty((blocksize, (nblocks-1)*blocksize))
+    L_diagonal_blocks = np.empty((blocksize, nblocks*blocksize), dtype=A_diagonal_blocks.dtype)
+    L_lower_diagonal_blocks = np.empty((blocksize, (nblocks-1)*blocksize), dtype=A_diagonal_blocks.dtype)
     
-    U_diagonal_blocks = np.empty((blocksize, nblocks*blocksize))
-    U_upper_diagonal_blocks = np.empty((blocksize, (nblocks-1)*blocksize))
+    U_diagonal_blocks = np.empty((blocksize, nblocks*blocksize), dtype=A_diagonal_blocks.dtype)
+    U_upper_diagonal_blocks = np.empty((blocksize, (nblocks-1)*blocksize), dtype=A_diagonal_blocks.dtype)
 
     for i in range(0, nblocks - 1, 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
@@ -124,16 +124,16 @@ def lu_factorize_tridiag_arrowhead(
 
     n_diag_blocks = A_diagonal_blocks.shape[1] // diag_blocksize
     
-    L_diagonal_blocks = np.empty((diag_blocksize, n_diag_blocks*diag_blocksize))
-    L_lower_diagonal_blocks = np.empty((diag_blocksize, (n_diag_blocks-1)*diag_blocksize))
-    L_arrow_bottom_blocks = np.empty((arrow_blocksize, n_diag_blocks*diag_blocksize + arrow_blocksize))
+    L_diagonal_blocks = np.empty((diag_blocksize, n_diag_blocks*diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    L_lower_diagonal_blocks = np.empty((diag_blocksize, (n_diag_blocks-1)*diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    L_arrow_bottom_blocks = np.empty((arrow_blocksize, n_diag_blocks*diag_blocksize + arrow_blocksize), dtype=A_diagonal_blocks.dtype)
     
-    U_diagonal_blocks = np.empty((diag_blocksize, n_diag_blocks*diag_blocksize))
-    U_upper_diagonal_blocks = np.empty((diag_blocksize, (n_diag_blocks-1)*diag_blocksize))
-    U_arrow_right_blocks = np.empty((n_diag_blocks*diag_blocksize + arrow_blocksize, arrow_blocksize))
+    U_diagonal_blocks = np.empty((diag_blocksize, n_diag_blocks*diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    U_upper_diagonal_blocks = np.empty((diag_blocksize, (n_diag_blocks-1)*diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    U_arrow_right_blocks = np.empty((n_diag_blocks*diag_blocksize + arrow_blocksize, arrow_blocksize), dtype=A_diagonal_blocks.dtype)
 
-    L_inv_temp = np.empty((diag_blocksize, diag_blocksize))
-    U_inv_temp = np.empty((diag_blocksize, diag_blocksize))
+    L_inv_temp = np.empty((diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    U_inv_temp = np.empty((diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype)
 
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
