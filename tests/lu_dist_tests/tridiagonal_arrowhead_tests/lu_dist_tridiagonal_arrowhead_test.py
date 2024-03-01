@@ -84,7 +84,7 @@ def test_lu_dist(
     (
         X_ref_bridges_upper, 
         X_ref_bridges_lower
-    ) = dist_utils.extract_bridges(
+    ) = dist_utils.extract_bridges_tridiagonal_dense(
         X_ref, 
         diag_blocksize, 
         start_blockrows
@@ -106,7 +106,7 @@ def test_lu_dist(
         arrow_blocksize,
     )
     
-    Bridges_upper, Bridges_lower = dist_utils.extract_bridges(
+    Bridges_upper, Bridges_lower = dist_utils.extract_bridges_tridiagonal_dense(
         A, diag_blocksize, start_blockrows
     )
 

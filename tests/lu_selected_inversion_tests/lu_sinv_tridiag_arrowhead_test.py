@@ -58,7 +58,11 @@ def test_lu_sinv_tridiag_arrowhead(
         A_arrow_bottom_blocks, 
         A_arrow_right_blocks, 
         A_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(A, diag_blocksize, arrow_blocksize)
+    ) = from_dense_to_arrowhead_arrays(
+        A, 
+        diag_blocksize, 
+        arrow_blocksize
+    )
     
     (
         L_diagonal_blocks, 

@@ -128,7 +128,48 @@ def extract_partition_tridiagonal_arrowhead_dense(
     return A_local, A_arrow_bottom, A_arrow_right, A_arrow_tip
 
 
-def extract_bridges(
+def extract_partition_tridiagonal_arrowhead_array(
+    A_diagonal_blocks: np.ndarray, 
+    A_lower_diagonal_blocks: np.ndarray, 
+    A_upper_diagonal_blocks: np.ndarray, 
+    A_arrow_bottom_blocks: np.ndarray, 
+    A_arrow_right_blocks: np.ndarray, 
+    A_arrow_tip_block: np.ndarray,
+    start_blockrow: int,
+    partition_size: int,
+):
+    diag_blocksize = A_diagonal_blocks[0].shape[0]
+    arrow_blocksize = A_arrow_bottom_blocks[0].shape[0]
+    
+    A_diagonal_blocks_local = np.empty((diag_blocksize, partition_size * diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    A_lower_diagonal_blocks_local = np.empty((diag_blocksize, (partition_size - 1) * diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    A_upper_diagonal_blocks_local = np.empty((diag_blocksize, (partition_size - 1) * diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    A_arrow_bottom_blocks_local = np.empty((arrow_blocksize, (partition_size - 1) * diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    A_arrow_right_blocks_local = np.empty(((partition_size - 1) * diag_blocksize, arrow_blocksize), dtype=A_diagonal_blocks.dtype)
+    A_arrow_tip_block_local = np.empty((arrow_blocksize, arrow_blocksize), dtype=A_diagonal_blocks.dtype)
+
+    stop_blockrow = start_blockrow + partition_size
+
+    A_diagonal_blocks_local = A_diagonal_blocks[:, start_blockrow * diag_blocksize : stop_blockrow * diag_blocksize]
+    A_lower_diagonal_blocks_local = A_lower_diagonal_blocks[:, start_blockrow * diag_blocksize : (stop_blockrow - 1) * diag_blocksize]
+    A_upper_diagonal_blocks_local = A_upper_diagonal_blocks[:, start_blockrow * diag_blocksize : (stop_blockrow - 1) * diag_blocksize]
+    
+    A_arrow_bottom_blocks_local = A_arrow_bottom_blocks[:, start_blockrow * diag_blocksize : stop_blockrow * diag_blocksize]
+    A_arrow_right_blocks_local = A_arrow_right_blocks[start_blockrow * diag_blocksize : stop_blockrow * diag_blocksize, :]
+    
+    A_arrow_tip_block_local = A_arrow_tip_block
+
+    return (
+        A_diagonal_blocks_local, 
+        A_lower_diagonal_blocks_local, 
+        A_upper_diagonal_blocks_local, 
+        A_arrow_bottom_blocks_local, 
+        A_arrow_right_blocks_local, 
+        A_arrow_tip_block_local
+    )
+
+
+def extract_bridges_tridiagonal_dense(
     A: np.ndarray,
     diag_blocksize: int,
     start_blockrows: list,
@@ -145,6 +186,32 @@ def extract_bridges(
         
         upper_bridge = A[start_ixd-diag_blocksize:start_ixd, start_ixd:start_ixd+diag_blocksize]
         lower_bridge = A[start_ixd:start_ixd+diag_blocksize, start_ixd-diag_blocksize:start_ixd]
+        
+        Bridges_upper.append(upper_bridge)
+        Bridges_lower.append(lower_bridge)
+        
+    return Bridges_upper, Bridges_lower
+
+
+def extract_bridges_tridiagonal_array(
+    A_diagonal_blocks: np.ndarray, 
+    A_lower_diagonal_blocks: np.ndarray,
+    A_upper_diagonal_blocks: np.ndarray, 
+    start_blockrows: list,
+) -> [list, list]:
+    diag_blocksize = A_diagonal_blocks[0].shape[0]
+    
+    Bridges_lower: list = []
+    Bridges_upper: list = []
+    
+    for i in range(1, len(start_blockrows)):
+        upper_bridge = np.empty((diag_blocksize, diag_blocksize))
+        lower_bridge = np.empty((diag_blocksize, diag_blocksize))
+        
+        start_ixd = start_blockrows[i]*diag_blocksize
+        
+        lower_bridge = A_lower_diagonal_blocks[:, start_ixd-diag_blocksize:start_ixd]
+        upper_bridge = A_upper_diagonal_blocks[:, start_ixd:start_ixd+diag_blocksize]
         
         Bridges_upper.append(upper_bridge)
         Bridges_lower.append(lower_bridge)

@@ -64,7 +64,7 @@ if __name__ == "__main__":
         arrow_blocksize,
     )
 
-    Bridges_upper_inv_ref, Bridges_lower_inv_ref = du.extract_bridges(
+    Bridges_upper_inv_ref, Bridges_lower_inv_ref = du.extract_bridges_tridiagonal_dense(
         X_ref, diag_blocksize, start_blockrows
     )
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         arrow_blocksize,
     )
     
-    Bridges_upper, Bridges_lower = du.extract_bridges(
+    Bridges_upper, Bridges_lower = du.extract_bridges_tridiagonal_dense(
         A, diag_blocksize, start_blockrows
     )
     
