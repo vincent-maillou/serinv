@@ -114,57 +114,65 @@ def test_lu_dist_middle_process(
     )
 
 
-    # # Create and inverse the reduced system created by the last reduced block
-    # # and the tip of the arrowhead.
+    # Create and inverse the reduced system created by the last reduced block
+    # and the tip of the arrowhead.
 
-    # reduced_system = np.zeros((2 * diag_blocksize + arrow_blocksize, 2 * diag_blocksize + arrow_blocksize))
-    # global_arrow_tip = np.zeros((arrow_blocksize, arrow_blocksize))
-    # global_arrow_tip = A_arrow_tip + Update_arrow_tip
+    reduced_system = np.zeros((2 * diag_blocksize + arrow_blocksize, 2 * diag_blocksize + arrow_blocksize))
     
-    # # (top, top)
-    # reduced_system[0:diag_blocksize, 0:diag_blocksize] = A_local[0:diag_blocksize, 0:diag_blocksize]
-    # # (top, nblocks)
-    # reduced_system[0:diag_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize] = A_local[0:diag_blocksize, -diag_blocksize:]
-    # # (top, ndb+1)
-    # reduced_system[0:diag_blocksize, -arrow_blocksize:] = A_arrow_right[0:diag_blocksize, :]
-    # # (nblocks, top)
-    # reduced_system[-diag_blocksize-arrow_blocksize:-arrow_blocksize, 0:diag_blocksize] = A_local[-diag_blocksize:, 0:diag_blocksize]
-    # # (ndb+1, top)
-    # reduced_system[-arrow_blocksize:, 0:diag_blocksize] = A_arrow_bottom[:, 0:diag_blocksize]
-    # # (nblocks, nblocks)
-    # reduced_system[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize] = A_local[-diag_blocksize:, -diag_blocksize:]    
-    # # (nblocks, ndb+1)
-    # reduced_system[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -arrow_blocksize:] = A_arrow_right[-diag_blocksize:, :]
-    # # (ndb+1, nblocks)
-    # reduced_system[-arrow_blocksize:, -diag_blocksize-arrow_blocksize:-arrow_blocksize] = A_arrow_bottom[:, -diag_blocksize:]
-    # # (ndb+1, ndb+1)
-    # reduced_system[-arrow_blocksize:, -arrow_blocksize:] = global_arrow_tip
+    # (top, top)
+    reduced_system[0:diag_blocksize, 0:diag_blocksize] = A_diagonal_blocks[:, 0:diag_blocksize]
+    # (top, nblocks)
+    reduced_system[0:diag_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize] = A_top_2sided_arrow_blocks_local[:, -diag_blocksize:]
+    # (top, ndb+1)
+    reduced_system[0:diag_blocksize, -arrow_blocksize:] = A_arrow_right_blocks[:diag_blocksize, :]
+    # (nblocks, top)
+    reduced_system[-diag_blocksize-arrow_blocksize:-arrow_blocksize, 0:diag_blocksize] = A_left_2sided_arrow_blocks_local[-diag_blocksize:, :]
+    # (ndb+1, top)
+    reduced_system[-arrow_blocksize:, 0:diag_blocksize] = A_arrow_bottom_blocks[:, :diag_blocksize]
+    # (nblocks, nblocks)
+    reduced_system[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize] = A_diagonal_blocks[:, -diag_blocksize:]    
+    # (nblocks, ndb+1)
+    reduced_system[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -arrow_blocksize:] = A_arrow_right_blocks[-diag_blocksize:, :]
+    # (ndb+1, nblocks)
+    reduced_system[-arrow_blocksize:, -diag_blocksize-arrow_blocksize:-arrow_blocksize] = A_arrow_bottom_blocks[:, -diag_blocksize:]
+    # (ndb+1, ndb+1)
+    reduced_system[-arrow_blocksize:, -arrow_blocksize:] = A_arrow_tip_block + Update_arrow_tip
     
-    # reduced_system_inv = np.linalg.inv(reduced_system)
+    reduced_system_inv = np.linalg.inv(reduced_system)
 
-    # X_local = np.zeros_like(A_local)
-    # X_arrow_bottom = np.zeros_like(A_arrow_bottom)
-    # X_arrow_right = np.zeros_like(A_arrow_right)
-    # X_global_arrow_tip = np.zeros_like(global_arrow_tip)
+    X_sdr_diagonal_blocks = np.zeros_like(A_diagonal_blocks)
+    X_sdr_lower_diagonal_blocks = np.zeros_like(A_lower_diagonal_blocks)
+    X_sdr_upper_diagonal_blocks = np.zeros_like(A_upper_diagonal_blocks)
+    X_sdr_arrow_bottom_blocks = np.zeros_like(A_arrow_bottom_blocks)
+    X_sdr_arrow_right_blocks = np.zeros_like(A_arrow_right_blocks)
+    X_sdr_top_2sided_arrow_blocks_local = np.zeros_like(A_top_2sided_arrow_blocks_local)
+    X_sdr_left_2sided_arrow_blocks_local = np.zeros_like(A_left_2sided_arrow_blocks_local)
+    X_sdr_global_arrow_tip_block = np.zeros_like(A_arrow_tip_block)
     
-    # # (top, top)
-    # X_local[0:diag_blocksize, 0:diag_blocksize] = reduced_system_inv[0:diag_blocksize, 0:diag_blocksize]
-    # # (top, nblocks)
-    # X_local[0:diag_blocksize, -diag_blocksize:] = reduced_system_inv[0:diag_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize]
-    # # (top, ndb+1)
-    # X_arrow_right[0:diag_blocksize, :] = reduced_system_inv[0:diag_blocksize, -arrow_blocksize:]
-    # # (nblocks, top)
-    # X_local[-diag_blocksize:, 0:diag_blocksize] = reduced_system_inv[-diag_blocksize-arrow_blocksize:-arrow_blocksize, 0:diag_blocksize]
-    # # (ndb+1, top)
-    # X_arrow_bottom[:, 0:diag_blocksize] = reduced_system_inv[-arrow_blocksize:, 0:diag_blocksize]
-    # # (nblocks, nblocks)
-    # X_local[-diag_blocksize:, -diag_blocksize:] = reduced_system_inv[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize] 
-    # # (nblocks, ndb+1)
-    # X_arrow_right[-diag_blocksize:, :] = reduced_system_inv[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -arrow_blocksize:]
-    # # (ndb+1, nblocks)
-    # X_arrow_bottom[:, -diag_blocksize:] = reduced_system_inv[-arrow_blocksize:, -diag_blocksize-arrow_blocksize:-arrow_blocksize]
-    # # (ndb+1, ndb+1)
-    # X_global_arrow_tip = reduced_system_inv[-arrow_blocksize:, -arrow_blocksize:]
+    # (top, top)
+    X_sdr_diagonal_blocks[:, 0:diag_blocksize] = reduced_system_inv[0:diag_blocksize, 0:diag_blocksize]
+    # (top, nblocks)
+    X_sdr_top_2sided_arrow_blocks_local[:, -diag_blocksize:] = reduced_system_inv[0:diag_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize]
+    # (top, ndb+1)
+    X_sdr_arrow_right_blocks[:diag_blocksize, :] = reduced_system_inv[0:diag_blocksize, -arrow_blocksize:]
+    # (nblocks, top)
+    X_sdr_left_2sided_arrow_blocks_local[-diag_blocksize:, :] = reduced_system_inv[-diag_blocksize-arrow_blocksize:-arrow_blocksize, 0:diag_blocksize]
+    # (ndb+1, top)
+    X_sdr_arrow_bottom_blocks[:, :diag_blocksize] = reduced_system_inv[-arrow_blocksize:, 0:diag_blocksize]
+    # (nblocks, nblocks)
+    X_sdr_diagonal_blocks[:, -diag_blocksize:] = reduced_system_inv[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -diag_blocksize-arrow_blocksize:-arrow_blocksize] 
+    # (nblocks, ndb+1)
+    X_sdr_arrow_right_blocks[-diag_blocksize:, :] = reduced_system_inv[-diag_blocksize-arrow_blocksize:-arrow_blocksize, -arrow_blocksize:]
+    # (ndb+1, nblocks)
+    X_sdr_arrow_bottom_blocks[:, -diag_blocksize:] = reduced_system_inv[-arrow_blocksize:, -diag_blocksize-arrow_blocksize:-arrow_blocksize]
+    # (ndb+1, ndb+1)
+    X_sdr_global_arrow_tip_block = reduced_system_inv[-arrow_blocksize:, -arrow_blocksize:]
+
+
+    # Just checked 1 block but should be enought since inverting of reduced system propagate
+    assert np.allclose(X_ref_diagonal_blocks[:, 0:diag_blocksize], X_sdr_diagonal_blocks[:, 0:diag_blocksize])
+
+
 
     
     # # ----- Selected inversion part -----
