@@ -9,7 +9,7 @@ matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
+from sdr.utils.matrix_generation import generate_tridiag_arrowhead_dense
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import top_factorize, top_sinv   
 
@@ -41,7 +41,7 @@ def test_lu_dist_top_process(
     symmetric = False
     seed = 63
     
-    A = matrix_generation.generate_tridiag_arrowhead_dense(
+    A = generate_tridiag_arrowhead_dense(
         nblocks, 
         diag_blocksize, 
         arrow_blocksize, 
