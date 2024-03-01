@@ -51,26 +51,32 @@ def test_lu_dist_top_process(
 
     X_ref = np.linalg.inv(A_ref)
     
-    X_ref_local, X_ref_arrow_bottom, X_ref_arrow_right = dist_utils.extract_partition(
+    (
+        X_ref_local, 
+        X_ref_arrow_bottom, 
+        X_ref_arrow_right,
+        X_ref_arrow_tip
+    ) = dist_utils.extract_partition_tridiagonal_arrowhead_dense(
         X_ref,
         0,
         nblocks-1,
         diag_blocksize,
         arrow_blocksize,
     )
-    
-    X_ref_arrow_tip = X_ref[-arrow_blocksize:, -arrow_blocksize:]
     # ---------------------
 
-    A_local, A_arrow_bottom, A_arrow_right = dist_utils.extract_partition(
+    (
+        A_local, 
+        A_arrow_bottom, 
+        A_arrow_right,
+        A_arrow_tip
+    ) = dist_utils.extract_partition_tridiagonal_arrowhead_dense(
         A,
         0,
         nblocks-1,
         diag_blocksize,
         arrow_blocksize,
     )
-
-    A_arrow_tip = A[-arrow_blocksize:, -arrow_blocksize:]
 
     (
         A_local, 

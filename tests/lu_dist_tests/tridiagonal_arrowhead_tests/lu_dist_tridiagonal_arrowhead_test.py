@@ -68,7 +68,12 @@ def test_lu_dist(
 
     X_ref = np.linalg.inv(A_ref)
     
-    X_ref_local, A_ref_arrow_bottom, A_ref_arrow_right = dist_utils.extract_partition(
+    (
+        X_ref_local, 
+        X_ref_arrow_bottom, 
+        X_ref_arrow_right,
+        X_ref_arrow_tip
+    ) = dist_utils.extract_partition_tridiagonal_arrowhead_dense(
         X_ref,
         start_blockrows[comm_rank],
         partition_sizes[comm_rank],
@@ -76,17 +81,24 @@ def test_lu_dist(
         arrow_blocksize,
     )
 
-    A_ref_arrow_tip = X_ref[-arrow_blocksize:, -arrow_blocksize:]
-
-    X_ref_bridges_upper, X_ref_bridges_lower = dist_utils.extract_bridges(
-        X_ref, diag_blocksize, start_blockrows
+    (
+        X_ref_bridges_upper, 
+        X_ref_bridges_lower
+    ) = dist_utils.extract_bridges(
+        X_ref, 
+        diag_blocksize, 
+        start_blockrows
     )
 
     X_ref_local = matrix_transform.cut_to_blocktridiag(X_ref_local, diag_blocksize)
     # -----------------------------------
 
-
-    A_local, A_arrow_bottom, A_arrow_right = dist_utils.extract_partition(
+    (
+        A_local, 
+        A_arrow_bottom, 
+        A_arrow_right,
+        A_arrow_tip
+    ) = dist_utils.extract_partition_tridiagonal_arrowhead_dense(
         A,
         start_blockrows[comm_rank],
         partition_sizes[comm_rank],
@@ -94,12 +106,9 @@ def test_lu_dist(
         arrow_blocksize,
     )
     
-    A_arrow_tip = A[-arrow_blocksize:, -arrow_blocksize:]
-    
     Bridges_upper, Bridges_lower = dist_utils.extract_bridges(
         A, diag_blocksize, start_blockrows
     )
-    
 
     (
         X_local, 
@@ -122,9 +131,9 @@ def test_lu_dist(
     X_local = matrix_transform.cut_to_blocktridiag(X_local, diag_blocksize)
 
     assert np.allclose(X_ref_local, X_local)
-    assert np.allclose(A_ref_arrow_bottom, X_arrow_bottom)
-    assert np.allclose(A_ref_arrow_right, X_arrow_right)
-    assert np.allclose(A_ref_arrow_tip, X_global_arrow_tip)
+    assert np.allclose(X_ref_arrow_bottom, X_arrow_bottom)
+    assert np.allclose(X_ref_arrow_right, X_arrow_right)
+    assert np.allclose(X_ref_arrow_tip, X_global_arrow_tip)
 
     # Check for bridges correctness
     if comm_rank == 0:

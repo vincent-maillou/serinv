@@ -93,7 +93,7 @@ def get_partitions_indices(
     return start_blockrows, partition_sizes, end_blockrows
 
 
-def extract_partition(
+def extract_partition_tridiagonal_arrowhead_dense(
     A_global: np.ndarray,
     start_blockrow: int,
     partition_size: int,
@@ -122,8 +122,10 @@ def extract_partition(
     A_arrow_right = A_global[
         start_blockrow * diag_blocksize : stop_blockrow * diag_blocksize, -arrow_blocksize:
     ]
+    
+    A_arrow_tip = A_global[-arrow_blocksize:, -arrow_blocksize:]
 
-    return A_local, A_arrow_bottom, A_arrow_right
+    return A_local, A_arrow_bottom, A_arrow_right, A_arrow_tip
 
 
 def extract_bridges(
