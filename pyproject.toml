@@ -21,6 +21,7 @@ dependencies = [
     "scipy",
     "matplotlib",
     "pytest",
+    "pytest-mpi",
     "pytest-cov",
     "coverage",
 ]
