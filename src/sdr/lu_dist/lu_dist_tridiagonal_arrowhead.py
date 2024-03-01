@@ -851,135 +851,153 @@ def top_sinv(
 
 
 def middle_sinv(
-    S_local: np.ndarray,
-    S_arrow_bottom: np.ndarray,
-    S_arrow_right: np.ndarray,
-    S_global_arrow_tip: np.ndarray,
-    L_local: np.ndarray,
-    U_local: np.ndarray,
-    L_arrow_bottom: np.ndarray,
-    U_arrow_right: np.ndarray,
-    diag_blocksize: int,
+    X_diagonal_blocks_local,
+    X_lower_diagonal_blocks_local,
+    X_upper_diagonal_blocks_local,
+    X_arrow_bottom_blocks_local,
+    X_arrow_right_blocks_local,
+    X_top_2sided_arrow_blocks_local, 
+    X_left_2sided_arrow_blocks_local,
+    X_global_arrow_tip_block_local,
+    L_diagonal_blocks_local, 
+    L_lower_diagonal_blocks_local, 
+    L_arrow_bottom_blocks_local, 
+    L_upper_2sided_arrow_blocks_local,
+    U_diagonal_blocks_local, 
+    U_upper_diagonal_blocks_local, 
+    U_arrow_right_blocks_local, 
+    U_left_2sided_arrow_blocks_local
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-
-    n_blocks = S_local.shape[0] // diag_blocksize
+    diag_blocksize = X_diagonal_blocks_local.shape[0]
+    n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
+    
+    L_blk_inv = np.empty((diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
+    U_blk_inv = np.empty((diag_blocksize, diag_blocksize), dtype=U_diagonal_blocks_local.dtype)
+    
     for i in range(n_blocks - 2, 0, -1):
         # ----- Block-tridiagonal solver -----
         L_blk_inv = la.solve_triangular(
-            L_local[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize],
+            L_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             np.eye(diag_blocksize),
             lower=True,
         )
         U_blk_inv = la.solve_triangular(
-            U_local[i * diag_blocksize : (i + 1) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize],
+            U_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             np.eye(diag_blocksize),
             lower=False,
         )
         
         # X_{i+1, i} = (- X_{i+1, top} L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        S_local[
-            (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-            i * diag_blocksize : (i + 1) * diag_blocksize,
-        ] = (
+        X_lower_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
             (
-                - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize] @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
-                - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
-                - S_arrow_right[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+                - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize] 
+                @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
+                - S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] 
+                @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+                - S_arrow_right[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :] 
+                @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             ) @ L_blk_inv
         )
         
-        # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, top} X_{top, i+1} - U_{i, ndb+1} X_{ndb+1, i+1})
-        S_local[
-            i * diag_blocksize : (i + 1) * diag_blocksize,
-            (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-        ] = (
-            U_blk_inv @ (
-                - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-                - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] 
-                - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_arrow_bottom[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-            )
-        )
+    #     # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, top} X_{top, i+1} - U_{i, ndb+1} X_{ndb+1, i+1})
+    #     S_local[
+    #         i * diag_blocksize : (i + 1) * diag_blocksize,
+    #         (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+    #     ] = (
+    #         U_blk_inv @ (
+    #             - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+    #             - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] 
+    #             - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_arrow_bottom[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+    #         )
+    #     )
         
-        # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{top, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        S_local[
-            0:diag_blocksize,
-            i * diag_blocksize : (i + 1) * diag_blocksize,
-        ] = (
-            (
-                - S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
-                - S_local[0:diag_blocksize, 0:diag_blocksize] @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
-                - S_arrow_right[0:diag_blocksize, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            ) @ L_blk_inv
-        )
+    #     # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{top, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+    #     S_local[
+    #         0:diag_blocksize,
+    #         i * diag_blocksize : (i + 1) * diag_blocksize,
+    #     ] = (
+    #         (
+    #             - S_local[0:diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ L_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
+    #             - S_local[0:diag_blocksize, 0:diag_blocksize] @ L_local[0:diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+    #             - S_arrow_right[0:diag_blocksize, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+    #         ) @ L_blk_inv
+    #     )
         
-        # X_{i, top} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, top} - U_{i, top} X_{top, top} - U_{i, ndb+1} X_{ndb+1, top})
-        S_local[
-            i * diag_blocksize : (i + 1) * diag_blocksize,
-            0:diag_blocksize,
-        ] = (
-            U_blk_inv @ (
-                - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize]
-                - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, 0:diag_blocksize] 
-                - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_arrow_bottom[:, 0:diag_blocksize]
-            )
-        )
+    #     # X_{i, top} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, top} - U_{i, top} X_{top, top} - U_{i, ndb+1} X_{ndb+1, top})
+    #     S_local[
+    #         i * diag_blocksize : (i + 1) * diag_blocksize,
+    #         0:diag_blocksize,
+    #     ] = (
+    #         U_blk_inv @ (
+    #             - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] @ S_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, 0:diag_blocksize]
+    #             - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0:diag_blocksize] @ S_local[0:diag_blocksize, 0:diag_blocksize] 
+    #             - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_arrow_bottom[:, 0:diag_blocksize]
+    #         )
+    #     )
 
 
-        # Arrowhead
-        # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, top} L_{top, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        S_arrow_bottom[
-            :, i * diag_blocksize : (i + 1) * diag_blocksize
-        ] = (
-            (
-                - S_arrow_bottom[:, (i+1) * diag_blocksize : (i+2) * diag_blocksize] @ L_local[(i+1) * diag_blocksize : (i+2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
-                - S_arrow_bottom[:, 0 : diag_blocksize] @ L_local[0 : diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
-                - S_global_arrow_tip[:, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            ) @ L_blk_inv
-        )
+    #     # Arrowhead
+    #     # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, top} L_{top, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+    #     S_arrow_bottom[
+    #         :, i * diag_blocksize : (i + 1) * diag_blocksize
+    #     ] = (
+    #         (
+    #             - S_arrow_bottom[:, (i+1) * diag_blocksize : (i+2) * diag_blocksize] @ L_local[(i+1) * diag_blocksize : (i+2) * diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize] 
+    #             - S_arrow_bottom[:, 0 : diag_blocksize] @ L_local[0 : diag_blocksize, i * diag_blocksize : (i + 1) * diag_blocksize]
+    #             - S_global_arrow_tip[:, :] @ L_arrow_bottom[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+    #         ) @ L_blk_inv
+    #     )
 
-        # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, top} X_{top, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
-        S_arrow_right[
-            i * diag_blocksize : (i + 1) * diag_blocksize, :
-        ] = (
-            U_blk_inv @ (
-                - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i+1) * diag_blocksize : (i+2) * diag_blocksize] @ S_arrow_right[(i+1) * diag_blocksize : (i+2) * diag_blocksize, :]
-                - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0 : diag_blocksize] @ S_arrow_right[0 : diag_blocksize, :] 
-                - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_global_arrow_tip[:, :]
-            )
-        )
+    #     # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, top} X_{top, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
+    #     S_arrow_right[
+    #         i * diag_blocksize : (i + 1) * diag_blocksize, :
+    #     ] = (
+    #         U_blk_inv @ (
+    #             - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, (i+1) * diag_blocksize : (i+2) * diag_blocksize] @ S_arrow_right[(i+1) * diag_blocksize : (i+2) * diag_blocksize, :]
+    #             - U_local[i * diag_blocksize : (i + 1) * diag_blocksize, 0 : diag_blocksize] @ S_arrow_right[0 : diag_blocksize, :] 
+    #             - U_arrow_right[i * diag_blocksize : (i + 1) * diag_blocksize, :] @ S_global_arrow_tip[:, :]
+    #         )
+    #     )
         
         
-        # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, top} L_{top, i} - X_{i, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        S_local[
-            i * diag_blocksize : (i + 1) * diag_blocksize,
-            i * diag_blocksize : (i + 1) * diag_blocksize,
-        ] = (
-            U_blk_inv
-            - S_local[
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-            ]
-            @ L_local[
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ]
-            - S_local[
-                i * diag_blocksize : (i + 1) * diag_blocksize, 
-                0:diag_blocksize:
-            ]
-            @ L_local[
-                0:diag_blocksize, 
-                i * diag_blocksize : (i + 1) * diag_blocksize
-            ]
-            - S_arrow_right[
-                i * diag_blocksize : (i + 1) * diag_blocksize, 
-                :
-            ]
-            @ L_arrow_bottom[
-                :, 
-                i * diag_blocksize : (i + 1) * diag_blocksize
-            ]
-        ) @ L_blk_inv
+    #     # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, top} L_{top, i} - X_{i, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+    #     S_local[
+    #         i * diag_blocksize : (i + 1) * diag_blocksize,
+    #         i * diag_blocksize : (i + 1) * diag_blocksize,
+    #     ] = (
+    #         U_blk_inv
+    #         - S_local[
+    #             i * diag_blocksize : (i + 1) * diag_blocksize,
+    #             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+    #         ]
+    #         @ L_local[
+    #             (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
+    #             i * diag_blocksize : (i + 1) * diag_blocksize,
+    #         ]
+    #         - S_local[
+    #             i * diag_blocksize : (i + 1) * diag_blocksize, 
+    #             0:diag_blocksize:
+    #         ]
+    #         @ L_local[
+    #             0:diag_blocksize, 
+    #             i * diag_blocksize : (i + 1) * diag_blocksize
+    #         ]
+    #         - S_arrow_right[
+    #             i * diag_blocksize : (i + 1) * diag_blocksize, 
+    #             :
+    #         ]
+    #         @ L_arrow_bottom[
+    #             :, 
+    #             i * diag_blocksize : (i + 1) * diag_blocksize
+    #         ]
+    #     ) @ L_blk_inv
         
     
-    return S_local, S_arrow_bottom, S_arrow_right
+    return (
+        X_diagonal_blocks_local,
+        X_lower_diagonal_blocks_local,
+        X_upper_diagonal_blocks_local,
+        X_arrow_bottom_blocks_local,
+        X_arrow_right_blocks_local,
+        X_global_arrow_tip_block_local
+    )

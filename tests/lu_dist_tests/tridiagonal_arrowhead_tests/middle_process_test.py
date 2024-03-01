@@ -82,9 +82,11 @@ def test_lu_dist_middle_process(
         arrow_blocksize
     )
 
+    n_diag_blocks = nblocks - 1
+
     # Arrays that store the update of the 2sided pattern for the middle processes
-    A_top_2sided_arrow_blocks_local = np.zeros((diag_blocksize, nblocks * diag_blocksize), dtype=A_diagonal_blocks.dtype)
-    A_left_2sided_arrow_blocks_local = np.zeros((nblocks * diag_blocksize, diag_blocksize, ), dtype=A_diagonal_blocks.dtype)
+    A_top_2sided_arrow_blocks_local = np.zeros((diag_blocksize, n_diag_blocks * diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    A_left_2sided_arrow_blocks_local = np.zeros((n_diag_blocks * diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype)
 
     A_top_2sided_arrow_blocks_local[:, :diag_blocksize] = A_diagonal_blocks[:, :diag_blocksize]
     A_top_2sided_arrow_blocks_local[:, diag_blocksize:2*diag_blocksize] = A_upper_diagonal_blocks[:, :diag_blocksize]
@@ -175,22 +177,32 @@ def test_lu_dist_middle_process(
 
 
     
-    # # ----- Selected inversion part -----
-    # (
-    #     X_local, 
-    #     X_arrow_bottom, 
-    #     X_arrow_right
-    # ) = middle_sinv(
-    #     X_local,
-    #     X_arrow_bottom,
-    #     X_arrow_right,
-    #     X_global_arrow_tip,
-    #     L_local,
-    #     U_local,
-    #     L_arrow_bottom,
-    #     U_arrow_right,
-    #     diag_blocksize,
-    # )
+    # ----- Selected inversion part -----
+    (
+        X_sdr_diagonal_blocks,
+        X_sdr_lower_diagonal_blocks,
+        X_sdr_upper_diagonal_blocks,
+        X_sdr_arrow_bottom_blocks,
+        X_sdr_arrow_right_blocks,
+        X_sdr_global_arrow_tip_block
+    ) = middle_sinv(
+        X_sdr_diagonal_blocks,
+        X_sdr_lower_diagonal_blocks,
+        X_sdr_upper_diagonal_blocks,
+        X_sdr_arrow_bottom_blocks,
+        X_sdr_arrow_right_blocks,
+        X_sdr_top_2sided_arrow_blocks_local, 
+        X_sdr_left_2sided_arrow_blocks_local,
+        X_sdr_global_arrow_tip_block,
+        L_diagonal_blocks, 
+        L_lower_diagonal_blocks, 
+        L_arrow_bottom_blocks, 
+        L_upper_2sided_arrow_blocks,
+        U_diagonal_blocks, 
+        U_upper_diagonal_blocks, 
+        U_arrow_right_blocks, 
+        U_left_2sided_arrow_blocks
+    )
     
     # X_ref_local = matrix_transform.cut_to_blocktridiag(X_ref_local, diag_blocksize)
     # X_local = matrix_transform.cut_to_blocktridiag(X_local, diag_blocksize)
