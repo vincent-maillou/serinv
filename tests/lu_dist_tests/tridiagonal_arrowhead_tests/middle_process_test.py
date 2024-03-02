@@ -170,12 +170,6 @@ def test_lu_dist_middle_process(
     # (ndb+1, ndb+1)
     X_sdr_global_arrow_tip_block = reduced_system_inv[-arrow_blocksize:, -arrow_blocksize:]
 
-
-    # Just checked 1 block but should be enought since inverting of reduced system propagate
-    assert np.allclose(X_ref_diagonal_blocks[:, 0:diag_blocksize], X_sdr_diagonal_blocks[:, 0:diag_blocksize])
-
-
-
     
     # ----- Selected inversion part -----
     (
@@ -204,14 +198,12 @@ def test_lu_dist_middle_process(
         U_left_2sided_arrow_blocks
     )
     
-    # X_ref_local = matrix_transform.cut_to_blocktridiag(X_ref_local, diag_blocksize)
-    # X_local = matrix_transform.cut_to_blocktridiag(X_local, diag_blocksize)
-    
-    # assert np.allclose(X_ref_local, X_local)
-    # assert np.allclose(X_ref_arrow_bottom, X_arrow_bottom)
-    # assert np.allclose(X_ref_arrow_right, X_arrow_right)
-    # assert np.allclose(X_ref_arrow_tip, X_global_arrow_tip)
-    
+    assert np.allclose(X_ref_diagonal_blocks, X_sdr_diagonal_blocks)
+    assert np.allclose(X_ref_arrow_bottom_blocks, X_sdr_arrow_bottom_blocks)
+    assert np.allclose(X_ref_arrow_right_blocks, X_sdr_arrow_right_blocks)
+    assert np.allclose(X_ref_arrow_tip_block, X_sdr_global_arrow_tip_block)    
+    assert np.allclose(X_ref_lower_diagonal_blocks, X_sdr_lower_diagonal_blocks)
+    assert np.allclose(X_ref_upper_diagonal_blocks, X_sdr_upper_diagonal_blocks)
     
 if __name__ == "__main__":
     test_lu_dist_middle_process(10, 10, 2)

@@ -972,8 +972,12 @@ def middle_sinv(
             - X_arrow_right_blocks_local[i * diag_blocksize : (i + 1) * diag_blocksize, :]
             @ L_arrow_bottom_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize]
         ) @ L_blk_inv
-        
     
+    # Copy back the 2 first blocks that have been produced in the 2-sided pattern
+    # to the tridiagonal storage.
+    X_upper_diagonal_blocks_local[:, :diag_blocksize] = X_top_2sided_arrow_blocks_local[:, diag_blocksize:2*diag_blocksize]
+    X_lower_diagonal_blocks_local[:, :diag_blocksize] = X_left_2sided_arrow_blocks_local[diag_blocksize:2*diag_blocksize, :]
+
     return (
         X_diagonal_blocks_local,
         X_lower_diagonal_blocks_local,
