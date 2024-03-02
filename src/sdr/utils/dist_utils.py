@@ -138,8 +138,8 @@ def extract_partition_tridiagonal_arrowhead_array(
     start_blockrow: int,
     partition_size: int,
 ):
-    diag_blocksize = A_diagonal_blocks[0].shape[0]
-    arrow_blocksize = A_arrow_bottom_blocks[0].shape[0]
+    diag_blocksize = A_diagonal_blocks.shape[0]
+    arrow_blocksize = A_arrow_bottom_blocks.shape[0]
     
     A_diagonal_blocks_local = np.empty((diag_blocksize, partition_size * diag_blocksize), dtype=A_diagonal_blocks.dtype)
     A_lower_diagonal_blocks_local = np.empty((diag_blocksize, (partition_size - 1) * diag_blocksize), dtype=A_diagonal_blocks.dtype)
@@ -173,7 +173,7 @@ def extract_bridges_tridiagonal_dense(
     A: np.ndarray,
     diag_blocksize: int,
     start_blockrows: list,
-) -> [list, list]:
+) -> tuple[list, list]:
     
     Bridges_lower: list = []
     Bridges_upper: list = []
@@ -198,8 +198,8 @@ def extract_bridges_tridiagonal_array(
     A_lower_diagonal_blocks: np.ndarray,
     A_upper_diagonal_blocks: np.ndarray, 
     start_blockrows: list,
-) -> [list, list]:
-    diag_blocksize = A_diagonal_blocks[0].shape[0]
+) -> tuple[list, list]:
+    diag_blocksize = A_diagonal_blocks.shape[0]
     
     Bridges_lower: list = []
     Bridges_upper: list = []

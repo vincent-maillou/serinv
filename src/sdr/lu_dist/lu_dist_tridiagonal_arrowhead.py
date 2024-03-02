@@ -23,14 +23,14 @@ from mpi4py import MPI
 
 
 def lu_dist_tridiagonal_arrowhead(
-    A_local: np.ndarray,
-    A_arrow_bottom: np.ndarray,
-    A_arrow_right: np.ndarray,
-    A_global_arrow_tip: np.ndarray,
-    Bridges_upper: list,
-    Bridges_lower: list,
-    diag_blocksize: int,
-    arrow_blocksize: int,
+    A_diagonal_blocks_local: np.ndarray, 
+    A_lower_diagonal_blocks_local: np.ndarray, 
+    A_upper_diagonal_blocks_local: np.ndarray, 
+    A_arrow_bottom_blocks_local: np.ndarray, 
+    A_arrow_right_blocks_local: np.ndarray, 
+    A_arrow_tip_block_local: np.ndarray,
+    A_bridges_upper: list, 
+    A_bridges_lower: list
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """ Perform the distributed LU factorization and selected inversion of a 
     block tridiagonal arrowhead matrix.
@@ -103,6 +103,13 @@ def lu_dist_tridiagonal_arrowhead(
     S_arrow_right = np.zeros_like(A_arrow_right)
     S_global_arrow_tip = np.zeros_like(A_global_arrow_tip)
 
+    X_diagonal_blocks_local = np.zeros_like(A_diagonal_blocks_local)
+    X_lower_diagonal_blocks_local = np.zeros_like(A_lower_diagonal_blocks_local)
+    X_upper_diagonal_blocks_local = np.zeros_like(A_upper_diagonal_blocks_local)
+    X_arrow_bottom_blocks_local = np.zeros_like(A_arrow_bottom_blocks_local)
+    X_arrow_right_blocks_local = np.zeros_like(A_arrow_right_blocks_local)
+    X_arrow_tip_block_local = np.zeros_like(A_arrow_tip_block_local)
+
     (
         S_local,
         S_bridges_upper, 
@@ -155,7 +162,16 @@ def lu_dist_tridiagonal_arrowhead(
             diag_blocksize,
         )
 
-    return S_local, S_bridges_upper, S_bridges_lower, S_arrow_bottom, S_arrow_right, S_global_arrow_tip
+    return (
+        X_diagonal_blocks_local, 
+        X_lower_diagonal_blocks_local, 
+        X_upper_diagonal_blocks_local, 
+        X_arrow_bottom_blocks_local, 
+        X_arrow_right_blocks_local, 
+        X_arrow_tip_block_local,
+        X_bridges_upper, 
+        X_bridges_lower
+    )
 
 
 def top_factorize(
