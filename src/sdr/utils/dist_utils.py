@@ -194,27 +194,24 @@ def extract_bridges_tridiagonal_dense(
 
 
 def extract_bridges_tridiagonal_array(
-    A_diagonal_blocks: np.ndarray, 
     A_lower_diagonal_blocks: np.ndarray,
     A_upper_diagonal_blocks: np.ndarray, 
     start_blockrows: list,
-) -> tuple[list, list]:
-    diag_blocksize = A_diagonal_blocks.shape[0]
+) -> tuple[
+        np.ndarray, 
+        np.ndarray
+    ]:
+    diag_blocksize = A_lower_diagonal_blocks.shape[0]
+    n_bridges = len(start_blockrows) - 1
     
-    Bridges_lower: list = []
-    Bridges_upper: list = []
+    Bridges_lower = np.zeros((diag_blocksize, n_bridges * diag_blocksize), dtype=A_lower_diagonal_blocks.dtype)
+    Bridges_upper = np.zeros((diag_blocksize, n_bridges * diag_blocksize), dtype=A_upper_diagonal_blocks.dtype)
     
-    for i in range(1, len(start_blockrows)):
-        upper_bridge = np.empty((diag_blocksize, diag_blocksize))
-        lower_bridge = np.empty((diag_blocksize, diag_blocksize))
+    for i in range(0, n_bridges):
+        start_ixd = start_blockrows[i+1] * diag_blocksize
+
+        Bridges_lower[:, i * diag_blocksize:(i+1) * diag_blocksize] = A_lower_diagonal_blocks[:, start_ixd-diag_blocksize:start_ixd]
+        Bridges_upper[:, i * diag_blocksize:(i+1) * diag_blocksize] = A_upper_diagonal_blocks[:, start_ixd:start_ixd+diag_blocksize]
         
-        start_ixd = start_blockrows[i]*diag_blocksize
-        
-        lower_bridge = A_lower_diagonal_blocks[:, start_ixd-diag_blocksize:start_ixd]
-        upper_bridge = A_upper_diagonal_blocks[:, start_ixd:start_ixd+diag_blocksize]
-        
-        Bridges_upper.append(upper_bridge)
-        Bridges_lower.append(lower_bridge)
-        
-    return Bridges_upper, Bridges_lower
+    return Bridges_lower, Bridges_upper
 
