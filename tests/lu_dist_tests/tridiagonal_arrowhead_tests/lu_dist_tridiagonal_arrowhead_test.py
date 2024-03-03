@@ -103,7 +103,6 @@ def test_lu_dist(
         X_ref_bridges_upper, 
         X_ref_bridges_lower
     ) = dist_utils.extract_bridges_tridiagonal_array(
-        X_ref_diagonal_blocks, 
         X_ref_lower_diagonal_blocks,
         X_ref_upper_diagonal_blocks, 
         start_blockrows
@@ -111,39 +110,39 @@ def test_lu_dist(
     # -----------------------------------
 
 
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(2, 6)
-    fig.suptitle("Process " + str(comm_rank))
-    ax[0, 0].matshow(X_ref_diagonal_blocks)
-    ax[0, 0].set_title("X_ref_diagonal_blocks")
-    ax[1, 0].matshow(X_ref_diagonal_blocks_local)
-    ax[1, 0].set_title("X_ref_diagonal_blocks_local")
+    # import matplotlib.pyplot as plt
+    # fig, ax = plt.subplots(2, 6)
+    # fig.suptitle("Process " + str(comm_rank))
+    # ax[0, 0].matshow(X_ref_diagonal_blocks)
+    # ax[0, 0].set_title("X_ref_diagonal_blocks")
+    # ax[1, 0].matshow(X_ref_diagonal_blocks_local)
+    # ax[1, 0].set_title("X_ref_diagonal_blocks_local")
 
-    ax[0, 1].matshow(X_ref_lower_diagonal_blocks)
-    ax[0, 1].set_title("X_ref_lower_diagonal_blocks")
-    ax[1, 1].matshow(X_ref_lower_diagonal_blocks_local)
-    ax[1, 1].set_title("X_ref_lower_diagonal_blocks_local")
+    # ax[0, 1].matshow(X_ref_lower_diagonal_blocks)
+    # ax[0, 1].set_title("X_ref_lower_diagonal_blocks")
+    # ax[1, 1].matshow(X_ref_lower_diagonal_blocks_local)
+    # ax[1, 1].set_title("X_ref_lower_diagonal_blocks_local")
 
-    ax[0, 2].matshow(X_ref_upper_diagonal_blocks)
-    ax[0, 2].set_title("X_ref_upper_diagonal_blocks")
-    ax[1, 2].matshow(X_ref_upper_diagonal_blocks_local)
-    ax[1, 2].set_title("X_ref_upper_diagonal_blocks_local")
+    # ax[0, 2].matshow(X_ref_upper_diagonal_blocks)
+    # ax[0, 2].set_title("X_ref_upper_diagonal_blocks")
+    # ax[1, 2].matshow(X_ref_upper_diagonal_blocks_local)
+    # ax[1, 2].set_title("X_ref_upper_diagonal_blocks_local")
 
-    ax[0, 3].matshow(X_ref_arrow_bottom_blocks)
-    ax[0, 3].set_title("X_ref_arrow_bottom_blocks")
-    ax[1, 3].matshow(X_ref_arrow_bottom_blocks_local)
-    ax[1, 3].set_title("X_ref_arrow_bottom_blocks_local")
+    # ax[0, 3].matshow(X_ref_arrow_bottom_blocks)
+    # ax[0, 3].set_title("X_ref_arrow_bottom_blocks")
+    # ax[1, 3].matshow(X_ref_arrow_bottom_blocks_local)
+    # ax[1, 3].set_title("X_ref_arrow_bottom_blocks_local")
 
-    ax[0, 4].matshow(X_ref_arrow_right_blocks)
-    ax[0, 4].set_title("X_ref_arrow_right_blocks")
-    ax[1, 4].matshow(X_ref_arrow_right_blocks_local)
-    ax[1, 4].set_title("X_ref_arrow_right_blocks_local")
+    # ax[0, 4].matshow(X_ref_arrow_right_blocks)
+    # ax[0, 4].set_title("X_ref_arrow_right_blocks")
+    # ax[1, 4].matshow(X_ref_arrow_right_blocks_local)
+    # ax[1, 4].set_title("X_ref_arrow_right_blocks_local")
 
-    ax[0, 5].matshow(X_ref_arrow_tip_block)
-    ax[0, 5].set_title("X_ref_arrow_tip_block")
-    ax[1, 5].matshow(X_ref_arrow_tip_block_local)
-    ax[1, 5].set_title("X_ref_arrow_tip_block_local")
-    plt.show()
+    # ax[0, 5].matshow(X_ref_arrow_tip_block)
+    # ax[0, 5].set_title("X_ref_arrow_tip_block")
+    # ax[1, 5].matshow(X_ref_arrow_tip_block_local)
+    # ax[1, 5].set_title("X_ref_arrow_tip_block_local")
+    # plt.show()
 
 
     (
@@ -178,25 +177,35 @@ def test_lu_dist(
     )
 
     (
-        A_bridges_upper, 
-        A_bridges_lower
+        A_bridges_lower,
+        A_bridges_upper
     ) = dist_utils.extract_bridges_tridiagonal_array(
-        A_diagonal_blocks_local, 
-        A_lower_diagonal_blocks_local,
-        A_upper_diagonal_blocks_local, 
+        A_lower_diagonal_blocks, 
+        A_upper_diagonal_blocks,  
         start_blockrows
     )
 
-    (
-        X_diagonal_blocks_local, 
-        X_lower_diagonal_blocks_local, 
-        X_upper_diagonal_blocks_local, 
-        X_arrow_bottom_blocks_local, 
-        X_arrow_right_blocks_local, 
-        X_arrow_tip_block_local,
-        X_bridges_upper, 
-        X_bridges_lower
-    ) = lu_dist_tridiagonal_arrowhead(
+    # (
+    #     X_diagonal_blocks_local, 
+    #     X_lower_diagonal_blocks_local, 
+    #     X_upper_diagonal_blocks_local, 
+    #     X_arrow_bottom_blocks_local, 
+    #     X_arrow_right_blocks_local, 
+    #     X_arrow_tip_block_local,
+    #     X_bridges_upper, 
+    #     X_bridges_lower
+    # ) = lu_dist_tridiagonal_arrowhead(
+    #     A_diagonal_blocks_local, 
+    #     A_lower_diagonal_blocks_local, 
+    #     A_upper_diagonal_blocks_local, 
+    #     A_arrow_bottom_blocks_local, 
+    #     A_arrow_right_blocks_local, 
+    #     A_arrow_tip_block_local,
+    #     A_bridges_upper, 
+    #     A_bridges_lower
+    # )
+
+    lu_dist_tridiagonal_arrowhead(
         A_diagonal_blocks_local, 
         A_lower_diagonal_blocks_local, 
         A_upper_diagonal_blocks_local, 

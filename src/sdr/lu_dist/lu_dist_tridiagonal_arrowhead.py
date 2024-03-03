@@ -29,8 +29,8 @@ def lu_dist_tridiagonal_arrowhead(
     A_arrow_bottom_blocks_local: np.ndarray, 
     A_arrow_right_blocks_local: np.ndarray, 
     A_arrow_tip_block_local: np.ndarray,
-    A_bridges_upper: list, 
-    A_bridges_lower: list
+    A_bridges_upper: np.ndarray, 
+    A_bridges_lower: np.ndarray
 ) -> tuple[
         np.ndarray, 
         np.ndarray, 
@@ -148,6 +148,14 @@ def lu_dist_tridiagonal_arrowhead(
             A_left_2sided_arrow_blocks_local
         )
 
+    # fig, ax = plt.subplots(2, 1)
+    # fig.suptitle("Process " + str(comm_rank))
+    # ax[0].matshow(A_diagonal_blocks_local)
+    # ax[0].set_title("A_diagonal_blocks_local")
+    # ax[1].matshow(A_rs_diagonal_blocks)
+    # ax[1].set_title("A_rs_diagonal_blocks")
+    # plt.show()
+
     (
         X_rs_diagonal_blocks,
         X_rs_lower_diagonal_blocks,
@@ -193,7 +201,8 @@ def lu_dist_tridiagonal_arrowhead(
             X_lower_diagonal_blocks_local, 
             X_upper_diagonal_blocks_local, 
             X_arrow_bottom_blocks_local, 
-            X_arrow_right_blocks_local
+            X_arrow_right_blocks_local,
+            _
         ) = top_sinv(
             X_diagonal_blocks_local, 
             X_lower_diagonal_blocks_local, 
@@ -215,7 +224,8 @@ def lu_dist_tridiagonal_arrowhead(
             X_lower_diagonal_blocks_local, 
             X_upper_diagonal_blocks_local, 
             X_arrow_bottom_blocks_local, 
-            X_arrow_right_blocks_local
+            X_arrow_right_blocks_local,
+            _
         ) = middle_sinv(
             X_diagonal_blocks_local, 
             X_lower_diagonal_blocks_local, 
@@ -685,27 +695,27 @@ def create_reduced_system(
     # Create empty matrix for reduced system -> (2 * #process - 1) * diag_blocksize + arrowhead_size
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     arrow_blocksize = A_arrow_bottom_blocks_local.shape[0]
-    n_diag_blocks_reduced_system = (2 * comm_size - 1) * diag_blocksize
+    n_diag_blocks_reduced_system = 2 * comm_size - 1
     
     A_rs_diagonal_blocks = np.zeros((diag_blocksize, n_diag_blocks_reduced_system * diag_blocksize), dtype=A_diagonal_blocks_local.dtype)
     A_rs_lower_diagonal_blocks = np.zeros((diag_blocksize, (n_diag_blocks_reduced_system - 1) * diag_blocksize), dtype=A_diagonal_blocks_local.dtype)
     A_rs_upper_diagonal_blocks = np.zeros((diag_blocksize, (n_diag_blocks_reduced_system - 1) * diag_blocksize), dtype=A_diagonal_blocks_local.dtype)
-    A_rs_arrow_bottom_blocks = np.zeros((arrow_blocksize, n_diag_blocks_reduced_system * arrow_blocksize), dtype=A_diagonal_blocks_local.dtype)
-    A_rs_arrow_right_blocks = np.zeros((n_diag_blocks_reduced_system * arrow_blocksize, arrow_blocksize), dtype=A_diagonal_blocks_local.dtype)
+    A_rs_arrow_bottom_blocks = np.zeros((arrow_blocksize, n_diag_blocks_reduced_system * diag_blocksize), dtype=A_diagonal_blocks_local.dtype)
+    A_rs_arrow_right_blocks = np.zeros((n_diag_blocks_reduced_system * diag_blocksize, arrow_blocksize), dtype=A_diagonal_blocks_local.dtype)
     A_rs_arrow_tip_block = np.zeros((arrow_blocksize, arrow_blocksize), dtype=A_diagonal_blocks_local.dtype)
 
     A_rs_arrow_tip_block = Update_arrow_tip
 
     if comm_rank == 0:
         A_rs_diagonal_blocks[:, :diag_blocksize] = A_diagonal_blocks_local[:, -diag_blocksize:]
-        A_rs_upper_diagonal_blocks[:, :diag_blocksize] = A_bridges_upper[comm_rank]
+        A_rs_upper_diagonal_blocks[:, :diag_blocksize] = A_bridges_upper[:, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize]
 
         A_rs_arrow_bottom_blocks[:, :diag_blocksize] = A_arrow_bottom_blocks_local[:, -diag_blocksize:]
         A_rs_arrow_right_blocks[:diag_blocksize, :] = A_arrow_right_blocks_local[-diag_blocksize:, :]
     else:
         start_index = diag_blocksize + (comm_rank - 1) * 2 * diag_blocksize
 
-        A_rs_lower_diagonal_blocks[:, start_index - diag_blocksize : start_index] = A_bridges_lower[comm_rank - 1]
+        A_rs_lower_diagonal_blocks[:, start_index - diag_blocksize : start_index] = A_bridges_lower[:, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize]
 
         A_rs_diagonal_blocks[:, start_index : start_index + diag_blocksize] = A_diagonal_blocks_local[:, :diag_blocksize]
 
@@ -716,7 +726,7 @@ def create_reduced_system(
         A_rs_diagonal_blocks[:, start_index + diag_blocksize : start_index + 2 * diag_blocksize] = A_diagonal_blocks_local[:, -diag_blocksize:]
 
         if comm_rank != comm_size - 1:
-            A_rs_upper_diagonal_blocks[:, start_index + diag_blocksize : start_index + 2 * diag_blocksize] = A_bridges_upper[comm_rank]
+            A_rs_upper_diagonal_blocks[:, start_index + diag_blocksize : start_index + 2 * diag_blocksize] = A_bridges_upper[:, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize]
 
         A_rs_arrow_bottom_blocks[:, start_index : start_index + diag_blocksize] = A_arrow_bottom_blocks_local[:, :diag_blocksize]
 
@@ -838,69 +848,49 @@ def update_sinv_reduced_system(
     X_lower_diagonal_blocks_local = np.zeros((diag_blocksize, (n_diag_blocks_partition - 1) * diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
     X_upper_diagonal_blocks_local = np.zeros((diag_blocksize, (n_diag_blocks_partition - 1) * diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
     X_arrow_bottom_blocks_local = np.zeros((arrow_blocksize, n_diag_blocks_partition * diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
-    X_arrow_right_blocks_local = np.zeros((arrow_blocksize, n_diag_blocks_partition * diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
-    X_top_2sided_arrow_blocks_local = np.zeros((diag_blocksize, n_diag_blocks_partition * diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
-    X_left_2sided_arrow_blocks_local = np.zeros((diag_blocksize, n_diag_blocks_partition * diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
-    X_global_arrow_tip = np.zeros((arrow_blocksize, arrow_blocksize), dtype=X_rs_diagonal_blocks.dtype)
-    X_bridges_upper: list
-    X_bridges_lower: list
+    X_arrow_right_blocks_local = np.zeros((n_diag_blocks_partition * diag_blocksize, arrow_blocksize), dtype=X_rs_diagonal_blocks.dtype)
+    
+    X_bridges_upper = np.zeros((diag_blocksize, (comm_size - 1) * diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
+    X_bridges_lower = np.zeros((diag_blocksize, (comm_size - 1) * diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
 
-    # if comm_rank == 0:
-    #     S_local[-diag_blocksize:, -diag_blocksize:] = reduced_system[:diag_blocksize, :diag_blocksize]
+    if comm_rank == 0:
+        X_top_2sided_arrow_blocks_local = None
+        X_left_2sided_arrow_blocks_local = None
 
-    #     Bridges_upper[comm_rank] = reduced_system[:diag_blocksize, diag_blocksize : 2 * diag_blocksize]
+        X_diagonal_blocks_local[:, -diag_blocksize:] = X_rs_diagonal_blocks[:, :diag_blocksize]
 
-    #     S_arrow_bottom[:, -diag_blocksize:] = reduced_system[-arrow_blocksize:, :diag_blocksize]
-    #     S_arrow_right[-diag_blocksize:, :] = reduced_system[:diag_blocksize, -arrow_blocksize:]
-    # else:
-    #     start_index = diag_blocksize + (comm_rank - 1) * 2 * diag_blocksize
+        X_bridges_upper[:, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize] = X_rs_upper_diagonal_blocks[:, :diag_blocksize]
 
-    #     Bridges_lower[comm_rank - 1] = reduced_system[
-    #         start_index : start_index + diag_blocksize, start_index - diag_blocksize : start_index
-    #     ]
+        X_arrow_bottom_blocks_local[:, -diag_blocksize:] = X_rs_arrow_bottom_blocks[:, :diag_blocksize]
+        X_arrow_right_blocks_local[-diag_blocksize:, :] = X_rs_arrow_right_blocks[:diag_blocksize, :]
+    else:
+        X_top_2sided_arrow_blocks_local = np.zeros((diag_blocksize, n_diag_blocks_partition * diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
+        X_left_2sided_arrow_blocks_local = np.zeros((n_diag_blocks_partition * diag_blocksize, diag_blocksize), dtype=X_rs_diagonal_blocks.dtype)
 
-    #     S_local[:diag_blocksize, :diag_blocksize] = reduced_system[
-    #         start_index : start_index + diag_blocksize, start_index : start_index + diag_blocksize
-    #     ]
+        start_index = diag_blocksize + (comm_rank - 1) * 2 * diag_blocksize
 
-    #     S_local[:diag_blocksize, -diag_blocksize:] = reduced_system[
-    #         start_index : start_index + diag_blocksize,
-    #         start_index + diag_blocksize : start_index + 2 * diag_blocksize,
-    #     ]
+        X_bridges_lower[:, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize] = X_rs_lower_diagonal_blocks[:, start_index - diag_blocksize : start_index]
 
-    #     S_local[-diag_blocksize:, :diag_blocksize] = reduced_system[
-    #         start_index + diag_blocksize : start_index + 2 * diag_blocksize,
-    #         start_index : start_index + diag_blocksize,
-    #     ]
+        X_diagonal_blocks_local[:, :diag_blocksize] = X_rs_diagonal_blocks[:, start_index : start_index + diag_blocksize]
 
-    #     S_local[-diag_blocksize:, -diag_blocksize:] = reduced_system[
-    #         start_index + diag_blocksize : start_index + 2 * diag_blocksize,
-    #         start_index + diag_blocksize : start_index + 2 * diag_blocksize,
-    #     ]
+        X_top_2sided_arrow_blocks_local[:, -diag_blocksize:] = X_rs_upper_diagonal_blocks[:, start_index : start_index + diag_blocksize]
 
-    #     if comm_rank != comm_size - 1:
-    #         Bridges_upper[comm_rank] = reduced_system[
-    #             start_index + diag_blocksize : start_index + 2 * diag_blocksize,
-    #             start_index + 2 * diag_blocksize : start_index + 3 * diag_blocksize,
-    #         ]
+        X_left_2sided_arrow_blocks_local[-diag_blocksize:, :diag_blocksize] = X_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize]
 
-    #     S_arrow_bottom[:, :diag_blocksize] = reduced_system[
-    #         -arrow_blocksize:, start_index : start_index + diag_blocksize
-    #     ]
+        X_diagonal_blocks_local[:, -diag_blocksize:] = X_rs_diagonal_blocks[:, start_index + diag_blocksize : start_index + 2 * diag_blocksize]
 
-    #     S_arrow_bottom[:, -diag_blocksize:] = reduced_system[
-    #         -arrow_blocksize:, start_index + diag_blocksize : start_index + 2 * diag_blocksize
-    #     ]
+        if comm_rank != comm_size - 1:
+            X_bridges_upper[:, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize] = X_rs_upper_diagonal_blocks[:, start_index + diag_blocksize : start_index + 2 * diag_blocksize]
 
-    #     S_arrow_right[:diag_blocksize, :] = reduced_system[
-    #         start_index : start_index + diag_blocksize, -arrow_blocksize:
-    #     ]
+        X_arrow_bottom_blocks_local[:, :diag_blocksize] = X_rs_arrow_bottom_blocks[:, start_index : start_index + diag_blocksize]
 
-    #     S_arrow_right[-diag_blocksize:, :] = reduced_system[
-    #         start_index + diag_blocksize : start_index + 2 * diag_blocksize, -arrow_blocksize:
-    #     ]
+        X_arrow_bottom_blocks_local[:, -diag_blocksize:] = X_rs_arrow_bottom_blocks[:, start_index + diag_blocksize : start_index + 2 * diag_blocksize]
 
-    # S_global_arrow_tip = reduced_system[-arrow_blocksize:, -arrow_blocksize:]
+        X_arrow_right_blocks_local[:diag_blocksize, :] = X_rs_arrow_right_blocks[start_index : start_index + diag_blocksize, :]
+
+        X_arrow_right_blocks_local[-diag_blocksize:, :] = X_rs_arrow_right_blocks[start_index + diag_blocksize : start_index + 2 * diag_blocksize, :]
+
+    X_global_arrow_tip = X_rs_arrow_tip_block
 
     return (
         X_diagonal_blocks_local,
