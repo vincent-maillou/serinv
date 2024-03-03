@@ -9,7 +9,6 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.utils import matrix_transform
 from sdr.utils import dist_utils
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
@@ -100,50 +99,14 @@ def test_lu_dist(
     )
 
     (
-        X_ref_bridges_upper, 
-        X_ref_bridges_lower
+        X_ref_bridges_lower,
+        X_ref_bridges_upper
     ) = dist_utils.extract_bridges_tridiagonal_array(
         X_ref_lower_diagonal_blocks,
         X_ref_upper_diagonal_blocks, 
         start_blockrows
     )
     # -----------------------------------
-
-
-    # import matplotlib.pyplot as plt
-    # fig, ax = plt.subplots(2, 6)
-    # fig.suptitle("Process " + str(comm_rank))
-    # ax[0, 0].matshow(X_ref_diagonal_blocks)
-    # ax[0, 0].set_title("X_ref_diagonal_blocks")
-    # ax[1, 0].matshow(X_ref_diagonal_blocks_local)
-    # ax[1, 0].set_title("X_ref_diagonal_blocks_local")
-
-    # ax[0, 1].matshow(X_ref_lower_diagonal_blocks)
-    # ax[0, 1].set_title("X_ref_lower_diagonal_blocks")
-    # ax[1, 1].matshow(X_ref_lower_diagonal_blocks_local)
-    # ax[1, 1].set_title("X_ref_lower_diagonal_blocks_local")
-
-    # ax[0, 2].matshow(X_ref_upper_diagonal_blocks)
-    # ax[0, 2].set_title("X_ref_upper_diagonal_blocks")
-    # ax[1, 2].matshow(X_ref_upper_diagonal_blocks_local)
-    # ax[1, 2].set_title("X_ref_upper_diagonal_blocks_local")
-
-    # ax[0, 3].matshow(X_ref_arrow_bottom_blocks)
-    # ax[0, 3].set_title("X_ref_arrow_bottom_blocks")
-    # ax[1, 3].matshow(X_ref_arrow_bottom_blocks_local)
-    # ax[1, 3].set_title("X_ref_arrow_bottom_blocks_local")
-
-    # ax[0, 4].matshow(X_ref_arrow_right_blocks)
-    # ax[0, 4].set_title("X_ref_arrow_right_blocks")
-    # ax[1, 4].matshow(X_ref_arrow_right_blocks_local)
-    # ax[1, 4].set_title("X_ref_arrow_right_blocks_local")
-
-    # ax[0, 5].matshow(X_ref_arrow_tip_block)
-    # ax[0, 5].set_title("X_ref_arrow_tip_block")
-    # ax[1, 5].matshow(X_ref_arrow_tip_block_local)
-    # ax[1, 5].set_title("X_ref_arrow_tip_block_local")
-    # plt.show()
-
 
     (
         A_diagonal_blocks, 
@@ -185,52 +148,41 @@ def test_lu_dist(
         start_blockrows
     )
 
-    # (
-    #     X_diagonal_blocks_local, 
-    #     X_lower_diagonal_blocks_local, 
-    #     X_upper_diagonal_blocks_local, 
-    #     X_arrow_bottom_blocks_local, 
-    #     X_arrow_right_blocks_local, 
-    #     X_arrow_tip_block_local,
-    #     X_bridges_upper, 
-    #     X_bridges_lower
-    # ) = lu_dist_tridiagonal_arrowhead(
-    #     A_diagonal_blocks_local, 
-    #     A_lower_diagonal_blocks_local, 
-    #     A_upper_diagonal_blocks_local, 
-    #     A_arrow_bottom_blocks_local, 
-    #     A_arrow_right_blocks_local, 
-    #     A_arrow_tip_block_local,
-    #     A_bridges_upper, 
-    #     A_bridges_lower
-    # )
-
-    lu_dist_tridiagonal_arrowhead(
+    (
+        X_diagonal_blocks_local, 
+        X_lower_diagonal_blocks_local, 
+        X_upper_diagonal_blocks_local, 
+        X_arrow_bottom_blocks_local, 
+        X_arrow_right_blocks_local, 
+        X_arrow_tip_block_local,
+        X_bridges_lower,
+        X_bridges_upper
+    ) = lu_dist_tridiagonal_arrowhead(
         A_diagonal_blocks_local, 
         A_lower_diagonal_blocks_local, 
         A_upper_diagonal_blocks_local, 
         A_arrow_bottom_blocks_local, 
         A_arrow_right_blocks_local, 
         A_arrow_tip_block_local,
-        A_bridges_upper, 
-        A_bridges_lower
+        A_bridges_lower,
+        A_bridges_upper
     )
 
-    # X_local = matrix_transform.cut_to_blocktridiag(X_local, diag_blocksize)
+    assert np.allclose(X_ref_diagonal_blocks_local, X_diagonal_blocks_local)
+    assert np.allclose(X_ref_lower_diagonal_blocks_local, X_lower_diagonal_blocks_local)
+    assert np.allclose(X_ref_upper_diagonal_blocks_local, X_upper_diagonal_blocks_local)
+    assert np.allclose(X_ref_arrow_bottom_blocks_local, X_arrow_bottom_blocks_local)
+    assert np.allclose(X_ref_arrow_right_blocks_local, X_arrow_right_blocks_local)
+    assert np.allclose(X_ref_arrow_tip_block_local, X_arrow_tip_block_local)
 
-    # assert np.allclose(X_ref_local, X_local)
-    # assert np.allclose(X_ref_arrow_bottom, X_arrow_bottom)
-    # assert np.allclose(X_ref_arrow_right, X_arrow_right)
-    # assert np.allclose(X_ref_arrow_tip, X_global_arrow_tip)
-
-    # # Check for bridges correctness
-    # if comm_rank == 0:
-    #     assert np.allclose(X_ref_bridges_upper[comm_rank], X_bridges_upper[comm_rank])
-    # elif comm_rank == comm_size-1:
-    #     assert np.allclose(X_ref_bridges_lower[comm_rank-1], X_bridges_lower[comm_rank-1])
-    # else:
-    #     assert np.allclose(X_ref_bridges_upper[comm_rank], X_bridges_upper[comm_rank])
-    #     assert np.allclose(X_ref_bridges_lower[comm_rank-1], X_bridges_lower[comm_rank-1])
+    # Check for bridges correctness
+    if comm_rank == 0:
+        assert np.allclose(X_ref_bridges_upper[:, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize], X_bridges_upper[:, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize])
+    elif comm_rank == comm_size-1:
+        assert np.allclose(X_ref_bridges_lower[:, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize], X_bridges_lower[:, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize])
+    else:
+        assert np.allclose(X_ref_bridges_upper[:, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize], X_bridges_upper[:, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize])
+        assert np.allclose(X_ref_bridges_lower[:, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize], X_bridges_lower[:, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize])
         
 if __name__ == "__main__":
     test_lu_dist(10, 3, 2)

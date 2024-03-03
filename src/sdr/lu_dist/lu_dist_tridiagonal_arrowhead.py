@@ -9,16 +9,11 @@ block tridiagonal arrowhead matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
-from sdr.utils import matrix_transform as mt
-from sdr.utils import dist_utils as du
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
 
 import numpy as np
-import copy as cp
 import scipy.linalg as la
-import matplotlib.pyplot as plt
 from mpi4py import MPI
 
 
@@ -29,8 +24,8 @@ def lu_dist_tridiagonal_arrowhead(
     A_arrow_bottom_blocks_local: np.ndarray, 
     A_arrow_right_blocks_local: np.ndarray, 
     A_arrow_tip_block_local: np.ndarray,
-    A_bridges_upper: np.ndarray, 
-    A_bridges_lower: np.ndarray
+    A_bridges_lower: np.ndarray,
+    A_bridges_upper: np.ndarray
 ) -> tuple[
         np.ndarray, 
         np.ndarray, 
@@ -86,14 +81,12 @@ def lu_dist_tridiagonal_arrowhead(
             A_rs_arrow_tip_block
         ) = create_reduced_system(
             A_diagonal_blocks_local,
-            A_lower_diagonal_blocks_local,
-            A_upper_diagonal_blocks_local,
             A_arrow_bottom_blocks_local,
             A_arrow_right_blocks_local,
             A_arrow_tip_block_local,
             Update_arrow_tip,
-            A_bridges_upper,
             A_bridges_lower,
+            A_bridges_upper
         )
     else:
         # Arrays that store the update of the 2sided pattern for the middle processes
@@ -136,25 +129,15 @@ def lu_dist_tridiagonal_arrowhead(
             A_rs_arrow_tip_block
         ) = create_reduced_system(
             A_diagonal_blocks_local,
-            A_lower_diagonal_blocks_local,
-            A_upper_diagonal_blocks_local,
             A_arrow_bottom_blocks_local,
             A_arrow_right_blocks_local,
             A_arrow_tip_block_local,
             Update_arrow_tip,
-            A_bridges_upper,
             A_bridges_lower,
+            A_bridges_upper,
             A_top_2sided_arrow_blocks_local,
             A_left_2sided_arrow_blocks_local
         )
-
-    # fig, ax = plt.subplots(2, 1)
-    # fig.suptitle("Process " + str(comm_rank))
-    # ax[0].matshow(A_diagonal_blocks_local)
-    # ax[0].set_title("A_diagonal_blocks_local")
-    # ax[1].matshow(A_rs_diagonal_blocks)
-    # ax[1].set_title("A_rs_diagonal_blocks")
-    # plt.show()
 
     (
         X_rs_diagonal_blocks,
@@ -181,8 +164,8 @@ def lu_dist_tridiagonal_arrowhead(
         X_top_2sided_arrow_blocks_local,
         X_left_2sided_arrow_blocks_local,
         X_global_arrow_tip,
-        X_bridges_upper,
         X_bridges_lower,
+        X_bridges_upper
     ) = update_sinv_reduced_system(
         X_rs_diagonal_blocks,
         X_rs_lower_diagonal_blocks,
@@ -252,8 +235,8 @@ def lu_dist_tridiagonal_arrowhead(
         X_arrow_bottom_blocks_local, 
         X_arrow_right_blocks_local, 
         X_global_arrow_tip,
-        X_bridges_upper, 
-        X_bridges_lower
+        X_bridges_lower,
+        X_bridges_upper
     )
 
 
@@ -677,14 +660,12 @@ def middle_factorize(
 
 def create_reduced_system(
     A_diagonal_blocks_local: np.ndarray,
-    A_lower_diagonal_blocks_local: np.ndarray,
-    A_upper_diagonal_blocks_local: np.ndarray,
     A_arrow_bottom_blocks_local: np.ndarray,
     A_arrow_right_blocks_local: np.ndarray,
     A_arrow_tip_block_local: np.ndarray,
     Update_arrow_tip: np.ndarray,
-    A_bridges_upper: np.ndarray,
     A_bridges_lower: np.ndarray,
+    A_bridges_upper: np.ndarray,
     A_top_2sided_arrow_blocks_local: np.ndarray = None,
     A_left_2sided_arrow_blocks_local: np.ndarray = None
 ) -> np.ndarray:
@@ -707,6 +688,9 @@ def create_reduced_system(
     A_rs_arrow_tip_block = Update_arrow_tip
 
     if comm_rank == 0:
+        A_top_2sided_arrow_blocks_local = np.zeros((diag_blocksize, diag_blocksize))
+        A_left_2sided_arrow_blocks_local = np.zeros((diag_blocksize, diag_blocksize))
+
         A_rs_diagonal_blocks[:, :diag_blocksize] = A_diagonal_blocks_local[:, -diag_blocksize:]
         A_rs_upper_diagonal_blocks[:, :diag_blocksize] = A_bridges_upper[:, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize]
 
@@ -772,9 +756,6 @@ def inverse_reduced_system(
     A_rs_arrow_right_blocks,
     A_rs_arrow_tip_block
 ) -> np.ndarray:
-    diag_blocksize = A_rs_diagonal_blocks.shape[0]
-    arrow_blocksize = A_rs_arrow_bottom_blocks.shape[0]
-    n_diag_blocks = A_rs_diagonal_blocks.shape[1] // diag_blocksize
 
     (
         L_diagonal_blocks, 
@@ -901,8 +882,8 @@ def update_sinv_reduced_system(
         X_top_2sided_arrow_blocks_local,
         X_left_2sided_arrow_blocks_local,
         X_global_arrow_tip,
-        X_bridges_upper,
-        X_bridges_lower
+        X_bridges_lower,
+        X_bridges_upper
     )
 
 
