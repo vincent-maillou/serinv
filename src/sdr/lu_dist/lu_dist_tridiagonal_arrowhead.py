@@ -23,7 +23,7 @@ def lu_dist_tridiagonal_arrowhead(
     A_upper_diagonal_blocks_local: np.ndarray, 
     A_arrow_bottom_blocks_local: np.ndarray, 
     A_arrow_right_blocks_local: np.ndarray, 
-    A_arrow_tip_block_local: np.ndarray,
+    A_arrow_tip_block: np.ndarray,
     A_bridges_lower: np.ndarray,
     A_bridges_upper: np.ndarray
 ) -> tuple[
@@ -41,11 +41,48 @@ def lu_dist_tridiagonal_arrowhead(
      
     Parameters
     ----------
-    # TODO:docstring
+    A_diagonal_blocks_local : np.ndarray
+        Local par of the diagonal array.
+    A_lower_diagonal_blocks_local : np.ndarray
+        Local part of the lower diagonal array.
+    A_upper_diagonal_blocks_local : np.ndarray
+        Local part of the upper diagonal array.
+    A_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array.
+    A_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array.
+    A_arrow_tip_block : np.ndarray
+        Tip block of the arrow.
+    A_bridges_lower : np.ndarray
+        Lower bridges.
+    A_bridges_upper : np.ndarray
+        Upper bridges.
     
     Returns
     -------
-    
+    X_diagonal_blocks_local : np.ndarray
+        Local part of the diagonal array of the inverse.
+    X_lower_diagonal_blocks_local : np.ndarray
+        Local part of the lower diagonal array of the inverse.
+    X_upper_diagonal_blocks_local : np.ndarray
+        Local part of the upper diagonal array of the inverse.
+    X_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array of the inverse.
+    X_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array of the inverse.
+    X_global_arrow_tip : np.ndarray
+        Global part of the arrow tip array of the inverse.
+    X_bridges_lower : np.ndarray
+        Lower bridges of the inverse. Only the one that belong to the local 
+        process are correct
+    X_bridges_upper : np.ndarray
+        Upper bridges of the inverse. Only the one that belong to the local 
+        process are correct
+
+    Notes
+    -----
+    The algorithm use a non-pivoting LU factorization, hence the input matrix
+    is considered diagonally dominant or block diagonally dominant.
     """
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     arrow_blocksize = A_arrow_bottom_blocks_local.shape[0]
@@ -69,7 +106,7 @@ def lu_dist_tridiagonal_arrowhead(
             A_upper_diagonal_blocks_local, 
             A_arrow_bottom_blocks_local, 
             A_arrow_right_blocks_local, 
-            A_arrow_tip_block_local
+            A_arrow_tip_block
         )
 
         (
@@ -83,7 +120,7 @@ def lu_dist_tridiagonal_arrowhead(
             A_diagonal_blocks_local,
             A_arrow_bottom_blocks_local,
             A_arrow_right_blocks_local,
-            A_arrow_tip_block_local,
+            A_arrow_tip_block,
             Update_arrow_tip,
             A_bridges_lower,
             A_bridges_upper
@@ -117,7 +154,7 @@ def lu_dist_tridiagonal_arrowhead(
             A_arrow_right_blocks_local,
             A_top_2sided_arrow_blocks_local,
             A_left_2sided_arrow_blocks_local,
-            A_arrow_tip_block_local
+            A_arrow_tip_block
         )
 
         (
@@ -131,7 +168,7 @@ def lu_dist_tridiagonal_arrowhead(
             A_diagonal_blocks_local,
             A_arrow_bottom_blocks_local,
             A_arrow_right_blocks_local,
-            A_arrow_tip_block_local,
+            A_arrow_tip_block,
             Update_arrow_tip,
             A_bridges_lower,
             A_bridges_upper,
@@ -246,7 +283,7 @@ def top_factorize(
     A_upper_diagonal_blocks_local: np.ndarray, 
     A_arrow_bottom_blocks_local: np.ndarray, 
     A_arrow_right_blocks_local: np.ndarray, 
-    A_arrow_tip_block_local: np.ndarray
+    A_arrow_tip_block: np.ndarray
 ) -> tuple[
     np.ndarray,
     np.ndarray,
@@ -256,6 +293,40 @@ def top_factorize(
     np.ndarray,
     np.ndarray,
 ]:
+    """ Proceed to the top-down LU factorization, called by the first process.
+     
+    Parameters
+    ----------
+    A_diagonal_blocks_local : np.ndarray
+        Local part of the diagonal array.
+    A_lower_diagonal_blocks_local : np.ndarray
+        Local part of the lower diagonal array.
+    A_upper_diagonal_blocks_local : np.ndarray
+        Local part of the upper diagonal array.
+    A_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array.
+    A_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array.
+    A_arrow_tip_block : np.ndarray
+        Tip block of the arrow.
+    
+    Returns
+    -------
+    L_diagonal_blocks_local : np.ndarray
+        Diagonal blocks of the local L factor.
+    L_lower_diagonal_blocks_local : np.ndarray
+        Lower diagonal blocks of the local L factor.
+    L_arrow_bottom_blocks_local : np.ndarray
+        Arrow bottom blocks of the local L factor.
+    U_diagonal_blocks_local : np.ndarray
+        Diagonal blocks of the local U factor.
+    U_upper_diagonal_blocks_local : np.ndarray
+        Upper diagonal blocks of the local U factor.
+    U_arrow_right_blocks_local : np.ndarray
+        Arrow right blocks of the local U factor.
+    Update_arrow_tip_local : np.ndarray
+        Local update of the arrow tip block.
+    """
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     nblocks = A_diagonal_blocks_local.shape[1] // diag_blocksize
     
@@ -265,7 +336,7 @@ def top_factorize(
     U_diagonal_blocks_local = np.zeros_like(A_diagonal_blocks_local)
     U_upper_diagonal_blocks_local = np.zeros_like(A_upper_diagonal_blocks_local)
     U_arrow_right_blocks_local = np.zeros_like(A_arrow_right_blocks_local)
-    Update_arrow_tip_local = np.zeros_like(A_arrow_tip_block_local)
+    Update_arrow_tip_local = np.zeros_like(A_arrow_tip_block)
 
 
     for i in range(nblocks - 1):
@@ -380,7 +451,7 @@ def middle_factorize(
     A_arrow_right_blocks_local: np.ndarray,
     A_top_2sided_arrow_blocks_local: np.ndarray,
     A_left_2sided_arrow_blocks_local: np.ndarray,
-    A_arrow_tip_block_local: np.ndarray
+    A_arrow_tip_block: np.ndarray
 ) -> tuple[
     np.ndarray,
     np.ndarray,
@@ -389,7 +460,51 @@ def middle_factorize(
     np.ndarray,
     np.ndarray,
     np.ndarray,
+    np.ndarray,
+    np.ndarray
 ]:
+    """ Proceed to the 2-sided LU factorization, called by the middle processes.
+     
+    Parameters
+    ----------
+    A_diagonal_blocks_local : np.ndarray
+        Local part of the diagonal array.
+    A_lower_diagonal_blocks_local : np.ndarray
+        Local part of the lower diagonal array.
+    A_upper_diagonal_blocks_local : np.ndarray
+        Local part of the upper diagonal array.
+    A_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array.
+    A_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array.
+    A_top_2sided_arrow_blocks_local : np.ndarray
+        Array that stores the top update of the 2sided pattern for the middle processes.
+    A_left_2sided_arrow_blocks_local : np.ndarray
+        Array that stores the left update of the 2sided pattern for the middle processes.
+    A_arrow_tip_block : np.ndarray
+        Tip block of the arrow.
+
+    Returns
+    -------
+    L_diagonal_blocks_local : np.ndarray
+        Diagonal blocks of the local L factor.
+    L_lower_diagonal_blocks_local : np.ndarray
+        Lower diagonal blocks of the local L factor.
+    L_arrow_bottom_blocks_local : np.ndarray
+        Arrow bottom blocks of the local L factor.
+    L_upper_2sided_arrow_blocks_local : np.ndarray
+        Upper 2sided arrow blocks of the local L factor.
+    U_diagonal_blocks_local : np.ndarray
+        Diagonal blocks of the local U factor.
+    U_upper_diagonal_blocks_local : np.ndarray
+        Upper diagonal blocks of the local U factor.
+    U_arrow_right_blocks_local : np.ndarray
+        Arrow right blocks of the local U factor.
+    U_left_2sided_arrow_blocks_local : np.ndarray
+        Left 2sided arrow blocks of the local U factor.
+    Update_arrow_tip_local : np.ndarray
+        Local update of the arrow tip block.
+    """
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     n_blocks = A_diagonal_blocks_local.shape[1] // diag_blocksize
     
@@ -401,7 +516,7 @@ def middle_factorize(
     U_upper_diagonal_blocks_local = np.zeros_like(A_upper_diagonal_blocks_local)
     U_arrow_right_blocks_local = np.zeros_like(A_arrow_right_blocks_local)
     U_left_2sided_arrow_blocks_local = np.zeros_like(A_left_2sided_arrow_blocks_local)
-    Update_arrow_tip_local = np.zeros_like(A_arrow_tip_block_local)
+    Update_arrow_tip_local = np.zeros_like(A_arrow_tip_block)
 
 
     for i in range(1, n_blocks-1):
@@ -662,13 +777,65 @@ def create_reduced_system(
     A_diagonal_blocks_local: np.ndarray,
     A_arrow_bottom_blocks_local: np.ndarray,
     A_arrow_right_blocks_local: np.ndarray,
-    A_arrow_tip_block_local: np.ndarray,
+    A_arrow_tip_block: np.ndarray,
     Update_arrow_tip: np.ndarray,
     A_bridges_lower: np.ndarray,
     A_bridges_upper: np.ndarray,
     A_top_2sided_arrow_blocks_local: np.ndarray = None,
     A_left_2sided_arrow_blocks_local: np.ndarray = None
-) -> np.ndarray:
+) -> tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray
+    ]:
+    """ Create the reduced system and broadcast it to all the processes.
+     
+    Parameters
+    ----------
+    A_diagonal_blocks_local : np.ndarray
+        Local part of the diagonal array.
+    A_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array.
+    A_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array.
+    A_arrow_tip_block : np.ndarray
+        Tip block of the arrow.
+    Update_arrow_tip : np.ndarray
+        Update of the arrow tip block.
+    A_bridges_lower : np.ndarray
+        Lower part of the bridges array.
+    A_bridges_upper : np.ndarray
+        Upper part of the bridges array.
+    A_top_2sided_arrow_blocks_local : np.ndarray, optional
+        Array that stores the top update of the 2sided pattern for the middle processes.
+    A_left_2sided_arrow_blocks_local : np.ndarray, optional
+        Array that stores the left update of the 2sided pattern for the middle processes.
+    
+    Returns
+    -------
+    A_rs_diagonal_blocks_sum : np.ndarray
+        Diagonal blocks of the reduced system.
+    A_rs_lower_diagonal_blocks_sum : np.ndarray
+        Lower diagonal blocks of the reduced system.
+    A_rs_upper_diagonal_blocks_sum : np.ndarray
+        Upper diagonal blocks of the reduced system.
+    A_rs_arrow_bottom_blocks_sum : np.ndarray
+        Arrow bottom blocks of the reduced system.
+    A_rs_arrow_right_blocks_sum : np.ndarray
+        Arrow right blocks of the reduced system.
+    A_rs_arrow_tip_block_sum : np.ndarray
+        Tip block of the reduced system.
+    
+    Notes
+    -----
+    This function represent the parallel bottleneck of the algorithm. It uses 
+    the MPI_Allreduce operation to sum the reduced system of each process and
+    broadcast it to all the processes. After this communication step no more
+    communication is needed.
+    """
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
@@ -736,7 +903,7 @@ def create_reduced_system(
     comm.Allreduce([A_rs_arrow_tip_block, MPI.DOUBLE], [A_rs_arrow_tip_block_sum, MPI.DOUBLE], op=MPI.SUM)
 
     # Add the global arrow tip to the reduced system arrow-tip summation
-    A_rs_arrow_tip_block_sum += A_arrow_tip_block_local
+    A_rs_arrow_tip_block_sum += A_arrow_tip_block
 
     return (
         A_rs_diagonal_blocks_sum,
@@ -749,13 +916,57 @@ def create_reduced_system(
 
 
 def inverse_reduced_system(
-    A_rs_diagonal_blocks,
-    A_rs_lower_diagonal_blocks,
-    A_rs_upper_diagonal_blocks,
-    A_rs_arrow_bottom_blocks,
-    A_rs_arrow_right_blocks,
-    A_rs_arrow_tip_block
-) -> np.ndarray:
+    A_rs_diagonal_blocks: np.ndarray,
+    A_rs_lower_diagonal_blocks: np.ndarray,
+    A_rs_upper_diagonal_blocks: np.ndarray,
+    A_rs_arrow_bottom_blocks: np.ndarray,
+    A_rs_arrow_right_blocks: np.ndarray,
+    A_rs_arrow_tip_block: np.ndarray
+) -> tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray
+    ]:
+    """ Invert the reduced system using a sequential selected inversion algorithm.
+     
+    Parameters
+    ----------
+    A_rs_diagonal_blocks : np.ndarray
+        Diagonal blocks of the reduced system.
+    A_rs_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the reduced system.
+    A_rs_upper_diagonal_blocks : np.ndarray
+        Upper diagonal blocks of the reduced system.
+    A_rs_arrow_bottom_blocks : np.ndarray
+        Arrow bottom blocks of the reduced system.
+    A_rs_arrow_right_blocks : np.ndarray
+        Arrow right blocks of the reduced system.
+    A_rs_arrow_tip_block : np.ndarray
+        Tip block of the reduced system.
+    
+    Returns
+    -------
+    X_rs_diagonal_blocks : np.ndarray
+        Diagonal blocks of the inverse of the reduced system.
+    X_rs_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the inverse of the reduced system.
+    X_rs_upper_diagonal_blocks : np.ndarray
+        Upper diagonal blocks of the inverse of the reduced system.
+    X_rs_arrow_bottom_blocks : np.ndarray
+        Arrow bottom blocks of the inverse of the reduced system.
+    X_rs_arrow_right_blocks : np.ndarray
+        Arrow right blocks of the inverse of the reduced system.
+    X_rs_arrow_tip_block : np.ndarray
+        Tip block of the inverse of the reduced system.
+
+    Notes
+    -----
+    The inversion of the reduced system is performed using a sequential 
+    selected inversion algorithm.
+    """
 
     (
         L_diagonal_blocks, 
@@ -821,6 +1032,53 @@ def update_sinv_reduced_system(
         np.ndarray,
         np.ndarray
     ]:
+    """ Fill the local parts of the inverse with the suited blocks of the
+    inverted reduced system.
+     
+    Parameters
+    ----------
+    X_rs_diagonal_blocks : np.ndarray
+        Diagonal blocks of the inverse of the reduced system.
+    X_rs_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the inverse of the reduced system.
+    X_rs_upper_diagonal_blocks : np.ndarray
+        Upper diagonal blocks of the inverse of the reduced system.
+    X_rs_arrow_bottom_blocks : np.ndarray
+        Arrow bottom blocks of the inverse of the reduced system.
+    X_rs_arrow_right_blocks : np.ndarray
+        Arrow right blocks of the inverse of the reduced system.
+    X_rs_arrow_tip_block : np.ndarray
+        Tip block of the inverse of the reduced system.
+    n_diag_blocks_partition : int
+        Number of diagonal blocks in the partition.
+    diag_blocksize : int
+        Size of the diagonal blocks.
+    arrow_blocksize : int
+        Size of the arrow blocks.
+    
+    Returns
+    -------
+    X_diagonal_blocks_local : np.ndarray
+        Local part of the diagonal array of the inverse.
+    X_lower_diagonal_blocks_local : np.ndarray
+        Local part of the lower diagonal array of the inverse.
+    X_upper_diagonal_blocks_local : np.ndarray
+        Local part of the upper diagonal array of the inverse.
+    X_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array of the inverse.
+    X_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array of the inverse.
+    X_top_2sided_arrow_blocks_local : np.ndarray
+        2sided pattern array storing corner blocks of the inverse, for the middle processes.
+    X_left_2sided_arrow_blocks_local : np.ndarray
+        2sided pattern array storing corner blocks of the inverse, for the middle processes.
+    X_global_arrow_tip : np.ndarray
+        Global arrow tip block of the inverse.
+    X_bridges_lower : np.ndarray
+        Lower part of the bridges array of the inverse.
+    X_bridges_upper : np.ndarray
+        Upper part of the bridges array of the inverse.
+    """
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
@@ -888,19 +1146,70 @@ def update_sinv_reduced_system(
 
 
 def top_sinv(
-    X_diagonal_blocks_local, 
-    X_lower_diagonal_blocks_local, 
-    X_upper_diagonal_blocks_local,
-    X_arrow_bottom_blocks_local,
-    X_arrow_right_blocks_local,
-    X_global_arrow_tip_local,
-    L_diagonal_blocks_local, 
-    L_lower_diagonal_blocks_local, 
-    L_arrow_bottom_blocks_local, 
-    U_diagonal_blocks_local, 
-    U_upper_diagonal_blocks_local, 
-    U_arrow_right_blocks_local
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    X_diagonal_blocks_local: np.ndarray, 
+    X_lower_diagonal_blocks_local: np.ndarray, 
+    X_upper_diagonal_blocks_local: np.ndarray,
+    X_arrow_bottom_blocks_local: np.ndarray,
+    X_arrow_right_blocks_local: np.ndarray,
+    X_global_arrow_tip: np.ndarray,
+    L_diagonal_blocks_local: np.ndarray, 
+    L_lower_diagonal_blocks_local: np.ndarray, 
+    L_arrow_bottom_blocks_local: np.ndarray, 
+    U_diagonal_blocks_local: np.ndarray, 
+    U_upper_diagonal_blocks_local: np.ndarray, 
+    U_arrow_right_blocks_local: np.ndarray
+) -> tuple[
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray,
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray
+    ]:
+    """ 
+     
+    Parameters
+    ----------
+    X_diagonal_blocks_local : np.ndarray
+        Local part of the diagonal array of the inverse.
+    X_lower_diagonal_blocks_local : np.ndarray
+        Local part of the lower diagonal array of the inverse.
+    X_upper_diagonal_blocks_local : np.ndarray
+        Local part of the upper diagonal array of the inverse.
+    X_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array of the inverse.
+    X_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array of the inverse.
+    X_global_arrow_tip : np.ndarray
+        Global arrow tip block of the inverse.
+    L_diagonal_blocks_local : np.ndarray
+        Diagonal blocks of the lower factor of the local partition.
+    L_lower_diagonal_blocks_local : np.ndarray
+        Lower diagonal blocks of the lower factor of the local partition.
+    L_arrow_bottom_blocks_local : np.ndarray
+        Arrow bottom blocks of the lower factor of the local partition.
+    U_diagonal_blocks_local : np.ndarray
+        Diagonal blocks of the upper factor of the local partition.
+    U_upper_diagonal_blocks_local : np.ndarray
+        Upper diagonal blocks of the upper factor of the local partition.
+    U_arrow_right_blocks_local : np.ndarray
+        Arrow right blocks of the upper factor of the local partition.
+    
+    Returns
+    -------
+    X_diagonal_blocks_local : np.ndarray
+        Local part of the diagonal array of the inverse.
+    X_lower_diagonal_blocks_local : np.ndarray
+        Local part of the lower diagonal array of the inverse.
+    X_upper_diagonal_blocks_local : np.ndarray
+        Local part of the upper diagonal array of the inverse.
+    X_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array of the inverse.
+    X_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array of the inverse.
+    X_global_arrow_tip : np.ndarray
+        Global arrow tip block of the inverse.
+    """
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
 
@@ -934,7 +1243,7 @@ def top_sinv(
         X_arrow_bottom_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
             - X_arrow_bottom_blocks_local[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
             @ L_lower_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            - X_global_arrow_tip_local[:, :]
+            - X_global_arrow_tip[:, :]
             @ L_arrow_bottom_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize]
         ) @ L_blk_inv
 
@@ -953,7 +1262,7 @@ def top_sinv(
             - U_upper_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ X_arrow_right_blocks_local[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :]
             - U_arrow_right_blocks_local[i * diag_blocksize : (i + 1) * diag_blocksize, :]
-            @ X_global_arrow_tip_local[:, :]
+            @ X_global_arrow_tip[:, :]
         )
 
 
@@ -974,28 +1283,87 @@ def top_sinv(
         X_upper_diagonal_blocks_local,
         X_arrow_bottom_blocks_local,
         X_arrow_right_blocks_local,
-        X_global_arrow_tip_local
+        X_global_arrow_tip
     )
 
 
 def middle_sinv(
-    X_diagonal_blocks_local,
-    X_lower_diagonal_blocks_local,
-    X_upper_diagonal_blocks_local,
-    X_arrow_bottom_blocks_local,
-    X_arrow_right_blocks_local,
-    X_top_2sided_arrow_blocks_local, 
-    X_left_2sided_arrow_blocks_local,
-    X_global_arrow_tip_block_local,
-    L_diagonal_blocks_local, 
-    L_lower_diagonal_blocks_local, 
-    L_arrow_bottom_blocks_local, 
-    L_upper_2sided_arrow_blocks_local,
-    U_diagonal_blocks_local, 
-    U_upper_diagonal_blocks_local, 
-    U_arrow_right_blocks_local, 
-    U_left_2sided_arrow_blocks_local
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    X_diagonal_blocks_local: np.ndarray,
+    X_lower_diagonal_blocks_local: np.ndarray,
+    X_upper_diagonal_blocks_local: np.ndarray,
+    X_arrow_bottom_blocks_local: np.ndarray,
+    X_arrow_right_blocks_local: np.ndarray,
+    X_top_2sided_arrow_blocks_local: np.ndarray, 
+    X_left_2sided_arrow_blocks_local: np.ndarray,
+    X_global_arrow_tip_block_local: np.ndarray,
+    L_diagonal_blocks_local: np.ndarray, 
+    L_lower_diagonal_blocks_local: np.ndarray, 
+    L_arrow_bottom_blocks_local: np.ndarray, 
+    L_upper_2sided_arrow_blocks_local: np.ndarray,
+    U_diagonal_blocks_local: np.ndarray, 
+    U_upper_diagonal_blocks_local: np.ndarray, 
+    U_arrow_right_blocks_local: np.ndarray, 
+    U_left_2sided_arrow_blocks_local: np.ndarray
+) -> tuple[
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray,
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray
+    ]:
+    """ 
+     
+    Parameters
+    ----------
+    X_diagonal_blocks_local : np.ndarray
+        Local part of the diagonal array of the inverse.
+    X_lower_diagonal_blocks_local : np.ndarray
+        Local part of the lower diagonal array of the inverse.
+    X_upper_diagonal_blocks_local : np.ndarray
+        Local part of the upper diagonal array of the inverse.
+    X_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array of the inverse.
+    X_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array of the inverse.
+    X_top_2sided_arrow_blocks_local : np.ndarray
+        2-sided pattern array storing top blocks of the inverse.
+    X_left_2sided_arrow_blocks_local : np.ndarray
+        2-sided pattern array storing left blocks of the inverse.
+    X_global_arrow_tip_block_local : np.ndarray
+        Global arrow tip block of the inverse.
+    L_diagonal_blocks_local : np.ndarray
+        Diagonal blocks of the lower factor of the local partition.
+    L_lower_diagonal_blocks_local : np.ndarray
+        Lower diagonal blocks of the lower factor of the local partition.
+    L_arrow_bottom_blocks_local : np.ndarray
+        Arrow bottom blocks of the lower factor of the local partition.
+    L_upper_2sided_arrow_blocks_local : np.ndarray
+        2-sided pattern array storing top blocks of the lower factor of the local partition.
+    U_diagonal_blocks_local : np.ndarray
+        Diagonal blocks of the upper factor of the local partition.
+    U_upper_diagonal_blocks_local : np.ndarray
+        Upper diagonal blocks of the upper factor of the local partition.
+    U_arrow_right_blocks_local : np.ndarray
+        Arrow right blocks of the upper factor of the local partition.
+    U_left_2sided_arrow_blocks_local : np.ndarray
+        2-sided pattern array storing left blocks of the upper factor of the local partition.
+
+    Returns
+    -------
+    X_diagonal_blocks_local : np.ndarray
+        Local part of the diagonal array of the inverse.
+    X_lower_diagonal_blocks_local : np.ndarray
+        Local part of the lower diagonal array of the inverse.
+    X_upper_diagonal_blocks_local : np.ndarray
+        Local part of the upper diagonal array of the inverse.
+    X_arrow_bottom_blocks_local : np.ndarray
+        Local part of the arrow bottom array of the inverse.
+    X_arrow_right_blocks_local : np.ndarray
+        Local part of the arrow right array of the inverse.
+    X_global_arrow_tip_block_local : np.ndarray
+        Global arrow tip block of the inverse.
+    """
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
     
