@@ -211,7 +211,7 @@ def extract_bridges_tridiagonal_array(
         start_ixd = start_blockrows[i+1] * diag_blocksize
 
         Bridges_lower[:, i * diag_blocksize:(i+1) * diag_blocksize] = A_lower_diagonal_blocks[:, start_ixd-diag_blocksize:start_ixd]
-        Bridges_upper[:, i * diag_blocksize:(i+1) * diag_blocksize] = A_upper_diagonal_blocks[:, start_ixd:start_ixd+diag_blocksize]
+        Bridges_upper[:, i * diag_blocksize:(i+1) * diag_blocksize] = A_upper_diagonal_blocks[:, start_ixd-diag_blocksize:start_ixd]
         
     return Bridges_lower, Bridges_upper
 
