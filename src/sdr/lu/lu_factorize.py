@@ -16,7 +16,12 @@ def lu_factorize_tridiag(
     A_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
     A_upper_diagonal_blocks: np.ndarray,
-) -> np.ndarray:
+) -> tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray
+    ]:
     """Perform the non-pivoted LU factorization of a block tridiagonal matrix. 
     The matrix is assumed to be non-singular and blocks are assumed to be of the 
     same size given in a sequential array.
@@ -32,10 +37,14 @@ def lu_factorize_tridiag(
 
     Returns
     -------
-    L : np.ndarray
-        Lower factor of the LU factorization of the matrix.
-    U : np.ndarray
-        Upper factor of the LU factorization of the matrix.
+    L_diagonal_blocks : np.ndarray
+        Diagonal blocks of the lower factor.
+    L_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the lower factor.
+    U_diagonal_blocks : np.ndarray
+        Diagonal blocks of the upper factor.
+    U_upper_diagonal_blocks : np.ndarray
+        Upper diagonal blocks of the upper factor
     """
     blocksize = A_diagonal_blocks.shape[0]
     nblocks = A_diagonal_blocks.shape[1] // blocksize
@@ -105,18 +114,46 @@ def lu_factorize_tridiag_arrowhead(
     A_arrow_bottom_blocks: np.ndarray,
     A_arrow_right_blocks: np.ndarray,
     A_arrow_tip_block: np.ndarray,
-) -> [np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Perform the lu factorization of a block tridiagonal arrowhead
+) -> tuple[
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray
+    ]:
+    """ Perform the lu factorization of a block tridiagonal arrowhead
     matrix. The matrix is assumed to be non singular.
 
     Parameters
     ----------
-    TODO:docstring
+    A_diagonal_blocks : np.ndarray
+        The blocks on the diagonal of the matrix.
+    A_lower_diagonal_blocks : np.ndarray
+        The blocks on the lower diagonal of the matrix.
+    A_upper_diagonal_blocks : np.ndarray
+        The blocks on the upper diagonal of the matrix.
+    A_arrow_bottom_blocks : np.ndarray
+        The blocks on the bottom arrow of the matrix.
+    A_arrow_right_blocks : np.ndarray
+        The blocks on the right arrow of the matrix.
+    A_arrow_tip_block : np.ndarray
+        The block at the tip of the arrowhead.
 
     Returns
     -------
-    TODO:docstring
-    
+    L_diagonal_blocks : np.ndarray
+        Diagonal blocks of the lower factor.
+    L_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the lower factor.
+    L_arrow_bottom_blocks : np.ndarray
+        Bottom arrow blocks of the lower factor.
+    U_diagonal_blocks : np.ndarray
+        Diagonal blocks of the upper factor.
+    U_upper_diagonal_blocks : np.ndarray
+        Upper diagonal blocks of the upper factor
+    U_arrow_right_blocks : np.ndarray
+        Right arrow blocks of the upper factor
     """
 
     diag_blocksize = A_diagonal_blocks.shape[0]
