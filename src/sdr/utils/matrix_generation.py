@@ -263,7 +263,18 @@ def generate_tridiag_arrowhead_arrays(
 
     Returns
     -------
-    TODO:docstring
+    A_diagonal_blocks : np.ndarray
+        Diagonal blocks of the block tridiagonal arrowhead matrix.
+    A_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the block tridiagonal arrowhead matrix.
+    A_upper_diagonal_blocks : np.ndarray
+        Upper diagonal blocks of the block tridiagonal arrowhead matrix.
+    A_arrow_bottom_blocks : np.ndarray
+        Bottom arrowhead blocks of the block tridiagonal arrowhead matrix.
+    A_arrow_right_blocks : np.ndarray
+        Right arrowhead blocks of the block tridiagonal arrowhead matrix.
+    A_arrow_tip_block : np.ndarray
+        Tip arrowhead block of the block tridiagonal arrowhead matrix.
     """
 
     if seed is not None:
@@ -306,7 +317,14 @@ def generate_tridiag_arrowhead_arrays(
             A_arrow_tip_block
         )
         
-    return A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks, A_arrow_bottom_blocks, A_arrow_right_blocks, A_arrow_tip_block
+    return (
+        A_diagonal_blocks, 
+        A_lower_diagonal_blocks, 
+        A_upper_diagonal_blocks, 
+        A_arrow_bottom_blocks, 
+        A_arrow_right_blocks, 
+        A_arrow_tip_block
+    )
 
 
 def generate_ndiags_arrowhead(
