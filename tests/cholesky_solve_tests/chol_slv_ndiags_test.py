@@ -58,7 +58,14 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
-
+    
+    # Run with overwrite = True functionality
+    X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize, overwrite=True)
+    print("Run with overwrite :  True")
+    print("memory address B   : ", B.ctypes.data)
+    print("memory address X   : ", X_sdr.ctypes.data)
+    print("X_ref == X_sdr     : ", np.allclose(X_ref, X_sdr))
+    
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
@@ -72,11 +79,18 @@ if __name__ == "__main__":
         (40, 7, 3, 2),
     ],
 )
+
+@pytest.mark.parametrize(
+    "overwrite", 
+    [True, False]
+) 
+
 def test_cholesky_decompose_ndiags(
     nblocks: int,
     ndiags: int,
     blocksize: int,
     nrhs: int,
+    overwrite: bool,
 ):
     symmetric = True
     diagonal_dominant = True
@@ -92,6 +106,9 @@ def test_cholesky_decompose_ndiags(
     B = np.random.randn(A.shape[0], nrhs)
 
     X_ref = la.cho_solve((L_ref, True), B)
-    X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize)
+    X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize, overwrite)
 
-    assert np.allclose(X_ref, X_sdr)
+    if overwrite:
+        assert np.allclose(X_ref, X_sdr) and B.ctypes.data == X_sdr.ctypes.data
+    else: 
+        assert np.allclose(X_ref, X_sdr) and B.ctypes.data != X_sdr.ctypes.data 

@@ -1,4 +1,8 @@
 # SDR: Selected Decomposition Routines
+
+[![codecov](https://codecov.io/gh/vincent-maillou/SDR/graph/badge.svg?token=VZTGAUW2NW)](https://codecov.io/gh/vincent-maillou/SDR)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
+
 SDR pack several selected decompositions routines and linear system solvers for severals types of structured block-sparse matrices.
 
 ## Decompositions routines

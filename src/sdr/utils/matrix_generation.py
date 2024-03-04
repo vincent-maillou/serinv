@@ -68,7 +68,6 @@ def generate_tridiag_dense(
 
     return A
 
-
 def generate_tridiag_array(
     nblocks: int,
     blocksize: int,
@@ -214,7 +213,6 @@ def generate_block_ndiags_dense(
 
     return A
 
-
 def generate_tridiag_arrowhead_dense(
     nblocks: int,
     diag_blocksize: int,
@@ -295,6 +293,7 @@ def generate_tridiag_arrowhead_dense(
 
     return A
 
+    return A
 
 def generate_tridiag_arrowhead_arrays(
     nblocks: int,

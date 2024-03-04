@@ -48,6 +48,13 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(L_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
+    
+    # Run with overwrite = True functionality
+    L_sdr = chol_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize, overwrite=True)
+    print("Run with overwrite :  True")
+    print("memory address A   : ", A.ctypes.data)
+    print("memory address L   : ", L_sdr.ctypes.data)
+    print("L_ref == L_sdr     : ", np.allclose(L_ref, L_sdr))
 
 
 @pytest.mark.mpi_skip()
@@ -64,10 +71,15 @@ if __name__ == "__main__":
         (10, 2, 10),
     ],
 )
+@pytest.mark.parametrize(
+    "overwrite", 
+    [True, False]
+) 
 def test_cholesky_decompose_tridiag_arrowhead(
-    nblocks: int,
-    diag_blocksize: int,
-    arrow_blocksize: int,
+    nblocks: int, 
+    diag_blocksize: int, 
+    arrow_blocksize: int, 
+    overwrite: bool,
 ):
     symmetric = True
     diagonal_dominant = True
@@ -78,6 +90,9 @@ def test_cholesky_decompose_tridiag_arrowhead(
     )
 
     L_ref = la.cholesky(A, lower=True)
-    L_sdr = chol_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
+    L_sdr = chol_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize, overwrite)
 
-    assert np.allclose(L_ref, L_sdr)
+    if overwrite:
+        assert np.allclose(L_ref, L_sdr) and A.ctypes.data == L_sdr.ctypes.data
+    else: 
+        assert np.allclose(L_ref, L_sdr) and A.ctypes.data != L_sdr.ctypes.data 
