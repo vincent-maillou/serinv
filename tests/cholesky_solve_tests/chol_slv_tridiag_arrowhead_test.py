@@ -62,6 +62,7 @@ if __name__ == "__main__":
     plt.show()
     
     
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize, nrhs", 
     [

@@ -18,7 +18,7 @@ import scipy.linalg as la
 import pytest
 
 
-
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize", 
     [

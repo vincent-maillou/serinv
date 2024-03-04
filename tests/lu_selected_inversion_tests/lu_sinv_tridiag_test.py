@@ -17,7 +17,8 @@ import numpy as np
 import scipy.linalg as la
 import pytest
     
-
+    
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, blocksize", 
     [

@@ -62,6 +62,7 @@ if __name__ == "__main__":
     #print("norm(x - x_ref) = ", np.linalg.norm(X_sdr - X_ref))
 
     
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, blocksize, nrhs", 
     [

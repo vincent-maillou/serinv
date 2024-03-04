@@ -18,6 +18,9 @@ import copy as cp
 import pytest
 from mpi4py import MPI
 
+from os import environ
+environ['OMP_NUM_THREADS'] = '1'
+
 
 @pytest.mark.mpi(min_size=2)
 @pytest.mark.parametrize(
