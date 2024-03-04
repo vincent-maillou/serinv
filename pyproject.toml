@@ -20,6 +20,7 @@ dependencies = [
     "numpy",
     "scipy",
     "matplotlib",
+    "mpi4py",
     "pytest",
     "pytest-mpi",
     "pytest-cov",
