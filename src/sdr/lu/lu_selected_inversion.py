@@ -111,6 +111,7 @@ def lu_sinv_tridiag(
 
     return (X_diagonal_blocks, X_lower_diagonal_blocks, X_upper_diagonal_blocks)
 
+
 def lu_sinv_tridiag_arrowhead(
     L_diagonal_blocks: np.ndarray,
     L_lower_diagonal_blocks: np.ndarray,
@@ -303,6 +304,7 @@ def lu_sinv_tridiag_arrowhead(
         X_arrow_right_blocks,
         X_arrow_tip_block,
     )
+
 
 def lu_sinv_ndiags(
     L: np.ndarray,

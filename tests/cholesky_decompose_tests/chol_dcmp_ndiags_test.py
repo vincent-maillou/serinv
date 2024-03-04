@@ -48,13 +48,14 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(L_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
-    
+
     # Run with overwrite = True functionality
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize, overwrite=True)
     print("Run with overwrite :  True")
     print("memory address A   : ", A.ctypes.data)
     print("memory address L   : ", L_sdr.ctypes.data)
     print("L_ref == L_sdr     : ", np.allclose(L_ref, L_sdr))
+
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
@@ -68,14 +69,11 @@ if __name__ == "__main__":
         (40, 7, 3),
     ],
 )
-@pytest.mark.parametrize(
-    "overwrite", 
-    [True, False]
-) 
+@pytest.mark.parametrize("overwrite", [True, False])
 def test_cholesky_decompose_ndiags(
-    nblocks: int, 
-    ndiags: int, 
-    blocksize: int, 
+    nblocks: int,
+    ndiags: int,
+    blocksize: int,
     overwrite: bool,
 ):
     symmetric = True
@@ -91,5 +89,5 @@ def test_cholesky_decompose_ndiags(
 
     if overwrite:
         assert np.allclose(L_ref, L_sdr) and A.ctypes.data == L_sdr.ctypes.data
-    else: 
-        assert np.allclose(L_ref, L_sdr) and A.ctypes.data != L_sdr.ctypes.data 
+    else:
+        assert np.allclose(L_ref, L_sdr) and A.ctypes.data != L_sdr.ctypes.data

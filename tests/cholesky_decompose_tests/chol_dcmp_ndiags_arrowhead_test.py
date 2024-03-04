@@ -57,7 +57,9 @@ if __name__ == "__main__":
     plt.show()
 
     # Run with overwrite = True functionality
-    L_sdr = chol_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize, overwrite=True)
+    L_sdr = chol_dcmp_ndiags_arrowhead(
+        A, ndiags, diag_blocksize, arrow_blocksize, overwrite=True
+    )
     print("Run with overwrite :  True")
     print("memory address A   : ", A.ctypes.data)
     print("memory address L   : ", L_sdr.ctypes.data)
@@ -78,14 +80,11 @@ if __name__ == "__main__":
         (15, 7, 1, 2),
     ],
 )
-@pytest.mark.parametrize(
-    "overwrite", 
-    [True, False]
-) 
+@pytest.mark.parametrize("overwrite", [True, False])
 def test_cholesky_decompose_ndiags_arrowhead(
-    nblocks: int, 
-    ndiags: int, 
-    diag_blocksize: int, 
+    nblocks: int,
+    ndiags: int,
+    diag_blocksize: int,
     arrow_blocksize: int,
     overwrite: bool,
 ):
@@ -104,9 +103,11 @@ def test_cholesky_decompose_ndiags_arrowhead(
     )
 
     L_ref = la.cholesky(A, lower=True)
-    L_sdr = chol_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize, overwrite)
+    L_sdr = chol_dcmp_ndiags_arrowhead(
+        A, ndiags, diag_blocksize, arrow_blocksize, overwrite
+    )
 
     if overwrite:
         assert np.allclose(L_ref, L_sdr) and A.ctypes.data == L_sdr.ctypes.data
-    else: 
-        assert np.allclose(L_ref, L_sdr) and A.ctypes.data != L_sdr.ctypes.data 
+    else:
+        assert np.allclose(L_ref, L_sdr) and A.ctypes.data != L_sdr.ctypes.data

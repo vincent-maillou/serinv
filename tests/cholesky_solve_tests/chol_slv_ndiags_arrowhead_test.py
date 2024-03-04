@@ -65,12 +65,14 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
-    
+
     fig, ax = plt.subplots(1, 3)
     ax[0].set_title("X_ref: Reference cholesky solver")
     ax[0].matshow(X_ref)
 
-    X_sdr = chol_slv_ndiags_arrowhead(L_sdr, B, ndiags, diag_blocksize, arrow_blocksize, overwrite=True)
+    X_sdr = chol_slv_ndiags_arrowhead(
+        L_sdr, B, ndiags, diag_blocksize, arrow_blocksize, overwrite=True
+    )
     ax[1].set_title("X_sdr: Selected cholesky solver. Overwrite = True")
     ax[1].matshow(X_sdr)
 
@@ -80,8 +82,8 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
-    
-    
+
+
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, ndiags, diag_blocksize, arrow_blocksize, nrhs",
@@ -96,18 +98,13 @@ if __name__ == "__main__":
         (15, 7, 1, 2, 2),
     ],
 )
-
-@pytest.mark.parametrize(
-    "overwrite", 
-    [True, False]
-) 
-
+@pytest.mark.parametrize("overwrite", [True, False])
 def test_cholesky_slv_ndiags_arrowhead(
     nblocks: int,
     ndiags: int,
     diag_blocksize: int,
     arrow_blocksize: int,
-    nrhs: int, 
+    nrhs: int,
     overwrite: bool,
 ):
     symmetric = True
@@ -130,9 +127,11 @@ def test_cholesky_slv_ndiags_arrowhead(
     B = np.random.randn(A.shape[0], nrhs)
 
     X_ref = la.cho_solve((L_ref, True), B)
-    X_sdr = chol_slv_ndiags_arrowhead(L_sdr, B, ndiags, diag_blocksize, arrow_blocksize, overwrite)
-    
+    X_sdr = chol_slv_ndiags_arrowhead(
+        L_sdr, B, ndiags, diag_blocksize, arrow_blocksize, overwrite
+    )
+
     if overwrite:
         assert np.allclose(X_ref, X_sdr) and B.ctypes.data == X_sdr.ctypes.data
-    else: 
-        assert np.allclose(X_ref, X_sdr) and B.ctypes.data != X_sdr.ctypes.data 
+    else:
+        assert np.allclose(X_ref, X_sdr) and B.ctypes.data != X_sdr.ctypes.data
