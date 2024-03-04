@@ -28,15 +28,17 @@ def generate_tridiag_dense(
         Number of diagonal blocks.
     blocksize : int
         Size of the blocks.
-    symmetric : bool, optional
+    symmetric : bool, optional, default=False
         If True, the matrix will be symmetric.
+    diagonal_dominant : bool, optional, default=False
+        If True, the matrix will be diagonally dominant.
     seed : int, optional
         Seed for the random number generator.
         
     Returns
     -------
     A : np.ndarray
-        Block tridiagonal matrix.
+        Block tridiagonal dense matrix.
     """
 
     if seed is not None:
@@ -76,15 +78,21 @@ def generate_tridiag_array(
         Number of diagonal blocks.
     blocksize : int
         Size of the blocks.
-    symmetric : bool, optional
+    symmetric : bool, optional, default=False
         If True, the matrix will be symmetric.
+    diagonal_dominant : bool, optional, default=False
+        If True, the matrix will be diagonally dominant.
     seed : int, optional
         Seed for the random number generator.
         
     Returns
     -------
-    A : np.ndarray
-        Block tridiagonal matrix.
+    A_diagonal_blocks : np.ndarray
+        Diagonal blocks of the block tridiagonal matrix.
+    A_upper_diagonal_blocks : np.ndarray
+        Upper diagonal blocks of the block tridiagonal matrix.
+    A_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the block tridiagonal matrix.
     """
 
     if seed is not None:
@@ -111,10 +119,14 @@ def generate_tridiag_array(
     if diagonal_dominant:
         A_diagonal_blocks = mt.make_diagonally_dominante_tridiagonal_arrays(A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks)
 
-    return A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks   
+    return (
+        A_diagonal_blocks, 
+        A_upper_diagonal_blocks, 
+        A_lower_diagonal_blocks
+    )   
 
 
-def generate_block_ndiags(
+def generate_block_ndiags_dense(
     nblocks: int,
     ndiags: int,
     blocksize: int,    
@@ -122,7 +134,7 @@ def generate_block_ndiags(
     diagonal_dominant: bool = False,
     seed: int = None,
 ) -> np.ndarray:
-    """ Generate a block n-diagonals matrix.
+    """ Generate a block n-diagonals matrix, returned as dense.
 
     Parameters
     ----------
@@ -132,8 +144,10 @@ def generate_block_ndiags(
         Number of diagonals.
     blocksize : int
         Size of the blocks.
-    symmetric : bool, optional
+    symmetric : bool, optional, default=False
         If True, the matrix will be symmetric.
+    diagonal_dominant : bool, optional, default=False
+        If True, the matrix will be diagonally dominant.
     seed : int, optional
         Seed for the random number generator.
         
@@ -185,7 +199,7 @@ def generate_tridiag_arrowhead_dense(
     diagonal_dominant: bool = False,  
     seed: int = None,
 ) -> np.ndarray:
-    """ Generate a block tridiagonal arrowhead matrix.
+    """ Generate a block tridiagonal arrowhead matrix, returned as dense.
 
     Parameters
     ----------
@@ -196,8 +210,10 @@ def generate_tridiag_arrowhead_dense(
     arrow_blocksize : int
         Size of the arrowhead blocks. These blocks will be of sizes: 
         (arrow_blocksize*diag_blocksize).
-    symmetric : bool, optional
+    symmetric : bool, optional, default=False
         If True, the matrix will be symmetric.
+    diagonal_dominant : bool, optional, default=False
+        If True, the matrix will be diagonally dominant.
     seed : int, optional
         Seed for the random number generator.
 
@@ -244,8 +260,15 @@ def generate_tridiag_arrowhead_arrays(
     symmetric: bool = False,
     diagonal_dominant: bool = False,  
     seed: int = None,
-) -> [np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """ Generate a block tridiagonal arrowhead matrix.
+) -> tuple[
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray
+    ]:
+    """ Generate a block tridiagonal arrowhead matrix, returned as arrays.
 
     Parameters
     ----------
@@ -256,8 +279,10 @@ def generate_tridiag_arrowhead_arrays(
     arrow_blocksize : int
         Size of the arrowhead blocks. These blocks will be of sizes: 
         (arrow_blocksize*diag_blocksize).
-    symmetric : bool, optional
+    symmetric : bool, optional, default=False
         If True, the matrix will be symmetric.
+    diagonal_dominant : bool, optional, default=False
+        If True, the matrix will be diagonally dominant.
     seed : int, optional
         Seed for the random number generator.
 
@@ -327,7 +352,7 @@ def generate_tridiag_arrowhead_arrays(
     )
 
 
-def generate_ndiags_arrowhead(
+def generate_ndiags_arrowhead_dense(
     nblocks: int,
     ndiags: int,
     diag_blocksize: int,    
@@ -336,7 +361,7 @@ def generate_ndiags_arrowhead(
     diagonal_dominant: bool = False,  
     seed: int = None,
 ) -> np.ndarray:
-    """ Generate a block tridiagonal arrowhead matrix.
+    """ Generate a block tridiagonal arrowhead matrix, returned as dense.
 
     Parameters
     ----------
@@ -349,8 +374,10 @@ def generate_ndiags_arrowhead(
     arrow_blocksize : int
         Size of the arrowhead blocks. These blocks will be of sizes: 
         (arrow_blocksize*diag_blocksize).
-    symmetric : bool, optional
+    symmetric : bool, optional, default=False
         If True, the matrix will be symmetric.
+    diagonal_dominant : bool, optional, default=False
+        If True, the matrix will be diagonally dominant.
     seed : int, optional
         Seed for the random number generator.
 
