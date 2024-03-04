@@ -15,7 +15,7 @@ def cut_to_blocktridiag(
     A: np.ndarray,
     blocksize: int,
 ) -> np.ndarray:
-    """ Cut a matrix to a block tridiagonal matrix.
+    """ Cut a dense matrix to a block tridiagonal matrix.
 
     Parameters
     ----------
@@ -26,7 +26,7 @@ def cut_to_blocktridiag(
 
     Returns
     -------
-    A : np.ndarray
+    A_cut : np.ndarray
         Block tridiagonal matrix.
     """
 
@@ -44,13 +44,12 @@ def cut_to_blocktridiag(
     return A_cut
 
 
-
 def cut_to_blocktridiag_arrowhead(
     A: np.ndarray,
     diag_blocksize: int,
     arrow_blocksize: int,
 ) -> np.ndarray:
-    """ Cut a matrix to a block tridiagonal arrowhead matrix.
+    """ Cut a dense matrix to a block tridiagonal arrowhead matrix.
 
     Parameters
     ----------
@@ -63,7 +62,7 @@ def cut_to_blocktridiag_arrowhead(
 
     Returns
     -------
-    A : np.ndarray
+    A_cut : np.ndarray
         Block tridiagonal arrowhead matrix.
     """
 
@@ -87,14 +86,13 @@ def cut_to_blocktridiag_arrowhead(
 
     return A_cut
 
-
     
-def cut_to_blockndiags(
+def cut_to_block_ndiags(
     A: np.ndarray,
     ndiags: int,
     blocksize: int,
-):
-    """ Cut a matrix to a block ndiags matrix.
+) -> np.ndarray:
+    """ Cut a dense matrix to a block ndiags matrix.
 
     Parameters
     ----------
@@ -107,7 +105,7 @@ def cut_to_blockndiags(
 
     Returns
     -------
-    A : np.ndarray
+    A_cut : np.ndarray
         Block ndiags matrix.
     """
 
@@ -125,14 +123,13 @@ def cut_to_blockndiags(
     return A_cut
 
 
-
 def cut_to_blockndiags_arrowhead(
     A: np.ndarray,
     ndiags: int,
     diag_blocksize: int,
     arrow_blocksize: int,
-):
-    """ Cut a matrix to a block ndiags arrowhead matrix.
+) -> np.ndarray:
+    """ Cut a dense matrix to a block ndiags arrowhead matrix.
 
     Parameters
     ----------
@@ -147,7 +144,7 @@ def cut_to_blockndiags_arrowhead(
 
     Returns
     -------
-    A : np.ndarray
+    A_cut : np.ndarray
         Block ndiags arrowhead matrix.
     """
 
@@ -174,7 +171,31 @@ def make_symmetric_tridiagonal_arrays(
     A_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
     A_upper_diagonal_blocks: np.ndarray,
-) -> [np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray
+    ]:
+    """ Make a tridiagonal matrix, passed as arrays, symmetric.
+    
+    Parameters
+    ----------
+    A_diagonal_blocks: np.ndarray
+        Diagonal blocks of the input matrix.
+    A_upper_diagonal_blocks: np.ndarray
+        Upper diagonal blocks of the input matrix.
+    A_lower_diagonal_blocks: np.ndarray
+        Lower diagonal blocks of the input matrix.
+
+    Returns
+    -------
+    A_diagonal_blocks : np.ndarray
+        Diagonal blocks made symmetric.
+    A_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks made symmetric.
+    A_upper_diagonal_blocks : np.ndarray
+        Upper diagonal blocks made symmetric.
+    """
     
     blocksize = A_diagonal_blocks.shape[0]
     nblocks = A_diagonal_blocks.shape[1] // blocksize
@@ -184,13 +205,17 @@ def make_symmetric_tridiagonal_arrays(
         if i < nblocks-1:
             A_lower_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = A_upper_diagonal_blocks[:, i*blocksize:(i+1)*blocksize].T
 
-    return A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
+    return (
+        A_diagonal_blocks, 
+        A_lower_diagonal_blocks, 
+        A_upper_diagonal_blocks
+    )
 
 
 def make_diagonally_dominante_dense(
     A: np.ndarray,
 ) -> np.ndarray:
-    """ Make a matrix diagonally dominant.
+    """ Make a dense matrix diagonally dominant.
 
     Parameters
     ----------
@@ -213,7 +238,7 @@ def make_diagonally_dominante_tridiagonal_arrays(
     A_upper_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
 ) -> np.ndarray:
-    """ Make a matrix diagonally dominant.
+    """ Make a tridiagonal matrix, passed as arrays, diagonally dominant.
 
     Parameters
     ----------
@@ -251,9 +276,30 @@ def make_diagonally_dominante_tridiagonal_arrowhead_arrays(
     A_arrow_right_blocks: np.ndarray,
     A_arrow_tip_block: np.ndarray,
 ) -> np.ndarray:
+    """ Make a tridiagonal arrowhead matrix, passed as arrays, diagonally dominant.
+
+    Parameters
+    ----------
+    A_diagonal_blocks: np.ndarray
+        Diagonal blocks of the input matrix.
+    A_upper_diagonal_blocks: np.ndarray
+        Upper diagonal blocks of the input matrix.
+    A_lower_diagonal_blocks: np.ndarray
+        Lower diagonal blocks of the input matrix.
+    A_arrow_bottom_blocks: np.ndarray
+        Arrow bottom blocks of the input matrix.
+    A_arrow_right_blocks: np.ndarray
+        Arrow right blocks of the input matrix.
+    A_arrow_tip_block: np.ndarray
+        Arrow tip block of the input matrix.
+
+    Returns
+    -------
+    A_diagonal_blocks : np.ndarray
+        Diagonal blocks made diagonally dominant.
+    """
     
     diag_blocksize = A_diagonal_blocks.shape[0]
-    arrowhead_blocksize = A_arrow_bottom_blocks.shape[0]
     
     n_diag_blocks = A_diagonal_blocks.shape[1] // diag_blocksize
     for i in range(0, n_diag_blocks):
@@ -275,7 +321,7 @@ def from_tridiagonal_arrays_to_dense(
     A_lower_diagonal_blocks: np.ndarray,
     A_upper_diagonal_blocks: np.ndarray,
 ) -> np.ndarray:
-    """ Convert a tridiagonal matrix to a dense matrix.
+    """ Convert a tridiagonal matrix, passed as arrays, to a dense matrix.
 
     Parameters
     ----------
@@ -309,7 +355,11 @@ def from_tridiagonal_arrays_to_dense(
 def from_dense_to_tridiagonal_arrays(
     A: np.ndarray,
     blocksize: int,
-) -> np.ndarray:
+) -> tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray
+    ]:
     """ Extract the tridiagonal blocks from a dense matrix.
 
     Parameters
@@ -342,7 +392,11 @@ def from_dense_to_tridiagonal_arrays(
             A_upper_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = A[i*blocksize:(i+1)*blocksize, (i+1)*blocksize:(i+2)*blocksize]
             A_lower_diagonal_blocks[:, i*blocksize:(i+1)*blocksize] = A[(i+1)*blocksize:(i+2)*blocksize, i*blocksize:(i+1)*blocksize]
 
-    return A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
+    return (
+        A_diagonal_blocks, 
+        A_lower_diagonal_blocks, 
+        A_upper_diagonal_blocks
+    )
 
 
 def from_arrowhead_arrays_to_dense(
@@ -353,6 +407,28 @@ def from_arrowhead_arrays_to_dense(
     A_arrow_right_blocks: np.ndarray,
     A_arrow_tip_block: np.ndarray,
 ) -> np.ndarray:
+    """ Convert a tridiagonal arrowhead matrix, passed as arrays, to a dense matrix.
+
+    Parameters
+    ----------
+    A_diagonal_blocks: np.ndarray
+        Diagonal blocks of the input matrix.
+    A_upper_diagonal_blocks: np.ndarray
+        Upper diagonal blocks of the input matrix.
+    A_lower_diagonal_blocks: np.ndarray
+        Lower diagonal blocks of the input matrix.
+    A_arrow_bottom_blocks: np.ndarray
+        Arrow bottom blocks of the input matrix.
+    A_arrow_right_blocks: np.ndarray
+        Arrow right blocks of the input matrix.
+    A_arrow_tip_block: np.ndarray
+        Arrow tip block of the input matrix.
+
+    Returns
+    -------
+    A : np.ndarray
+        Dense matrix.
+    """
     
     diag_blocksize = A_diagonal_blocks.shape[0]
     arrowhead_blocksize = A_arrow_bottom_blocks.shape[0]
@@ -378,7 +454,40 @@ def from_dense_to_arrowhead_arrays(
     A: np.ndarray,
     diag_blocksize: int,
     arrow_blocksize: int,
-) -> [np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray
+    ]:
+    """ Extract the arrowhead blocks from a dense matrix.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Dense matrix.
+    diag_blocksize : int
+        Size of the diagonal blocks.
+    arrow_blocksize : int
+        Size of the arrow blocks.
+
+    Returns
+    -------
+    A_diagonal_blocks: np.ndarray
+        Diagonal blocks of the tridiagonal matrix.
+    A_lower_diagonal_blocks: np.ndarray
+        Lower diagonal blocks of the tridiagonal matrix.
+    A_upper_diagonal_blocks: np.ndarray
+        Upper diagonal blocks of the tridiagonal matrix.
+    A_arrow_bottom_blocks: np.ndarray
+        Arrow bottom blocks of the tridiagonal matrix.
+    A_arrow_right_blocks: np.ndarray
+        Arrow right blocks of the tridiagonal matrix.
+    A_arrow_tip_block: np.ndarray
+        Arrow tip block of the tridiagonal matrix.
+    """
     
     n_diag_blocks = (A.shape[0]-arrow_blocksize) // diag_blocksize
     
@@ -399,4 +508,11 @@ def from_dense_to_arrowhead_arrays(
     A_arrow_right_blocks = A[:-arrow_blocksize, -arrow_blocksize:]
     A_arrow_tip_block = A[-arrow_blocksize:, -arrow_blocksize:]
     
-    return A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks, A_arrow_bottom_blocks, A_arrow_right_blocks, A_arrow_tip_block
+    return (
+        A_diagonal_blocks, 
+        A_lower_diagonal_blocks, 
+        A_upper_diagonal_blocks, 
+        A_arrow_bottom_blocks, 
+        A_arrow_right_blocks, 
+        A_arrow_tip_block
+    )

@@ -9,7 +9,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import cut_to_blockndiags
+from sdr.utils.matrix_transform import cut_to_block_ndiags
 from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags
 from sdr.cholesky.cholesky_selected_inversion import chol_sinv_ndiags
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blockndiags(X_ref, ndiags, blocksize)
+    X_ref = cut_to_block_ndiags(X_ref, ndiags, blocksize)
 
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
 
@@ -85,7 +85,7 @@ def test_cholesky_sinv_ndiags(
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blockndiags(X_ref, ndiags, blocksize)
+    X_ref = cut_to_block_ndiags(X_ref, ndiags, blocksize)
 
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
     X_sdr = chol_sinv_ndiags(L_sdr, ndiags, blocksize)
