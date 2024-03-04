@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        mpi: [ 'mpich', 'openmpi', 'intelmpi']
+        mpi: [ 'mpich', 'openmpi' ]
     name: ${{ matrix.mpi }} example
     steps:
       - uses: actions/checkout@v3

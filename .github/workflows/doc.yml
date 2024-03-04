@@ -5,8 +5,16 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   doc:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mpi: [ 'mpich', 'openmpi' ]
+    name: ${{ matrix.mpi }} example
     steps:
       - uses: actions/checkout@v3
+
+      - uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: ${{ matrix.mpi }}
 
       - uses: actions/setup-python@v4
         with:
