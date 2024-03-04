@@ -28,8 +28,13 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead_dense(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, 
-        diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     plt.matshow(A)
@@ -64,12 +69,12 @@ if __name__ == "__main__":
     fig.colorbar(ax[0, 2].matshow(L_diff), ax=ax[0, 2], label="Relative error")
     fig.colorbar(ax[1, 2].matshow(U_diff), ax=ax[1, 2], label="Relative error")
 
-    plt.show() 
+    plt.show()
 
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, ndiags, diag_blocksize, arrow_blocksize", 
+    "nblocks, ndiags, diag_blocksize, arrow_blocksize",
     [
         (2, 1, 1, 2),
         (3, 3, 2, 1),
@@ -79,21 +84,23 @@ if __name__ == "__main__":
         (15, 3, 1, 2),
         (15, 5, 3, 1),
         (15, 7, 1, 2),
-    ]
+    ],
 )
 def test_lu_decompose_ndiags_arrowhead(
-    nblocks, 
-    ndiags, 
-    diag_blocksize, 
-    arrow_blocksize
+    nblocks, ndiags, diag_blocksize, arrow_blocksize
 ):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead_dense(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, 
-        diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     # --- Decomposition ---
@@ -104,6 +111,6 @@ def test_lu_decompose_ndiags_arrowhead(
         L_ref = P_ref @ L_ref
 
     L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, nblocks, diag_blocksize, arrow_blocksize)
-    
+
     assert np.allclose(L_ref, L_sdr)
     assert np.allclose(U_ref, U_sdr)

@@ -29,14 +29,19 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead_dense(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, 
-        diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     # P_ref, L_ref, U_ref = la.lu(A)
     ## this one permutes A
     lu_ref, p_ref = la.lu_factor(A)
-        
+
     L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
 
     n_rhs = 1
@@ -53,7 +58,9 @@ if __name__ == "__main__":
     ax[0].set_title("X_ref: Reference lu solver")
     ax[0].matshow(X_ref)
 
-    X_sdr = lu_slv_ndiags_arrowhead(L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize)
+    X_sdr = lu_slv_ndiags_arrowhead(
+        L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize
+    )
     ax[1].set_title("X_sdr: Selected lu solver")
     ax[1].matshow(X_sdr)
 
@@ -67,7 +74,7 @@ if __name__ == "__main__":
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, ndiags, diag_blocksize, arrow_blocksize, nrhs", 
+    "nblocks, ndiags, diag_blocksize, arrow_blocksize, nrhs",
     [
         (2, 1, 1, 2, 1),
         (3, 3, 2, 1, 3),
@@ -77,30 +84,37 @@ if __name__ == "__main__":
         (15, 3, 1, 2, 1),
         (15, 5, 3, 1, 6),
         (15, 7, 1, 2, 2),
-    ]
+    ],
 )
 def test_lu_slv_ndiags_arrowhead(
-    nblocks: int, 
+    nblocks: int,
     ndiags: int,
-    diag_blocksize: int, 
+    diag_blocksize: int,
     arrow_blocksize: int,
-    nrhs: int, 
+    nrhs: int,
 ):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead_dense(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     lu_ref, p_ref = la.lu_factor(A)
     L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
 
     B = np.random.randn(A.shape[0], nrhs)
-    
+
     X_ref = la.lu_solve((lu_ref, p_ref), B)
-    X_sdr = lu_slv_ndiags_arrowhead(L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize)
+    X_sdr = lu_slv_ndiags_arrowhead(
+        L_sdr, U_sdr, B, ndiags, diag_blocksize, arrow_blocksize
+    )
 
     assert np.allclose(X_ref, X_sdr)

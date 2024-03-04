@@ -9,14 +9,17 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import cut_to_blocktridiag_arrowhead, from_dense_to_arrowhead_arrays, from_arrowhead_arrays_to_dense
+from sdr.utils.matrix_transform import (
+    cut_to_blocktridiag_arrowhead,
+    from_dense_to_arrowhead_arrays,
+    from_arrowhead_arrays_to_dense,
+)
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
-
 
 
 # Testing of block tridiagonal lu sinv
@@ -29,10 +32,8 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_tridiag_arrowhead_dense(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
-
 
     # --- Inversion ---
 
@@ -40,51 +41,51 @@ if __name__ == "__main__":
     X_ref = cut_to_blocktridiag_arrowhead(X_ref, diag_blocksize, arrow_blocksize)
 
     (
-        A_diagonal_blocks, 
-        A_lower_diagonal_blocks, 
-        A_upper_diagonal_blocks, 
-        A_arrow_bottom_blocks, 
-        A_arrow_right_blocks, 
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_upper_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_right_blocks,
         A_arrow_tip_block,
     ) = from_dense_to_arrowhead_arrays(A, diag_blocksize, arrow_blocksize)
-    
+
     (
-        L_diagonal_blocks, 
-        L_lower_diagonal_blocks, 
-        L_arrow_bottom_blocks, 
-        U_diagonal_blocks, 
-        U_upper_diagonal_blocks, 
-        U_arrow_right_blocks, 
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+        L_arrow_bottom_blocks,
+        U_diagonal_blocks,
+        U_upper_diagonal_blocks,
+        U_arrow_right_blocks,
     ) = lu_factorize_tridiag_arrowhead(
-        A_diagonal_blocks, 
-        A_lower_diagonal_blocks, 
-        A_upper_diagonal_blocks, 
-        A_arrow_bottom_blocks, 
-        A_arrow_right_blocks, 
-        A_arrow_tip_block
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_upper_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_right_blocks,
+        A_arrow_tip_block,
     )
-    
+
     (
-        X_sdr_diagonal_blocks, 
-        X_sdr_lower_diagonal_blocks, 
-        X_sdr_upper_diagonal_blocks, 
-        X_sdr_arrow_bottom_blocks, 
-        X_sdr_arrow_right_blocks, 
+        X_sdr_diagonal_blocks,
+        X_sdr_lower_diagonal_blocks,
+        X_sdr_upper_diagonal_blocks,
+        X_sdr_arrow_bottom_blocks,
+        X_sdr_arrow_right_blocks,
         X_sdr_arrow_tip_block,
     ) = lu_sinv_tridiag_arrowhead(
-        L_diagonal_blocks, 
-        L_lower_diagonal_blocks, 
-        L_arrow_bottom_blocks, 
-        U_diagonal_blocks, 
-        U_upper_diagonal_blocks, 
-        U_arrow_right_blocks,                        
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+        L_arrow_bottom_blocks,
+        U_diagonal_blocks,
+        U_upper_diagonal_blocks,
+        U_arrow_right_blocks,
     )
-    
+
     X_sdr = from_arrowhead_arrays_to_dense(
-        X_sdr_diagonal_blocks, 
-        X_sdr_lower_diagonal_blocks, 
+        X_sdr_diagonal_blocks,
+        X_sdr_lower_diagonal_blocks,
         X_sdr_upper_diagonal_blocks,
-        X_sdr_arrow_bottom_blocks, 
+        X_sdr_arrow_bottom_blocks,
         X_sdr_arrow_right_blocks,
         X_sdr_arrow_tip_block,
     )

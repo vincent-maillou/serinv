@@ -38,7 +38,6 @@ if __name__ == "__main__":
     n_rhs = 1
     B = np.random.randn(A.shape[0], n_rhs)
 
-
     # --- Solving ---
 
     X_ref = la.lu_solve((lu_ref, p_ref), B)
@@ -60,11 +59,11 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
-    
+
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, ndiags, blocksize, nrhs", 
+    "nblocks, ndiags, blocksize, nrhs",
     [
         (2, 3, 2, 1),
         (3, 5, 2, 3),
@@ -72,11 +71,11 @@ if __name__ == "__main__":
         (20, 3, 3, 5),
         (30, 5, 3, 1),
         (40, 7, 3, 2),
-    ]
+    ],
 )
 def test_lu_decompose_ndiags(
-    nblocks: int, 
-    ndiags: int, 
+    nblocks: int,
+    ndiags: int,
     blocksize: int,
     nrhs: int,
 ):
@@ -87,7 +86,7 @@ def test_lu_decompose_ndiags(
     A = matrix_generation.generate_block_ndiags_dense(
         nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
-    
+
     lu_ref, p_ref = la.lu_factor(A)
     L_sdr, U_sdr = lu_dcmp_ndiags(A, ndiags, blocksize)
 
@@ -97,5 +96,3 @@ def test_lu_decompose_ndiags(
     X_sdr = lu_slv_ndiags(L_sdr, U_sdr, B, ndiags, blocksize)
 
     assert np.allclose(X_ref, X_sdr)
-
-

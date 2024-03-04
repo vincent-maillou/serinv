@@ -39,7 +39,6 @@ if __name__ == "__main__":
     plt.show()
 
 
-
 if __name__ == "__main__":
     nblocks = 5
     diag_blocksize = 3
@@ -49,8 +48,7 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_tridiag_arrowhead_dense(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
     plt.matshow(A)
@@ -59,9 +57,10 @@ if __name__ == "__main__":
 
     plt.matshow(A_inv)
 
-    A_cut = matrix_transform.cut_to_blocktridiag_arrowhead(A_inv, diag_blocksize, arrow_blocksize)
+    A_cut = matrix_transform.cut_to_blocktridiag_arrowhead(
+        A_inv, diag_blocksize, arrow_blocksize
+    )
 
     plt.matshow(A_cut)
 
     plt.show()
-    

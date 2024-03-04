@@ -9,18 +9,22 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import cut_to_blocktridiag, from_dense_to_tridiagonal_arrays, from_tridiagonal_arrays_to_dense
+from sdr.utils.matrix_transform import (
+    cut_to_blocktridiag,
+    from_dense_to_tridiagonal_arrays,
+    from_tridiagonal_arrays_to_dense,
+)
 from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
 
 import numpy as np
 import scipy.linalg as la
 import pytest
-    
-    
+
+
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, blocksize", 
+    "nblocks, blocksize",
     [
         (2, 2),
         (10, 2),
@@ -31,11 +35,11 @@ import pytest
         (2, 100),
         (5, 100),
         (10, 100),
-    ]
+    ],
 )
 def test_lu_sinv_tridiag(
     nblocks: int,
-    blocksize: int,  
+    blocksize: int,
 ):
     symmetric = False
     diagonal_dominant = True
@@ -51,9 +55,9 @@ def test_lu_sinv_tridiag(
     X_ref = cut_to_blocktridiag(X_ref, blocksize)
 
     (
-        A_diagonal_blocks, 
+        A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks, 
+        A_upper_diagonal_blocks,
     ) = from_dense_to_tridiagonal_arrays(A, blocksize)
 
     (
@@ -62,24 +66,24 @@ def test_lu_sinv_tridiag(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
     ) = lu_factorize_tridiag(
-        A_diagonal_blocks, 
+        A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks, 
+        A_upper_diagonal_blocks,
     )
-    
+
     (
-        X_sdr_diagonal_blocks, 
+        X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
-        X_sdr_upper_diagonal_blocks, 
+        X_sdr_upper_diagonal_blocks,
     ) = lu_sinv_tridiag(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         U_diagonal_blocks,
-        U_upper_diagonal_blocks
+        U_upper_diagonal_blocks,
     )
-    
+
     X_sdr_dense = from_tridiagonal_arrays_to_dense(
-        X_sdr_diagonal_blocks, 
+        X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
         X_sdr_upper_diagonal_blocks,
     )

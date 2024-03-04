@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-
 # Testing of block n-diagonals arrowhead cholesky
 if __name__ == "__main__":
     nblocks = 7
@@ -30,10 +29,14 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead_dense(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, 
-        diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
-
 
     # --- Decomposition ---
 
@@ -56,7 +59,7 @@ if __name__ == "__main__":
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, ndiags, diag_blocksize, arrow_blocksize", 
+    "nblocks, ndiags, diag_blocksize, arrow_blocksize",
     [
         (2, 1, 1, 2),
         (3, 3, 2, 1),
@@ -66,21 +69,23 @@ if __name__ == "__main__":
         (15, 3, 1, 2),
         (15, 5, 3, 1),
         (15, 7, 1, 2),
-    ]
+    ],
 )
 def test_cholesky_decompose_ndiags_arrowhead(
-    nblocks, 
-    ndiags, 
-    diag_blocksize, 
-    arrow_blocksize
+    nblocks, ndiags, diag_blocksize, arrow_blocksize
 ):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_ndiags_arrowhead_dense(
-        nblocks, ndiags, diag_blocksize, arrow_blocksize, symmetric, 
-        diagonal_dominant, seed
+        nblocks,
+        ndiags,
+        diag_blocksize,
+        arrow_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     L_ref = la.cholesky(A, lower=True)

@@ -29,17 +29,23 @@ def create_permutation_matrix_for_arrowhead(
     n_blocks: int,
     blocksize: int,
 ) -> np.ndarray:
-    P = np.zeros((n_blocks*blocksize, n_blocks*blocksize))
-    
+    P = np.zeros((n_blocks * blocksize, n_blocks * blocksize))
+
     I = np.eye(blocksize)
 
     offset = 0
     half = n_blocks // 2 - 1
     for i in range(n_blocks):
         if i % 2 == 1:
-            P[i*blocksize:(i+1)*blocksize, (half + offset)*blocksize:(half + offset + 1)*blocksize] = I
+            P[
+                i * blocksize : (i + 1) * blocksize,
+                (half + offset) * blocksize : (half + offset + 1) * blocksize,
+            ] = I
         else:
-            P[i*blocksize:(i+1)*blocksize, (half - offset)*blocksize:(half - offset + 1)*blocksize] = I
+            P[
+                i * blocksize : (i + 1) * blocksize,
+                (half - offset) * blocksize : (half - offset + 1) * blocksize,
+            ] = I
             offset += 1
 
     return P
@@ -108,30 +114,39 @@ if __name__ == "__main__":
 
     # A = tridiag_matrix(mat_size)
 
-    A = generate_tridiag_arrowhead_dense(n_blocks, diag_blocksize, arrow_blocksize, symmetric, diag_dom, seed)
+    A = generate_tridiag_arrowhead_dense(
+        n_blocks, diag_blocksize, arrow_blocksize, symmetric, diag_dom, seed
+    )
 
     ref_inverse = np.linalg.inv(A)
-    ref_inverse = cut_to_blocktridiag_arrowhead(ref_inverse, diag_blocksize, arrow_blocksize)   
+    ref_inverse = cut_to_blocktridiag_arrowhead(
+        ref_inverse, diag_blocksize, arrow_blocksize
+    )
 
     # v_right = create_vector(mat_size)
     # v_bottom = create_vector(mat_size, row_vector=True)
 
     PAPt = P @ A @ P.T
-    PtPAPtP = P.T @ PAPt @ P 
+    PtPAPtP = P.T @ PAPt @ P
     # Pv_right = P @ v_right
     # Pv_bottom = v_bottom @ P.T
-    
+
     ndiags = 5
-    L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(PAPt, ndiags, diag_blocksize, arrow_blocksize)
+    L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(
+        PAPt, ndiags, diag_blocksize, arrow_blocksize
+    )
     LU_sdr = L_sdr + U_sdr
-    sdr_inverse = lu_sinv_ndiags_arrowhead(L_sdr, U_sdr, ndiags, diag_blocksize, arrow_blocksize)
-    
+    sdr_inverse = lu_sinv_ndiags_arrowhead(
+        L_sdr, U_sdr, ndiags, diag_blocksize, arrow_blocksize
+    )
+
     Ptsdr_inverseP = Pt @ sdr_inverse @ P
-    Ptsdr_inverseP_cut = cut_to_blocktridiag_arrowhead(Ptsdr_inverseP, diag_blocksize, arrow_blocksize)
-    
-    
-    #sdr_inv = lu_dcmp_ndiags_arrowhead(PAPt, )
-    
+    Ptsdr_inverseP_cut = cut_to_blocktridiag_arrowhead(
+        Ptsdr_inverseP, diag_blocksize, arrow_blocksize
+    )
+
+    # sdr_inv = lu_dcmp_ndiags_arrowhead(PAPt, )
+
     fig, axs = plt.subplots(2, 4)
     axs[0, 0].matshow(P)
     axs[0, 0].set_title("P")
@@ -141,7 +156,7 @@ if __name__ == "__main__":
     axs[0, 2].set_title("Pt")
     axs[0, 3].matshow(PAPt)
     axs[0, 3].set_title("PAPt")
-    
+
     axs[1, 0].matshow(ref_inverse)
     axs[1, 0].set_title("ref_inverse")
     axs[1, 1].matshow(LU_sdr)
@@ -152,18 +167,13 @@ if __name__ == "__main__":
     axs[1, 3].set_title("Pt @ sdr_inverse_cut @ P")
 
     assert np.allclose(ref_inverse, Ptsdr_inverseP_cut)
-    
+
     norme_ref = np.linalg.norm(ref_inverse)
     norme_sdr = np.linalg.norm(Ptsdr_inverseP_cut)
-    
+
     norme_diff = np.linalg.norm(ref_inverse - Ptsdr_inverseP_cut)
     print(f"Norme ref: {norme_ref}")
     print(f"Norme sdr: {norme_sdr}")
     print(f"Norme diff: {norme_diff}")
 
     plt.show()
-    
-    
-
-
-

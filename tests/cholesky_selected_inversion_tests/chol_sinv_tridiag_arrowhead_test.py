@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-
 # Testing of block tridiagonal cholesky sinv
 if __name__ == "__main__":
     nblocks = 5
@@ -30,8 +29,7 @@ if __name__ == "__main__":
     seed = 63
 
     A = matrix_generation.generate_tridiag_arrowhead_dense(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
     # --- Inversion ---
@@ -59,7 +57,7 @@ if __name__ == "__main__":
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, diag_blocksize, arrow_blocksize", 
+    "nblocks, diag_blocksize, arrow_blocksize",
     [
         (2, 2, 2),
         (2, 3, 2),
@@ -69,20 +67,19 @@ if __name__ == "__main__":
         (10, 2, 3),
         (10, 10, 2),
         (10, 2, 10),
-    ]
+    ],
 )
 def test_cholesky_sinv_tridiag_arrowhead(
-    nblocks: int, 
-    diag_blocksize: int, 
-    arrow_blocksize: int, 
+    nblocks: int,
+    diag_blocksize: int,
+    arrow_blocksize: int,
 ):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
     A = matrix_generation.generate_tridiag_arrowhead_dense(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
     # --- Inversion ---
@@ -94,4 +91,3 @@ def test_cholesky_sinv_tridiag_arrowhead(
     X_sdr = chol_sinv_tridiag_arrowhead(L_sdr, diag_blocksize, arrow_blocksize)
 
     assert np.allclose(X_ref, X_sdr)
-    

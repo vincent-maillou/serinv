@@ -16,14 +16,9 @@ def lu_factorize_tridiag(
     A_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
     A_upper_diagonal_blocks: np.ndarray,
-) -> tuple[
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray
-    ]:
-    """Perform the non-pivoted LU factorization of a block tridiagonal matrix. 
-    The matrix is assumed to be non-singular and blocks are assumed to be of the 
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Perform the non-pivoted LU factorization of a block tridiagonal matrix.
+    The matrix is assumed to be non-singular and blocks are assumed to be of the
     same size given in a sequential array.
 
     Parameters
@@ -49,17 +44,25 @@ def lu_factorize_tridiag(
     blocksize = A_diagonal_blocks.shape[0]
     nblocks = A_diagonal_blocks.shape[1] // blocksize
 
-    L_diagonal_blocks = np.empty((blocksize, nblocks*blocksize), dtype=A_diagonal_blocks.dtype)
-    L_lower_diagonal_blocks = np.empty((blocksize, (nblocks-1)*blocksize), dtype=A_diagonal_blocks.dtype)
-    
-    U_diagonal_blocks = np.empty((blocksize, nblocks*blocksize), dtype=A_diagonal_blocks.dtype)
-    U_upper_diagonal_blocks = np.empty((blocksize, (nblocks-1)*blocksize), dtype=A_diagonal_blocks.dtype)
+    L_diagonal_blocks = np.empty(
+        (blocksize, nblocks * blocksize), dtype=A_diagonal_blocks.dtype
+    )
+    L_lower_diagonal_blocks = np.empty(
+        (blocksize, (nblocks - 1) * blocksize), dtype=A_diagonal_blocks.dtype
+    )
+
+    U_diagonal_blocks = np.empty(
+        (blocksize, nblocks * blocksize), dtype=A_diagonal_blocks.dtype
+    )
+    U_upper_diagonal_blocks = np.empty(
+        (blocksize, (nblocks - 1) * blocksize), dtype=A_diagonal_blocks.dtype
+    )
 
     for i in range(0, nblocks - 1, 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
             L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
-            U_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
+            U_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
         ) = la.lu(
             A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
             permute_l=True,
@@ -67,8 +70,11 @@ def lu_factorize_tridiag(
 
         # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
         L_lower_diagonal_blocks[
-            :, i * blocksize : (i + 1) * blocksize,
-        ] = A_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] @ la.solve_triangular(
+            :,
+            i * blocksize : (i + 1) * blocksize,
+        ] = A_lower_diagonal_blocks[
+            :, i * blocksize : (i + 1) * blocksize
+        ] @ la.solve_triangular(
             U_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
             np.eye(blocksize),
             lower=False,
@@ -76,7 +82,8 @@ def lu_factorize_tridiag(
 
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
         U_upper_diagonal_blocks[
-            :, i * blocksize : (i + 1) * blocksize,
+            :,
+            i * blocksize : (i + 1) * blocksize,
         ] = (
             la.solve_triangular(
                 L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
@@ -114,15 +121,8 @@ def lu_factorize_tridiag_arrowhead(
     A_arrow_bottom_blocks: np.ndarray,
     A_arrow_right_blocks: np.ndarray,
     A_arrow_tip_block: np.ndarray,
-) -> tuple[
-        np.ndarray, 
-        np.ndarray, 
-        np.ndarray, 
-        np.ndarray, 
-        np.ndarray, 
-        np.ndarray
-    ]:
-    """ Perform the lu factorization of a block tridiagonal arrowhead
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Perform the lu factorization of a block tridiagonal arrowhead
     matrix. The matrix is assumed to be non singular.
 
     Parameters
@@ -160,17 +160,37 @@ def lu_factorize_tridiag_arrowhead(
     arrow_blocksize = A_arrow_bottom_blocks.shape[0]
 
     n_diag_blocks = A_diagonal_blocks.shape[1] // diag_blocksize
-    
-    L_diagonal_blocks = np.empty((diag_blocksize, n_diag_blocks*diag_blocksize), dtype=A_diagonal_blocks.dtype)
-    L_lower_diagonal_blocks = np.empty((diag_blocksize, (n_diag_blocks-1)*diag_blocksize), dtype=A_diagonal_blocks.dtype)
-    L_arrow_bottom_blocks = np.empty((arrow_blocksize, n_diag_blocks*diag_blocksize + arrow_blocksize), dtype=A_diagonal_blocks.dtype)
-    
-    U_diagonal_blocks = np.empty((diag_blocksize, n_diag_blocks*diag_blocksize), dtype=A_diagonal_blocks.dtype)
-    U_upper_diagonal_blocks = np.empty((diag_blocksize, (n_diag_blocks-1)*diag_blocksize), dtype=A_diagonal_blocks.dtype)
-    U_arrow_right_blocks = np.empty((n_diag_blocks*diag_blocksize + arrow_blocksize, arrow_blocksize), dtype=A_diagonal_blocks.dtype)
 
-    L_inv_temp = np.empty((diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype)
-    U_inv_temp = np.empty((diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype)
+    L_diagonal_blocks = np.empty(
+        (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=A_diagonal_blocks.dtype
+    )
+    L_lower_diagonal_blocks = np.empty(
+        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
+        dtype=A_diagonal_blocks.dtype,
+    )
+    L_arrow_bottom_blocks = np.empty(
+        (arrow_blocksize, n_diag_blocks * diag_blocksize + arrow_blocksize),
+        dtype=A_diagonal_blocks.dtype,
+    )
+
+    U_diagonal_blocks = np.empty(
+        (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=A_diagonal_blocks.dtype
+    )
+    U_upper_diagonal_blocks = np.empty(
+        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
+        dtype=A_diagonal_blocks.dtype,
+    )
+    U_arrow_right_blocks = np.empty(
+        (n_diag_blocks * diag_blocksize + arrow_blocksize, arrow_blocksize),
+        dtype=A_diagonal_blocks.dtype,
+    )
+
+    L_inv_temp = np.empty(
+        (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
+    )
+    U_inv_temp = np.empty(
+        (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
+    )
 
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
@@ -230,8 +250,12 @@ def lu_factorize_tridiag_arrowhead(
 
         # Update next upper/lower blocks of the arrowhead
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ U_{i, i+1}
-        A_arrow_bottom_blocks[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
-            A_arrow_bottom_blocks[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+        A_arrow_bottom_blocks[
+            :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
+        ] = (
+            A_arrow_bottom_blocks[
+                :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
+            ]
             - L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ U_upper_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
         )
@@ -261,13 +285,12 @@ def lu_factorize_tridiag_arrowhead(
     )
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ U_{ndb, ndb}^{-1}
-    L_arrow_bottom_blocks[:, -diag_blocksize - arrow_blocksize : -arrow_blocksize] = (
-        A_arrow_bottom_blocks[:, -diag_blocksize:] 
-        @ la.solve_triangular(
-            U_diagonal_blocks[:, -diag_blocksize:],
-            np.eye(diag_blocksize),
-            lower=False,
-        )
+    L_arrow_bottom_blocks[
+        :, -diag_blocksize - arrow_blocksize : -arrow_blocksize
+    ] = A_arrow_bottom_blocks[:, -diag_blocksize:] @ la.solve_triangular(
+        U_diagonal_blocks[:, -diag_blocksize:],
+        np.eye(diag_blocksize),
+        lower=False,
     )
 
     # U_{ndb, ndb+1} = L_{ndb, ndb}^{-1} @ A_{ndb, ndb+1}
@@ -289,15 +312,15 @@ def lu_factorize_tridiag_arrowhead(
 
     # L_{ndb+1, ndb+1}, U_{ndb+1, ndb+1} = lu_dcmp(A_{ndb+1, ndb+1})
     (
-        L_arrow_bottom_blocks[:, -arrow_blocksize :],
-        U_arrow_right_blocks[-arrow_blocksize : , :],
+        L_arrow_bottom_blocks[:, -arrow_blocksize:],
+        U_arrow_right_blocks[-arrow_blocksize:, :],
     ) = la.lu(A_arrow_tip_block[:, :], permute_l=True)
 
     return (
-        L_diagonal_blocks, 
-        L_lower_diagonal_blocks, 
-        L_arrow_bottom_blocks, 
-        U_diagonal_blocks, 
-        U_upper_diagonal_blocks, 
-        U_arrow_right_blocks
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+        L_arrow_bottom_blocks,
+        U_diagonal_blocks,
+        U_upper_diagonal_blocks,
+        U_arrow_right_blocks,
     )

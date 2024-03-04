@@ -7,7 +7,7 @@ def create_permutation_matrix_for_arrowhead(
     n_blocks: int,
 ) -> np.ndarray:
     P = np.zeros((n_blocks, n_blocks))
-    
+
     offset = 0
     half = n_blocks // 2 - 1
     for i in range(n_blocks):
@@ -39,7 +39,6 @@ def arrow_matrix(
     return A
 
 
-
 if __name__ == "__main__":
     n_blocks = 10
 
@@ -48,7 +47,6 @@ if __name__ == "__main__":
 
     PAPt = P @ A @ P.T
 
-
     # Convert the sympy matrix to a numpy array of strings
     A_str = np.vectorize(str)(np.array(PAPt.tolist()))
 
@@ -56,15 +54,13 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
 
     # Hide axes
-    ax.axis('off')
+    ax.axis("off")
 
     # Create a table
-    table = plt.table(cellText=A_str, loc='center')
+    table = plt.table(cellText=A_str, loc="center")
 
     # Show the plot
-    plt.show() 
-
-
+    plt.show()
 
     """ # 1. Create a matrix "A" of size 6*6
     A = sp.Matrix(6, 6, lambda i, j: sp.symbols(f"A_{i+1}_{j+1}"))
@@ -90,8 +86,6 @@ if __name__ == "__main__":
     else:
         print("A != A * I") """
 
-
-
     """ # Create a sympy matrix
     A = sp.Matrix(6, 6, lambda i, j: sp.symbols(f"A_{i+1}_{j+1}"))
 
@@ -109,4 +103,3 @@ if __name__ == "__main__":
 
     # Show the plot
     plt.show() """
-
