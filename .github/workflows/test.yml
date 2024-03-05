@@ -22,12 +22,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-cov
+          pip install pytest pytest-mpi pytest-cov coverage
           pip install -e .
         
       - name: Run tests
         run: |
           pytest --cov=src/sdr --cov-report=term --cov-report=xml tests/
+          mpiexec -n 2 pytest --with-mpi .
+          mpiexec -n 3 pytest --with-mpi .
       
       - name: Code Coverage Summary
         uses: irongut/CodeCoverageSummary@v1.3.0
