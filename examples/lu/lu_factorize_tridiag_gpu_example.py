@@ -21,8 +21,8 @@ from sdr.utils.matrix_transform import (
 
 # Testing of block tridiagonal lu
 if __name__ == "__main__":
-    nblocks = 5
-    blocksize = 2
+    nblocks = 10
+    blocksize = 50
     symmetric = False
     diagonal_dominant = True
     seed = 63

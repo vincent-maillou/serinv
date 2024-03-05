@@ -9,9 +9,10 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 import numpy as np
-import scipy.linalg as la
+# import scipy.linalg as la
 
 import cupy as cp
+import cupyx.scipy.linalg as la
 
 def lu_factorize_tridiag_gpu(
     A_diagonal_blocks: np.ndarray,
@@ -66,50 +67,50 @@ def lu_factorize_tridiag_gpu(
     # for i in range(0, nblocks - 1, 1):
     #     # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
     #     (
-    #         L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
-    #         U_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+    #         L_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
+    #         U_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
     #     ) = la.lu(
-    #         A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+    #         A_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
     #         permute_l=True,
     #     )
 
-    #     # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
-    #     L_lower_diagonal_blocks[
-    #         :,
-    #         i * blocksize : (i + 1) * blocksize,
-    #     ] = A_lower_diagonal_blocks[
-    #         :, i * blocksize : (i + 1) * blocksize
-    #     ] @ la.solve_triangular(
-    #         U_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
-    #         np.eye(blocksize),
-    #         lower=False,
-    #     )
+        # # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
+        # L_lower_diagonal_blocks_gpu[
+        #     :,
+        #     i * blocksize : (i + 1) * blocksize,
+        # ] = A_lower_diagonal_blocks_gpu[
+        #     :, i * blocksize : (i + 1) * blocksize
+        # ] @ la.solve_triangular(
+        #     U_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
+        #     cp.eye(blocksize),
+        #     lower=False,
+        # )
 
-    #     # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
-    #     U_upper_diagonal_blocks[
-    #         :,
-    #         i * blocksize : (i + 1) * blocksize,
-    #     ] = (
-    #         la.solve_triangular(
-    #             L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
-    #             np.eye(blocksize),
-    #             lower=True,
-    #         )
-    #         @ A_upper_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
-    #     )
+        # # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
+        # U_upper_diagonal_blocks_gpu[
+        #     :,
+        #     i * blocksize : (i + 1) * blocksize,
+        # ] = (
+        #     la.solve_triangular(
+        #         L_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
+        #         cp.eye(blocksize),
+        #         lower=True,
+        #     )
+        #     @ A_upper_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
+        # )
 
-    #     # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
-    #     A_diagonal_blocks[:, (i + 1) * blocksize : (i + 2) * blocksize] = (
-    #         A_diagonal_blocks[:, (i + 1) * blocksize : (i + 2) * blocksize]
-    #         - L_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
-    #         @ U_upper_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
-    #     )
+        # # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
+        # A_diagonal_blocks_gpu[:, (i + 1) * blocksize : (i + 2) * blocksize] = (
+        #     A_diagonal_blocks_gpu[:, (i + 1) * blocksize : (i + 2) * blocksize]
+        #     - L_lower_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
+        #     @ U_upper_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
+        # )
 
-    # # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
-    # (
-    #     L_diagonal_blocks[:, -blocksize:],
-    #     U_diagonal_blocks[:, -blocksize:],
-    # ) = la.lu(A_diagonal_blocks[:, -blocksize:], permute_l=True)
+    # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
+    (
+        L_diagonal_blocks_gpu[:, -blocksize:],
+        U_diagonal_blocks_gpu[:, -blocksize:],
+    ) = la.lu(A_diagonal_blocks_gpu[:, -blocksize:], permute_l=True)
 
     L_diagonal_blocks: np.ndarray = cp.asnumpy(L_diagonal_blocks_gpu)
     L_lower_diagonal_blocks: np.ndarray = cp.asnumpy(L_lower_diagonal_blocks_gpu)
