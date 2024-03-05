@@ -5,11 +5,11 @@
 
 Tests for lu selected decompositions routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.lu.lu_decompose import lu_dcmp_tridiag
+from sdr.lu.lu_decompose import lu_dcmp_ndiags
 
 import numpy as np
 import scipy.linalg as la
@@ -17,24 +17,24 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-# Testing of block tridiagonal lu
+# Testing of block n-diagonals lu
 if __name__ == "__main__":
-    nblocks = 5
+    nblocks = 6
+    ndiags = 7
     blocksize = 2
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    A = matrix_generation.generate_block_ndiags_dense(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
     # --- Decomposition ---
-    # permute_l is default but to raise awareness that this would fail otherwise ...
-    P_ref, L_ref, U_ref = la.lu(A, permute_l=False)
+
+    P_ref, L_ref, U_ref = la.lu(A)
 
     plt.matshow(P_ref)
-    ## TODO: we need P to be identity ...
 
     fig, ax = plt.subplots(2, 3)
     ax[0, 0].set_title("L_ref: Scipy lower factor")
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     ax[1, 0].set_title("U_ref: Scipy upper factor")
     ax[1, 0].matshow(U_ref)
 
-    L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
+    L_sdr, U_sdr = lu_dcmp_ndiags(A, ndiags, blocksize)
     ax[0, 1].set_title("L_sdr: SDR lower factor")
     ax[0, 1].matshow(L_sdr)
     ax[1, 1].set_title("U_sdr: SDR upper factor")
@@ -60,30 +60,25 @@ if __name__ == "__main__":
     plt.show()
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, blocksize",
+    "nblocks, ndiags, blocksize",
     [
-        (2, 2),
-        (10, 2),
-        (100, 2),
-        (2, 3),
-        (10, 3),
-        (100, 3),
-        (2, 100),
-        (5, 100),
-        (10, 100),
+        (2, 3, 2),
+        (3, 5, 2),
+        (4, 7, 2),
+        (20, 3, 3),
+        (30, 5, 3),
+        (40, 7, 3),
     ],
 )
-def test_lu_decompose_tridiag(
-    nblocks: int,
-    blocksize: int,
-):
+def test_lu_decompose_ndiags(nblocks, ndiags, blocksize):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
+    A = matrix_generation.generate_block_ndiags_dense(
+        nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
     # --- Decomposition ---
@@ -93,7 +88,7 @@ def test_lu_decompose_tridiag(
     if np.allclose(P_ref, np.eye(A.shape[0])):
         L_ref = P_ref @ L_ref
 
-    L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
+    L_sdr, U_sdr = lu_dcmp_ndiags(A, ndiags, blocksize)
 
     assert np.allclose(L_ref, L_sdr)
     assert np.allclose(U_ref, U_sdr)

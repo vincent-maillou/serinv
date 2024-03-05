@@ -5,7 +5,7 @@
 
 Tests for cholesky selected inversion routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag_arrowhead(
+    A = matrix_generation.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -55,6 +55,7 @@ if __name__ == "__main__":
     plt.show()
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize",
     [
@@ -77,7 +78,7 @@ def test_cholesky_sinv_tridiag_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag_arrowhead(
+    A = matrix_generation.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 

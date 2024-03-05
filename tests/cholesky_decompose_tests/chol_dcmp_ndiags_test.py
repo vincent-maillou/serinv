@@ -5,7 +5,7 @@
 
 Tests for cholesky selected decompositions routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
+    A = matrix_generation.generate_block_ndiags_dense(
         nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(L_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
-    
+
     # Run with overwrite = True functionality
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize, overwrite=True)
     print("Run with overwrite :  True")
@@ -57,6 +57,7 @@ if __name__ == "__main__":
     print("L_ref == L_sdr     : ", np.allclose(L_ref, L_sdr))
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, ndiags, blocksize",
     [
@@ -68,23 +69,18 @@ if __name__ == "__main__":
         (40, 7, 3),
     ],
 )
-
-@pytest.mark.parametrize(
-    "overwrite", 
-    [True, False]
-) 
-
+@pytest.mark.parametrize("overwrite", [True, False])
 def test_cholesky_decompose_ndiags(
-    nblocks: int, 
-    ndiags: int, 
-    blocksize: int, 
+    nblocks: int,
+    ndiags: int,
+    blocksize: int,
     overwrite: bool,
 ):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
+    A = matrix_generation.generate_block_ndiags_dense(
         nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -93,5 +89,5 @@ def test_cholesky_decompose_ndiags(
 
     if overwrite:
         assert np.allclose(L_ref, L_sdr) and A.ctypes.data == L_sdr.ctypes.data
-    else: 
-        assert np.allclose(L_ref, L_sdr) and A.ctypes.data != L_sdr.ctypes.data 
+    else:
+        assert np.allclose(L_ref, L_sdr) and A.ctypes.data != L_sdr.ctypes.data

@@ -5,7 +5,7 @@
 
 Tests for matrix transformations routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_transform
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
+    A = matrix_generation.generate_tridiag_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag_arrowhead(
+    A = matrix_generation.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 

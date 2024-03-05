@@ -5,8 +5,16 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mpi: [ 'mpich', 'openmpi' ]
+    name: ${{ matrix.mpi }} test
     steps:
       - uses: actions/checkout@v3
+
+      - uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: ${{ matrix.mpi }}
 
       - uses: actions/setup-python@v4
         with:
@@ -14,12 +22,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-cov
+          pip install pytest pytest-mpi pytest-cov coverage
           pip install -e .
         
       - name: Run tests
         run: |
           pytest --cov=src/sdr --cov-report=term --cov-report=xml tests/
+          mpiexec -n 2 pytest --with-mpi tests/
       
       - name: Code Coverage Summary
         uses: irongut/CodeCoverageSummary@v1.3.0

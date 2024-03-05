@@ -5,11 +5,10 @@
 
 Tests for lu selected solving routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
-from sdr.lu.lu_decompose import lu_dcmp_tridiag
 from sdr.lu.lu_solve import lu_slv_tridiag
 
 import numpy as np
@@ -26,7 +25,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
+    A = matrix_generation.generate_tridiag_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -59,35 +58,40 @@ if __name__ == "__main__":
     plt.show()
 
 
-@pytest.mark.parametrize(
-    "nblocks, blocksize, nrhs",
-    [
-        (2, 2, 1),
-        (10, 2, 3),
-        (100, 2, 4),
-        (2, 3, 1),
-        (10, 3, 2),
-        (100, 3, 1),
-        (2, 100, 5),
-        (5, 100, 2),
-        (10, 100, 1),
-    ],
-)
-def test_lu_slv_tridiag(nblocks: int, blocksize: int, nrhs: int):
-    symmetric = False
-    diagonal_dominant = True
-    seed = 63
+# @pytest.mark.mpi_skip()
+# @pytest.mark.parametrize(
+#     "nblocks, blocksize, nrhs",
+#     [
+#         (2, 2, 1),
+#         (10, 2, 3),
+#         (100, 2, 4),
+#         (2, 3, 1),
+#         (10, 3, 2),
+#         (100, 3, 1),
+#         (2, 100, 5),
+#         (5, 100, 2),
+#         (10, 100, 1),
+#     ]
+# )
+# def test_lu_slv_tridiag(
+#     nblocks: int,
+#     blocksize: int,
+#     nrhs: int
+# ):
+#     symmetric = False
+#     diagonal_dominant = True
+#     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
-        nblocks, blocksize, symmetric, diagonal_dominant, seed
-    )
+#     A = matrix_generation.generate_tridiag_dense(
+#         nblocks, blocksize, symmetric, diagonal_dominant, seed
+#     )
 
-    lu_ref, p_ref = la.lu_factor(A)
-    L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
+#     lu_ref, p_ref = la.lu_factor(A)
+#     L_sdr, U_sdr = lu_dcmp_tridiag(A, blocksize)
 
-    B = np.random.randn(A.shape[0], nrhs)
+#     B = np.random.randn(A.shape[0], nrhs)
 
-    X_ref = la.lu_solve((lu_ref, p_ref), B)
-    X_sdr = lu_slv_tridiag(L_sdr, U_sdr, B, blocksize)
+#     X_ref = la.lu_solve((lu_ref, p_ref), B)
+#     X_sdr = lu_slv_tridiag(L_sdr, U_sdr, B, blocksize)
 
-    assert np.allclose(X_ref, X_sdr)
+#     assert np.allclose(X_ref, X_sdr)

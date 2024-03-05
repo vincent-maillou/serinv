@@ -5,7 +5,7 @@
 
 Contains the cholesky selected decompositions routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 
@@ -19,45 +19,46 @@ def chol_dcmp_tridiag(
     overwrite: bool = False,
 ) -> np.ndarray:
     """Perform the cholesky factorization of a block tridiagonal matrix. The
-    matrix is assumed to be symmetric positive definite.
+        matrix is assumed to be symmetric positive definite.
 
-    Current implementation doesn't modify the input matrix A.
+        Current implementation doesn't modify the input matrix A.
 
-    Parameters
-    ----------
-    A : np.ndarray
-        Input matrix to decompose.
-    blocksize : int
-        Size of the blocks.
-<<<<<<< HEAD
-    overwrite : bool
-        If True, the input matrix A is modified in place. Default is False.
-    
-=======
+        Parameters
+        ----------
+        A : np.ndarray
+            Input matrix to decompose. Overwrites A.
+        blocksize : int
+            Size of the blocks.
+    <<<<<<< HEAD
+        overwrite : bool
+            If True, the input matrix A is modified in place. Default is False.
 
->>>>>>> main
-    Returns
-    -------
-    L : np.ndarray
-        The cholesky factorization of the matrix.
+    =======
+
+    >>>>>>> main
+        Returns
+        -------
+        L : np.ndarray
+            The cholesky factorization of the matrix.
+
     """
 
     if overwrite:
         L = A
-    else:   
+    else:
         L = np.copy(A)
 
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
-            la.cholesky(
-                L[
-                    i * blocksize : (i + 1) * blocksize,
-                    i * blocksize : (i + 1) * blocksize,
-                ],
-            ).T
-        )
+        L[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = la.cholesky(
+            L[
+                i * blocksize : (i + 1) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ],
+        ).T
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L[
@@ -129,12 +130,12 @@ def chol_dcmp_tridiag_arrowhead(
     L : np.ndarray
         The cholesky factorization of the matrix.
     """
-    
+
     if overwrite:
         L = A
-    else:    
+    else:
         L = np.copy(A)
-        
+
     L_inv_temp = np.zeros((diag_blocksize, diag_blocksize))
 
     n_diag_blocks = (A.shape[0] - arrow_blocksize) // diag_blocksize
@@ -249,7 +250,7 @@ def chol_dcmp_tridiag_arrowhead(
     L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(
         L[-arrow_blocksize:, -arrow_blocksize:]
     ).T
-    
+
     # zero out upper triangular part
     L[:] = L * np.tri(*L.shape, k=0)
 
@@ -281,12 +282,12 @@ def chol_dcmp_ndiags(
     L : np.ndarray
         The cholesky factorization of the matrix.
     """
-    
+
     if overwrite:
         L = A
-    else:    
+    else:
         L = np.copy(A)
-        
+
     L_inv_temp = np.zeros((blocksize, blocksize))
 
     n_offdiags_blk = ndiags // 2
@@ -342,7 +343,7 @@ def chol_dcmp_ndiags(
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
     L[-blocksize:, -blocksize:] = la.cholesky(L[-blocksize:, -blocksize:]).T
-    
+
     # zero out upper triangular part
     L[:] = L * np.tri(*L.shape, k=0)
 
@@ -380,9 +381,9 @@ def chol_dcmp_ndiags_arrowhead(
 
     if overwrite:
         L = A
-    else:    
+    else:
         L = np.copy(A)
-        
+
     L_inv_temp = np.zeros((diag_blocksize, diag_blocksize))
 
     n_offdiags_blk = ndiags // 2
@@ -509,8 +510,8 @@ def chol_dcmp_ndiags_arrowhead(
     L[-arrow_blocksize:, -arrow_blocksize:] = la.cholesky(
         L[-arrow_blocksize:, -arrow_blocksize:]
     ).T
-    
+
     # zero out upper triangular part
-    L[:] = L * np.tri(*L.shape, k=0)    
+    L[:] = L * np.tri(*L.shape, k=0)
 
     return L

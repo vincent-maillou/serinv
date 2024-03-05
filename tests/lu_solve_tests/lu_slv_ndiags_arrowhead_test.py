@@ -5,7 +5,7 @@
 
 Tests for lu selected solving routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead(
+    A = matrix_generation.generate_ndiags_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,
@@ -72,6 +72,7 @@ if __name__ == "__main__":
     plt.show()
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, ndiags, diag_blocksize, arrow_blocksize, nrhs",
     [
@@ -96,7 +97,7 @@ def test_lu_slv_ndiags_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead(
+    A = matrix_generation.generate_ndiags_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,

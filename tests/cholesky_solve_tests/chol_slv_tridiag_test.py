@@ -5,7 +5,7 @@
 
 Tests for cholesky selected solving routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 from sdr.utils import matrix_generation
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
+    A = matrix_generation.generate_tridiag_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -55,11 +55,11 @@ if __name__ == "__main__":
     ax[2].set_title("X_diff: Difference between X_ref and X_sdr")
     ax[2].matshow(X_diff)
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
-    
+
     plt.show()
-    
-    #print("norm(x - x_ref) = ", np.linalg.norm(X_sdr - X_ref))
-    
+
+    # print("norm(x - x_ref) = ", np.linalg.norm(X_sdr - X_ref))
+
     # Run with overwrite = True functionality
     X_sdr = chol_slv_tridiag(L_sdr, B, blocksize, overwrite=True)
     print("Run with overwrite :  True")
@@ -72,6 +72,7 @@ if __name__ == "__main__":
     # print("norm(x - x_ref) = ", np.linalg.norm(X_sdr - X_ref))
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, blocksize, nrhs",
     [
@@ -86,15 +87,10 @@ if __name__ == "__main__":
         (10, 100, 1),
     ],
 )
-
-@pytest.mark.parametrize(
-    "overwrite", 
-    [True, False]
-) 
-
+@pytest.mark.parametrize("overwrite", [True, False])
 def test_cholesky_slv_tridiag(
     nblocks: int,
-    blocksize: int,  
+    blocksize: int,
     nrhs: int,
     overwrite: bool,
 ):
@@ -102,7 +98,7 @@ def test_cholesky_slv_tridiag(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag(
+    A = matrix_generation.generate_tridiag_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -116,5 +112,5 @@ def test_cholesky_slv_tridiag(
 
     if overwrite:
         assert np.allclose(X_ref, X_sdr) and B.ctypes.data == X_sdr.ctypes.data
-    else: 
-        assert np.allclose(X_ref, X_sdr) and B.ctypes.data != X_sdr.ctypes.data 
+    else:
+        assert np.allclose(X_ref, X_sdr) and B.ctypes.data != X_sdr.ctypes.data
