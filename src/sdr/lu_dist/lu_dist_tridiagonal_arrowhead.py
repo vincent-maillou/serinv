@@ -9,12 +9,12 @@ block tridiagonal arrowhead matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
-from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
-
 import numpy as np
 import scipy.linalg as la
 from mpi4py import MPI
+
+from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
+from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
 
 
 def lu_dist_tridiagonal_arrowhead(

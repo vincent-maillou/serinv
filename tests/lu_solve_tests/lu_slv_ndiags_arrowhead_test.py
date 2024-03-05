@@ -8,15 +8,14 @@ Tests for lu selected solving routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+import scipy.linalg as la
+
 from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
 from sdr.lu.lu_solve import lu_slv_ndiags_arrowhead
-
-import numpy as np
-import scipy.linalg as la
-import matplotlib.pyplot as plt
-import pytest
-
+from sdr.utils import matrix_generation
 
 # Testing of block tridiagonal lu
 if __name__ == "__main__":

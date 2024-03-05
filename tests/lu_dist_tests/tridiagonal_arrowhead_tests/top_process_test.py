@@ -9,13 +9,14 @@ matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils.matrix_generation import generate_tridiag_arrowhead_dense
-from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import top_factorize, top_sinv
+import copy as cp
 
 import numpy as np
-import copy as cp
 import pytest
+
+from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import top_factorize, top_sinv
+from sdr.utils.matrix_generation import generate_tridiag_arrowhead_dense
+from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
 
 @pytest.mark.mpi_skip()

@@ -8,17 +8,16 @@ Integration testing of the lu_dist algorithm for tridiagonal arrowhead matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
-from sdr.utils import dist_utils
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
-from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
+import copy as cp
+from os import environ
 
 import numpy as np
-import copy as cp
 import pytest
 from mpi4py import MPI
 
-from os import environ
+from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
+from sdr.utils import dist_utils, matrix_generation
+from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
 environ["OMP_NUM_THREADS"] = "1"
 

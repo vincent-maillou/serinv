@@ -1,6 +1,6 @@
-import sympy as sp
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import sympy as sp
 
 
 def getcost_bta_seq_factorization(n_blocks, diag_blocksize, arrowhead_blocksize):

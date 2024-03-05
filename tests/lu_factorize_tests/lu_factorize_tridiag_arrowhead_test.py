@@ -8,16 +8,16 @@ Tests for lu tridiagonal arrowhead matrices selected factorization routine.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import numpy as np
+import pytest
+import scipy.linalg as la
+
+from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.utils import matrix_generation
 from sdr.utils.matrix_transform import (
-    from_dense_to_arrowhead_arrays,
     from_arrowhead_arrays_to_dense,
+    from_dense_to_arrowhead_arrays,
 )
-from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
-
-import numpy as np
-import scipy.linalg as la
-import pytest
 
 
 @pytest.mark.mpi_skip()

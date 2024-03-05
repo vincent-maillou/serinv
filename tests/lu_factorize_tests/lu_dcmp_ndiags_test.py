@@ -8,14 +8,13 @@ Tests for lu selected decompositions routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
-from sdr.lu.lu_decompose import lu_dcmp_ndiags
-
-import numpy as np
-import scipy.linalg as la
 import matplotlib.pyplot as plt
+import numpy as np
 import pytest
+import scipy.linalg as la
 
+from sdr.lu.lu_decompose import lu_dcmp_ndiags
+from sdr.utils import matrix_generation
 
 # Testing of block n-diagonals lu
 if __name__ == "__main__":

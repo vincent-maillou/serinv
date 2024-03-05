@@ -8,10 +8,9 @@ Tests for matrix generations routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
-
 import matplotlib.pyplot as plt
 
+from sdr.utils import matrix_generation
 
 if __name__ == "__main__":
     nblocks = 5

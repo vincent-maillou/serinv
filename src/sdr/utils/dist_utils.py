@@ -9,8 +9,9 @@ block tridiagonal arrowhead matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-import numpy as np
 import math
+
+import numpy as np
 
 
 def get_partitions_indices(

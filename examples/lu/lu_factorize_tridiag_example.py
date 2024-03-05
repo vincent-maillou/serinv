@@ -8,17 +8,16 @@ Tests for lu tridiagonal matrices selected factorization routine.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.linalg as la
+
+from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.utils import matrix_generation
 from sdr.utils.matrix_transform import (
     from_dense_to_tridiagonal_arrays,
     from_tridiagonal_arrays_to_dense,
 )
-from sdr.lu.lu_factorize import lu_factorize_tridiag
-
-import numpy as np
-import scipy.linalg as la
-import matplotlib.pyplot as plt
-
 
 # Testing of block tridiagonal lu
 if __name__ == "__main__":

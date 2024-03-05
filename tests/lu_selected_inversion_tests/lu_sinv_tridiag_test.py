@@ -8,18 +8,18 @@ Tests for lu selected inversion routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import numpy as np
+import pytest
+import scipy.linalg as la
+
+from sdr.lu.lu_factorize import lu_factorize_tridiag
+from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
 from sdr.utils import matrix_generation
 from sdr.utils.matrix_transform import (
     cut_to_blocktridiag,
     from_dense_to_tridiagonal_arrays,
     from_tridiagonal_arrays_to_dense,
 )
-from sdr.lu.lu_factorize import lu_factorize_tridiag
-from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
-
-import numpy as np
-import scipy.linalg as la
-import pytest
 
 
 @pytest.mark.mpi_skip()
