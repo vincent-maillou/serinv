@@ -204,7 +204,7 @@ def sinv_ndiags_greg2(
                 if j == k+1:
                     sinv_cdag.add([Vertex("A", A, (j, k), output=False),
                                     Vertex("A_inv", A_inv, (i, j), output=False),
-                                    Vertex("A_inv", A_finv, (i, k), output=False, is_zero=False)],
+                                    Vertex("A_inv", A_inv, (i, k), output=False, is_zero=False)],
                                     Vertex("A_inv", A_inv, (i, k), output=True))
                     
                     sinv_cdag.add([Vertex("A", A, (k, j), output=False),
@@ -279,12 +279,6 @@ def sinv_ndiags_with_enough_parallelism(in_A: np.ndarray,
     A = copy.deepcopy(in_A)
     n = A.shape[0]
     A_inv = np.zeros(in_A.shape, dtype=in_A.dtype)
-
-    # used for 2D parallelism of the second k loop
-    temp_2d_gemm_buffer_L = np.zeros((ndiags, ndiags))
-    temp_2d_gemm_buffer_U = np.zeros((ndiags, ndiags))
-
-
 
     # debug only
     import scipy as sp
@@ -364,6 +358,108 @@ def sinv_ndiags_with_enough_parallelism(in_A: np.ndarray,
     return A_inv
         
 
+
+
+def sinv_ndiags_cupy(in_A: np.ndarray,
+            ndiags: int,
+            b: int = 1
+) -> np.ndarray:
+    """ 
+    Perform the selected inversion on the given input matrix in_A. The sparsity structure is encoded in the loop ranges.
+    Parameter b (block size) increases paralellism for GPU exectuion.
+    
+    Parameters
+    ----------
+    A : np.ndarray
+        Input matrix to decompose.
+    ndiags : int
+        Number of diagonals of the matrix above the main diagonal. The total number of diagonals is 2*ndiags+1.
+    b : int
+        Blocking parameter for additional dimension of parallelism. a tunable block size, such that  
+        ndiags * ndiags * b saturates GPU threads. Generally, b should be the 
+        smallest possible number such that ndiags * ndiags * b >= # hardware_treads
+    
+    """
+    A = copy.deepcopy(in_A)
+    n = A.shape[0]
+    A_inv = np.zeros(in_A.shape, dtype=in_A.dtype)
+
+    # debug only
+    import scipy as sp
+    p, l, u = sp.linalg.lu(in_A)
+    ref_lu = u + np.tril(l, k=-1)
+    ref_invL = np.linalg.inv(l)
+    ref_invU = np.linalg.inv(u)
+    ref_invA = np.linalg.inv(in_A)
+    ref_invLU = ref_invU + np.tril(ref_invL, k=-1)
+    invL = invert_L(l)
+    invU = invert_U(u)
+    # invLU = invert_LU(ref_lu)
+
+    # in the following, we denote an additional iteration variable kk that would loop over b (for k in range(b))
+    # to expose additinal degree of paralellism.
+
+    b = 2
+    A = copy.deepcopy(in_A)
+    for k in range(0, n, b):
+       # the following can be done e.g., using numpy.linalg.inv, or cupy.linalg.inv
+    #    A[k: k+b, k:k+b] = invert_matrix(A[k: k+b, k:k+b])
+        A[k:k+b, k:k+b] = sp.linalg.lu_factor(A[k: k+b, k:k+b])[0]
+
+        start = k+b
+        end = min(k+b+ndiags, n)
+        # toblerone solve
+        A[start:end, k:start], A[k:start, start:end] = \
+            inplace_double_trsm(A[k:start, k:start],
+                                A[start:end, k:start],
+                                A[k:start, start:end])
+
+        # oh nice oh nice oh nice, a sweet perfect fatty 3D parallel GEMM is coming!
+        # Notice that the third argument (matrix C) is inverted, because we are doing
+        # C = C - A @ B, so effectively we are doing C = -GEMM(A, B, -C)
+        A[start:end, start:end] =  -inplace_GEMM(
+            A[start:end, k:start],
+            A[k:start, start:end],
+            -A[start:end, start:end])
+        # END in-place LU decomposition without pivoting
+
+    for k in range(n-b, -b, -b):        
+        a00_start = k
+        a11_start = k+b
+        a11_end=min(k+b+ndiags,n)
+
+        A_inv[a00_start:a11_start, a00_start:a11_start] = \
+                invert_LU(A[a00_start:a11_start, a00_start:a11_start])
+
+        L_inv = np.tril(A_inv[a00_start:a11_start, a00_start:a11_start], k=-1) + np.eye(b)
+        U_inv = np.triu(A_inv[a00_start:a11_start, a00_start:a11_start], k=0)
+        
+        # if k < n-b:
+        # col = A @ col
+        A_inv[a11_start:a11_end, a00_start:a11_start] =  \
+                A_inv[a11_start:a11_end, a00_start:a11_start] - \
+                A_inv[a11_start:a11_end, a11_start:a11_end] @ \
+                    A[a11_start:a11_end, a00_start:a11_start]  @ L_inv
+        
+    
+        # row = row @ A   <- the same A as above! Reuse?
+        A_inv[a00_start:a11_start, a11_start:a11_end] = \
+            A_inv[a00_start:a11_start, a11_start:a11_end] - \
+                U_inv @ A[a00_start:a11_start, a11_start:a11_end] @ \
+                A_inv[a11_start:a11_end, a11_start:a11_end]
+            
+
+
+        A_inv[a00_start:a11_start, a00_start:a11_start]  = \
+            -(A_inv[a00_start:a11_start, a11_start:a11_end] @ \
+            A[a11_start:a11_end, a00_start:a11_start] - \
+            U_inv) @ \
+            L_inv
+
+        # A_inv[a00_start:a11_start, a00_start:a11_start] = \
+        #     GEMM_UL( A_inv[a00_start:a11_start, a00_start:a11_start])
+        
+    return A_inv
 
 
 def sinv_ndiags_greg(

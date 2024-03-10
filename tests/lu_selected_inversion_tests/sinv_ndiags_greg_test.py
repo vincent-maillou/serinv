@@ -1,6 +1,6 @@
 import copy
 from sdr.lu.lu_decompose import lu_dcmp_ndiags
-from sdr.lu.lu_selected_inversion import lu_sinv_ndiags, sinv_ndiags_greg, sinv_ndiags_greg2, sinv_ndiags_with_enough_parallelism, sinv_tridiag_explicit
+from sdr.lu.lu_selected_inversion import lu_sinv_ndiags, sinv_ndiags_cupy, sinv_ndiags_greg, sinv_ndiags_greg2, sinv_ndiags_with_enough_parallelism, sinv_tridiag_explicit
 
 
 import numpy as np
@@ -106,11 +106,11 @@ def test_sinv_ndiags_greg(
 
 
     # X_sdr = lu_sinv_ndiags(L_sdr, U_sdr, ndiags, 2) 
-    test_inverse = sinv_ndiags_with_enough_parallelism(A, ndiags, b=blocksize)
+    test_inverse = sinv_ndiags_cupy(A, ndiags, b=blocksize)
     # test_inverse = sinv_ndiags_greg2(A, ndiags)
     
 
-    # test_inverse = sinv_tridiag_explicit(A, ndiags)
+    # test_inverse = sinv_tridiag_explicit(A, ndiags)e
     # test_inverse = sinv_ndiags_greg2(A, ndiags)
 
     work, depth = sinv_cdag.workDepth()
