@@ -1,26 +1,34 @@
 """
 @author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2023-11
+@date: 2024-02
 
-Tests for lu selected inversion routines.
+Tests for lu tridiagonal arrowhead matrices selected factorization routine.
 
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
+
+import sys
 
 import numpy as np
 import pytest
 import scipy.linalg as la
 
-from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
-from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
+try:
+    import cupy
+except ImportError:
+    pass
+
+from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (cut_to_blocktridiag_arrowhead,
-                                        from_arrowhead_arrays_to_dense,
+from sdr.utils.matrix_transform import (from_arrowhead_arrays_to_dense,
                                         from_dense_to_arrowhead_arrays)
 
 
-@pytest.mark.cpu
+@pytest.mark.skipif(
+    "cupy" not in sys.modules, reason="requires a working cupy installation"
+)
+@pytest.mark.gpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize",
@@ -35,7 +43,7 @@ from sdr.utils.matrix_transform import (cut_to_blocktridiag_arrowhead,
         (10, 2, 10),
     ],
 )
-def test_lu_sinv_tridiag_arrowhead(
+def test_lu_decompose_tridiag_arrowhead_gpu(
     nblocks: int,
     diag_blocksize: int,
     arrow_blocksize: int,
@@ -48,10 +56,12 @@ def test_lu_sinv_tridiag_arrowhead(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
-    # --- Inversion ---
+    # --- Decomposition ---
 
-    X_ref = la.inv(A)
-    X_ref = cut_to_blocktridiag_arrowhead(X_ref, diag_blocksize, arrow_blocksize)
+    P_ref, L_ref, U_ref = la.lu(A)
+
+    if np.allclose(P_ref, np.eye(A.shape[0])):
+        L_ref = P_ref @ L_ref
 
     (
         A_diagonal_blocks,
@@ -69,7 +79,7 @@ def test_lu_sinv_tridiag_arrowhead(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
-    ) = lu_factorize_tridiag_arrowhead(
+    ) = lu_factorize_tridiag_arrowhead_gpu(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
@@ -78,29 +88,23 @@ def test_lu_sinv_tridiag_arrowhead(
         A_arrow_tip_block,
     )
 
-    (
-        X_sdr_diagonal_blocks,
-        X_sdr_lower_diagonal_blocks,
-        X_sdr_upper_diagonal_blocks,
-        X_sdr_arrow_bottom_blocks,
-        X_sdr_arrow_right_blocks,
-        X_sdr_arrow_tip_block,
-    ) = lu_sinv_tridiag_arrowhead(
+    L_sdr = from_arrowhead_arrays_to_dense(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
+        np.zeros((diag_blocksize, (nblocks - 1) * diag_blocksize)),
+        L_arrow_bottom_blocks[:, :-arrow_blocksize],
+        np.zeros(((nblocks - 1) * diag_blocksize, arrow_blocksize)),
+        L_arrow_bottom_blocks[:, -arrow_blocksize:],
+    )
+
+    U_sdr = from_arrowhead_arrays_to_dense(
         U_diagonal_blocks,
+        np.zeros((diag_blocksize, (nblocks - 1) * diag_blocksize)),
         U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
+        np.zeros((arrow_blocksize, (nblocks - 1) * diag_blocksize)),
+        U_arrow_right_blocks[:-arrow_blocksize, :],
+        U_arrow_right_blocks[-arrow_blocksize:, :],
     )
 
-    X_sdr = from_arrowhead_arrays_to_dense(
-        X_sdr_diagonal_blocks,
-        X_sdr_lower_diagonal_blocks,
-        X_sdr_upper_diagonal_blocks,
-        X_sdr_arrow_bottom_blocks,
-        X_sdr_arrow_right_blocks,
-        X_sdr_arrow_tip_block,
-    )
-
-    assert np.allclose(X_ref, X_sdr)
+    assert np.allclose(L_ref, L_sdr)
+    assert np.allclose(U_ref, U_sdr)

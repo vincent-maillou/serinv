@@ -1,9 +1,9 @@
 """
 @author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2024-03
+@date: 2024-02
 
-Tests for lu tridiagonal matrices selected factorization routine, on GPU.
+Tests for lu tridiagonal matrices selected factorization routine.
 
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
@@ -12,17 +12,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as la
 
-from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_gpu
+from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (
-    from_dense_to_tridiagonal_arrays,
-    from_tridiagonal_arrays_to_dense,
-)
+from sdr.utils.matrix_transform import (from_dense_to_tridiagonal_arrays,
+                                        from_tridiagonal_arrays_to_dense)
 
 # Testing of block tridiagonal lu
 if __name__ == "__main__":
     nblocks = 5
-    blocksize = 3
+    blocksize = 2
     symmetric = False
     diagonal_dominant = True
     seed = 63
@@ -50,7 +48,7 @@ if __name__ == "__main__":
         L_lower_diagonal_blocks,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
-    ) = lu_factorize_tridiag_gpu(
+    ) = lu_factorize_tridiag(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,

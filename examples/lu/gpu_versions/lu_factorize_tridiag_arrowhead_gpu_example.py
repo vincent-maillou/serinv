@@ -12,12 +12,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as la
 
-from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
+from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (
-    from_arrowhead_arrays_to_dense,
-    from_dense_to_arrowhead_arrays,
-)
+from sdr.utils.matrix_transform import (from_arrowhead_arrays_to_dense,
+                                        from_dense_to_arrowhead_arrays)
 
 # Testing of block tridiagonal arrowhead lu
 if __name__ == "__main__":
@@ -56,7 +54,7 @@ if __name__ == "__main__":
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
-    ) = lu_factorize_tridiag_arrowhead(
+    ) = lu_factorize_tridiag_arrowhead_gpu(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,

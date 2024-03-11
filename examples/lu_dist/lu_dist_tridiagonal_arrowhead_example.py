@@ -14,7 +14,8 @@ import numpy as np
 import pytest
 from mpi4py import MPI
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
+from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import \
+    lu_dist_tridiagonal_arrowhead
 from sdr.utils import dist_utils, matrix_generation
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 

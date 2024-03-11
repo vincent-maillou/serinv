@@ -8,11 +8,11 @@ Tests for lu tridiagonal matrices selected factorization routine.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import sys
+
 import numpy as np
 import pytest
 import scipy.linalg as la
-
-import sys
 
 try:
     import cupy
@@ -21,10 +21,8 @@ except ImportError:
 
 from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_gpu
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (
-    from_dense_to_tridiagonal_arrays,
-    from_tridiagonal_arrays_to_dense,
-)
+from sdr.utils.matrix_transform import (from_dense_to_tridiagonal_arrays,
+                                        from_tridiagonal_arrays_to_dense)
 
 
 @pytest.mark.skipif(
@@ -46,7 +44,7 @@ from sdr.utils.matrix_transform import (
         (10, 100),
     ],
 )
-def test_lu_decompose_tridiag(
+def test_lu_decompose_tridiag_gpu(
     nblocks: int,
     blocksize: int,
 ):

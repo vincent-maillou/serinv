@@ -14,7 +14,8 @@ import pytest
 import scipy.linalg as la
 
 from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag_arrowhead
-from sdr.cholesky.cholesky_selected_inversion import chol_sinv_tridiag_arrowhead
+from sdr.cholesky.cholesky_selected_inversion import \
+    chol_sinv_tridiag_arrowhead
 from sdr.utils import matrix_generation
 from sdr.utils.matrix_transform import cut_to_blocktridiag_arrowhead
 
