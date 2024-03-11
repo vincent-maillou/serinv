@@ -8,16 +8,15 @@ Tests for cholesky selected inversion routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import cut_to_blockndiags_arrowhead
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+import scipy.linalg as la
+
 from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags_arrowhead
 from sdr.cholesky.cholesky_selected_inversion import chol_sinv_ndiags_arrowhead
-
-import numpy as np
-import scipy.linalg as la
-import matplotlib.pyplot as plt
-import pytest
-
+from sdr.utils import matrix_generation
+from sdr.utils.matrix_transform import cut_to_blockndiags_arrowhead
 
 # Testing of block tridiagonal cholesky sinv
 if __name__ == "__main__":
@@ -62,6 +61,7 @@ if __name__ == "__main__":
     plt.show()
 
 
+@pytest.mark.cpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, ndiags, diag_blocksize, arrow_blocksize",

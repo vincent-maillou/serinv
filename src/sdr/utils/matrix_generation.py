@@ -8,9 +8,9 @@ Matrix generations routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_transform as mt
-
 import numpy as np
+
+from sdr.utils import matrix_transform as mt
 
 
 def generate_tridiag_dense(

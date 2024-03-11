@@ -8,14 +8,13 @@ Tests for lu selected solving routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
-from sdr.lu.lu_solve import lu_slv_tridiag_arrowhead
-
-import numpy as np
-import scipy.linalg as la
 import matplotlib.pyplot as plt
+import numpy as np
 import pytest
+import scipy.linalg as la
 
+from sdr.lu.lu_solve import lu_slv_tridiag_arrowhead
+from sdr.utils import matrix_generation
 
 # Testing of block tridiagonal lu
 if __name__ == "__main__":
@@ -59,6 +58,7 @@ if __name__ == "__main__":
 
     plt.show()
 
+# @pytest.mark.cpu
 # @pytest.mark.mpi_skip()
 # @pytest.mark.parametrize(
 #     "nblocks, diag_blocksize, arrow_blocksize, nrhs",

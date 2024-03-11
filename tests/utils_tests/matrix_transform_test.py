@@ -8,12 +8,10 @@ Tests for matrix transformations routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_transform
-from sdr.utils import matrix_generation
-
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
+from sdr.utils import matrix_generation, matrix_transform
 
 if __name__ == "__main__":
     nblocks = 5

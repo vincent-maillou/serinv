@@ -1,11 +1,10 @@
-import numpy as np
 import matplotlib.pyplot as plt
-
-from sdr.utils.matrix_generation import generate_tridiag_arrowhead_dense
-from sdr.utils.matrix_transform import cut_to_blocktridiag_arrowhead
+import numpy as np
 
 from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
 from sdr.lu.lu_selected_inversion import lu_sinv_ndiags_arrowhead
+from sdr.utils.matrix_generation import generate_tridiag_arrowhead_dense
+from sdr.utils.matrix_transform import cut_to_blocktridiag_arrowhead
 
 
 def create_permutation_matrix(

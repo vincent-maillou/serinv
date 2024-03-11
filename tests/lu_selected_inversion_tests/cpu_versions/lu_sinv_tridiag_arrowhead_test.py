@@ -8,20 +8,19 @@ Tests for lu selected inversion routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (
-    cut_to_blocktridiag_arrowhead,
-    from_dense_to_arrowhead_arrays,
-    from_arrowhead_arrays_to_dense,
-)
-from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
-from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
-
 import numpy as np
-import scipy.linalg as la
 import pytest
+import scipy.linalg as la
+
+from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
+from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
+from sdr.utils import matrix_generation
+from sdr.utils.matrix_transform import (cut_to_blocktridiag_arrowhead,
+                                        from_arrowhead_arrays_to_dense,
+                                        from_dense_to_arrowhead_arrays)
 
 
+@pytest.mark.cpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize",

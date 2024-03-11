@@ -8,23 +8,36 @@ Tests for lu tridiagonal arrowhead matrices selected factorization routine.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (
-    from_dense_to_arrowhead_arrays,
-    from_arrowhead_arrays_to_dense,
-)
-from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
-
 import numpy as np
+import pytest
 import scipy.linalg as la
-import matplotlib.pyplot as plt
+
+from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
+from sdr.utils import matrix_generation
+from sdr.utils.matrix_transform import (from_arrowhead_arrays_to_dense,
+                                        from_dense_to_arrowhead_arrays)
 
 
-# Testing of block tridiagonal arrowhead lu
-if __name__ == "__main__":
-    nblocks = 5
-    diag_blocksize = 3
-    arrow_blocksize = 2
+@pytest.mark.cpu
+@pytest.mark.mpi_skip()
+@pytest.mark.parametrize(
+    "nblocks, diag_blocksize, arrow_blocksize",
+    [
+        (2, 2, 2),
+        (2, 3, 2),
+        (2, 2, 3),
+        (10, 2, 2),
+        (10, 3, 2),
+        (10, 2, 3),
+        (10, 10, 2),
+        (10, 2, 10),
+    ],
+)
+def test_lu_decompose_tridiag_arrowhead(
+    nblocks: int,
+    diag_blocksize: int,
+    arrow_blocksize: int,
+):
     symmetric = False
     diagonal_dominant = True
     seed = 63
@@ -35,11 +48,10 @@ if __name__ == "__main__":
 
     # --- Decomposition ---
 
-    P_ref, L_ref, U_ref = la.lu(A, permute_l=False)
+    P_ref, L_ref, U_ref = la.lu(A)
 
-    if not np.allclose(P_ref, np.eye(A.shape[0])):
-        plt.matshow(P_ref)
-        plt.title("WARNING: Permutation matrix should be identity")
+    if np.allclose(P_ref, np.eye(A.shape[0])):
+        L_ref = P_ref @ L_ref
 
     (
         A_diagonal_blocks,
@@ -83,28 +95,6 @@ if __name__ == "__main__":
         U_arrow_right_blocks[:-arrow_blocksize, :],
         U_arrow_right_blocks[-arrow_blocksize:, :],
     )
-
-    fig, ax = plt.subplots(2, 3)
-    ax[0, 0].set_title("L_ref: Scipy lower factor")
-    ax[0, 0].matshow(L_ref)
-    ax[1, 0].set_title("U_ref: Scipy upper factor")
-    ax[1, 0].matshow(U_ref)
-
-    ax[0, 1].set_title("L_sdr: SDR lower factor")
-    ax[0, 1].matshow(L_sdr)
-    ax[1, 1].set_title("U_sdr: SDR upper factor")
-    ax[1, 1].matshow(U_sdr)
-
-    L_diff = L_ref - L_sdr
-    U_diff = U_ref - U_sdr
-    ax[0, 2].set_title("L: Difference between L_ref and L_sdr")
-    ax[0, 2].matshow(L_diff)
-    ax[1, 2].set_title("U: Difference between U_ref and U_sdr")
-    ax[1, 2].matshow(U_diff)
-    fig.colorbar(ax[0, 2].matshow(L_diff), ax=ax[0, 2], label="Relative error")
-    fig.colorbar(ax[1, 2].matshow(U_diff), ax=ax[1, 2], label="Relative error")
-
-    plt.show()
 
     assert np.allclose(L_ref, L_sdr)
     assert np.allclose(U_ref, U_sdr)

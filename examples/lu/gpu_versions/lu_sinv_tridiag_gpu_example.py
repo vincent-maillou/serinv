@@ -8,19 +8,18 @@ Tests for lu selected inversion routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.linalg as la
+
+from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_gpu
+from sdr.lu.lu_selected_inversion_gpu import lu_sinv_tridiag_gpu
 from sdr.utils import matrix_generation
 from sdr.utils.matrix_transform import (
     cut_to_blocktridiag,
     from_dense_to_tridiagonal_arrays,
     from_tridiagonal_arrays_to_dense,
 )
-from sdr.lu.lu_factorize import lu_factorize_tridiag
-from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
-
-import numpy as np
-import scipy.linalg as la
-import matplotlib.pyplot as plt
-
 
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":
@@ -50,7 +49,7 @@ if __name__ == "__main__":
         L_lower_diagonal_blocks,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
-    ) = lu_factorize_tridiag(
+    ) = lu_factorize_tridiag_gpu(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
@@ -60,7 +59,7 @@ if __name__ == "__main__":
         X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
         X_sdr_upper_diagonal_blocks,
-    ) = lu_sinv_tridiag(
+    ) = lu_sinv_tridiag_gpu(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         U_diagonal_blocks,

@@ -1,6 +1,6 @@
-import sympy as sp
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import sympy as sp
 
 
 def create_permutation_matrix_for_arrowhead(

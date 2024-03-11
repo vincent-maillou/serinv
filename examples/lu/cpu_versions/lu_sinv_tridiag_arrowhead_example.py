@@ -8,19 +8,16 @@ Tests for lu selected inversion routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (
-    cut_to_blocktridiag_arrowhead,
-    from_dense_to_arrowhead_arrays,
-    from_arrowhead_arrays_to_dense,
-)
-from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
-from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
-
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as la
-import matplotlib.pyplot as plt
 
+from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
+from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
+from sdr.utils import matrix_generation
+from sdr.utils.matrix_transform import (cut_to_blocktridiag_arrowhead,
+                                        from_arrowhead_arrays_to_dense,
+                                        from_dense_to_arrowhead_arrays)
 
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":

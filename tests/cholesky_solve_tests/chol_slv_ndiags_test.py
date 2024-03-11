@@ -8,15 +8,14 @@ Tests for cholesky selected solving routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+import scipy.linalg as la
+
 from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags
 from sdr.cholesky.cholesky_solve import chol_slv_ndiags
-
-import numpy as np
-import scipy.linalg as la
-import matplotlib.pyplot as plt
-import pytest
-
+from sdr.utils import matrix_generation
 
 # Testing of block tridiagonal cholesky
 if __name__ == "__main__":
@@ -67,6 +66,7 @@ if __name__ == "__main__":
     print("X_ref == X_sdr     : ", np.allclose(X_ref, X_sdr))
 
 
+@pytest.mark.cpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, ndiags, blocksize, nrhs",
