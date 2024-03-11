@@ -1,7 +1,7 @@
 """
 @author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2024-02
+@date: 2024-03
 
 Contains the lu selected factorization routines.
 
