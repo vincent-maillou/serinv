@@ -8,8 +8,12 @@ Contains the lu selected inversion routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-import cupy as cp
-import cupyx.scipy.linalg as cpla
+try:
+    import cupy as cp
+    import cupyx.scipy.linalg as cpla
+except ImportError:
+    pass
+
 import numpy as np
 
 
