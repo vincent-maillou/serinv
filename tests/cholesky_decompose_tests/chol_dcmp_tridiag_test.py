@@ -54,6 +54,7 @@ if __name__ == "__main__":
     print("L_ref == L_sdr     : ", np.allclose(L_ref, L_sdr))
 
 
+@pytest.mark.cpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, blocksize",

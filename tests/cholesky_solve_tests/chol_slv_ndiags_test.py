@@ -66,6 +66,7 @@ if __name__ == "__main__":
     print("X_ref == X_sdr     : ", np.allclose(X_ref, X_sdr))
 
 
+@pytest.mark.cpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, ndiags, blocksize, nrhs",

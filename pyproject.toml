@@ -32,3 +32,9 @@ repository = "https://github.com/vincent-maillou/SDR"
 
 [tool.setuptools.dynamic]
 version = { attr = "sdr" }
+
+[tool.pytest.ini_options]
+markers = [
+    "cpu: tests of the cpu implementations.)",
+    "gpu: tests require a GPU + cupy installation to run.)",
+]

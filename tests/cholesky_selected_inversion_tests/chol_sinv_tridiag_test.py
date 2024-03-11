@@ -53,6 +53,7 @@ if __name__ == "__main__":
     plt.show()
 
 
+@pytest.mark.cpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, blocksize",

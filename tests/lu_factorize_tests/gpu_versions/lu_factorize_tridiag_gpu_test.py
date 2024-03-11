@@ -12,7 +12,14 @@ import numpy as np
 import pytest
 import scipy.linalg as la
 
-from sdr.lu.lu_factorize import lu_factorize_tridiag
+import sys
+
+try:
+    import cupy
+except ImportError:
+    pass
+
+from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_gpu
 from sdr.utils import matrix_generation
 from sdr.utils.matrix_transform import (
     from_dense_to_tridiagonal_arrays,
@@ -20,6 +27,10 @@ from sdr.utils.matrix_transform import (
 )
 
 
+@pytest.mark.skipif(
+    "cupy" not in sys.modules, reason="requires a working cupy installation"
+)
+@pytest.mark.gpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, blocksize",
@@ -65,7 +76,7 @@ def test_lu_decompose_tridiag(
         L_lower_diagonal_blocks,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
-    ) = lu_factorize_tridiag(
+    ) = lu_factorize_tridiag_gpu(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,

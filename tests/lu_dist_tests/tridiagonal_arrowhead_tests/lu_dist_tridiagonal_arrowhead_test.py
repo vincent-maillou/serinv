@@ -22,6 +22,7 @@ from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 environ["OMP_NUM_THREADS"] = "1"
 
 
+@pytest.mark.cpu
 @pytest.mark.mpi(min_size=2)
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize",

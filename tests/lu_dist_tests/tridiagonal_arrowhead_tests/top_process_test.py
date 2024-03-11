@@ -19,6 +19,7 @@ from sdr.utils.matrix_generation import generate_tridiag_arrowhead_dense
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
 
+@pytest.mark.cpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize",
