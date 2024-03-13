@@ -169,11 +169,11 @@ def lu_dist_tridiagonal_arrowhead_gpu(
             U_arrow_right_blocks,
             U_left_2sided_arrow_blocks,
             Update_arrow_tip,
-            A_diagonal_blocks_local,
-            A_arrow_bottom_blocks_local,
-            A_arrow_right_blocks_local,
-            A_top_2sided_arrow_blocks_local,
-            A_left_2sided_arrow_blocks_local,
+            A_diagonal_blocks_local_updated,
+            A_arrow_bottom_blocks_local_updated,
+            A_arrow_right_blocks_local_updated,
+            A_top_2sided_arrow_blocks_local_updated,
+            A_left_2sided_arrow_blocks_local_updated,
         ) = middle_factorize_gpu(
             A_diagonal_blocks_local,
             A_lower_diagonal_blocks_local,
@@ -193,15 +193,15 @@ def lu_dist_tridiagonal_arrowhead_gpu(
             A_rs_arrow_right_blocks,
             A_rs_arrow_tip_block,
         ) = create_reduced_system(
-            A_diagonal_blocks_local,
-            A_arrow_bottom_blocks_local,
-            A_arrow_right_blocks_local,
+            A_diagonal_blocks_local_updated,
+            A_arrow_bottom_blocks_local_updated,
+            A_arrow_right_blocks_local_updated,
             A_arrow_tip_block,
             Update_arrow_tip,
             A_bridges_lower,
             A_bridges_upper,
-            A_top_2sided_arrow_blocks_local,
-            A_left_2sided_arrow_blocks_local,
+            A_top_2sided_arrow_blocks_local_updated,
+            A_left_2sided_arrow_blocks_local_updated,
         )
 
     (
@@ -878,11 +878,12 @@ def middle_factorize_gpu(
         )
 
     # Compute the last LU blocks of the 2-sided factorization pattern
-    # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
     (
-        L_diagonal_blocks_local_gpu[:, -diag_blocksize:],
-        U_diagonal_blocks_local_gpu[:, -diag_blocksize:],
-    ) = la.lu(A_diagonal_blocks_local[:, -diag_blocksize:], permute_l=True)
+        L_diagonal_blocks_local_gpu[:, (n_blocks - 1) * diag_blocksize :],
+        U_diagonal_blocks_local_gpu[:, (n_blocks - 1) * diag_blocksize :],
+    ) = cpla.lu(
+        A_diagonal_blocks_local[:, (n_blocks - 1) * diag_blocksize :], permute_l=True
+    )
 
     # Compute last lower factors
     U_inv_temp_gpu = cpla.solve_triangular(
