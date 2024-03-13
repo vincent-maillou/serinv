@@ -1,1 +1,1 @@
-# Copyright 2023 ETH Zurich & USI. All rights reserved.
+# Copyright 2023-2024 ETH Zurich & USI. All rights reserved.

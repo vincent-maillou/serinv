@@ -3,6 +3,7 @@
 *.npy
 
 # Byte-compiled / optimized / DLL files
+.vscode/
 __pycache__/
 *.py[cod]
 *$py.class

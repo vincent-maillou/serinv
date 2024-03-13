@@ -5,19 +5,16 @@
 
 Tests for cholesky selected decompositions routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+import scipy.linalg as la
 
 from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag_arrowhead
-
-import numpy as np
-import scipy.linalg as la
-import matplotlib.pyplot as plt
-import pytest
-
-
+from sdr.utils import matrix_generation
 
 # Testing of block tridiagonal arrowhead cholesky
 if __name__ == "__main__":
@@ -28,11 +25,9 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag_arrowhead(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+    A = matrix_generation.generate_tridiag_arrowhead_dense(
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
-
 
     # --- Decomposition ---
 
@@ -52,9 +47,20 @@ if __name__ == "__main__":
 
     plt.show()
 
+    # Run with overwrite = True functionality
+    L_sdr = chol_dcmp_tridiag_arrowhead(
+        A, diag_blocksize, arrow_blocksize, overwrite=True
+    )
+    print("Run with overwrite :  True")
+    print("memory address A   : ", A.ctypes.data)
+    print("memory address L   : ", L_sdr.ctypes.data)
+    print("L_ref == L_sdr     : ", np.allclose(L_ref, L_sdr))
 
+
+@pytest.mark.cpu
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, diag_blocksize, arrow_blocksize", 
+    "nblocks, diag_blocksize, arrow_blocksize",
     [
         (2, 2, 2),
         (2, 3, 2),
@@ -64,24 +70,27 @@ if __name__ == "__main__":
         (10, 2, 3),
         (10, 10, 2),
         (10, 2, 10),
-    ]
+    ],
 )
+@pytest.mark.parametrize("overwrite", [True, False])
 def test_cholesky_decompose_tridiag_arrowhead(
-    nblocks: int, 
-    diag_blocksize: int, 
-    arrow_blocksize: int, 
+    nblocks: int,
+    diag_blocksize: int,
+    arrow_blocksize: int,
+    overwrite: bool,
 ):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_blocktridiag_arrowhead(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, 
-        seed
+    A = matrix_generation.generate_tridiag_arrowhead_dense(
+        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
     L_ref = la.cholesky(A, lower=True)
-    L_sdr = chol_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
+    L_sdr = chol_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize, overwrite)
 
-    assert np.allclose(L_ref, L_sdr)
-
+    if overwrite:
+        assert np.allclose(L_ref, L_sdr) and A.ctypes.data == L_sdr.ctypes.data
+    else:
+        assert np.allclose(L_ref, L_sdr) and A.ctypes.data != L_sdr.ctypes.data

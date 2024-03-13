@@ -5,18 +5,17 @@
 
 Tests for cholesky selected solving routines.
 
-Copyright 2023 ETH Zurich and USI. All rights reserved.
+Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-from sdr.utils import matrix_generation
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+import scipy.linalg as la
+
 from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags
 from sdr.cholesky.cholesky_solve import chol_slv_ndiags
-
-import numpy as np
-import scipy.linalg as la
-import matplotlib.pyplot as plt
-import pytest
-
+from sdr.utils import matrix_generation
 
 # Testing of block tridiagonal cholesky
 if __name__ == "__main__":
@@ -27,7 +26,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
+    A = matrix_generation.generate_block_ndiags_dense(
         nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -36,7 +35,6 @@ if __name__ == "__main__":
 
     nrhs = 3
     B = np.random.randn(A.shape[0], nrhs)
-
 
     # --- Solving ---
 
@@ -59,11 +57,19 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
-    
 
-    
+    # Run with overwrite = True functionality
+    X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize, overwrite=True)
+    print("Run with overwrite :  True")
+    print("memory address B   : ", B.ctypes.data)
+    print("memory address X   : ", X_sdr.ctypes.data)
+    print("X_ref == X_sdr     : ", np.allclose(X_ref, X_sdr))
+
+
+@pytest.mark.cpu
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, ndiags, blocksize, nrhs", 
+    "nblocks, ndiags, blocksize, nrhs",
     [
         (2, 3, 2, 1),
         (3, 5, 2, 3),
@@ -71,29 +77,33 @@ if __name__ == "__main__":
         (20, 3, 3, 5),
         (30, 5, 3, 1),
         (40, 7, 3, 2),
-    ]
+    ],
 )
+@pytest.mark.parametrize("overwrite", [True, False])
 def test_cholesky_decompose_ndiags(
-    nblocks: int, 
-    ndiags: int, 
+    nblocks: int,
+    ndiags: int,
     blocksize: int,
     nrhs: int,
+    overwrite: bool,
 ):
     symmetric = True
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_block_ndiags(
+    A = matrix_generation.generate_block_ndiags_dense(
         nblocks, ndiags, blocksize, symmetric, diagonal_dominant, seed
     )
 
     L_ref = la.cholesky(A, lower=True)
     L_sdr = chol_dcmp_ndiags(A, ndiags, blocksize)
-    
+
     B = np.random.randn(A.shape[0], nrhs)
-    
+
     X_ref = la.cho_solve((L_ref, True), B)
-    X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize)
+    X_sdr = chol_slv_ndiags(L_sdr, B, ndiags, blocksize, overwrite)
 
-
-    assert np.allclose(X_ref, X_sdr)
+    if overwrite:
+        assert np.allclose(X_ref, X_sdr) and B.ctypes.data == X_sdr.ctypes.data
+    else:
+        assert np.allclose(X_ref, X_sdr) and B.ctypes.data != X_sdr.ctypes.data

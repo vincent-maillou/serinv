@@ -7,20 +7,22 @@ name = "SDR"
 version = "0.1"
 authors = [{ name = "Vincent Maillou", email = "vmaillou@iis.ee.ethz.ch" },
            { name = "Lisa Gaedke-Merzhaeuser", email = "lisa.gaedke.merzhaeuser@usi.ch" }]
-description = "Implementations of selected decompositions routines"
+description = "Implementations of selected factorizations algorithms and solvers"
 readme = "README.MD"
 requires-python = ">=3.9"
-license = {text = "BSD-3-Clause"}
+license = {text = "GPL-3-Clause"}
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: BSD License",
+    "License :: OSI Approved :: GPL-3.0 License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
     "numpy",
     "scipy",
     "matplotlib",
+    "mpi4py",
     "pytest",
+    "pytest-mpi",
     "pytest-cov",
     "coverage",
 ]
@@ -30,3 +32,12 @@ repository = "https://github.com/vincent-maillou/SDR"
 
 [tool.setuptools.dynamic]
 version = { attr = "sdr" }
+
+[tool.pytest.ini_options]
+markers = [
+    "cpu: tests of the cpu implementations.)",
+    "gpu: tests require a GPU + cupy installation to run.)",
+]
+
+[tool.coverage.run]
+omit = ['*gpu*.py']
