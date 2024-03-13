@@ -1604,17 +1604,33 @@ def top_sinv_gpu(
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
 
-    X_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(X_diagonal_blocks_local)
-    X_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+    X_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(X_diagonal_blocks_local)
+    X_diagonal_blocks_local_gpu[:, -diag_blocksize:] = cp.asarray(
+        X_diagonal_blocks_local[:, -diag_blocksize:]
+    )
+
+    X_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_lower_diagonal_blocks_local
     )
-    X_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+
+    X_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_upper_diagonal_blocks_local
     )
-    X_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.asarray(
+
+    X_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_arrow_bottom_blocks_local
     )
-    X_arrow_right_blocks_local_gpu: cp.ndarray = cp.asarray(X_arrow_right_blocks_local)
+    X_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:] = cp.asarray(
+        X_arrow_bottom_blocks_local[:, -diag_blocksize:]
+    )
+
+    X_arrow_right_blocks_local_gpu: cp.ndarray = cp.empty_like(
+        X_arrow_right_blocks_local
+    )
+    X_arrow_right_blocks_local_gpu[-diag_blocksize:, :] = cp.asarray(
+        X_arrow_right_blocks_local[-diag_blocksize:, :]
+    )
+
     X_global_arrow_tip_gpu: cp.ndarray = cp.asarray(X_global_arrow_tip)
 
     L_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(L_diagonal_blocks_local)
@@ -1834,23 +1850,62 @@ def middle_sinv_gpu(
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
 
-    X_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(X_diagonal_blocks_local)
-    X_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+    X_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(X_diagonal_blocks_local)
+    X_diagonal_blocks_local_gpu[:, :diag_blocksize] = cp.asarray(
+        X_diagonal_blocks_local[:, :diag_blocksize]
+    )
+    X_diagonal_blocks_local_gpu[:, -diag_blocksize:] = cp.asarray(
+        X_diagonal_blocks_local[:, -diag_blocksize:]
+    )
+
+    X_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_lower_diagonal_blocks_local
     )
-    X_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+
+    X_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_upper_diagonal_blocks_local
     )
-    X_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.asarray(
+
+    X_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_arrow_bottom_blocks_local
     )
-    X_arrow_right_blocks_local_gpu: cp.ndarray = cp.asarray(X_arrow_right_blocks_local)
-    X_top_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.asarray(
+    X_arrow_bottom_blocks_local_gpu[:, :diag_blocksize] = cp.asarray(
+        X_arrow_bottom_blocks_local[:, :diag_blocksize]
+    )
+    X_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:] = cp.asarray(
+        X_arrow_bottom_blocks_local[:, -diag_blocksize:]
+    )
+
+    X_arrow_right_blocks_local_gpu: cp.ndarray = cp.empty_like(
+        X_arrow_right_blocks_local
+    )
+    X_arrow_right_blocks_local_gpu[:diag_blocksize, :] = cp.asarray(
+        X_arrow_right_blocks_local[:diag_blocksize, :]
+    )
+    X_arrow_right_blocks_local_gpu[-diag_blocksize:, :] = cp.asarray(
+        X_arrow_right_blocks_local[-diag_blocksize:, :]
+    )
+
+    X_top_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_top_2sided_arrow_blocks_local
     )
-    X_left_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.asarray(
+    X_top_2sided_arrow_blocks_local_gpu[:, :diag_blocksize] = cp.asarray(
+        X_top_2sided_arrow_blocks_local[:, :diag_blocksize]
+    )
+    X_top_2sided_arrow_blocks_local_gpu[:, -diag_blocksize:] = cp.asarray(
+        X_top_2sided_arrow_blocks_local[:, -diag_blocksize:]
+    )
+
+    X_left_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_left_2sided_arrow_blocks_local
     )
+    X_left_2sided_arrow_blocks_local_gpu[:diag_blocksize, :] = cp.asarray(
+        X_left_2sided_arrow_blocks_local[:diag_blocksize, :]
+    )
+    X_left_2sided_arrow_blocks_local_gpu[-diag_blocksize:, :] = cp.asarray(
+        X_left_2sided_arrow_blocks_local[-diag_blocksize:, :]
+    )
+
     X_global_arrow_tip_block_local_gpu: cp.ndarray = cp.asarray(
         X_global_arrow_tip_block_local
     )
