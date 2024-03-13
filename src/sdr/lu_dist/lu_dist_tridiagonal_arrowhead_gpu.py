@@ -136,11 +136,11 @@ def lu_dist_tridiagonal_arrowhead_gpu(
         )
     else:
         # Arrays that store the update of the 2sided pattern for the middle processes
-        A_top_2sided_arrow_blocks_local = np.zeros(
+        A_top_2sided_arrow_blocks_local = np.empty(
             (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
             dtype=A_diagonal_blocks_local.dtype,
         )
-        A_left_2sided_arrow_blocks_local = np.zeros(
+        A_left_2sided_arrow_blocks_local = np.empty(
             (n_diag_blocks_partition * diag_blocksize, diag_blocksize),
             dtype=A_diagonal_blocks_local.dtype,
         )
@@ -971,7 +971,7 @@ def middle_factorize_gpu(
         L_inv_temp_gpu @ A_arrow_right_blocks_local_gpu[:diag_blocksize, :]
     )
 
-    A_diagonal_blocks_local_updated = np.zeros(
+    A_diagonal_blocks_local_updated = np.empty(
         (diag_blocksize, 2 * diag_blocksize), dtype=A_diagonal_blocks_local.dtype
     )
     A_diagonal_blocks_local_updated[:, :diag_blocksize] = cp.asnumpy(
@@ -981,7 +981,7 @@ def middle_factorize_gpu(
         A_diagonal_blocks_local_gpu[:, -diag_blocksize:]
     )
 
-    A_arrow_bottom_blocks_local_updated = np.zeros(
+    A_arrow_bottom_blocks_local_updated = np.empty(
         (arrow_blocksize, 2 * diag_blocksize), dtype=A_arrow_bottom_blocks_local.dtype
     )
     A_arrow_bottom_blocks_local_updated[:, :diag_blocksize] = cp.asnumpy(
@@ -991,7 +991,7 @@ def middle_factorize_gpu(
         A_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:]
     )
 
-    A_arrow_right_blocks_local_updated = np.zeros(
+    A_arrow_right_blocks_local_updated = np.empty(
         (2 * diag_blocksize, arrow_blocksize), dtype=A_arrow_right_blocks_local.dtype
     )
     A_arrow_right_blocks_local_updated[:diag_blocksize, :] = cp.asnumpy(
@@ -1001,7 +1001,7 @@ def middle_factorize_gpu(
         A_arrow_right_blocks_local_gpu[-diag_blocksize:, :]
     )
 
-    A_top_2sided_arrow_blocks_local_updated = np.zeros(
+    A_top_2sided_arrow_blocks_local_updated = np.empty(
         (diag_blocksize, 2 * diag_blocksize),
         dtype=A_top_2sided_arrow_blocks_local.dtype,
     )
@@ -1012,7 +1012,7 @@ def middle_factorize_gpu(
         A_top_2sided_arrow_blocks_local_gpu[:, -diag_blocksize:]
     )
 
-    A_left_2sided_arrow_blocks_local_updated = np.zeros(
+    A_left_2sided_arrow_blocks_local_updated = np.empty(
         (2 * diag_blocksize, diag_blocksize),
         dtype=A_left_2sided_arrow_blocks_local.dtype,
     )
@@ -1424,32 +1424,32 @@ def update_sinv_reduced_system(
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
-    X_diagonal_blocks_local = np.zeros(
+    X_diagonal_blocks_local = np.empty(
         (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_lower_diagonal_blocks_local = np.zeros(
+    X_lower_diagonal_blocks_local = np.empty(
         (diag_blocksize, (n_diag_blocks_partition - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_upper_diagonal_blocks_local = np.zeros(
+    X_upper_diagonal_blocks_local = np.empty(
         (diag_blocksize, (n_diag_blocks_partition - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_arrow_bottom_blocks_local = np.zeros(
+    X_arrow_bottom_blocks_local = np.empty(
         (arrow_blocksize, n_diag_blocks_partition * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_arrow_right_blocks_local = np.zeros(
+    X_arrow_right_blocks_local = np.empty(
         (n_diag_blocks_partition * diag_blocksize, arrow_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
 
-    X_bridges_upper = np.zeros(
+    X_bridges_upper = np.empty(
         (diag_blocksize, (comm_size - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_bridges_lower = np.zeros(
+    X_bridges_lower = np.empty(
         (diag_blocksize, (comm_size - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
@@ -1473,11 +1473,11 @@ def update_sinv_reduced_system(
             :diag_blocksize, :
         ]
     else:
-        X_top_2sided_arrow_blocks_local = np.zeros(
+        X_top_2sided_arrow_blocks_local = np.empty(
             (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
             dtype=X_rs_diagonal_blocks.dtype,
         )
-        X_left_2sided_arrow_blocks_local = np.zeros(
+        X_left_2sided_arrow_blocks_local = np.empty(
             (n_diag_blocks_partition * diag_blocksize, diag_blocksize),
             dtype=X_rs_diagonal_blocks.dtype,
         )
