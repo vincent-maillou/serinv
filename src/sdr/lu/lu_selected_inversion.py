@@ -75,6 +75,7 @@ def lu_sinv_tridiag(
     X_diagonal_blocks[:, -blocksize:] = U_blk_inv @ L_blk_inv
 
     for i in range(nblocks - 2, -1, -1):
+        print(i)
         L_blk_inv = la.solve_triangular(
             L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
             np.eye(blocksize),
