@@ -61,18 +61,18 @@ def lu_sinv_tridiag_gpu(
     U_diagonal_blocks_gpu: cp.ndarray = cp.asarray(U_diagonal_blocks)
     U_upper_diagonal_blocks_gpu: cp.ndarray = cp.asarray(U_upper_diagonal_blocks)
 
-    X_diagonal_blocks_gpu = cp.zeros(
+    X_diagonal_blocks_gpu = cp.empty(
         (blocksize, nblocks * blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_lower_diagonal_blocks_gpu = cp.zeros(
+    X_lower_diagonal_blocks_gpu = cp.empty(
         (blocksize, (nblocks - 1) * blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_upper_diagonal_blocks_gpu = cp.zeros(
+    X_upper_diagonal_blocks_gpu = cp.empty(
         (blocksize, (nblocks - 1) * blocksize), dtype=L_diagonal_blocks.dtype
     )
 
-    L_blk_inv_gpu = cp.zeros((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
-    U_blk_inv_gpu = cp.zeros((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
+    L_blk_inv_gpu = cp.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
+    U_blk_inv_gpu = cp.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
 
     L_blk_inv_gpu = cpla.solve_triangular(
         L_diagonal_blocks_gpu[:, -blocksize:], cp.eye(blocksize), lower=True
@@ -178,31 +178,31 @@ def lu_sinv_tridiag_arrowhead_gpu(
     U_upper_diagonal_blocks_gpu: cp.ndarray = cp.asarray(U_upper_diagonal_blocks)
     U_arrow_right_blocks_gpu: cp.ndarray = cp.asarray(U_arrow_right_blocks)
 
-    X_diagonal_blocks_gpu = cp.zeros(
+    X_diagonal_blocks_gpu = cp.empty(
         (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_lower_diagonal_blocks_gpu = cp.zeros(
+    X_lower_diagonal_blocks_gpu = cp.empty(
         (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
         dtype=L_diagonal_blocks.dtype,
     )
-    X_upper_diagonal_blocks_gpu = cp.zeros(
+    X_upper_diagonal_blocks_gpu = cp.empty(
         (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
         dtype=L_diagonal_blocks.dtype,
     )
-    X_arrow_bottom_blocks_gpu = cp.zeros(
+    X_arrow_bottom_blocks_gpu = cp.empty(
         (arrow_blocksize, n_diag_blocks * diag_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_arrow_right_blocks_gpu = cp.zeros(
+    X_arrow_right_blocks_gpu = cp.empty(
         (n_diag_blocks * diag_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_arrow_tip_block_gpu = cp.zeros(
+    X_arrow_tip_block_gpu = cp.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
 
-    L_last_blk_inv_gpu = cp.zeros(
+    L_last_blk_inv_gpu = cp.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    U_last_blk_inv_gpu = cp.zeros(
+    U_last_blk_inv_gpu = cp.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
 
