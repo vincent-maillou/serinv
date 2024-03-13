@@ -526,9 +526,15 @@ def top_factorize_gpu(
         U_diagonal_blocks_local_gpu[:, -diag_blocksize:],
     ) = cpla.lu(A_diagonal_blocks_local_gpu[:, -diag_blocksize:], permute_l=True)
 
-    A_diagonal_blocks_local = cp.asnumpy(A_diagonal_blocks_local_gpu)
-    A_arrow_bottom_blocks_local = cp.asnumpy(A_arrow_bottom_blocks_local_gpu)
-    A_arrow_right_blocks_local = cp.asnumpy(A_arrow_right_blocks_local_gpu)
+    A_diagonal_blocks_updated = cp.asnumpy(
+        A_diagonal_blocks_local_gpu[:, -diag_blocksize:]
+    )
+    A_arrow_bottom_blocks_updated = cp.asnumpy(
+        A_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:]
+    )
+    A_arrow_right_blocks_updated = cp.asnumpy(
+        A_arrow_right_blocks_local_gpu[-diag_blocksize:, :]
+    )
 
     L_diagonal_blocks_local: np.ndarray = cp.asnumpy(L_diagonal_blocks_local_gpu)
     L_lower_diagonal_blocks_local: np.ndarray = cp.asnumpy(
@@ -552,9 +558,9 @@ def top_factorize_gpu(
         U_upper_diagonal_blocks_local,
         U_arrow_right_blocks_local,
         Update_arrow_tip_local,
-        A_diagonal_blocks_local,
-        A_arrow_bottom_blocks_local,
-        A_arrow_right_blocks_local,
+        A_diagonal_blocks_updated,
+        A_arrow_bottom_blocks_updated,
+        A_arrow_right_blocks_updated,
     )
 
 
@@ -964,11 +970,15 @@ def middle_factorize_gpu(
         L_inv_temp_gpu @ A_arrow_right_blocks_local_gpu[:diag_blocksize, :]
     )
 
-    A_diagonal_blocks_local = cp.asnumpy(A_diagonal_blocks_local_gpu)
-    A_arrow_bottom_blocks_local = cp.asnumpy(A_arrow_bottom_blocks_local_gpu)
-    A_arrow_right_blocks_local = cp.asnumpy(A_arrow_right_blocks_local_gpu)
-    A_top_2sided_arrow_blocks_local = cp.asnumpy(A_top_2sided_arrow_blocks_local_gpu)
-    A_left_2sided_arrow_blocks_local = cp.asnumpy(A_left_2sided_arrow_blocks_local_gpu)
+    A_diagonal_blocks_local_updated = cp.asnumpy(A_diagonal_blocks_local_gpu)
+    A_arrow_bottom_blocks_local_updated = cp.asnumpy(A_arrow_bottom_blocks_local_gpu)
+    A_arrow_right_blocks_local_updated = cp.asnumpy(A_arrow_right_blocks_local_gpu)
+    A_top_2sided_arrow_blocks_local_updated = cp.asnumpy(
+        A_top_2sided_arrow_blocks_local_gpu
+    )
+    A_left_2sided_arrow_blocks_local_updated = cp.asnumpy(
+        A_left_2sided_arrow_blocks_local_gpu
+    )
 
     L_diagonal_blocks_local: np.ndarray = cp.asnumpy(L_diagonal_blocks_local_gpu)
     L_lower_diagonal_blocks_local: np.ndarray = cp.asnumpy(
@@ -1000,11 +1010,11 @@ def middle_factorize_gpu(
         U_arrow_right_blocks_local,
         U_left_2sided_arrow_blocks_local,
         Update_arrow_tip_local,
-        A_diagonal_blocks_local,
-        A_arrow_bottom_blocks_local,
-        A_arrow_right_blocks_local,
-        A_top_2sided_arrow_blocks_local,
-        A_left_2sided_arrow_blocks_local,
+        A_diagonal_blocks_local_updated,
+        A_arrow_bottom_blocks_local_updated,
+        A_arrow_right_blocks_local_updated,
+        A_top_2sided_arrow_blocks_local_updated,
+        A_left_2sided_arrow_blocks_local_updated,
     )
 
 
@@ -1103,19 +1113,13 @@ def create_reduced_system(
         A_top_2sided_arrow_blocks_local = np.zeros((diag_blocksize, diag_blocksize))
         A_left_2sided_arrow_blocks_local = np.zeros((diag_blocksize, diag_blocksize))
 
-        A_rs_diagonal_blocks[:, :diag_blocksize] = A_diagonal_blocks_local[
-            :, -diag_blocksize:
-        ]
+        A_rs_diagonal_blocks[:, :diag_blocksize] = A_diagonal_blocks_local[:, :]
         A_rs_upper_diagonal_blocks[:, :diag_blocksize] = A_bridges_upper[
             :, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize
         ]
 
-        A_rs_arrow_bottom_blocks[:, :diag_blocksize] = A_arrow_bottom_blocks_local[
-            :, -diag_blocksize:
-        ]
-        A_rs_arrow_right_blocks[:diag_blocksize, :] = A_arrow_right_blocks_local[
-            -diag_blocksize:, :
-        ]
+        A_rs_arrow_bottom_blocks[:, :diag_blocksize] = A_arrow_bottom_blocks_local[:, :]
+        A_rs_arrow_right_blocks[:diag_blocksize, :] = A_arrow_right_blocks_local[:, :]
     else:
         start_index = diag_blocksize + (comm_rank - 1) * 2 * diag_blocksize
 
