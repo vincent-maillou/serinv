@@ -13,7 +13,9 @@ import copy as cp
 import numpy as np
 from mpi4py import MPI
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
+from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
+    lu_dist_tridiagonal_arrowhead_gpu,
+)
 from sdr.utils import dist_utils, matrix_generation
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
@@ -126,7 +128,7 @@ if __name__ == "__main__":
         X_arrow_tip_block_local,
         X_bridges_lower,
         X_bridges_upper,
-    ) = lu_dist_tridiagonal_arrowhead(
+    ) = lu_dist_tridiagonal_arrowhead_gpu(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,
         A_upper_diagonal_blocks_local,

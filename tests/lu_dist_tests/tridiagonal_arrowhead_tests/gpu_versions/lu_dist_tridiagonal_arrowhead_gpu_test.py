@@ -3,24 +3,47 @@
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
 @date: 2024-03
 
-Example of the lu_dist algorithm for tridiagonal arrowhead matrices.
+Integration testing of the lu_dist algorithm for tridiagonal arrowhead matrices.
 
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 import copy as cp
+from os import environ
 
 import numpy as np
+import pytest
 from mpi4py import MPI
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
+from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
+    lu_dist_tridiagonal_arrowhead_gpu,
+)
 from sdr.utils import dist_utils, matrix_generation
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
-if __name__ == "__main__":
-    nblocks = 10
-    diag_blocksize = 3
-    arrow_blocksize = 2
+environ["OMP_NUM_THREADS"] = "1"
+
+
+@pytest.mark.gpu
+@pytest.mark.mpi(min_size=2)
+@pytest.mark.parametrize(
+    "nblocks, diag_blocksize, arrow_blocksize",
+    [
+        (6, 2, 2),
+        (6, 3, 2),
+        (6, 2, 3),
+        (13, 2, 2),
+        (13, 3, 2),
+        (13, 2, 3),
+        (13, 10, 2),
+        (13, 2, 10),
+    ],
+)
+def test_lu_dist(
+    nblocks: int,
+    diag_blocksize: int,
+    arrow_blocksize: int,
+):
     diagonal_dominant = True
     symmetric = False
     seed = 63
@@ -30,9 +53,7 @@ if __name__ == "__main__":
     comm_size = comm.Get_size()
 
     if nblocks // comm_size < 3:
-        raise ValueError(
-            "Each processes should have at least 3 blocks to perfrome the middle factorization."
-        )
+        pytest.skip("Not enough blocks for the number of processes. Skipping test.")
 
     A = matrix_generation.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
@@ -126,7 +147,7 @@ if __name__ == "__main__":
         X_arrow_tip_block_local,
         X_bridges_lower,
         X_bridges_upper,
-    ) = lu_dist_tridiagonal_arrowhead(
+    ) = lu_dist_tridiagonal_arrowhead_gpu(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,
         A_upper_diagonal_blocks_local,
@@ -180,3 +201,7 @@ if __name__ == "__main__":
                 :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
             ],
         )
+
+
+if __name__ == "__main__":
+    test_lu_dist(10, 3, 2)

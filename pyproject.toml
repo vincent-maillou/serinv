@@ -38,3 +38,6 @@ markers = [
     "cpu: tests of the cpu implementations.)",
     "gpu: tests require a GPU + cupy installation to run.)",
 ]
+
+[tool.coverage.run]
+omit = ['*gpu*.py']

@@ -8,7 +8,6 @@ Contains the lu selected inversion routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-
 import numpy as np
 import scipy.linalg as la
 
@@ -52,18 +51,18 @@ def lu_sinv_tridiag(
     blocksize = L_diagonal_blocks.shape[0]
     nblocks = L_diagonal_blocks.shape[1] // blocksize
 
-    X_diagonal_blocks = np.zeros(
+    X_diagonal_blocks = np.empty(
         (blocksize, nblocks * blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_lower_diagonal_blocks = np.zeros(
+    X_lower_diagonal_blocks = np.empty(
         (blocksize, (nblocks - 1) * blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_upper_diagonal_blocks = np.zeros(
+    X_upper_diagonal_blocks = np.empty(
         (blocksize, (nblocks - 1) * blocksize), dtype=L_diagonal_blocks.dtype
     )
 
-    L_blk_inv = np.zeros((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
-    U_blk_inv = np.zeros((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
+    L_blk_inv = np.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
+    U_blk_inv = np.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
 
     L_blk_inv = la.solve_triangular(
         L_diagonal_blocks[:, -blocksize:], np.eye(blocksize), lower=True
@@ -158,31 +157,31 @@ def lu_sinv_tridiag_arrowhead(
     arrow_blocksize = L_arrow_bottom_blocks.shape[0]
     n_diag_blocks = L_diagonal_blocks.shape[1] // diag_blocksize
 
-    X_diagonal_blocks = np.zeros(
+    X_diagonal_blocks = np.empty(
         (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_lower_diagonal_blocks = np.zeros(
+    X_lower_diagonal_blocks = np.empty(
         (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
         dtype=L_diagonal_blocks.dtype,
     )
-    X_upper_diagonal_blocks = np.zeros(
+    X_upper_diagonal_blocks = np.empty(
         (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
         dtype=L_diagonal_blocks.dtype,
     )
-    X_arrow_bottom_blocks = np.zeros(
+    X_arrow_bottom_blocks = np.empty(
         (arrow_blocksize, n_diag_blocks * diag_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_arrow_right_blocks = np.zeros(
+    X_arrow_right_blocks = np.empty(
         (n_diag_blocks * diag_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_arrow_tip_block = np.zeros(
+    X_arrow_tip_block = np.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
 
-    L_last_blk_inv = np.zeros(
+    L_last_blk_inv = np.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    U_last_blk_inv = np.zeros(
+    U_last_blk_inv = np.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
 
@@ -252,15 +251,20 @@ def lu_sinv_tridiag_arrowhead(
         ) @ L_blk_inv
 
         # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, ndb+1} X_{ndb+1, i+1})
-        X_upper_diagonal_blocks[
-            :, i * diag_blocksize : (i + 1) * diag_blocksize
-        ] = U_blk_inv @ (
-            -U_upper_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            @ X_diagonal_blocks[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-            - U_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :]
-            @ X_arrow_bottom_blocks[
-                :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
-            ]
+        X_upper_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
+            U_blk_inv
+            @ (
+                -U_upper_diagonal_blocks[
+                    :, i * diag_blocksize : (i + 1) * diag_blocksize
+                ]
+                @ X_diagonal_blocks[
+                    :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
+                ]
+                - U_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :]
+                @ X_arrow_bottom_blocks[
+                    :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
+                ]
+            )
         )
 
         # --- Arrowhead part ---
@@ -275,15 +279,18 @@ def lu_sinv_tridiag_arrowhead(
         ) @ L_blk_inv
 
         # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
-        X_arrow_right_blocks[
-            i * diag_blocksize : (i + 1) * diag_blocksize, :
-        ] = U_blk_inv @ (
-            -U_upper_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            @ X_arrow_right_blocks[
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
-            ]
-            - U_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :]
-            @ X_arrow_tip_block[:, :]
+        X_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :] = (
+            U_blk_inv
+            @ (
+                -U_upper_diagonal_blocks[
+                    :, i * diag_blocksize : (i + 1) * diag_blocksize
+                ]
+                @ X_arrow_right_blocks[
+                    (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
+                ]
+                - U_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :]
+                @ X_arrow_tip_block[:, :]
+            )
         )
 
         # --- Diagonal block part ---
@@ -412,9 +419,9 @@ def lu_sinv_ndiags(
         # X_{i, i} = (U_{i, i}^{-1} - sum_{k=i+1}^{min(i+ndiags/2, nblocks)} X_{i, k} L_{k, i}) L_{i, i}^{-1}
 
         # X_{i, i} = U_{i, i}^{-1}
-        X[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = U_blk_inv
+        X[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            U_blk_inv
+        )
 
         for k in range(i + 1, min(i + n_offdiags_blk + 1, nblocks), 1):
             # X_{i, i} = X_{i, i} - X_{i, k} L_{k, i}
