@@ -1556,114 +1556,152 @@ def top_sinv_gpu(
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
 
-    L_blk_inv = np.empty(
+    X_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(X_diagonal_blocks_local)
+    X_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+        X_lower_diagonal_blocks_local
+    )
+    X_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+        X_upper_diagonal_blocks_local
+    )
+    X_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.asarray(
+        X_arrow_bottom_blocks_local
+    )
+    X_arrow_right_blocks_local_gpu: cp.ndarray = cp.asarray(X_arrow_right_blocks_local)
+    X_global_arrow_tip_gpu: cp.ndarray = cp.asarray(X_global_arrow_tip)
+
+    L_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(L_diagonal_blocks_local)
+    L_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+        L_lower_diagonal_blocks_local
+    )
+    L_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.asarray(
+        L_arrow_bottom_blocks_local
+    )
+
+    U_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(U_diagonal_blocks_local)
+    U_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+        U_upper_diagonal_blocks_local
+    )
+    U_arrow_right_blocks_local_gpu: cp.ndarray = cp.asarray(U_arrow_right_blocks_local)
+
+    L_blk_inv_gpu = cp.empty(
         (diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype
     )
-    U_blk_inv = np.empty(
+    U_blk_inv_gpu = cp.empty(
         (diag_blocksize, diag_blocksize), dtype=U_diagonal_blocks_local.dtype
     )
 
     for i in range(n_blocks - 2, -1, -1):
         # ----- Block-tridiagonal solver -----
-        L_blk_inv = la.solve_triangular(
-            L_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
-            np.eye(diag_blocksize),
+        L_blk_inv_gpu = cpla.solve_triangular(
+            L_diagonal_blocks_local_gpu[
+                :, i * diag_blocksize : (i + 1) * diag_blocksize
+            ],
+            cp.eye(diag_blocksize),
             lower=True,
         )
-        U_blk_inv = la.solve_triangular(
-            U_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
-            np.eye(diag_blocksize),
+        U_blk_inv_gpu = cpla.solve_triangular(
+            U_diagonal_blocks_local_gpu[
+                :, i * diag_blocksize : (i + 1) * diag_blocksize
+            ],
+            cp.eye(diag_blocksize),
             lower=False,
         )
 
         # --- Lower-diagonal blocks ---
         # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        X_lower_diagonal_blocks_local[
+        X_lower_diagonal_blocks_local_gpu[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
         ] = (
-            -X_diagonal_blocks_local[
+            -X_diagonal_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
-            @ L_lower_diagonal_blocks_local[
+            @ L_lower_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_arrow_right_blocks_local[
+            - X_arrow_right_blocks_local_gpu[
                 (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
             ]
-            @ L_arrow_bottom_blocks_local[
+            @ L_arrow_bottom_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-        ) @ L_blk_inv
+        ) @ L_blk_inv_gpu
 
         # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        X_arrow_bottom_blocks_local[
+        X_arrow_bottom_blocks_local_gpu[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
         ] = (
-            -X_arrow_bottom_blocks_local[
+            -X_arrow_bottom_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
-            @ L_lower_diagonal_blocks_local[
+            @ L_lower_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_global_arrow_tip[:, :]
-            @ L_arrow_bottom_blocks_local[
+            - X_global_arrow_tip_gpu[:, :]
+            @ L_arrow_bottom_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-        ) @ L_blk_inv
+        ) @ L_blk_inv_gpu
 
         # --- Upper-diagonal blocks ---
         # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, ndb+1} X_{ndb+1, i+1})
-        X_upper_diagonal_blocks_local[
+        X_upper_diagonal_blocks_local_gpu[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
-        ] = U_blk_inv @ (
-            -U_upper_diagonal_blocks_local[
+        ] = U_blk_inv_gpu @ (
+            -U_upper_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            @ X_diagonal_blocks_local[
+            @ X_diagonal_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
-            - U_arrow_right_blocks_local[
+            - U_arrow_right_blocks_local_gpu[
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
-            @ X_arrow_bottom_blocks_local[
+            @ X_arrow_bottom_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
         )
 
         # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
-        X_arrow_right_blocks_local[i * diag_blocksize : (i + 1) * diag_blocksize, :] = (
-            U_blk_inv
-            @ (
-                -U_upper_diagonal_blocks_local[
-                    :, i * diag_blocksize : (i + 1) * diag_blocksize
-                ]
-                @ X_arrow_right_blocks_local[
-                    (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
-                ]
-                - U_arrow_right_blocks_local[
-                    i * diag_blocksize : (i + 1) * diag_blocksize, :
-                ]
-                @ X_global_arrow_tip[:, :]
-            )
+        X_arrow_right_blocks_local_gpu[
+            i * diag_blocksize : (i + 1) * diag_blocksize, :
+        ] = U_blk_inv_gpu @ (
+            -U_upper_diagonal_blocks_local_gpu[
+                :, i * diag_blocksize : (i + 1) * diag_blocksize
+            ]
+            @ X_arrow_right_blocks_local_gpu[
+                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
+            ]
+            - U_arrow_right_blocks_local_gpu[
+                i * diag_blocksize : (i + 1) * diag_blocksize, :
+            ]
+            @ X_global_arrow_tip_gpu[:, :]
         )
 
         # # --- Diagonal blocks ---
         # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        X_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            U_blk_inv
-            - X_upper_diagonal_blocks_local[
+        X_diagonal_blocks_local_gpu[
+            :, i * diag_blocksize : (i + 1) * diag_blocksize
+        ] = (
+            U_blk_inv_gpu
+            - X_upper_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            @ L_lower_diagonal_blocks_local[
+            @ L_lower_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_arrow_right_blocks_local[
+            - X_arrow_right_blocks_local_gpu[
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
-            @ L_arrow_bottom_blocks_local[
+            @ L_arrow_bottom_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-        ) @ L_blk_inv
+        ) @ L_blk_inv_gpu
+
+    X_diagonal_blocks_local = cp.asnumpy(X_diagonal_blocks_local_gpu)
+    X_lower_diagonal_blocks_local = cp.asnumpy(X_lower_diagonal_blocks_local_gpu)
+    X_upper_diagonal_blocks_local = cp.asnumpy(X_upper_diagonal_blocks_local_gpu)
+    X_arrow_bottom_blocks_local = cp.asnumpy(X_arrow_bottom_blocks_local_gpu)
+    X_arrow_right_blocks_local = cp.asnumpy(X_arrow_right_blocks_local_gpu)
 
     return (
         X_diagonal_blocks_local,
@@ -1748,187 +1786,239 @@ def middle_sinv_gpu(
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
 
-    L_blk_inv = np.empty(
+    X_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(X_diagonal_blocks_local)
+    X_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+        X_lower_diagonal_blocks_local
+    )
+    X_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+        X_upper_diagonal_blocks_local
+    )
+    X_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.asarray(
+        X_arrow_bottom_blocks_local
+    )
+    X_arrow_right_blocks_local_gpu: cp.ndarray = cp.asarray(X_arrow_right_blocks_local)
+    X_top_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.asarray(
+        X_top_2sided_arrow_blocks_local
+    )
+    X_left_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.asarray(
+        X_left_2sided_arrow_blocks_local
+    )
+    X_global_arrow_tip_block_local_gpu: cp.ndarray = cp.asarray(
+        X_global_arrow_tip_block_local
+    )
+
+    L_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(L_diagonal_blocks_local)
+    L_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+        L_lower_diagonal_blocks_local
+    )
+    L_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.asarray(
+        L_arrow_bottom_blocks_local
+    )
+    L_upper_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.asarray(
+        L_upper_2sided_arrow_blocks_local
+    )
+
+    U_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(U_diagonal_blocks_local)
+    U_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.asarray(
+        U_upper_diagonal_blocks_local
+    )
+    U_arrow_right_blocks_local_gpu: cp.ndarray = cp.asarray(U_arrow_right_blocks_local)
+    U_left_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.asarray(
+        U_left_2sided_arrow_blocks_local
+    )
+
+    L_blk_inv_gpu = cp.empty(
         (diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype
     )
-    U_blk_inv = np.empty(
+    U_blk_inv_gpu = cp.empty(
         (diag_blocksize, diag_blocksize), dtype=U_diagonal_blocks_local.dtype
     )
 
     for i in range(n_blocks - 2, 0, -1):
         # ----- Block-tridiagonal solver -----
-        L_blk_inv = la.solve_triangular(
-            L_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
-            np.eye(diag_blocksize),
+        L_blk_inv_gpu = cpla.solve_triangular(
+            L_diagonal_blocks_local_gpu[
+                :, i * diag_blocksize : (i + 1) * diag_blocksize
+            ],
+            cp.eye(diag_blocksize),
             lower=True,
         )
-        U_blk_inv = la.solve_triangular(
-            U_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
-            np.eye(diag_blocksize),
+        U_blk_inv_gpu = cpla.solve_triangular(
+            U_diagonal_blocks_local_gpu[
+                :, i * diag_blocksize : (i + 1) * diag_blocksize
+            ],
+            cp.eye(diag_blocksize),
             lower=False,
         )
 
         # X_{i+1, i} = (- X_{i+1, top} L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        X_lower_diagonal_blocks_local[
+        X_lower_diagonal_blocks_local_gpu[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
         ] = (
-            -X_left_2sided_arrow_blocks_local[
+            -X_left_2sided_arrow_blocks_local_gpu[
                 (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
             ]
-            @ L_upper_2sided_arrow_blocks_local[
+            @ L_upper_2sided_arrow_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_diagonal_blocks_local[
+            - X_diagonal_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
-            @ L_lower_diagonal_blocks_local[
+            @ L_lower_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_arrow_right_blocks_local[
+            - X_arrow_right_blocks_local_gpu[
                 (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
             ]
-            @ L_arrow_bottom_blocks_local[
+            @ L_arrow_bottom_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-        ) @ L_blk_inv
+        ) @ L_blk_inv_gpu
 
         # X_{i, i+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, i+1} - U_{i, top} X_{top, i+1} - U_{i, ndb+1} X_{ndb+1, i+1})
-        X_upper_diagonal_blocks_local[
+        X_upper_diagonal_blocks_local_gpu[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
-        ] = U_blk_inv @ (
-            -U_upper_diagonal_blocks_local[
+        ] = U_blk_inv_gpu @ (
+            -U_upper_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            @ X_diagonal_blocks_local[
+            @ X_diagonal_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
-            - U_left_2sided_arrow_blocks_local[
+            - U_left_2sided_arrow_blocks_local_gpu[
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
-            @ X_top_2sided_arrow_blocks_local[
+            @ X_top_2sided_arrow_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
-            - U_arrow_right_blocks_local[
+            - U_arrow_right_blocks_local_gpu[
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
-            @ X_arrow_bottom_blocks_local[
+            @ X_arrow_bottom_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
         )
 
         # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{top, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        X_top_2sided_arrow_blocks_local[
+        X_top_2sided_arrow_blocks_local_gpu[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
         ] = (
-            -X_top_2sided_arrow_blocks_local[
+            -X_top_2sided_arrow_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
-            @ L_lower_diagonal_blocks_local[
+            @ L_lower_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_diagonal_blocks_local[:, :diag_blocksize]
-            @ L_upper_2sided_arrow_blocks_local[
+            - X_diagonal_blocks_local_gpu[:, :diag_blocksize]
+            @ L_upper_2sided_arrow_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_arrow_right_blocks_local[:diag_blocksize, :]
-            @ L_arrow_bottom_blocks_local[
+            - X_arrow_right_blocks_local_gpu[:diag_blocksize, :]
+            @ L_arrow_bottom_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-        ) @ L_blk_inv
+        ) @ L_blk_inv_gpu
 
         # X_{i, top} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, top} - U_{i, top} X_{top, top} - U_{i, ndb+1} X_{ndb+1, top})
-        X_left_2sided_arrow_blocks_local[
+        X_left_2sided_arrow_blocks_local_gpu[
             i * diag_blocksize : (i + 1) * diag_blocksize, :
-        ] = U_blk_inv @ (
-            -U_upper_diagonal_blocks_local[
+        ] = U_blk_inv_gpu @ (
+            -U_upper_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            @ X_left_2sided_arrow_blocks_local[
+            @ X_left_2sided_arrow_blocks_local_gpu[
                 (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
             ]
-            - U_left_2sided_arrow_blocks_local[
+            - U_left_2sided_arrow_blocks_local_gpu[
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
-            @ X_diagonal_blocks_local[:, :diag_blocksize]
-            - U_arrow_right_blocks_local[
+            @ X_diagonal_blocks_local_gpu[:, :diag_blocksize]
+            - U_arrow_right_blocks_local_gpu[
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
-            @ X_arrow_bottom_blocks_local[:, :diag_blocksize]
+            @ X_arrow_bottom_blocks_local_gpu[:, :diag_blocksize]
         )
 
         # Arrowhead
         # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, top} L_{top, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        X_arrow_bottom_blocks_local[
+        X_arrow_bottom_blocks_local_gpu[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
         ] = (
-            -X_arrow_bottom_blocks_local[
+            -X_arrow_bottom_blocks_local_gpu[
                 :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
             ]
-            @ L_lower_diagonal_blocks_local[
+            @ L_lower_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_arrow_bottom_blocks_local[:, :diag_blocksize]
-            @ L_upper_2sided_arrow_blocks_local[
+            - X_arrow_bottom_blocks_local_gpu[:, :diag_blocksize]
+            @ L_upper_2sided_arrow_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_global_arrow_tip_block_local[:, :]
-            @ L_arrow_bottom_blocks_local[
+            - X_global_arrow_tip_block_local_gpu[:, :]
+            @ L_arrow_bottom_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-        ) @ L_blk_inv
+        ) @ L_blk_inv_gpu
 
         # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, top} X_{top, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
-        X_arrow_right_blocks_local[i * diag_blocksize : (i + 1) * diag_blocksize, :] = (
-            U_blk_inv
-            @ (
-                -U_upper_diagonal_blocks_local[
-                    :, i * diag_blocksize : (i + 1) * diag_blocksize
-                ]
-                @ X_arrow_right_blocks_local[
-                    (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
-                ]
-                - U_left_2sided_arrow_blocks_local[
-                    i * diag_blocksize : (i + 1) * diag_blocksize, :
-                ]
-                @ X_arrow_right_blocks_local[:diag_blocksize, :]
-                - U_arrow_right_blocks_local[
-                    i * diag_blocksize : (i + 1) * diag_blocksize, :
-                ]
-                @ X_global_arrow_tip_block_local[:, :]
-            )
+        X_arrow_right_blocks_local_gpu[
+            i * diag_blocksize : (i + 1) * diag_blocksize, :
+        ] = U_blk_inv_gpu @ (
+            -U_upper_diagonal_blocks_local_gpu[
+                :, i * diag_blocksize : (i + 1) * diag_blocksize
+            ]
+            @ X_arrow_right_blocks_local_gpu[
+                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
+            ]
+            - U_left_2sided_arrow_blocks_local_gpu[
+                i * diag_blocksize : (i + 1) * diag_blocksize, :
+            ]
+            @ X_arrow_right_blocks_local_gpu[:diag_blocksize, :]
+            - U_arrow_right_blocks_local_gpu[
+                i * diag_blocksize : (i + 1) * diag_blocksize, :
+            ]
+            @ X_global_arrow_tip_block_local_gpu[:, :]
         )
 
         # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, top} L_{top, i} - X_{i, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        X_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            U_blk_inv
-            - X_upper_diagonal_blocks_local[
+        X_diagonal_blocks_local_gpu[
+            :, i * diag_blocksize : (i + 1) * diag_blocksize
+        ] = (
+            U_blk_inv_gpu
+            - X_upper_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            @ L_lower_diagonal_blocks_local[
+            @ L_lower_diagonal_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_left_2sided_arrow_blocks_local[
+            - X_left_2sided_arrow_blocks_local_gpu[
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
-            @ L_upper_2sided_arrow_blocks_local[
+            @ L_upper_2sided_arrow_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-            - X_arrow_right_blocks_local[
+            - X_arrow_right_blocks_local_gpu[
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
-            @ L_arrow_bottom_blocks_local[
+            @ L_arrow_bottom_blocks_local_gpu[
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
-        ) @ L_blk_inv
+        ) @ L_blk_inv_gpu
 
     # Copy back the 2 first blocks that have been produced in the 2-sided pattern
     # to the tridiagonal storage.
-    X_upper_diagonal_blocks_local[:, :diag_blocksize] = X_top_2sided_arrow_blocks_local[
-        :, diag_blocksize : 2 * diag_blocksize
-    ]
-    X_lower_diagonal_blocks_local[:, :diag_blocksize] = (
-        X_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :]
+    X_upper_diagonal_blocks_local_gpu[:, :diag_blocksize] = (
+        X_top_2sided_arrow_blocks_local_gpu[:, diag_blocksize : 2 * diag_blocksize]
     )
+    X_lower_diagonal_blocks_local_gpu[:, :diag_blocksize] = (
+        X_left_2sided_arrow_blocks_local_gpu[diag_blocksize : 2 * diag_blocksize, :]
+    )
+
+    X_diagonal_blocks_local = cp.asnumpy(X_diagonal_blocks_local_gpu)
+    X_lower_diagonal_blocks_local = cp.asnumpy(X_lower_diagonal_blocks_local_gpu)
+    X_upper_diagonal_blocks_local = cp.asnumpy(X_upper_diagonal_blocks_local_gpu)
+    X_arrow_bottom_blocks_local = cp.asnumpy(X_arrow_bottom_blocks_local_gpu)
+    X_arrow_right_blocks_local = cp.asnumpy(X_arrow_right_blocks_local_gpu)
 
     return (
         X_diagonal_blocks_local,
