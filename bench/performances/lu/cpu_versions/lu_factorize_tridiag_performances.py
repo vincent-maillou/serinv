@@ -32,12 +32,14 @@ if __name__ == "__main__":
     ) = generate_tridiag_array(nblocks, blocksize, symmetric, diagonal_dominant, seed)
 
     headers = {}
+    headers["N_WARMUPS"] = N_WARMUPS
+    headers["N_RUNS"] = N_RUNS
     headers["nblocks"] = nblocks
     headers["blocksize"] = blocksize
     headers["symmetric"] = symmetric
     headers["diagonal_dominant"] = diagonal_dominant
     headers["seed"] = seed
-    runs_timings = [headers]
+    runs_timings = []
 
     for i in range(N_WARMUPS + N_RUNS):
         A_diagonal_blocks = A_diagonal_blocks_ref.copy()
@@ -57,7 +59,7 @@ if __name__ == "__main__":
         )
 
         if i >= N_WARMUPS:
-            runs_timings.append(timings)
+            runs_timings.append({**headers, **timings})
 
     # Save the timings and nblocks and blocksize
     runs_timings = np.array(runs_timings)

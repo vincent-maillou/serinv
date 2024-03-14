@@ -57,6 +57,8 @@ if __name__ == "__main__":
     )
 
     headers = {}
+    headers["N_WARMUPS"] = N_WARMUPS
+    headers["N_RUNS"] = N_RUNS
     headers["nblocks"] = nblocks
     headers["blocksize"] = diag_blocksize
     headers["arrow_blocksize"] = arrow_blocksize
@@ -91,7 +93,7 @@ if __name__ == "__main__":
         )
 
         if i >= N_WARMUPS:
-            runs_timings.append(timings)
+            runs_timings.append({**headers, **timings})
 
     # Save the timings and nblocks and blocksize
     runs_timings = np.array(runs_timings)
