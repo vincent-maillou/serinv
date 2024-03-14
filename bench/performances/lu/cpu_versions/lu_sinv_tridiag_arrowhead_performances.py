@@ -21,79 +21,92 @@ N_RUNS = 10
 
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":
-    nblocks = 6
-    diag_blocksize = 3
-    arrow_blocksize = 2
+    # ----- Populate the blocks list HERE -----
+    l_nblocks = [5]
+    # ----- Populate the diagonal blocksizes list HERE -----
+    l_diag_blocksize = [3]
+    # ----- Populate the arrow blocksizes list HERE -----
+    l_arrow_blocksize = [2]
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
-    (
-        A_diagonal_blocks,
-        A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks,
-        A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
-        A_arrow_tip_block,
-    ) = generate_tridiag_arrowhead_arrays(
-        nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
-    )
+    runs_timings = []
 
-    (
-        L_diagonal_blocks_ref,
-        L_lower_diagonal_blocks_ref,
-        L_arrow_bottom_blocks_ref,
-        U_diagonal_blocks_ref,
-        U_upper_diagonal_blocks_ref,
-        U_arrow_right_blocks_ref,
-        _,
-    ) = lu_factorize_tridiag_arrowhead(
-        A_diagonal_blocks,
-        A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks,
-        A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
-        A_arrow_tip_block,
-    )
+    for nblocks in l_nblocks:
+        for diag_blocksize in l_diag_blocksize:
+            for arrow_blocksize in l_arrow_blocksize:
 
-    headers = {}
-    headers["N_WARMUPS"] = N_WARMUPS
-    headers["N_RUNS"] = N_RUNS
-    headers["nblocks"] = nblocks
-    headers["blocksize"] = diag_blocksize
-    headers["arrow_blocksize"] = arrow_blocksize
-    headers["symmetric"] = symmetric
-    headers["diagonal_dominant"] = diagonal_dominant
-    headers["seed"] = seed
-    runs_timings = [headers]
+                (
+                    A_diagonal_blocks,
+                    A_lower_diagonal_blocks,
+                    A_upper_diagonal_blocks,
+                    A_arrow_bottom_blocks,
+                    A_arrow_right_blocks,
+                    A_arrow_tip_block,
+                ) = generate_tridiag_arrowhead_arrays(
+                    nblocks,
+                    diag_blocksize,
+                    arrow_blocksize,
+                    symmetric,
+                    diagonal_dominant,
+                    seed,
+                )
 
-    for i in range(N_WARMUPS + N_RUNS):
-        L_diagonal_blocks = L_diagonal_blocks_ref.copy()
-        L_lower_diagonal_blocks = L_lower_diagonal_blocks_ref.copy()
-        L_arrow_bottom_blocks = L_arrow_bottom_blocks_ref.copy()
-        U_diagonal_blocks = U_diagonal_blocks_ref.copy()
-        U_upper_diagonal_blocks = U_upper_diagonal_blocks_ref.copy()
-        U_arrow_right_blocks = U_arrow_right_blocks_ref.copy()
+                (
+                    L_diagonal_blocks_ref,
+                    L_lower_diagonal_blocks_ref,
+                    L_arrow_bottom_blocks_ref,
+                    U_diagonal_blocks_ref,
+                    U_upper_diagonal_blocks_ref,
+                    U_arrow_right_blocks_ref,
+                    _,
+                ) = lu_factorize_tridiag_arrowhead(
+                    A_diagonal_blocks,
+                    A_lower_diagonal_blocks,
+                    A_upper_diagonal_blocks,
+                    A_arrow_bottom_blocks,
+                    A_arrow_right_blocks,
+                    A_arrow_tip_block,
+                )
 
-        (
-            X_sdr_diagonal_blocks,
-            X_sdr_lower_diagonal_blocks,
-            X_sdr_upper_diagonal_blocks,
-            X_sdr_arrow_bottom_blocks,
-            X_sdr_arrow_right_blocks,
-            X_sdr_arrow_tip_block,
-            timings,
-        ) = lu_sinv_tridiag_arrowhead(
-            L_diagonal_blocks,
-            L_lower_diagonal_blocks,
-            L_arrow_bottom_blocks,
-            U_diagonal_blocks,
-            U_upper_diagonal_blocks,
-            U_arrow_right_blocks,
-        )
+                headers = {}
+                headers["N_WARMUPS"] = N_WARMUPS
+                headers["N_RUNS"] = N_RUNS
+                headers["nblocks"] = nblocks
+                headers["blocksize"] = diag_blocksize
+                headers["arrow_blocksize"] = arrow_blocksize
+                headers["symmetric"] = symmetric
+                headers["diagonal_dominant"] = diagonal_dominant
+                headers["seed"] = seed
 
-        if i >= N_WARMUPS:
-            runs_timings.append({**headers, **timings})
+                for i in range(N_WARMUPS + N_RUNS):
+                    L_diagonal_blocks = L_diagonal_blocks_ref.copy()
+                    L_lower_diagonal_blocks = L_lower_diagonal_blocks_ref.copy()
+                    L_arrow_bottom_blocks = L_arrow_bottom_blocks_ref.copy()
+                    U_diagonal_blocks = U_diagonal_blocks_ref.copy()
+                    U_upper_diagonal_blocks = U_upper_diagonal_blocks_ref.copy()
+                    U_arrow_right_blocks = U_arrow_right_blocks_ref.copy()
+
+                    (
+                        X_sdr_diagonal_blocks,
+                        X_sdr_lower_diagonal_blocks,
+                        X_sdr_upper_diagonal_blocks,
+                        X_sdr_arrow_bottom_blocks,
+                        X_sdr_arrow_right_blocks,
+                        X_sdr_arrow_tip_block,
+                        timings,
+                    ) = lu_sinv_tridiag_arrowhead(
+                        L_diagonal_blocks,
+                        L_lower_diagonal_blocks,
+                        L_arrow_bottom_blocks,
+                        U_diagonal_blocks,
+                        U_upper_diagonal_blocks,
+                        U_arrow_right_blocks,
+                    )
+
+                    if i >= N_WARMUPS:
+                        runs_timings.append({**headers, **timings})
 
     # Save the timings and nblocks and blocksize
     runs_timings = np.array(runs_timings)
