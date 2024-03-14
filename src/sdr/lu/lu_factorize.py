@@ -11,6 +11,8 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import numpy as np
 import scipy.linalg as la
 
+import time
+
 
 def lu_factorize_tridiag(
     A_diagonal_blocks: np.ndarray,
@@ -41,6 +43,14 @@ def lu_factorize_tridiag(
     U_upper_diagonal_blocks : np.ndarray
         Upper diagonal blocks of the upper factor
     """
+    timings: dict[str, float] = {}
+
+    t_mem = 0.0
+    t_lu = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    t_mem_start = time.perf_counter_ns()
     blocksize = A_diagonal_blocks.shape[0]
     nblocks = A_diagonal_blocks.shape[1] // blocksize
 
@@ -57,8 +67,11 @@ def lu_factorize_tridiag(
     U_upper_diagonal_blocks = np.empty(
         (blocksize, (nblocks - 1) * blocksize), dtype=A_diagonal_blocks.dtype
     )
+    t_mem_stop = time.perf_counter_ns()
+    t_mem = t_mem_stop - t_mem_start
 
     for i in range(0, nblocks - 1, 1):
+        t_lu_start = time.perf_counter_ns()
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
             L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
@@ -67,50 +80,93 @@ def lu_factorize_tridiag(
             A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
             permute_l=True,
         )
+        t_lu_end = time.perf_counter_ns()
+        t_lu += t_lu_end - t_lu_start
 
+        t_trsm_start = time.perf_counter_ns()
         # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
         L_lower_diagonal_blocks[
             :,
             i * blocksize : (i + 1) * blocksize,
-        ] = A_lower_diagonal_blocks[
-            :, i * blocksize : (i + 1) * blocksize
-        ] @ la.solve_triangular(
+        ] = la.solve_triangular(
             U_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
             np.eye(blocksize),
             lower=False,
         )
+        t_trsm_end = time.perf_counter_ns()
+        t_trsm += t_trsm_end - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
+        L_lower_diagonal_blocks[
+            :,
+            i * blocksize : (i + 1) * blocksize,
+        ] = (
+            A_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
+            @ L_lower_diagonal_blocks[
+                :,
+                i * blocksize : (i + 1) * blocksize,
+            ]
+        )
+        t_gemm_end = time.perf_counter_ns()
+        t_gemm += t_gemm_end - t_gemm_start
+
+        t_trsm_start = time.perf_counter_ns()
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
         U_upper_diagonal_blocks[
             :,
             i * blocksize : (i + 1) * blocksize,
+        ] = la.solve_triangular(
+            L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+            np.eye(blocksize),
+            lower=True,
+        )
+        t_trsm_end = time.perf_counter_ns()
+        t_trsm += t_trsm_end - t_trsm_start
+
+        t_gemm_start = time.perf_counter_ns()
+        U_upper_diagonal_blocks[
+            :,
+            i * blocksize : (i + 1) * blocksize,
         ] = (
-            la.solve_triangular(
-                L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
-                np.eye(blocksize),
-                lower=True,
-            )
+            U_upper_diagonal_blocks[
+                :,
+                i * blocksize : (i + 1) * blocksize,
+            ]
             @ A_upper_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
         )
+        t_gemm_end = time.perf_counter_ns()
+        t_gemm += t_gemm_end - t_gemm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
         A_diagonal_blocks[:, (i + 1) * blocksize : (i + 2) * blocksize] = (
             A_diagonal_blocks[:, (i + 1) * blocksize : (i + 2) * blocksize]
             - L_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
             @ U_upper_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
         )
+        t_gemm_end = time.perf_counter_ns()
+        t_gemm += t_gemm_end - t_gemm_start
 
+    t_lu_start = time.perf_counter_ns()
     # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
     (
         L_diagonal_blocks[:, -blocksize:],
         U_diagonal_blocks[:, -blocksize:],
     ) = la.lu(A_diagonal_blocks[:, -blocksize:], permute_l=True)
+    t_lu_end = time.perf_counter_ns()
+    t_lu += t_lu_end - t_lu_start
+
+    timings["mem"] = t_mem
+    timings["lu"] = t_lu
+    timings["trsm"] = t_trsm
+    timings["gemm"] = t_gemm
 
     return (
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
+        timings,
     )
 
 
@@ -155,7 +211,14 @@ def lu_factorize_tridiag_arrowhead(
     U_arrow_right_blocks : np.ndarray
         Right arrow blocks of the upper factor
     """
+    timings: dict[str, float] = {}
 
+    t_mem = 0.0
+    t_lu = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    t_mem_start = time.perf_counter_ns()
     diag_blocksize = A_diagonal_blocks.shape[0]
     arrow_blocksize = A_arrow_bottom_blocks.shape[0]
 
@@ -191,8 +254,11 @@ def lu_factorize_tridiag_arrowhead(
     U_inv_temp = np.empty(
         (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
     )
+    t_mem_stop = time.perf_counter_ns()
+    t_mem = t_mem_stop - t_mem_start
 
     for i in range(0, n_diag_blocks - 1):
+        t_lu_start = time.perf_counter_ns()
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
             L_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
@@ -201,14 +267,20 @@ def lu_factorize_tridiag_arrowhead(
             A_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             permute_l=True,
         )
+        t_lu_stop = time.perf_counter_ns()
+        t_lu += t_lu_stop - t_lu_start
 
+        t_trsm_start = time.perf_counter_ns()
         # Compute lower factors
         U_inv_temp = la.solve_triangular(
             U_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             np.eye(diag_blocksize),
             lower=False,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
         L_lower_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
             A_lower_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
@@ -220,14 +292,20 @@ def lu_factorize_tridiag_arrowhead(
             A_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ U_inv_temp
         )
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+        t_trsm_start = time.perf_counter_ns()
         # Compute upper factors
         L_inv_temp = la.solve_triangular(
             L_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             np.eye(diag_blocksize),
             lower=True,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
         U_upper_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
             L_inv_temp
@@ -239,8 +317,11 @@ def lu_factorize_tridiag_arrowhead(
             L_inv_temp
             @ A_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :]
         )
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
         # Update next diagonal block
+        t_gemm_start = time.perf_counter_ns()
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
         A_diagonal_blocks[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
             A_diagonal_blocks[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
@@ -274,7 +355,10 @@ def lu_factorize_tridiag_arrowhead(
             - L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ U_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :]
         )
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+    t_lu_start = time.perf_counter_ns()
     # L_{ndb, ndb}, U_{ndb, ndb} = lu_dcmp(A_{ndb, ndb})
     (
         L_diagonal_blocks[:, -diag_blocksize:],
@@ -283,38 +367,66 @@ def lu_factorize_tridiag_arrowhead(
         A_diagonal_blocks[:, -diag_blocksize:],
         permute_l=True,
     )
+    t_lu_stop = time.perf_counter_ns()
+    t_lu += t_lu_stop - t_lu_start
 
+    t_trsm_start = time.perf_counter_ns()
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ U_{ndb, ndb}^{-1}
-    L_arrow_bottom_blocks[
-        :, -diag_blocksize - arrow_blocksize : -arrow_blocksize
-    ] = A_arrow_bottom_blocks[:, -diag_blocksize:] @ la.solve_triangular(
+    L_arrow_temp = la.solve_triangular(
         U_diagonal_blocks[:, -diag_blocksize:],
         np.eye(diag_blocksize),
         lower=False,
     )
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
-    # U_{ndb, ndb+1} = L_{ndb, ndb}^{-1} @ A_{ndb, ndb+1}
-    U_arrow_right_blocks[-diag_blocksize - arrow_blocksize : -arrow_blocksize, :] = (
-        la.solve_triangular(
-            L_diagonal_blocks[:, -diag_blocksize:],
-            np.eye(diag_blocksize),
-            lower=True,
-        )
-        @ A_arrow_right_blocks[-diag_blocksize:, :]
+    t_gemm_start = time.perf_counter_ns()
+    L_arrow_bottom_blocks[:, -diag_blocksize - arrow_blocksize : -arrow_blocksize] = (
+        A_arrow_bottom_blocks[:, -diag_blocksize:] @ L_arrow_temp
     )
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
+    t_trsm_start = time.perf_counter_ns()
+    # U_{ndb, ndb+1} = L_{ndb, ndb}^{-1} @ A_{ndb, ndb+1}
+    U_arrow_temp = la.solve_triangular(
+        L_diagonal_blocks[:, -diag_blocksize:],
+        np.eye(diag_blocksize),
+        lower=True,
+    )
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
+
+    t_gemm_start = time.perf_counter_ns()
+    U_arrow_right_blocks[-diag_blocksize - arrow_blocksize : -arrow_blocksize, :] = (
+        U_arrow_temp @ A_arrow_right_blocks[-diag_blocksize:, :]
+    )
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
+
+    t_gemm_start = time.perf_counter_ns()
     # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ U_{ndb, ndb+1}
     A_arrow_tip_block[:, :] = (
         A_arrow_tip_block[:, :]
         - L_arrow_bottom_blocks[:, -diag_blocksize - arrow_blocksize : -arrow_blocksize]
         @ U_arrow_right_blocks[-diag_blocksize - arrow_blocksize : -arrow_blocksize, :]
     )
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
+    t_lu_start = time.perf_counter_ns()
     # L_{ndb+1, ndb+1}, U_{ndb+1, ndb+1} = lu_dcmp(A_{ndb+1, ndb+1})
     (
         L_arrow_bottom_blocks[:, -arrow_blocksize:],
         U_arrow_right_blocks[-arrow_blocksize:, :],
     ) = la.lu(A_arrow_tip_block[:, :], permute_l=True)
+    t_lu_stop = time.perf_counter_ns()
+    t_lu += t_lu_stop - t_lu_start
+
+    timings["mem"] = t_mem
+    timings["lu"] = t_lu
+    timings["trsm"] = t_trsm
+    timings["gemm"] = t_gemm
 
     return (
         L_diagonal_blocks,
@@ -323,4 +435,5 @@ def lu_factorize_tridiag_arrowhead(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
+        timings,
     )

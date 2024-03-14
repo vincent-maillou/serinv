@@ -281,9 +281,9 @@ def make_symmetric_tridiagonal_arrays(
             :, i * blocksize : (i + 1) * blocksize
         ].T
         if i < nblocks - 1:
-            A_lower_diagonal_blocks[
-                :, i * blocksize : (i + 1) * blocksize
-            ] = A_upper_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize].T
+            A_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] = (
+                A_upper_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize].T
+            )
 
     return (A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks)
 
@@ -425,7 +425,7 @@ def make_diagonally_dominante_tridiagonal_arrowhead_arrays(
                 np.sum(
                     np.abs(
                         A_arrow_right_blocks[
-                            :, i * diag_blocksize : (i + 1) * diag_blocksize
+                            i * diag_blocksize : (i + 1) * diag_blocksize, :
                         ]
                     ),
                     axis=1,
@@ -479,9 +479,9 @@ def from_tridiagonal_arrays_to_dense(
     A = np.zeros((blocksize * nblocks, blocksize * nblocks))
 
     for i in range(nblocks):
-        A[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
+        A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
+        )
         if i < (nblocks - 1):
             A[
                 i * blocksize : (i + 1) * blocksize,

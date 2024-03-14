@@ -49,9 +49,9 @@ def generate_tridiag_dense(
     A = np.zeros((matrice_size, matrice_size))
 
     for i in range(nblocks):
-        A[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = np.random.rand(blocksize, blocksize)
+        A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            np.random.rand(blocksize, blocksize)
+        )
         if i > 0:
             A[
                 i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
@@ -113,13 +113,13 @@ def generate_tridiag_array(
             blocksize, blocksize
         )
         if i > 0:
-            A_upper_diagonal_blocks[
-                :, (i - 1) * blocksize : i * blocksize
-            ] = np.random.rand(blocksize, blocksize)
+            A_upper_diagonal_blocks[:, (i - 1) * blocksize : i * blocksize] = (
+                np.random.rand(blocksize, blocksize)
+            )
         if i < nblocks - 1:
-            A_lower_diagonal_blocks[
-                :, i * blocksize : (i + 1) * blocksize
-            ] = np.random.rand(blocksize, blocksize)
+            A_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] = (
+                np.random.rand(blocksize, blocksize)
+            )
 
     if symmetric:
         (
@@ -183,9 +183,9 @@ def generate_block_ndiags_dense(
     A = np.zeros((matrice_size, matrice_size))
 
     for i in range(nblocks):
-        A[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = np.random.rand(blocksize, blocksize)
+        A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            np.random.rand(blocksize, blocksize)
+        )
         for j in range(1, (ndiags + 1) // 2):
             if i + j < nblocks:
                 A[
@@ -357,7 +357,7 @@ def generate_tridiag_arrowhead_arrays(
         arrow_blocksize, n_diag_blocks * diag_blocksize
     )
     A_arrow_right_blocks = np.random.rand(
-        arrow_blocksize, n_diag_blocks * diag_blocksize
+        n_diag_blocks * diag_blocksize, arrow_blocksize
     )
 
     A_arrow_tip_block = np.random.rand(arrow_blocksize, arrow_blocksize)
@@ -372,9 +372,9 @@ def generate_tridiag_arrowhead_arrays(
         )
 
         for i in range(n_diag_blocks):
-            A_arrow_bottom_blocks[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ] = A_arrow_right_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize].T
+            A_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                A_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :].T
+            )
 
         A_arrow_tip_block += A_arrow_tip_block.T
 
