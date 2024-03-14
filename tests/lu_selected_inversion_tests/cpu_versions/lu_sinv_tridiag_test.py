@@ -77,6 +77,7 @@ def test_lu_sinv_tridiag(
         X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
         X_sdr_upper_diagonal_blocks,
+        _,
     ) = lu_sinv_tridiag(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,

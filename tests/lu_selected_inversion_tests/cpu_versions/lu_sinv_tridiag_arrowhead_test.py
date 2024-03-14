@@ -88,6 +88,7 @@ def test_lu_sinv_tridiag_arrowhead(
         X_sdr_arrow_bottom_blocks,
         X_sdr_arrow_right_blocks,
         X_sdr_arrow_tip_block,
+        _,
     ) = lu_sinv_tridiag_arrowhead(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,

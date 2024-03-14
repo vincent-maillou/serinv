@@ -10,6 +10,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import numpy as np
 import scipy.linalg as la
+import time
 
 
 def lu_sinv_tridiag(
@@ -47,7 +48,13 @@ def lu_sinv_tridiag(
     X_arrow_tip_block : np.ndarray
         Tip arrow block of the selected inversion of the matrix.
     """
+    timings: dict[str, float] = {}
 
+    t_mem = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    t_mem_start = time.perf_counter_ns()
     blocksize = L_diagonal_blocks.shape[0]
     nblocks = L_diagonal_blocks.shape[1] // blocksize
 
@@ -63,7 +70,10 @@ def lu_sinv_tridiag(
 
     L_blk_inv = np.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
     U_blk_inv = np.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
+    t_mem_stop = time.perf_counter_ns()
+    t_mem = t_mem_stop - t_mem_start
 
+    t_trsm_start = time.perf_counter_ns()
     L_blk_inv = la.solve_triangular(
         L_diagonal_blocks[:, -blocksize:], np.eye(blocksize), lower=True
     )
@@ -71,10 +81,15 @@ def lu_sinv_tridiag(
     U_blk_inv = la.solve_triangular(
         U_diagonal_blocks[:, -blocksize:], np.eye(blocksize), lower=False
     )
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     X_diagonal_blocks[:, -blocksize:] = U_blk_inv @ L_blk_inv
+    t_gemm_stop = time.perf_counter_ns()
 
     for i in range(nblocks - 2, -1, -1):
+        t_trsm_start = time.perf_counter_ns()
         L_blk_inv = la.solve_triangular(
             L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
             np.eye(blocksize),
@@ -86,7 +101,10 @@ def lu_sinv_tridiag(
             np.eye(blocksize),
             lower=False,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # X_{i+1, i} = -X_{i+1, i+1} L_{i+1, i} L_{i, i}^{-1}
         X_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] = (
             -X_diagonal_blocks[:, (i + 1) * blocksize : (i + 2) * blocksize]
@@ -107,8 +125,19 @@ def lu_sinv_tridiag(
             - X_upper_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
             @ L_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
         ) @ L_blk_inv
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
-    return (X_diagonal_blocks, X_lower_diagonal_blocks, X_upper_diagonal_blocks)
+    timings["mem"] = t_mem
+    timings["trsm"] = t_trsm
+    timings["gemm"] = t_gemm
+
+    return (
+        X_diagonal_blocks,
+        X_lower_diagonal_blocks,
+        X_upper_diagonal_blocks,
+        timings,
+    )
 
 
 def lu_sinv_tridiag_arrowhead(
@@ -152,7 +181,13 @@ def lu_sinv_tridiag_arrowhead(
     X_arrow_tip_block : np.ndarray
         Tip arrow block of the selected inversion of the matrix.
     """
+    timings: dict[str, float] = {}
 
+    t_mem = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    t_mem_start = time.perf_counter_ns()
     diag_blocksize = L_diagonal_blocks.shape[0]
     arrow_blocksize = L_arrow_bottom_blocks.shape[0]
     n_diag_blocks = L_diagonal_blocks.shape[1] // diag_blocksize
@@ -184,16 +219,25 @@ def lu_sinv_tridiag_arrowhead(
     U_last_blk_inv = np.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
+    t_mem_stop = time.perf_counter_ns()
+    t_mem = t_mem_stop - t_mem_start
 
+    t_trsm_start = time.perf_counter_ns()
     L_last_blk_inv = la.solve_triangular(
         L_arrow_bottom_blocks[:, -arrow_blocksize:], np.eye(arrow_blocksize), lower=True
     )
     U_last_blk_inv = la.solve_triangular(
         U_arrow_right_blocks[-arrow_blocksize:, :], np.eye(arrow_blocksize), lower=False
     )
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     X_arrow_tip_block[:, :] = U_last_blk_inv @ L_last_blk_inv
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
+    t_trsm_start = time.perf_counter_ns()
     L_blk_inv = la.solve_triangular(
         L_diagonal_blocks[:, -diag_blocksize:],
         np.eye(diag_blocksize),
@@ -204,7 +248,10 @@ def lu_sinv_tridiag_arrowhead(
         np.eye(diag_blocksize),
         lower=False,
     )
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
     X_arrow_bottom_blocks[:, -diag_blocksize:] = (
         -X_arrow_tip_block[:, :]
@@ -225,8 +272,11 @@ def lu_sinv_tridiag_arrowhead(
         - X_arrow_right_blocks[-diag_blocksize:, :]
         @ L_arrow_bottom_blocks[:, -diag_blocksize - arrow_blocksize : -arrow_blocksize]
     ) @ L_blk_inv
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
     for i in range(n_diag_blocks - 2, -1, -1):
+        t_trsm_start = time.perf_counter_ns()
         L_blk_inv = la.solve_triangular(
             L_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             np.eye(diag_blocksize),
@@ -238,7 +288,10 @@ def lu_sinv_tridiag_arrowhead(
             np.eye(diag_blocksize),
             lower=False,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # --- Off-diagonal block part ---
         # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         X_lower_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
@@ -302,6 +355,12 @@ def lu_sinv_tridiag_arrowhead(
             - X_arrow_right_blocks[i * diag_blocksize : (i + 1) * diag_blocksize, :]
             @ L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
         ) @ L_blk_inv
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
+
+    timings["mem"] = t_mem
+    timings["trsm"] = t_trsm
+    timings["gemm"] = t_gemm
 
     return (
         X_diagonal_blocks,
@@ -310,6 +369,7 @@ def lu_sinv_tridiag_arrowhead(
         X_arrow_bottom_blocks,
         X_arrow_right_blocks,
         X_arrow_tip_block,
+        timings,
     )
 
 
