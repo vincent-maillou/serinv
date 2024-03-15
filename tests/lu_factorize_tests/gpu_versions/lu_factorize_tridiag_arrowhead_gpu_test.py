@@ -21,8 +21,10 @@ except ImportError:
 
 from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (from_arrowhead_arrays_to_dense,
-                                        from_dense_to_arrowhead_arrays)
+from sdr.utils.matrix_transform import (
+    from_arrowhead_arrays_to_dense,
+    from_dense_to_arrowhead_arrays,
+)
 
 
 @pytest.mark.skipif(
@@ -79,6 +81,7 @@ def test_lu_decompose_tridiag_arrowhead_gpu(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
+        _,
     ) = lu_factorize_tridiag_arrowhead_gpu(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,

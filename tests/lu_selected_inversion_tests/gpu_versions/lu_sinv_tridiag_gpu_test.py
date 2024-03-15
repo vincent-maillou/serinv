@@ -76,6 +76,7 @@ def test_lu_sinv_tridiag_gpu(
         L_lower_diagonal_blocks,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
+        _,
     ) = lu_factorize_tridiag_gpu(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -86,6 +87,7 @@ def test_lu_sinv_tridiag_gpu(
         X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
         X_sdr_upper_diagonal_blocks,
+        _,
     ) = lu_sinv_tridiag_gpu(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,

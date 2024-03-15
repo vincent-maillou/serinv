@@ -16,6 +16,8 @@ except ImportError:
 
 import numpy as np
 
+import time
+
 
 def lu_factorize_tridiag_gpu(
     A_diagonal_blocks: np.ndarray,
@@ -46,6 +48,17 @@ def lu_factorize_tridiag_gpu(
     U_upper_diagonal_blocks : np.ndarray
         Upper diagonal blocks of the upper factor
     """
+    timings: dict[str, float] = {}
+
+    t_mem = 0.0
+    t_lu = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    stream = cp.cuda.Stream()
+    stream.use()
+
+    t_mem_start = time.perf_counter_ns()
     blocksize = A_diagonal_blocks.shape[0]
     nblocks = A_diagonal_blocks.shape[1] // blocksize
 
@@ -66,8 +79,12 @@ def lu_factorize_tridiag_gpu(
     U_upper_diagonal_blocks_gpu = cp.empty(
         (blocksize, (nblocks - 1) * blocksize), dtype=A_diagonal_blocks.dtype
     )
+    stream.synchronize()
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
 
     for i in range(0, nblocks - 1, 1):
+        t_lu_start = time.perf_counter_ns()
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
             L_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
@@ -76,59 +93,113 @@ def lu_factorize_tridiag_gpu(
             A_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
             permute_l=True,
         )
+        stream.synchronize()
+        t_lu_stop = time.perf_counter_ns()
+        t_lu += t_lu_stop - t_lu_start
 
+        t_trsm_start = time.perf_counter_ns()
         # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
         L_lower_diagonal_blocks_gpu[
             :,
             i * blocksize : (i + 1) * blocksize,
-        ] = A_lower_diagonal_blocks_gpu[
-            :, i * blocksize : (i + 1) * blocksize
-        ] @ cpla.solve_triangular(
+        ] = cpla.solve_triangular(
             U_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
             cp.eye(blocksize),
             trans=0,
             lower=False,
             unit_diagonal=False,
         )
+        stream.synchronize()
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
+        L_lower_diagonal_blocks_gpu[
+            :,
+            i * blocksize : (i + 1) * blocksize,
+        ] = (
+            A_lower_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
+            @ L_lower_diagonal_blocks_gpu[
+                :,
+                i * blocksize : (i + 1) * blocksize,
+            ]
+        )
+        stream.synchronize()
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
+
+        t_trsm_start = time.perf_counter_ns()
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
         U_upper_diagonal_blocks_gpu[
             :,
             i * blocksize : (i + 1) * blocksize,
+        ] = cpla.solve_triangular(
+            L_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
+            cp.eye(blocksize),
+            trans=0,
+            lower=True,
+            unit_diagonal=True,
+        )
+        stream.synchronize()
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
+
+        t_gemm_start = time.perf_counter_ns()
+        U_upper_diagonal_blocks_gpu[
+            :,
+            i * blocksize : (i + 1) * blocksize,
         ] = (
-            cpla.solve_triangular(
-                L_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
-                cp.eye(blocksize),
-                trans=0,
-                lower=True,
-                unit_diagonal=True,
-            )
+            U_upper_diagonal_blocks_gpu[
+                :,
+                i * blocksize : (i + 1) * blocksize,
+            ]
             @ A_upper_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
         )
+        stream.synchronize()
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
         A_diagonal_blocks_gpu[:, (i + 1) * blocksize : (i + 2) * blocksize] = (
             A_diagonal_blocks_gpu[:, (i + 1) * blocksize : (i + 2) * blocksize]
             - L_lower_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
             @ U_upper_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
         )
+        stream.synchronize()
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+    t_lu_start = time.perf_counter_ns()
     # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
     (
         L_diagonal_blocks_gpu[:, -blocksize:],
         U_diagonal_blocks_gpu[:, -blocksize:],
     ) = cpla.lu(A_diagonal_blocks_gpu[:, -blocksize:], permute_l=True)
+    stream.synchronize()
+    t_lu_stop = time.perf_counter_ns()
+    t_lu += t_lu_stop - t_lu_start
 
+    t_mem_start = time.perf_counter_ns()
     L_diagonal_blocks: np.ndarray = cp.asnumpy(L_diagonal_blocks_gpu)
     L_lower_diagonal_blocks: np.ndarray = cp.asnumpy(L_lower_diagonal_blocks_gpu)
     U_diagonal_blocks: np.ndarray = cp.asnumpy(U_diagonal_blocks_gpu)
     U_upper_diagonal_blocks: np.ndarray = cp.asnumpy(U_upper_diagonal_blocks_gpu)
+    stream.synchronize()
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
+
+    timings["mem"] = t_mem
+    timings["lu"] = t_lu
+    timings["trsm"] = t_trsm
+    timings["gemm"] = t_gemm
 
     return (
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
+        timings,
     )
 
 
@@ -173,7 +244,17 @@ def lu_factorize_tridiag_arrowhead_gpu(
     U_arrow_right_blocks : np.ndarray
         Right arrow blocks of the upper factor
     """
+    timings: dict[str, float] = {}
 
+    t_mem = 0.0
+    t_lu = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    stream = cp.cuda.Stream()
+    stream.use()
+
+    t_mem_start = time.perf_counter_ns()
     diag_blocksize = A_diagonal_blocks.shape[0]
     arrow_blocksize = A_arrow_bottom_blocks.shape[0]
 
@@ -216,8 +297,12 @@ def lu_factorize_tridiag_arrowhead_gpu(
     U_inv_temp_gpu = cp.empty(
         (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
     )
+    stream.synchronize()
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
 
     for i in range(0, n_diag_blocks - 1):
+        t_lu_start = time.perf_counter_ns()
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
             L_diagonal_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize],
@@ -226,14 +311,22 @@ def lu_factorize_tridiag_arrowhead_gpu(
             A_diagonal_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             permute_l=True,
         )
+        stream.synchronize()
+        t_lu_stop = time.perf_counter_ns()
+        t_lu += t_lu_stop - t_lu_start
 
+        t_trsm_start = time.perf_counter_ns()
         # Compute lower factors
         U_inv_temp_gpu = cpla.solve_triangular(
             U_diagonal_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             cp.eye(diag_blocksize),
             lower=False,
         )
+        stream.synchronize()
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
         L_lower_diagonal_blocks_gpu[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
@@ -249,14 +342,22 @@ def lu_factorize_tridiag_arrowhead_gpu(
             A_arrow_bottom_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize]
             @ U_inv_temp_gpu
         )
+        stream.synchronize()
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+        t_trsm_start = time.perf_counter_ns()
         # Compute upper factors
         L_inv_temp_gpu = cpla.solve_triangular(
             L_diagonal_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             cp.eye(diag_blocksize),
             lower=True,
         )
+        stream.synchronize()
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
         U_upper_diagonal_blocks_gpu[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
@@ -272,7 +373,11 @@ def lu_factorize_tridiag_arrowhead_gpu(
             L_inv_temp_gpu
             @ A_arrow_right_blocks_gpu[i * diag_blocksize : (i + 1) * diag_blocksize, :]
         )
+        stream.synchronize()
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
         A_diagonal_blocks_gpu[
@@ -327,7 +432,11 @@ def lu_factorize_tridiag_arrowhead_gpu(
             ]
             @ U_arrow_right_blocks_gpu[i * diag_blocksize : (i + 1) * diag_blocksize, :]
         )
+        stream.synchronize()
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+    t_lu_start = time.perf_counter_ns()
     # L_{ndb, ndb}, U_{ndb, ndb} = lu_dcmp(A_{ndb, ndb})
     (
         L_diagonal_blocks_gpu[:, -diag_blocksize:],
@@ -336,28 +445,49 @@ def lu_factorize_tridiag_arrowhead_gpu(
         A_diagonal_blocks_gpu[:, -diag_blocksize:],
         permute_l=True,
     )
+    stream.synchronize()
+    t_lu_stop = time.perf_counter_ns()
+    t_lu += t_lu_stop - t_lu_start
 
+    t_trsm_start = time.perf_counter_ns()
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ U_{ndb, ndb}^{-1}
-    L_arrow_bottom_blocks_gpu[
-        :, -diag_blocksize - arrow_blocksize : -arrow_blocksize
-    ] = A_arrow_bottom_blocks_gpu[:, -diag_blocksize:] @ cpla.solve_triangular(
+    L_arrow_temp = cpla.solve_triangular(
         U_diagonal_blocks_gpu[:, -diag_blocksize:],
         cp.eye(diag_blocksize),
         lower=False,
     )
+    stream.synchronize()
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
+    L_arrow_bottom_blocks_gpu[
+        :, -diag_blocksize - arrow_blocksize : -arrow_blocksize
+    ] = (A_arrow_bottom_blocks_gpu[:, -diag_blocksize:] @ L_arrow_temp)
+    stream.synchronize()
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
+
+    t_trsm_start = time.perf_counter_ns()
     # U_{ndb, ndb+1} = L_{ndb, ndb}^{-1} @ A_{ndb, ndb+1}
+    U_arrow_temp = cpla.solve_triangular(
+        L_diagonal_blocks_gpu[:, -diag_blocksize:],
+        cp.eye(diag_blocksize),
+        lower=True,
+    )
+    stream.synchronize()
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
+
+    t_gemm_start = time.perf_counter_ns()
     U_arrow_right_blocks_gpu[
         -diag_blocksize - arrow_blocksize : -arrow_blocksize, :
-    ] = (
-        cpla.solve_triangular(
-            L_diagonal_blocks_gpu[:, -diag_blocksize:],
-            cp.eye(diag_blocksize),
-            lower=True,
-        )
-        @ A_arrow_right_blocks_gpu[-diag_blocksize:, :]
-    )
+    ] = (U_arrow_temp @ A_arrow_right_blocks_gpu[-diag_blocksize:, :])
+    stream.synchronize()
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
+    t_gemm_start = time.perf_counter_ns()
     # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ U_{ndb, ndb+1}
     A_arrow_tip_block_gpu[:, :] = (
         A_arrow_tip_block_gpu[:, :]
@@ -368,19 +498,35 @@ def lu_factorize_tridiag_arrowhead_gpu(
             -diag_blocksize - arrow_blocksize : -arrow_blocksize, :
         ]
     )
+    stream.synchronize()
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
+    t_lu_start = time.perf_counter_ns()
     # L_{ndb+1, ndb+1}, U_{ndb+1, ndb+1} = lu_dcmp(A_{ndb+1, ndb+1})
     (
         L_arrow_bottom_blocks_gpu[:, -arrow_blocksize:],
         U_arrow_right_blocks_gpu[-arrow_blocksize:, :],
     ) = cpla.lu(A_arrow_tip_block_gpu[:, :], permute_l=True)
+    stream.synchronize()
+    t_lu_stop = time.perf_counter_ns()
+    t_lu += t_lu_stop - t_lu_start
 
+    t_mem_start = time.perf_counter_ns()
     L_diagonal_blocks: np.ndarray = cp.asnumpy(L_diagonal_blocks_gpu)
     L_lower_diagonal_blocks: np.ndarray = cp.asnumpy(L_lower_diagonal_blocks_gpu)
     L_arrow_bottom_blocks: np.ndarray = cp.asnumpy(L_arrow_bottom_blocks_gpu)
     U_diagonal_blocks: np.ndarray = cp.asnumpy(U_diagonal_blocks_gpu)
     U_upper_diagonal_blocks: np.ndarray = cp.asnumpy(U_upper_diagonal_blocks_gpu)
     U_arrow_right_blocks: np.ndarray = cp.asnumpy(U_arrow_right_blocks_gpu)
+    stream.synchronize()
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
+
+    timings["mem"] = t_mem
+    timings["lu"] = t_lu
+    timings["trsm"] = t_trsm
+    timings["gemm"] = t_gemm
 
     return (
         L_diagonal_blocks,
@@ -389,4 +535,5 @@ def lu_factorize_tridiag_arrowhead_gpu(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
+        timings,
     )

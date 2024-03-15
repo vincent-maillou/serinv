@@ -81,6 +81,7 @@ def test_lu_sinv_tridiag_arrowhead_gpu(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
+        _,
     ) = lu_factorize_tridiag_arrowhead_gpu(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -97,6 +98,7 @@ def test_lu_sinv_tridiag_arrowhead_gpu(
         X_sdr_arrow_bottom_blocks,
         X_sdr_arrow_right_blocks,
         X_sdr_arrow_tip_block,
+        _,
     ) = lu_sinv_tridiag_arrowhead_gpu(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,

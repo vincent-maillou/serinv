@@ -16,6 +16,8 @@ except ImportError:
 
 import numpy as np
 
+import time
+
 
 def lu_sinv_tridiag_gpu(
     L_diagonal_blocks: np.ndarray,
@@ -52,7 +54,16 @@ def lu_sinv_tridiag_gpu(
     X_arrow_tip_block : np.ndarray
         Tip arrow block of the selected inversion of the matrix.
     """
+    timings: dict[str, float] = {}
 
+    t_mem = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    stream = cp.cuda.Stream()
+    stream.use()
+
+    t_mem_start = time.perf_counter_ns()
     blocksize = L_diagonal_blocks.shape[0]
     nblocks = L_diagonal_blocks.shape[1] // blocksize
 
@@ -73,7 +84,11 @@ def lu_sinv_tridiag_gpu(
 
     L_blk_inv_gpu = cp.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
     U_blk_inv_gpu = cp.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
+    stream.synchronize()
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
 
+    t_trsm_start = time.perf_counter_ns()
     L_blk_inv_gpu = cpla.solve_triangular(
         L_diagonal_blocks_gpu[:, -blocksize:], cp.eye(blocksize), lower=True
     )
@@ -81,10 +96,18 @@ def lu_sinv_tridiag_gpu(
     U_blk_inv_gpu = cpla.solve_triangular(
         U_diagonal_blocks_gpu[:, -blocksize:], cp.eye(blocksize), lower=False
     )
+    stream.synchronize()
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     X_diagonal_blocks_gpu[:, -blocksize:] = U_blk_inv_gpu @ L_blk_inv_gpu
+    stream.synchronize()
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
     for i in range(nblocks - 2, -1, -1):
+        t_trsm_start = time.perf_counter_ns()
         L_blk_inv_gpu = cpla.solve_triangular(
             L_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
             cp.eye(blocksize),
@@ -96,7 +119,11 @@ def lu_sinv_tridiag_gpu(
             cp.eye(blocksize),
             lower=False,
         )
+        stream.synchronize()
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # X_{i+1, i} = -X_{i+1, i+1} L_{i+1, i} L_{i, i}^{-1}
         X_lower_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize] = (
             -X_diagonal_blocks_gpu[:, (i + 1) * blocksize : (i + 2) * blocksize]
@@ -117,12 +144,28 @@ def lu_sinv_tridiag_gpu(
             - X_upper_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
             @ L_lower_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
         ) @ L_blk_inv_gpu
+        stream.synchronize()
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+    t_mem_start = time.perf_counter_ns()
     X_diagonal_blocks = cp.asnumpy(X_diagonal_blocks_gpu)
     X_lower_diagonal_blocks = cp.asnumpy(X_lower_diagonal_blocks_gpu)
     X_upper_diagonal_blocks = cp.asnumpy(X_upper_diagonal_blocks_gpu)
+    stream.synchronize()
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
 
-    return (X_diagonal_blocks, X_lower_diagonal_blocks, X_upper_diagonal_blocks)
+    timings["mem"] = t_mem
+    timings["trsm"] = t_trsm
+    timings["gemm"] = t_gemm
+
+    return (
+        X_diagonal_blocks,
+        X_lower_diagonal_blocks,
+        X_upper_diagonal_blocks,
+        timings,
+    )
 
 
 def lu_sinv_tridiag_arrowhead_gpu(
@@ -166,7 +209,16 @@ def lu_sinv_tridiag_arrowhead_gpu(
     X_arrow_tip_block : np.ndarray
         Tip arrow block of the selected inversion of the matrix.
     """
+    timings: dict[str, float] = {}
 
+    t_mem = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    stream = cp.cuda.Stream()
+    stream.use()
+
+    t_mem_start = time.perf_counter_ns()
     diag_blocksize = L_diagonal_blocks.shape[0]
     arrow_blocksize = L_arrow_bottom_blocks.shape[0]
     n_diag_blocks = L_diagonal_blocks.shape[1] // diag_blocksize
@@ -205,7 +257,11 @@ def lu_sinv_tridiag_arrowhead_gpu(
     U_last_blk_inv_gpu = cp.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
+    stream.synchronize()
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
 
+    t_trsm_start = time.perf_counter_ns()
     L_last_blk_inv_gpu = cpla.solve_triangular(
         L_arrow_bottom_blocks_gpu[:, -arrow_blocksize:],
         cp.eye(arrow_blocksize),
@@ -216,9 +272,16 @@ def lu_sinv_tridiag_arrowhead_gpu(
         cp.eye(arrow_blocksize),
         lower=False,
     )
+    stream.synchronize()
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     X_arrow_tip_block_gpu[:, :] = U_last_blk_inv_gpu @ L_last_blk_inv_gpu
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
+    t_trsm_start = time.perf_counter_ns()
     L_blk_inv_gpu = cpla.solve_triangular(
         L_diagonal_blocks_gpu[:, -diag_blocksize:],
         cp.eye(diag_blocksize),
@@ -229,7 +292,11 @@ def lu_sinv_tridiag_arrowhead_gpu(
         cp.eye(diag_blocksize),
         lower=False,
     )
+    stream.synchronize()
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
     X_arrow_bottom_blocks_gpu[:, -diag_blocksize:] = (
         -X_arrow_tip_block_gpu[:, :]
@@ -256,8 +323,12 @@ def lu_sinv_tridiag_arrowhead_gpu(
             :, -diag_blocksize - arrow_blocksize : -arrow_blocksize
         ]
     ) @ L_blk_inv_gpu
+    stream.synchronize()
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
     for i in range(n_diag_blocks - 2, -1, -1):
+        t_trsm_start = time.perf_counter_ns()
         L_blk_inv_gpu = cpla.solve_triangular(
             L_diagonal_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             cp.eye(diag_blocksize),
@@ -269,7 +340,11 @@ def lu_sinv_tridiag_arrowhead_gpu(
             cp.eye(diag_blocksize),
             lower=False,
         )
+        stream.synchronize()
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # --- Off-diagonal block part ---
         # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         X_lower_diagonal_blocks_gpu[
@@ -352,13 +427,24 @@ def lu_sinv_tridiag_arrowhead_gpu(
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
         ) @ L_blk_inv_gpu
+        stream.synchronize()
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+    t_mem_start = time.perf_counter_ns()
     X_diagonal_blocks: np.ndarray = cp.asnumpy(X_diagonal_blocks_gpu)
     X_lower_diagonal_blocks: np.ndarray = cp.asnumpy(X_lower_diagonal_blocks_gpu)
     X_upper_diagonal_blocks: np.ndarray = cp.asnumpy(X_upper_diagonal_blocks_gpu)
     X_arrow_bottom_blocks: np.ndarray = cp.asnumpy(X_arrow_bottom_blocks_gpu)
     X_arrow_right_blocks: np.ndarray = cp.asnumpy(X_arrow_right_blocks_gpu)
     X_arrow_tip_block: np.ndarray = cp.asnumpy(X_arrow_tip_block_gpu)
+    stream.synchronize()
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
+
+    timings["mem"] = t_mem
+    timings["trsm"] = t_trsm
+    timings["gemm"] = t_gemm
 
     return (
         X_diagonal_blocks,
@@ -367,4 +453,5 @@ def lu_sinv_tridiag_arrowhead_gpu(
         X_arrow_bottom_blocks,
         X_arrow_right_blocks,
         X_arrow_tip_block,
+        timings,
     )

@@ -8,10 +8,12 @@ Tests for lu selected inversion routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
+import scipy.linalg as la
 
-from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
-from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
+from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
+from sdr.lu.lu_selected_inversion_gpu import lu_sinv_tridiag_arrowhead_gpu
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_arrays
 
 PATH_TO_SAVE = "../../"
@@ -60,7 +62,7 @@ if __name__ == "__main__":
                     U_upper_diagonal_blocks_ref,
                     U_arrow_right_blocks_ref,
                     _,
-                ) = lu_factorize_tridiag_arrowhead(
+                ) = lu_factorize_tridiag_arrowhead_gpu(
                     A_diagonal_blocks,
                     A_lower_diagonal_blocks,
                     A_upper_diagonal_blocks,
@@ -95,7 +97,7 @@ if __name__ == "__main__":
                         X_sdr_arrow_right_blocks,
                         X_sdr_arrow_tip_block,
                         timings,
-                    ) = lu_sinv_tridiag_arrowhead(
+                    ) = lu_sinv_tridiag_arrowhead_gpu(
                         L_diagonal_blocks,
                         L_lower_diagonal_blocks,
                         L_arrow_bottom_blocks,
@@ -110,4 +112,4 @@ if __name__ == "__main__":
     # Save the timings and nblocks and blocksize
     runs_timings = np.array(runs_timings)
     print(runs_timings)
-    np.save(PATH_TO_SAVE + "lu_sinv_tridiag_arrowhead_timings.npy", runs_timings)
+    np.save(PATH_TO_SAVE + "lu_sinv_tridiag_arrowhead_gpu_timings.npy", runs_timings)
