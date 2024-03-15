@@ -582,7 +582,8 @@ def from_arrowhead_arrays_to_dense(
         (
             n_diag_blocks * diag_blocksize + arrowhead_blocksize,
             n_diag_blocks * diag_blocksize + arrowhead_blocksize,
-        )
+        ),
+        dtype=A_diagonal_blocks.dtype
     )
 
     for i in range(0, n_diag_blocks):
