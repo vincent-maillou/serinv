@@ -1316,6 +1316,7 @@ def inverse_reduced_system_gpu(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
+        _,
     ) = lu_factorize_tridiag_arrowhead_gpu(
         A_rs_diagonal_blocks,
         A_rs_lower_diagonal_blocks,
@@ -1332,6 +1333,7 @@ def inverse_reduced_system_gpu(
         X_rs_arrow_bottom_blocks,
         X_rs_arrow_right_blocks,
         X_rs_arrow_tip_block,
+        _,
     ) = lu_sinv_tridiag_arrowhead_gpu(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,

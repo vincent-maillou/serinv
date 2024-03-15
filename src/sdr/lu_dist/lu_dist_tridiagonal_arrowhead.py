@@ -13,6 +13,8 @@ import numpy as np
 import scipy.linalg as la
 from mpi4py import MPI
 
+import time
+
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
 
@@ -84,6 +86,17 @@ def lu_dist_tridiagonal_arrowhead(
     The algorithm use a non-pivoting LU factorization, hence the input matrix
     is considered diagonally dominant or block diagonally dominant.
     """
+    timings: dict[str, float] = {}
+
+    timings["t_mem"] = 0.0
+    timings["t_lu"] = 0.0
+    timings["t_trsm"] = 0.0
+    timings["t_gemm"] = 0.0
+
+    sections: dict[str, float] = {}
+
+    t_factorize = 0.0
+
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     arrow_blocksize = A_arrow_bottom_blocks_local.shape[0]
     n_diag_blocks_partition = A_diagonal_blocks_local.shape[1] // diag_blocksize
@@ -92,6 +105,7 @@ def lu_dist_tridiagonal_arrowhead(
     comm_rank = comm.Get_rank()
 
     if comm_rank == 0:
+        t_factorize_start = time.perf_counter_ns()
         (
             L_diagonal_blocks,
             L_lower_diagonal_blocks,
@@ -108,6 +122,8 @@ def lu_dist_tridiagonal_arrowhead(
             A_arrow_right_blocks_local,
             A_arrow_tip_block,
         )
+        t_factorize_stop = time.perf_counter_ns()
+        t_factorize = t_factorize_stop - t_factorize_start
 
         (
             A_rs_diagonal_blocks,
@@ -139,17 +155,18 @@ def lu_dist_tridiagonal_arrowhead(
         A_top_2sided_arrow_blocks_local[:, :diag_blocksize] = A_diagonal_blocks_local[
             :, :diag_blocksize
         ]
-        A_top_2sided_arrow_blocks_local[
-            :, diag_blocksize : 2 * diag_blocksize
-        ] = A_upper_diagonal_blocks_local[:, :diag_blocksize]
+        A_top_2sided_arrow_blocks_local[:, diag_blocksize : 2 * diag_blocksize] = (
+            A_upper_diagonal_blocks_local[:, :diag_blocksize]
+        )
 
         A_left_2sided_arrow_blocks_local[:diag_blocksize, :] = A_diagonal_blocks_local[
             :, :diag_blocksize
         ]
-        A_left_2sided_arrow_blocks_local[
-            diag_blocksize : 2 * diag_blocksize, :
-        ] = A_lower_diagonal_blocks_local[:, :diag_blocksize]
+        A_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :] = (
+            A_lower_diagonal_blocks_local[:, :diag_blocksize]
+        )
 
+        t_factorize_start = time.perf_counter_ns()
         (
             L_diagonal_blocks,
             L_lower_diagonal_blocks,
@@ -170,6 +187,8 @@ def lu_dist_tridiagonal_arrowhead(
             A_left_2sided_arrow_blocks_local,
             A_arrow_tip_block,
         )
+        t_factorize_stop = time.perf_counter_ns()
+        t_factorize = t_factorize_stop - t_factorize_start
 
         (
             A_rs_diagonal_blocks,
@@ -974,23 +993,23 @@ def create_reduced_system(
     else:
         start_index = diag_blocksize + (comm_rank - 1) * 2 * diag_blocksize
 
-        A_rs_lower_diagonal_blocks[
-            :, start_index - diag_blocksize : start_index
-        ] = A_bridges_lower[
-            :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
-        ]
+        A_rs_lower_diagonal_blocks[:, start_index - diag_blocksize : start_index] = (
+            A_bridges_lower[
+                :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
+            ]
+        )
 
-        A_rs_diagonal_blocks[
-            :, start_index : start_index + diag_blocksize
-        ] = A_diagonal_blocks_local[:, :diag_blocksize]
+        A_rs_diagonal_blocks[:, start_index : start_index + diag_blocksize] = (
+            A_diagonal_blocks_local[:, :diag_blocksize]
+        )
 
-        A_rs_upper_diagonal_blocks[
-            :, start_index : start_index + diag_blocksize
-        ] = A_top_2sided_arrow_blocks_local[:, -diag_blocksize:]
+        A_rs_upper_diagonal_blocks[:, start_index : start_index + diag_blocksize] = (
+            A_top_2sided_arrow_blocks_local[:, -diag_blocksize:]
+        )
 
-        A_rs_lower_diagonal_blocks[
-            :, start_index : start_index + diag_blocksize
-        ] = A_left_2sided_arrow_blocks_local[-diag_blocksize:, :]
+        A_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize] = (
+            A_left_2sided_arrow_blocks_local[-diag_blocksize:, :]
+        )
 
         A_rs_diagonal_blocks[
             :, start_index + diag_blocksize : start_index + 2 * diag_blocksize
@@ -1003,17 +1022,17 @@ def create_reduced_system(
                 :, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize
             ]
 
-        A_rs_arrow_bottom_blocks[
-            :, start_index : start_index + diag_blocksize
-        ] = A_arrow_bottom_blocks_local[:, :diag_blocksize]
+        A_rs_arrow_bottom_blocks[:, start_index : start_index + diag_blocksize] = (
+            A_arrow_bottom_blocks_local[:, :diag_blocksize]
+        )
 
         A_rs_arrow_bottom_blocks[
             :, start_index + diag_blocksize : start_index + 2 * diag_blocksize
         ] = A_arrow_bottom_blocks_local[:, -diag_blocksize:]
 
-        A_rs_arrow_right_blocks[
-            start_index : start_index + diag_blocksize, :
-        ] = A_arrow_right_blocks_local[:diag_blocksize, :]
+        A_rs_arrow_right_blocks[start_index : start_index + diag_blocksize, :] = (
+            A_arrow_right_blocks_local[:diag_blocksize, :]
+        )
 
         A_rs_arrow_right_blocks[
             start_index + diag_blocksize : start_index + 2 * diag_blocksize, :
@@ -1124,6 +1143,7 @@ def inverse_reduced_system(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
+        _,
     ) = lu_factorize_tridiag_arrowhead(
         A_rs_diagonal_blocks,
         A_rs_lower_diagonal_blocks,
@@ -1140,6 +1160,7 @@ def inverse_reduced_system(
         X_rs_arrow_bottom_blocks,
         X_rs_arrow_right_blocks,
         X_rs_arrow_tip_block,
+        _,
     ) = lu_sinv_tridiag_arrowhead(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
@@ -1300,13 +1321,13 @@ def update_sinv_reduced_system(
             :, start_index : start_index + diag_blocksize
         ]
 
-        X_top_2sided_arrow_blocks_local[
-            :, -diag_blocksize:
-        ] = X_rs_upper_diagonal_blocks[:, start_index : start_index + diag_blocksize]
+        X_top_2sided_arrow_blocks_local[:, -diag_blocksize:] = (
+            X_rs_upper_diagonal_blocks[:, start_index : start_index + diag_blocksize]
+        )
 
-        X_left_2sided_arrow_blocks_local[
-            -diag_blocksize:, :diag_blocksize
-        ] = X_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize]
+        X_left_2sided_arrow_blocks_local[-diag_blocksize:, :diag_blocksize] = (
+            X_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize]
+        )
 
         X_diagonal_blocks_local[:, -diag_blocksize:] = X_rs_diagonal_blocks[
             :, start_index + diag_blocksize : start_index + 2 * diag_blocksize
@@ -1487,19 +1508,20 @@ def top_sinv(
         )
 
         # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
-        X_arrow_right_blocks_local[
-            i * diag_blocksize : (i + 1) * diag_blocksize, :
-        ] = U_blk_inv @ (
-            -U_upper_diagonal_blocks_local[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ]
-            @ X_arrow_right_blocks_local[
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
-            ]
-            - U_arrow_right_blocks_local[
-                i * diag_blocksize : (i + 1) * diag_blocksize, :
-            ]
-            @ X_global_arrow_tip[:, :]
+        X_arrow_right_blocks_local[i * diag_blocksize : (i + 1) * diag_blocksize, :] = (
+            U_blk_inv
+            @ (
+                -U_upper_diagonal_blocks_local[
+                    :, i * diag_blocksize : (i + 1) * diag_blocksize
+                ]
+                @ X_arrow_right_blocks_local[
+                    (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
+                ]
+                - U_arrow_right_blocks_local[
+                    i * diag_blocksize : (i + 1) * diag_blocksize, :
+                ]
+                @ X_global_arrow_tip[:, :]
+            )
         )
 
         # # --- Diagonal blocks ---
@@ -1733,23 +1755,24 @@ def middle_sinv(
         ) @ L_blk_inv
 
         # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, top} X_{top, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
-        X_arrow_right_blocks_local[
-            i * diag_blocksize : (i + 1) * diag_blocksize, :
-        ] = U_blk_inv @ (
-            -U_upper_diagonal_blocks_local[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ]
-            @ X_arrow_right_blocks_local[
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
-            ]
-            - U_left_2sided_arrow_blocks_local[
-                i * diag_blocksize : (i + 1) * diag_blocksize, :
-            ]
-            @ X_arrow_right_blocks_local[:diag_blocksize, :]
-            - U_arrow_right_blocks_local[
-                i * diag_blocksize : (i + 1) * diag_blocksize, :
-            ]
-            @ X_global_arrow_tip_block_local[:, :]
+        X_arrow_right_blocks_local[i * diag_blocksize : (i + 1) * diag_blocksize, :] = (
+            U_blk_inv
+            @ (
+                -U_upper_diagonal_blocks_local[
+                    :, i * diag_blocksize : (i + 1) * diag_blocksize
+                ]
+                @ X_arrow_right_blocks_local[
+                    (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
+                ]
+                - U_left_2sided_arrow_blocks_local[
+                    i * diag_blocksize : (i + 1) * diag_blocksize, :
+                ]
+                @ X_arrow_right_blocks_local[:diag_blocksize, :]
+                - U_arrow_right_blocks_local[
+                    i * diag_blocksize : (i + 1) * diag_blocksize, :
+                ]
+                @ X_global_arrow_tip_block_local[:, :]
+            )
         )
 
         # X_{i, i} = (U_{i, i}^{-1} - X_{i, i+1} L_{i+1, i} - X_{i, top} L_{top, i} - X_{i, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
@@ -1780,9 +1803,9 @@ def middle_sinv(
     X_upper_diagonal_blocks_local[:, :diag_blocksize] = X_top_2sided_arrow_blocks_local[
         :, diag_blocksize : 2 * diag_blocksize
     ]
-    X_lower_diagonal_blocks_local[
-        :, :diag_blocksize
-    ] = X_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :]
+    X_lower_diagonal_blocks_local[:, :diag_blocksize] = (
+        X_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :]
+    )
 
     return (
         X_diagonal_blocks_local,
