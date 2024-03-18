@@ -14,6 +14,11 @@ from copy import deepcopy
 import numpy as np
 import pytest
 
+try:
+    import cupy
+except ImportError:
+    pass
+
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
     middle_factorize_gpu,
     middle_sinv_gpu,

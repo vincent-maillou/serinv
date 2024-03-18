@@ -17,7 +17,6 @@ try:
 except ImportError:
     pass
 
-import scipy.linalg as la
 import numpy as np
 
 from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
