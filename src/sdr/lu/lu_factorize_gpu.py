@@ -199,25 +199,15 @@ def lu_factorize_tridiag_arrowhead_gpu(
     U_arrow_right_blocks: cp.ndarray = cpx.empty_like_pinned(A_arrow_right_blocks_gpu)
 
     # Device side arrays
-    L_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=A_diagonal_blocks.dtype
-    )
-    L_lower_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
-        dtype=A_diagonal_blocks.dtype,
-    )
+    L_diagonal_blocks_gpu = cp.empty_like(A_diagonal_blocks_gpu)
+    L_lower_diagonal_blocks_gpu = cp.empty_like(A_lower_diagonal_blocks_gpu)
     L_arrow_bottom_blocks_gpu = cp.empty(
         (arrow_blocksize, n_diag_blocks * diag_blocksize + arrow_blocksize),
         dtype=A_diagonal_blocks.dtype,
     )
 
-    U_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=A_diagonal_blocks.dtype
-    )
-    U_upper_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
-        dtype=A_diagonal_blocks.dtype,
-    )
+    U_diagonal_blocks_gpu = cp.empty_like(A_diagonal_blocks_gpu)
+    U_upper_diagonal_blocks_gpu = cp.empty_like(A_upper_diagonal_blocks_gpu)
     U_arrow_right_blocks_gpu = cp.empty(
         (n_diag_blocks * diag_blocksize + arrow_blocksize, arrow_blocksize),
         dtype=A_diagonal_blocks.dtype,
