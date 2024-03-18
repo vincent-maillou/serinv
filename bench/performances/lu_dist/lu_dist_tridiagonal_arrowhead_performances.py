@@ -8,8 +8,6 @@ Example of the lu_dist algorithm for tridiagonal arrowhead matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-import copy as cp
-
 import numpy as np
 from mpi4py import MPI
 
@@ -23,7 +21,7 @@ from sdr.utils.dist_utils import (
 
 PATH_TO_SAVE = "../../"
 N_WARMUPS = 3
-N_RUNS = 10
+N_RUNS = 1
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
@@ -150,14 +148,14 @@ if __name__ == "__main__":
 
     # Save the timings and nblocks and blocksize
     runs_timings = np.array(runs_timings)
-    print(runs_timings)
+    print("runs_timings: ", runs_timings)
     np.save(
         PATH_TO_SAVE + f"lu_dist_tridiagonal_arrowhead_{comm_size}p_timings.npy",
         runs_timings,
     )
 
     runs_sections = np.array(runs_sections)
-    print(runs_sections)
+    print("runs_sections:", runs_sections)
     np.save(
         PATH_TO_SAVE + f"lu_dist_tridiagonal_arrowhead_{comm_size}p_sections.npy",
         runs_sections,

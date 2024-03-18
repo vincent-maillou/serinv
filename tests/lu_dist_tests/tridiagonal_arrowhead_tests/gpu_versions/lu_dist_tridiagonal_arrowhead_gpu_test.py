@@ -147,6 +147,8 @@ def test_lu_dist(
         X_arrow_tip_block_local,
         X_bridges_lower,
         X_bridges_upper,
+        _,
+        _,
     ) = lu_dist_tridiagonal_arrowhead_gpu(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,

@@ -15,8 +15,7 @@ import numpy as np
 import pytest
 from mpi4py import MPI
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import \
-    lu_dist_tridiagonal_arrowhead
+from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
 from sdr.utils import dist_utils, matrix_generation
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
@@ -146,6 +145,8 @@ def test_lu_dist(
         X_arrow_tip_block_local,
         X_bridges_lower,
         X_bridges_upper,
+        _,
+        _,
     ) = lu_dist_tridiagonal_arrowhead(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,

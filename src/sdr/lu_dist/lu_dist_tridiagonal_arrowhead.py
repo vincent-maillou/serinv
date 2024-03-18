@@ -92,6 +92,7 @@ def lu_dist_tridiagonal_arrowhead(
     timings["t_lu"] = 0.0
     timings["t_trsm"] = 0.0
     timings["t_gemm"] = 0.0
+    timings["t_comm"] = 0.0
 
     sections: dict[str, float] = {}
 
@@ -114,6 +115,7 @@ def lu_dist_tridiagonal_arrowhead(
             U_upper_diagonal_blocks,
             U_arrow_right_blocks,
             Update_arrow_tip,
+            timings_factorize,
         ) = top_factorize(
             A_diagonal_blocks_local,
             A_lower_diagonal_blocks_local,
@@ -125,6 +127,7 @@ def lu_dist_tridiagonal_arrowhead(
         t_factorize_stop = time.perf_counter_ns()
         t_factorize = t_factorize_stop - t_factorize_start
 
+        t_reduced_system_start = time.perf_counter_ns()
         (
             A_rs_diagonal_blocks,
             A_rs_lower_diagonal_blocks,
@@ -132,6 +135,7 @@ def lu_dist_tridiagonal_arrowhead(
             A_rs_arrow_bottom_blocks,
             A_rs_arrow_right_blocks,
             A_rs_arrow_tip_block,
+            timings_reduced_system,
         ) = create_reduced_system(
             A_diagonal_blocks_local,
             A_arrow_bottom_blocks_local,
@@ -141,7 +145,10 @@ def lu_dist_tridiagonal_arrowhead(
             A_bridges_lower,
             A_bridges_upper,
         )
+        t_reduced_system_stop = time.perf_counter_ns()
+        t_reduced_system = t_reduced_system_stop - t_reduced_system_start
     else:
+        t_mem_start = time.perf_counter_ns()
         # Arrays that store the update of the 2sided pattern for the middle processes
         A_top_2sided_arrow_blocks_local = np.zeros(
             (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
@@ -165,6 +172,10 @@ def lu_dist_tridiagonal_arrowhead(
         A_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :] = (
             A_lower_diagonal_blocks_local[:, :diag_blocksize]
         )
+        t_mem_stop = time.perf_counter_ns()
+        t_mem = t_mem_stop - t_mem_start
+
+        timings["t_mem"] += t_mem
 
         t_factorize_start = time.perf_counter_ns()
         (
@@ -177,6 +188,7 @@ def lu_dist_tridiagonal_arrowhead(
             U_arrow_right_blocks,
             U_left_2sided_arrow_blocks,
             Update_arrow_tip,
+            timings_factorize,
         ) = middle_factorize(
             A_diagonal_blocks_local,
             A_lower_diagonal_blocks_local,
@@ -190,6 +202,7 @@ def lu_dist_tridiagonal_arrowhead(
         t_factorize_stop = time.perf_counter_ns()
         t_factorize = t_factorize_stop - t_factorize_start
 
+        t_reduced_system_start = time.perf_counter_ns()
         (
             A_rs_diagonal_blocks,
             A_rs_lower_diagonal_blocks,
@@ -197,6 +210,7 @@ def lu_dist_tridiagonal_arrowhead(
             A_rs_arrow_bottom_blocks,
             A_rs_arrow_right_blocks,
             A_rs_arrow_tip_block,
+            timings_reduced_system,
         ) = create_reduced_system(
             A_diagonal_blocks_local,
             A_arrow_bottom_blocks_local,
@@ -208,7 +222,21 @@ def lu_dist_tridiagonal_arrowhead(
             A_top_2sided_arrow_blocks_local,
             A_left_2sided_arrow_blocks_local,
         )
+        t_reduced_system_stop = time.perf_counter_ns()
+        t_reduced_system = t_reduced_system_stop - t_reduced_system_start
 
+    timings["t_mem"] += timings_factorize["t_mem"]
+    timings["t_lu"] += timings_factorize["t_lu"]
+    timings["t_trsm"] += timings_factorize["t_trsm"]
+    timings["t_gemm"] += timings_factorize["t_gemm"]
+
+    timings["t_mem"] += timings_reduced_system["t_mem"]
+    timings["t_comm"] += timings_reduced_system["t_comm"]
+
+    sections["t_factorize"] = t_factorize
+    sections["t_reduced_system"] = t_reduced_system
+
+    t_sinv_start = time.perf_counter_ns()
     (
         X_rs_diagonal_blocks,
         X_rs_lower_diagonal_blocks,
@@ -216,6 +244,7 @@ def lu_dist_tridiagonal_arrowhead(
         X_rs_arrow_bottom_blocks,
         X_rs_arrow_right_blocks,
         X_rs_arrow_tip_block,
+        timings_sinv,
     ) = inverse_reduced_system(
         A_rs_diagonal_blocks,
         A_rs_lower_diagonal_blocks,
@@ -224,7 +253,17 @@ def lu_dist_tridiagonal_arrowhead(
         A_rs_arrow_right_blocks,
         A_rs_arrow_tip_block,
     )
+    t_sinv_stop = time.perf_counter_ns()
+    t_sinv = t_sinv_stop - t_sinv_start
 
+    timings["t_mem"] += timings_sinv["t_mem"]
+    timings["t_lu"] += timings_sinv["t_lu"]
+    timings["t_trsm"] += timings_sinv["t_trsm"]
+    timings["t_gemm"] += timings_sinv["t_gemm"]
+
+    sections["t_sinv"] = t_sinv
+
+    t_update_reduced_system_start = time.perf_counter_ns()
     (
         X_diagonal_blocks_local,
         X_lower_diagonal_blocks_local,
@@ -236,6 +275,7 @@ def lu_dist_tridiagonal_arrowhead(
         X_global_arrow_tip,
         X_bridges_lower,
         X_bridges_upper,
+        timings_update_reduced_system,
     ) = update_sinv_reduced_system(
         X_rs_diagonal_blocks,
         X_rs_lower_diagonal_blocks,
@@ -247,7 +287,16 @@ def lu_dist_tridiagonal_arrowhead(
         diag_blocksize,
         arrow_blocksize,
     )
+    t_update_reduced_system_stop = time.perf_counter_ns()
+    t_update_reduced_system = (
+        t_update_reduced_system_stop - t_update_reduced_system_start
+    )
 
+    timings["t_mem"] += timings_update_reduced_system["t_mem"]
+
+    sections["t_update_reduced_system"] = t_update_reduced_system
+
+    t_sinv_start = time.perf_counter_ns()
     if comm_rank == 0:
         (
             X_diagonal_blocks_local,
@@ -256,6 +305,7 @@ def lu_dist_tridiagonal_arrowhead(
             X_arrow_bottom_blocks_local,
             X_arrow_right_blocks_local,
             _,
+            timings_sinv,
         ) = top_sinv(
             X_diagonal_blocks_local,
             X_lower_diagonal_blocks_local,
@@ -278,6 +328,7 @@ def lu_dist_tridiagonal_arrowhead(
             X_arrow_bottom_blocks_local,
             X_arrow_right_blocks_local,
             _,
+            timings_sinv,
         ) = middle_sinv(
             X_diagonal_blocks_local,
             X_lower_diagonal_blocks_local,
@@ -296,6 +347,14 @@ def lu_dist_tridiagonal_arrowhead(
             U_arrow_right_blocks,
             U_left_2sided_arrow_blocks,
         )
+    t_sinv_stop = time.perf_counter_ns()
+    t_sinv = t_sinv_stop - t_sinv_start
+
+    timings["t_mem"] += timings_sinv["t_mem"]
+    timings["t_trsm"] += timings_sinv["t_trsm"]
+    timings["t_gemm"] += timings_sinv["t_gemm"]
+
+    sections["t_sinv"] = t_sinv
 
     return (
         X_diagonal_blocks_local,
@@ -306,6 +365,8 @@ def lu_dist_tridiagonal_arrowhead(
         X_global_arrow_tip,
         X_bridges_lower,
         X_bridges_upper,
+        timings,
+        sections,
     )
 
 
@@ -359,6 +420,14 @@ def top_factorize(
     Update_arrow_tip_local : np.ndarray
         Local update of the arrow tip block.
     """
+    timings_factorize: dict[str, float] = {}
+
+    t_mem = 0.0
+    t_lu = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    t_mem_start = time.perf_counter_ns()
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     nblocks = A_diagonal_blocks_local.shape[1] // diag_blocksize
 
@@ -369,8 +438,11 @@ def top_factorize(
     U_upper_diagonal_blocks_local = np.zeros_like(A_upper_diagonal_blocks_local)
     U_arrow_right_blocks_local = np.zeros_like(A_arrow_right_blocks_local)
     Update_arrow_tip_local = np.zeros_like(A_arrow_tip_block)
+    t_mem_stop = time.perf_counter_ns()
+    t_mem = t_mem_stop - t_mem_start
 
     for i in range(nblocks - 1):
+        t_lu_start = time.perf_counter_ns()
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
             L_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
@@ -379,14 +451,20 @@ def top_factorize(
             A_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             permute_l=True,
         )
+        t_lu_stop = time.perf_counter_ns()
+        t_lu += t_lu_stop - t_lu_start
 
+        t_trsm_start = time.perf_counter_ns()
         # Compute lower factors
         U_inv_temp = la.solve_triangular(
             U_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             np.eye(diag_blocksize),
             lower=False,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # L_{i+1, i} = A_{i+1, i} @ U_local{i, i}^{-1}
         L_lower_diagonal_blocks_local[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
@@ -406,14 +484,20 @@ def top_factorize(
             ]
             @ U_inv_temp
         )
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+        t_trsm_start = time.perf_counter_ns()
         # Compute upper factors
         L_inv_temp = la.solve_triangular(
             L_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             np.eye(diag_blocksize),
             lower=True,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # U_{i, i+1} = L_local{i, i}^{-1} @ A_{i, i+1}
         U_upper_diagonal_blocks_local[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
@@ -431,8 +515,11 @@ def top_factorize(
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
         )
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
         # Update next diagonal block
+        t_gemm_start = time.perf_counter_ns()
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
         A_diagonal_blocks_local[
             :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
@@ -490,12 +577,22 @@ def top_factorize(
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
         )
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+    t_lu_start = time.perf_counter_ns()
     # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
     (
         L_diagonal_blocks_local[:, -diag_blocksize:],
         U_diagonal_blocks_local[:, -diag_blocksize:],
     ) = la.lu(A_diagonal_blocks_local[:, -diag_blocksize:], permute_l=True)
+    t_lu_stop = time.perf_counter_ns()
+    t_lu += t_lu_stop - t_lu_start
+
+    timings_factorize["t_mem"] = t_mem
+    timings_factorize["t_lu"] = t_lu
+    timings_factorize["t_trsm"] = t_trsm
+    timings_factorize["t_gemm"] = t_gemm
 
     return (
         L_diagonal_blocks_local,
@@ -505,6 +602,7 @@ def top_factorize(
         U_upper_diagonal_blocks_local,
         U_arrow_right_blocks_local,
         Update_arrow_tip_local,
+        timings_factorize,
     )
 
 
@@ -570,6 +668,14 @@ def middle_factorize(
     Update_arrow_tip_local : np.ndarray
         Local update of the arrow tip block.
     """
+    timings_factorize: dict[str, float] = {}
+
+    t_mem = 0.0
+    t_lu = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    t_mem_start = time.perf_counter_ns()
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     n_blocks = A_diagonal_blocks_local.shape[1] // diag_blocksize
 
@@ -582,8 +688,11 @@ def middle_factorize(
     U_arrow_right_blocks_local = np.zeros_like(A_arrow_right_blocks_local)
     U_left_2sided_arrow_blocks_local = np.zeros_like(A_left_2sided_arrow_blocks_local)
     Update_arrow_tip_local = np.zeros_like(A_arrow_tip_block)
+    t_mem_stop = time.perf_counter_ns()
+    t_mem = t_mem_stop - t_mem_start
 
     for i in range(1, n_blocks - 1):
+        t_lu_start = time.perf_counter_ns()
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
             L_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
@@ -592,14 +701,20 @@ def middle_factorize(
             A_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             permute_l=True,
         )
+        t_lu_stop = time.perf_counter_ns()
+        t_lu += t_lu_stop - t_lu_start
 
+        t_trsm_start = time.perf_counter_ns()
         # Compute lower factors
         U_inv_temp = la.solve_triangular(
             U_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             np.eye(diag_blocksize),
             lower=False,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
         L_lower_diagonal_blocks_local[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
@@ -629,14 +744,20 @@ def middle_factorize(
             ]
             @ U_inv_temp
         )
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+        t_trsm_start = time.perf_counter_ns()
         # Compute upper factors
         L_inv_temp = la.solve_triangular(
             L_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
             np.eye(diag_blocksize),
             lower=True,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
         U_upper_diagonal_blocks_local[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
@@ -664,8 +785,11 @@ def middle_factorize(
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
         )
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
         # Update next diagonal block
+        t_gemm_start = time.perf_counter_ns()
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
         A_diagonal_blocks_local[
             :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
@@ -782,21 +906,30 @@ def middle_factorize(
                 i * diag_blocksize : (i + 1) * diag_blocksize, :
             ]
         )
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+    t_lu_start = time.perf_counter_ns()
     # Compute the last LU blocks of the 2-sided factorization pattern
     # L_{nblocks, nblocks}, U_{nblocks, nblocks} = lu_dcmp(A_{nblocks, nblocks})
     (
         L_diagonal_blocks_local[:, -diag_blocksize:],
         U_diagonal_blocks_local[:, -diag_blocksize:],
     ) = la.lu(A_diagonal_blocks_local[:, -diag_blocksize:], permute_l=True)
+    t_lu_stop = time.perf_counter_ns()
+    t_lu += t_lu_stop - t_lu_start
 
+    t_trsm_start = time.perf_counter_ns()
     # Compute last lower factors
     U_inv_temp = la.solve_triangular(
         U_diagonal_blocks_local[:, -diag_blocksize:],
         np.eye(diag_blocksize),
         lower=False,
     )
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     # L_{top, nblocks} = A_{top, nblocks} @ U{nblocks, nblocks}^{-1}
     L_upper_2sided_arrow_blocks_local[:, -diag_blocksize:] = (
         A_top_2sided_arrow_blocks_local[:, -diag_blocksize:] @ U_inv_temp
@@ -806,14 +939,20 @@ def middle_factorize(
     L_arrow_bottom_blocks_local[:, -diag_blocksize:] = (
         A_arrow_bottom_blocks_local[:, -diag_blocksize:] @ U_inv_temp
     )
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
+    t_trsm_start = time.perf_counter_ns()
     # Compute last upper factors
     L_inv_temp = la.solve_triangular(
         L_diagonal_blocks_local[:, -diag_blocksize:],
         np.eye(diag_blocksize),
         lower=True,
     )
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     # U_{nblocks, top} = L{nblocks, nblocks}^{-1} @ A_{nblocks, top}
     U_left_2sided_arrow_blocks_local[-diag_blocksize:, :] = (
         L_inv_temp @ A_left_2sided_arrow_blocks_local[-diag_blocksize:, :]
@@ -823,25 +962,34 @@ def middle_factorize(
     U_arrow_right_blocks_local[-diag_blocksize:, :] = (
         L_inv_temp @ A_arrow_right_blocks_local[-diag_blocksize:, :]
     )
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
     # NOTE: On purpose, we don't update the tip of the arrowhead since the
     # propagation will appear during the inversion of the reduced system
 
     # Compute the top (first) LU blocks of the 2-sided factorization pattern
     # and its respective parts of the arrowhead
+    t_lu_start = time.perf_counter_ns()
     # L_{top, top}, U_{top, top} = lu_dcmp(A_{top, top})
     (
         L_diagonal_blocks_local[:, :diag_blocksize],
         U_diagonal_blocks_local[:, :diag_blocksize],
     ) = la.lu(A_diagonal_blocks_local[:, :diag_blocksize], permute_l=True)
+    t_lu_stop = time.perf_counter_ns()
+    t_lu += t_lu_stop - t_lu_start
 
+    t_trsm_start = time.perf_counter_ns()
     # Compute top lower factors
     U_inv_temp = la.solve_triangular(
         U_diagonal_blocks_local[:, :diag_blocksize],
         np.eye(diag_blocksize),
         lower=False,
     )
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     # L_{top+1, top} = A_{top+1, top} @ U{top, top}^{-1}
     L_lower_diagonal_blocks_local[:, :diag_blocksize] = (
         A_lower_diagonal_blocks_local[:, :diag_blocksize] @ U_inv_temp
@@ -851,14 +999,20 @@ def middle_factorize(
     L_arrow_bottom_blocks_local[:, :diag_blocksize] = (
         A_arrow_bottom_blocks_local[:, :diag_blocksize] @ U_inv_temp
     )
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
 
+    t_trsm_start = time.perf_counter_ns()
     # Compute top upper factors
     L_inv_temp = la.solve_triangular(
         L_diagonal_blocks_local[:, :diag_blocksize],
         np.eye(diag_blocksize),
         lower=True,
     )
+    t_trsm_stop = time.perf_counter_ns()
+    t_trsm += t_trsm_stop - t_trsm_start
 
+    t_gemm_start = time.perf_counter_ns()
     # U_{top, top+1} = L{top, top}^{-1} @ A_{top, top+1}
     U_upper_diagonal_blocks_local[:, :diag_blocksize] = (
         L_inv_temp @ A_upper_diagonal_blocks_local[:, :diag_blocksize]
@@ -868,6 +1022,13 @@ def middle_factorize(
     U_arrow_right_blocks_local[:diag_blocksize, :] = (
         L_inv_temp @ A_arrow_right_blocks_local[:diag_blocksize, :]
     )
+    t_gemm_stop = time.perf_counter_ns()
+    t_gemm += t_gemm_stop - t_gemm_start
+
+    timings_factorize["t_mem"] = t_mem
+    timings_factorize["t_lu"] = t_lu
+    timings_factorize["t_trsm"] = t_trsm
+    timings_factorize["t_gemm"] = t_gemm
 
     return (
         L_diagonal_blocks_local,
@@ -879,6 +1040,7 @@ def middle_factorize(
         U_arrow_right_blocks_local,
         U_left_2sided_arrow_blocks_local,
         Update_arrow_tip_local,
+        timings_factorize,
     )
 
 
@@ -938,10 +1100,16 @@ def create_reduced_system(
     broadcast it to all the processes. After this communication step no more
     communication is needed.
     """
+    timings_reduced_system: dict[str, float] = {}
+
+    t_mem = 0.0
+    t_comm = 0.0
+
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
+    t_mem_start = time.perf_counter_ns()
     # Create empty matrix for reduced system -> (2 * #process - 1) * diag_blocksize + arrowhead_size
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     arrow_blocksize = A_arrow_bottom_blocks_local.shape[0]
@@ -1045,7 +1213,11 @@ def create_reduced_system(
     A_rs_arrow_bottom_blocks_sum = np.zeros_like(A_rs_arrow_bottom_blocks)
     A_rs_arrow_right_blocks_sum = np.zeros_like(A_rs_arrow_right_blocks)
     A_rs_arrow_tip_block_sum = np.zeros_like(A_rs_arrow_tip_block)
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
 
+    comm.Barrier()
+    t_comm_start = time.perf_counter_ns()
     comm.Allreduce(
         [A_rs_diagonal_blocks, MPI.DOUBLE],
         [A_rs_diagonal_blocks_sum, MPI.DOUBLE],
@@ -1076,9 +1248,17 @@ def create_reduced_system(
         [A_rs_arrow_tip_block_sum, MPI.DOUBLE],
         op=MPI.SUM,
     )
+    t_comm_stop = time.perf_counter_ns()
+    t_comm = t_comm_stop - t_comm_start
 
+    t_mem_start = time.perf_counter_ns()
     # Add the global arrow tip to the reduced system arrow-tip summation
     A_rs_arrow_tip_block_sum += A_arrow_tip_block
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
+
+    timings_reduced_system["t_mem"] = t_mem
+    timings_reduced_system["t_comm"] = t_comm
 
     return (
         A_rs_diagonal_blocks_sum,
@@ -1087,6 +1267,7 @@ def create_reduced_system(
         A_rs_arrow_bottom_blocks_sum,
         A_rs_arrow_right_blocks_sum,
         A_rs_arrow_tip_block_sum,
+        timings_reduced_system,
     )
 
 
@@ -1135,6 +1316,12 @@ def inverse_reduced_system(
     The inversion of the reduced system is performed using a sequential
     selected inversion algorithm.
     """
+    timings_sinv: dict[str, float] = {}
+
+    timings_sinv["t_mem"] = 0.0
+    timings_sinv["t_lu"] = 0.0
+    timings_sinv["t_trsm"] = 0.0
+    timings_sinv["t_gemm"] = 0.0
 
     (
         L_diagonal_blocks,
@@ -1143,7 +1330,7 @@ def inverse_reduced_system(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
-        _,
+        timings_factorize_tridiag_arrowhead,
     ) = lu_factorize_tridiag_arrowhead(
         A_rs_diagonal_blocks,
         A_rs_lower_diagonal_blocks,
@@ -1153,6 +1340,11 @@ def inverse_reduced_system(
         A_rs_arrow_tip_block,
     )
 
+    timings_sinv["t_mem"] += timings_factorize_tridiag_arrowhead["mem"]
+    timings_sinv["t_lu"] += timings_factorize_tridiag_arrowhead["lu"]
+    timings_sinv["t_trsm"] += timings_factorize_tridiag_arrowhead["trsm"]
+    timings_sinv["t_gemm"] += timings_factorize_tridiag_arrowhead["gemm"]
+
     (
         X_rs_diagonal_blocks,
         X_rs_lower_diagonal_blocks,
@@ -1160,7 +1352,7 @@ def inverse_reduced_system(
         X_rs_arrow_bottom_blocks,
         X_rs_arrow_right_blocks,
         X_rs_arrow_tip_block,
-        _,
+        timings_sinv_tridiag_arrowhead,
     ) = lu_sinv_tridiag_arrowhead(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
@@ -1170,6 +1362,10 @@ def inverse_reduced_system(
         U_arrow_right_blocks,
     )
 
+    timings_sinv["t_mem"] += timings_sinv_tridiag_arrowhead["mem"]
+    timings_sinv["t_trsm"] += timings_sinv_tridiag_arrowhead["trsm"]
+    timings_sinv["t_gemm"] += timings_sinv_tridiag_arrowhead["gemm"]
+
     return (
         X_rs_diagonal_blocks,
         X_rs_lower_diagonal_blocks,
@@ -1177,6 +1373,7 @@ def inverse_reduced_system(
         X_rs_arrow_bottom_blocks,
         X_rs_arrow_right_blocks,
         X_rs_arrow_tip_block,
+        timings_sinv,
     )
 
 
@@ -1249,10 +1446,15 @@ def update_sinv_reduced_system(
     X_bridges_upper : np.ndarray
         Upper part of the bridges array of the inverse.
     """
+    timings_update_reduced_system: dict[str, float] = {}
+
+    t_mem = 0.0
+
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
+    t_mem_start = time.perf_counter_ns()
     X_diagonal_blocks_local = np.zeros(
         (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
@@ -1357,6 +1559,10 @@ def update_sinv_reduced_system(
         ]
 
     X_global_arrow_tip = X_rs_arrow_tip_block
+    t_mem_stop = time.perf_counter_ns()
+    t_mem = t_mem_stop - t_mem_start
+
+    timings_update_reduced_system["t_mem"] = t_mem
 
     return (
         X_diagonal_blocks_local,
@@ -1369,6 +1575,7 @@ def update_sinv_reduced_system(
         X_global_arrow_tip,
         X_bridges_lower,
         X_bridges_upper,
+        timings_update_reduced_system,
     )
 
 
@@ -1430,6 +1637,13 @@ def top_sinv(
     X_global_arrow_tip : np.ndarray
         Global arrow tip block of the inverse.
     """
+    timings_sinv: dict[str, float] = {}
+
+    t_mem = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    t_mem_start = time.perf_counter_ns()
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
 
@@ -1439,8 +1653,11 @@ def top_sinv(
     U_blk_inv = np.empty(
         (diag_blocksize, diag_blocksize), dtype=U_diagonal_blocks_local.dtype
     )
+    t_mem_stop = time.perf_counter_ns()
+    t_mem = t_mem_stop - t_mem_start
 
     for i in range(n_blocks - 2, -1, -1):
+        t_trsm_start = time.perf_counter_ns()
         # ----- Block-tridiagonal solver -----
         L_blk_inv = la.solve_triangular(
             L_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
@@ -1452,7 +1669,10 @@ def top_sinv(
             np.eye(diag_blocksize),
             lower=False,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # --- Lower-diagonal blocks ---
         # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         X_lower_diagonal_blocks_local[
@@ -1541,6 +1761,12 @@ def top_sinv(
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
         ) @ L_blk_inv
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
+
+    timings_sinv["t_mem"] = t_mem
+    timings_sinv["t_trsm"] = t_trsm
+    timings_sinv["t_gemm"] = t_gemm
 
     return (
         X_diagonal_blocks_local,
@@ -1549,6 +1775,7 @@ def top_sinv(
         X_arrow_bottom_blocks_local,
         X_arrow_right_blocks_local,
         X_global_arrow_tip,
+        timings_sinv,
     )
 
 
@@ -1622,6 +1849,13 @@ def middle_sinv(
     X_global_arrow_tip_block_local : np.ndarray
         Global arrow tip block of the inverse.
     """
+    timings_sinv: dict[str, float] = {}
+
+    t_mem = 0.0
+    t_trsm = 0.0
+    t_gemm = 0.0
+
+    t_mem_start = time.perf_counter_ns()
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
 
@@ -1631,8 +1865,11 @@ def middle_sinv(
     U_blk_inv = np.empty(
         (diag_blocksize, diag_blocksize), dtype=U_diagonal_blocks_local.dtype
     )
+    t_mem_stop = time.perf_counter_ns()
+    t_mem = t_mem_stop - t_mem_start
 
     for i in range(n_blocks - 2, 0, -1):
+        t_trsm_start = time.perf_counter_ns()
         # ----- Block-tridiagonal solver -----
         L_blk_inv = la.solve_triangular(
             L_diagonal_blocks_local[:, i * diag_blocksize : (i + 1) * diag_blocksize],
@@ -1644,7 +1881,10 @@ def middle_sinv(
             np.eye(diag_blocksize),
             lower=False,
         )
+        t_trsm_stop = time.perf_counter_ns()
+        t_trsm += t_trsm_stop - t_trsm_start
 
+        t_gemm_start = time.perf_counter_ns()
         # X_{i+1, i} = (- X_{i+1, top} L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         X_lower_diagonal_blocks_local[
             :, i * diag_blocksize : (i + 1) * diag_blocksize
@@ -1797,7 +2037,10 @@ def middle_sinv(
                 :, i * diag_blocksize : (i + 1) * diag_blocksize
             ]
         ) @ L_blk_inv
+        t_gemm_stop = time.perf_counter_ns()
+        t_gemm += t_gemm_stop - t_gemm_start
 
+    t_mem_start = time.perf_counter_ns()
     # Copy back the 2 first blocks that have been produced in the 2-sided pattern
     # to the tridiagonal storage.
     X_upper_diagonal_blocks_local[:, :diag_blocksize] = X_top_2sided_arrow_blocks_local[
@@ -1806,6 +2049,12 @@ def middle_sinv(
     X_lower_diagonal_blocks_local[:, :diag_blocksize] = (
         X_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :]
     )
+    t_mem_stop = time.perf_counter_ns()
+    t_mem += t_mem_stop - t_mem_start
+
+    timings_sinv["t_mem"] = t_mem
+    timings_sinv["t_trsm"] = t_trsm
+    timings_sinv["t_gemm"] = t_gemm
 
     return (
         X_diagonal_blocks_local,
@@ -1814,4 +2063,5 @@ def middle_sinv(
         X_arrow_bottom_blocks_local,
         X_arrow_right_blocks_local,
         X_global_arrow_tip_block_local,
+        timings_sinv,
     )
