@@ -11,6 +11,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 try:
     import cupy as cp
+    import cupyx as cpx
     import cupyx.scipy.linalg as cpla
     from mpi4py import MPI
 except ImportError:
@@ -369,23 +370,56 @@ def top_factorize_gpu(
     )
     A_arrow_right_blocks_local_gpu: cp.ndarray = cp.asarray(A_arrow_right_blocks_local)
 
-    L_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(A_diagonal_blocks_local_gpu)
+    # Host side arrays
+    A_diagonal_blocks_updated: cp.ndarray = cpx.empty_pinned(
+        (diag_blocksize, diag_blocksize),
+        dtype=A_diagonal_blocks_local.dtype,
+    )
+    A_arrow_bottom_blocks_updated: cp.ndarray = cpx.empty_pinned(
+        (diag_blocksize, diag_blocksize),
+        dtype=A_diagonal_blocks_local.dtype,
+    )
+    A_arrow_right_blocks_updated: cp.ndarray = cpx.empty_pinned(
+        (diag_blocksize, diag_blocksize),
+        dtype=A_diagonal_blocks_local.dtype,
+    )
+
+    L_diagonal_blocks_local: cp.ndarray = cpx.empty_like_pinned(A_diagonal_blocks_local)
+    L_lower_diagonal_blocks_local: cp.ndarray = cpx.empty_like_pinned(
+        A_lower_diagonal_blocks_local
+    )
+    L_arrow_bottom_blocks_local: cp.ndarray = cpx.empty_like_pinned(
+        A_arrow_bottom_blocks_local
+    )
+
+    U_diagonal_blocks_local: cp.ndarray = cpx.empty_like_pinned(A_diagonal_blocks_local)
+    U_upper_diagonal_blocks_local: cp.ndarray = cpx.empty_like_pinned(
+        A_upper_diagonal_blocks_local
+    )
+    U_arrow_right_blocks_local: cp.ndarray = cpx.empty_like_pinned(
+        A_arrow_right_blocks_local
+    )
+
+    Update_arrow_tip_local: cp.ndarray = cpx.empty_like_pinned(A_arrow_tip_block)
+
+    # Device side arrays
+    L_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(L_diagonal_blocks_local)
     L_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(
-        A_lower_diagonal_blocks_local_gpu
+        L_lower_diagonal_blocks_local
     )
     L_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.zeros_like(
-        A_arrow_bottom_blocks_local_gpu
+        L_arrow_bottom_blocks_local
     )
 
-    U_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(A_diagonal_blocks_local_gpu)
+    U_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(U_diagonal_blocks_local)
     U_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(
-        A_upper_diagonal_blocks_local_gpu
+        U_upper_diagonal_blocks_local
     )
     U_arrow_right_blocks_local_gpu: cp.ndarray = cp.zeros_like(
-        A_arrow_right_blocks_local_gpu
+        U_arrow_right_blocks_local
     )
 
-    Update_arrow_tip_local_gpu: cp.ndarray = cp.zeros_like(A_arrow_tip_block)
+    Update_arrow_tip_local_gpu: cp.ndarray = cp.zeros_like(Update_arrow_tip_local)
 
     for i in range(nblocks - 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
@@ -526,29 +560,23 @@ def top_factorize_gpu(
         U_diagonal_blocks_local_gpu[:, -diag_blocksize:],
     ) = cpla.lu(A_diagonal_blocks_local_gpu[:, -diag_blocksize:], permute_l=True)
 
-    A_diagonal_blocks_updated = cp.asnumpy(
-        A_diagonal_blocks_local_gpu[:, -diag_blocksize:]
-    )
-    A_arrow_bottom_blocks_updated = cp.asnumpy(
-        A_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:]
-    )
-    A_arrow_right_blocks_updated = cp.asnumpy(
-        A_arrow_right_blocks_local_gpu[-diag_blocksize:, :]
-    )
+    A_diagonal_blocks_updated = A_diagonal_blocks_local_gpu[:, -diag_blocksize:].get()
+    A_arrow_bottom_blocks_updated = A_arrow_bottom_blocks_local_gpu[
+        :, -diag_blocksize:
+    ].get()
+    A_arrow_right_blocks_updated = A_arrow_right_blocks_local_gpu[
+        -diag_blocksize:, :
+    ].get()
 
-    L_diagonal_blocks_local: np.ndarray = cp.asnumpy(L_diagonal_blocks_local_gpu)
-    L_lower_diagonal_blocks_local: np.ndarray = cp.asnumpy(
-        L_lower_diagonal_blocks_local_gpu
-    )
-    L_arrow_bottom_blocks_local: np.ndarray = cp.asnumpy(
-        L_arrow_bottom_blocks_local_gpu
-    )
-    U_diagonal_blocks_local: np.ndarray = cp.asnumpy(U_diagonal_blocks_local_gpu)
-    U_upper_diagonal_blocks_local: np.ndarray = cp.asnumpy(
-        U_upper_diagonal_blocks_local_gpu
-    )
-    U_arrow_right_blocks_local: np.ndarray = cp.asnumpy(U_arrow_right_blocks_local_gpu)
-    Update_arrow_tip_local: np.ndarray = cp.asnumpy(Update_arrow_tip_local_gpu)
+    L_diagonal_blocks_local = L_diagonal_blocks_local_gpu.get()
+    L_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local_gpu.get()
+    L_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local_gpu.get()
+
+    U_diagonal_blocks_local = U_diagonal_blocks_local_gpu.get()
+    U_upper_diagonal_blocks_local = U_upper_diagonal_blocks_local_gpu.get()
+    U_arrow_right_blocks_local = U_arrow_right_blocks_local_gpu.get()
+
+    Update_arrow_tip_local = Update_arrow_tip_local_gpu.get()
 
     return (
         L_diagonal_blocks_local,
@@ -648,29 +676,81 @@ def middle_factorize_gpu(
         A_left_2sided_arrow_blocks_local
     )
 
-    L_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(A_diagonal_blocks_local_gpu)
-    L_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+    # Host side arrays
+    A_diagonal_blocks_local_updated = cpx.empty_pinned(
+        (diag_blocksize, 2 * diag_blocksize), dtype=A_diagonal_blocks_local.dtype
+    )
+
+    A_arrow_bottom_blocks_local_updated = cpx.empty_pinned(
+        (arrow_blocksize, 2 * diag_blocksize), dtype=A_arrow_bottom_blocks_local.dtype
+    )
+
+    A_arrow_right_blocks_local_updated = cpx.empty_pinned(
+        (2 * diag_blocksize, arrow_blocksize), dtype=A_arrow_right_blocks_local.dtype
+    )
+
+    A_top_2sided_arrow_blocks_local_updated = cpx.empty_pinned(
+        (diag_blocksize, 2 * diag_blocksize),
+        dtype=A_top_2sided_arrow_blocks_local.dtype,
+    )
+
+    A_left_2sided_arrow_blocks_local_updated = cpx.empty_pinned(
+        (2 * diag_blocksize, diag_blocksize),
+        dtype=A_left_2sided_arrow_blocks_local.dtype,
+    )
+
+    L_diagonal_blocks_local: cp.ndarray = cpx.empty_like_pinned(
+        A_diagonal_blocks_local_gpu
+    )
+    L_lower_diagonal_blocks_local: cp.ndarray = cpx.empty_like_pinned(
         A_lower_diagonal_blocks_local_gpu
     )
-    L_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+    L_arrow_bottom_blocks_local: cp.ndarray = cpx.empty_like_pinned(
         A_arrow_bottom_blocks_local_gpu
     )
-    L_upper_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+    L_upper_2sided_arrow_blocks_local: cp.ndarray = cpx.empty_like_pinned(
         A_top_2sided_arrow_blocks_local_gpu
     )
 
-    U_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(A_diagonal_blocks_local_gpu)
-    U_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+    U_diagonal_blocks_local: cp.ndarray = cpx.empty_like_pinned(
+        A_diagonal_blocks_local_gpu
+    )
+    U_upper_diagonal_blocks_local: cp.ndarray = cp.asnumpy(
         A_upper_diagonal_blocks_local_gpu
     )
-    U_arrow_right_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+    U_arrow_right_blocks_local: cp.ndarray = cpx.empty_like_pinned(
         A_arrow_right_blocks_local_gpu
     )
-    U_left_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+    U_left_2sided_arrow_blocks_local: cp.ndarray = cpx.empty_like_pinned(
         A_left_2sided_arrow_blocks_local_gpu
     )
 
-    Update_arrow_tip_local_gpu: cp.ndarray = cp.zeros_like(A_arrow_tip_block)
+    Update_arrow_tip_local: cp.ndarray = cpx.empty_like_pinned(A_arrow_tip_block)
+
+    # Device side arrays
+    L_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(L_diagonal_blocks_local)
+    L_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+        L_lower_diagonal_blocks_local
+    )
+    L_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+        L_arrow_bottom_blocks_local
+    )
+    L_upper_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+        L_upper_2sided_arrow_blocks_local
+    )
+
+    U_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(U_diagonal_blocks_local)
+    U_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+        U_upper_diagonal_blocks_local
+    )
+    U_arrow_right_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+        U_arrow_right_blocks_local
+    )
+    U_left_2sided_arrow_blocks_local_gpu: cp.ndarray = cp.zeros_like(
+        U_left_2sided_arrow_blocks_local
+    )
+
+    Update_arrow_tip_local_gpu: cp.ndarray = cp.zeros_like(Update_arrow_tip_local)
 
     for i in range(1, n_blocks - 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
@@ -971,77 +1051,52 @@ def middle_factorize_gpu(
         L_inv_temp_gpu @ A_arrow_right_blocks_local_gpu[:diag_blocksize, :]
     )
 
-    A_diagonal_blocks_local_updated = np.empty(
-        (diag_blocksize, 2 * diag_blocksize), dtype=A_diagonal_blocks_local.dtype
+    A_diagonal_blocks_local_updated[:, :diag_blocksize] = A_diagonal_blocks_local_gpu[
+        :, :diag_blocksize
+    ].get()
+    A_diagonal_blocks_local_updated[:, -diag_blocksize:] = A_diagonal_blocks_local_gpu[
+        :, -diag_blocksize:
+    ].get()
+
+    A_arrow_bottom_blocks_local_updated[:, :diag_blocksize] = (
+        A_arrow_bottom_blocks_local_gpu[:, :diag_blocksize].get()
     )
-    A_diagonal_blocks_local_updated[:, :diag_blocksize] = cp.asnumpy(
-        A_diagonal_blocks_local_gpu[:, :diag_blocksize]
-    )
-    A_diagonal_blocks_local_updated[:, -diag_blocksize:] = cp.asnumpy(
-        A_diagonal_blocks_local_gpu[:, -diag_blocksize:]
+    A_arrow_bottom_blocks_local_updated[:, -diag_blocksize:] = (
+        A_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:].get()
     )
 
-    A_arrow_bottom_blocks_local_updated = np.empty(
-        (arrow_blocksize, 2 * diag_blocksize), dtype=A_arrow_bottom_blocks_local.dtype
+    A_arrow_right_blocks_local_updated[:diag_blocksize, :] = (
+        A_arrow_right_blocks_local_gpu[:diag_blocksize, :].get()
     )
-    A_arrow_bottom_blocks_local_updated[:, :diag_blocksize] = cp.asnumpy(
-        A_arrow_bottom_blocks_local_gpu[:, :diag_blocksize]
-    )
-    A_arrow_bottom_blocks_local_updated[:, -diag_blocksize:] = cp.asnumpy(
-        A_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:]
+    A_arrow_right_blocks_local_updated[-diag_blocksize:, :] = (
+        A_arrow_right_blocks_local_gpu[-diag_blocksize:, :].get()
     )
 
-    A_arrow_right_blocks_local_updated = np.empty(
-        (2 * diag_blocksize, arrow_blocksize), dtype=A_arrow_right_blocks_local.dtype
+    A_top_2sided_arrow_blocks_local_updated[:, :diag_blocksize] = (
+        A_top_2sided_arrow_blocks_local_gpu[:, :diag_blocksize].get()
     )
-    A_arrow_right_blocks_local_updated[:diag_blocksize, :] = cp.asnumpy(
-        A_arrow_right_blocks_local_gpu[:diag_blocksize, :]
-    )
-    A_arrow_right_blocks_local_updated[-diag_blocksize:, :] = cp.asnumpy(
-        A_arrow_right_blocks_local_gpu[-diag_blocksize:, :]
+    A_top_2sided_arrow_blocks_local_updated[:, -diag_blocksize:] = (
+        A_top_2sided_arrow_blocks_local_gpu[:, -diag_blocksize:].get()
     )
 
-    A_top_2sided_arrow_blocks_local_updated = np.empty(
-        (diag_blocksize, 2 * diag_blocksize),
-        dtype=A_top_2sided_arrow_blocks_local.dtype,
+    A_left_2sided_arrow_blocks_local_updated[:diag_blocksize, :] = (
+        A_left_2sided_arrow_blocks_local_gpu[:diag_blocksize, :].get()
     )
-    A_top_2sided_arrow_blocks_local_updated[:, :diag_blocksize] = cp.asnumpy(
-        A_top_2sided_arrow_blocks_local_gpu[:, :diag_blocksize]
-    )
-    A_top_2sided_arrow_blocks_local_updated[:, -diag_blocksize:] = cp.asnumpy(
-        A_top_2sided_arrow_blocks_local_gpu[:, -diag_blocksize:]
+    A_left_2sided_arrow_blocks_local_updated[-diag_blocksize:, :] = (
+        A_left_2sided_arrow_blocks_local_gpu[-diag_blocksize:, :].get()
     )
 
-    A_left_2sided_arrow_blocks_local_updated = np.empty(
-        (2 * diag_blocksize, diag_blocksize),
-        dtype=A_left_2sided_arrow_blocks_local.dtype,
-    )
-    A_left_2sided_arrow_blocks_local_updated[:diag_blocksize, :] = cp.asnumpy(
-        A_left_2sided_arrow_blocks_local_gpu[:diag_blocksize, :]
-    )
-    A_left_2sided_arrow_blocks_local_updated[-diag_blocksize:, :] = cp.asnumpy(
-        A_left_2sided_arrow_blocks_local_gpu[-diag_blocksize:, :]
-    )
+    L_diagonal_blocks_local = L_diagonal_blocks_local_gpu.get()
+    L_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local_gpu.get()
+    L_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local_gpu.get()
+    L_upper_2sided_arrow_blocks_local = L_upper_2sided_arrow_blocks_local_gpu.get()
 
-    L_diagonal_blocks_local: np.ndarray = cp.asnumpy(L_diagonal_blocks_local_gpu)
-    L_lower_diagonal_blocks_local: np.ndarray = cp.asnumpy(
-        L_lower_diagonal_blocks_local_gpu
-    )
-    L_arrow_bottom_blocks_local: np.ndarray = cp.asnumpy(
-        L_arrow_bottom_blocks_local_gpu
-    )
-    L_upper_2sided_arrow_blocks_local: np.ndarray = cp.asnumpy(
-        L_upper_2sided_arrow_blocks_local_gpu
-    )
-    U_diagonal_blocks_local: np.ndarray = cp.asnumpy(U_diagonal_blocks_local_gpu)
-    U_upper_diagonal_blocks_local: np.ndarray = cp.asnumpy(
-        U_upper_diagonal_blocks_local_gpu
-    )
-    U_arrow_right_blocks_local: np.ndarray = cp.asnumpy(U_arrow_right_blocks_local_gpu)
-    U_left_2sided_arrow_blocks_local: np.ndarray = cp.asnumpy(
-        U_left_2sided_arrow_blocks_local_gpu
-    )
-    Update_arrow_tip_local: np.ndarray = cp.asnumpy(Update_arrow_tip_local_gpu)
+    U_diagonal_blocks_local = U_diagonal_blocks_local_gpu.get()
+    U_upper_diagonal_blocks_local = U_upper_diagonal_blocks_local_gpu.get()
+    U_arrow_right_blocks_local = U_arrow_right_blocks_local_gpu.get()
+    U_left_2sided_arrow_blocks_local = U_left_2sided_arrow_blocks_local_gpu.get()
+
+    Update_arrow_tip_local = Update_arrow_tip_local_gpu.get()
 
     return (
         L_diagonal_blocks_local,
