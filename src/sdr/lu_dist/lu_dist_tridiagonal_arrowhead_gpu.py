@@ -1418,13 +1418,13 @@ def update_sinv_reduced_system(
     diag_blocksize: int,
     arrow_blocksize: int,
 ) -> tuple[
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
+    cp.ndarray,
+    cp.ndarray,
+    cp.ndarray,
+    cp.ndarray,
+    cp.ndarray,
+    cp.ndarray,
+    cp.ndarray,
     np.ndarray,
     np.ndarray,
     np.ndarray,
@@ -1480,23 +1480,23 @@ def update_sinv_reduced_system(
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
-    X_diagonal_blocks_local = np.empty(
+    X_diagonal_blocks_local = cpx.empty_pinned(
         (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_lower_diagonal_blocks_local = np.empty(
+    X_lower_diagonal_blocks_local = cpx.empty_pinned(
         (diag_blocksize, (n_diag_blocks_partition - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_upper_diagonal_blocks_local = np.empty(
+    X_upper_diagonal_blocks_local = cpx.empty_pinned(
         (diag_blocksize, (n_diag_blocks_partition - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_arrow_bottom_blocks_local = np.empty(
+    X_arrow_bottom_blocks_local = cpx.empty_pinned(
         (arrow_blocksize, n_diag_blocks_partition * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_arrow_right_blocks_local = np.empty(
+    X_arrow_right_blocks_local = cpx.empty_pinned(
         (n_diag_blocks_partition * diag_blocksize, arrow_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
@@ -1529,11 +1529,11 @@ def update_sinv_reduced_system(
             :diag_blocksize, :
         ]
     else:
-        X_top_2sided_arrow_blocks_local = np.empty(
+        X_top_2sided_arrow_blocks_local = cpx.empty_pinned(
             (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
             dtype=X_rs_diagonal_blocks.dtype,
         )
-        X_left_2sided_arrow_blocks_local = np.empty(
+        X_left_2sided_arrow_blocks_local = cpx.empty_pinned(
             (n_diag_blocks_partition * diag_blocksize, diag_blocksize),
             dtype=X_rs_diagonal_blocks.dtype,
         )
@@ -1600,11 +1600,11 @@ def update_sinv_reduced_system(
 
 
 def top_sinv_gpu(
-    X_diagonal_blocks_local: np.ndarray,
-    X_lower_diagonal_blocks_local: np.ndarray,
-    X_upper_diagonal_blocks_local: np.ndarray,
-    X_arrow_bottom_blocks_local: np.ndarray,
-    X_arrow_right_blocks_local: np.ndarray,
+    X_diagonal_blocks_local: cp.ndarray,
+    X_lower_diagonal_blocks_local: cp.ndarray,
+    X_upper_diagonal_blocks_local: cp.ndarray,
+    X_arrow_bottom_blocks_local: cp.ndarray,
+    X_arrow_right_blocks_local: cp.ndarray,
     X_global_arrow_tip: np.ndarray,
     L_diagonal_blocks_local: np.ndarray,
     L_lower_diagonal_blocks_local: np.ndarray,
@@ -1612,7 +1612,7 @@ def top_sinv_gpu(
     U_diagonal_blocks_local: np.ndarray,
     U_upper_diagonal_blocks_local: np.ndarray,
     U_arrow_right_blocks_local: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray, np.ndarray]:
     """
 
     Parameters
@@ -1660,6 +1660,7 @@ def top_sinv_gpu(
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
 
+    # Device side arrays
     X_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(X_diagonal_blocks_local)
     X_diagonal_blocks_local_gpu[:, -diag_blocksize:] = cp.asarray(
         X_diagonal_blocks_local[:, -diag_blocksize:]
@@ -1817,11 +1818,11 @@ def top_sinv_gpu(
             ]
         ) @ L_blk_inv_gpu
 
-    X_diagonal_blocks_local = cp.asnumpy(X_diagonal_blocks_local_gpu)
-    X_lower_diagonal_blocks_local = cp.asnumpy(X_lower_diagonal_blocks_local_gpu)
-    X_upper_diagonal_blocks_local = cp.asnumpy(X_upper_diagonal_blocks_local_gpu)
-    X_arrow_bottom_blocks_local = cp.asnumpy(X_arrow_bottom_blocks_local_gpu)
-    X_arrow_right_blocks_local = cp.asnumpy(X_arrow_right_blocks_local_gpu)
+    X_diagonal_blocks_local = X_diagonal_blocks_local_gpu.get()
+    X_lower_diagonal_blocks_local = X_lower_diagonal_blocks_local_gpu.get()
+    X_upper_diagonal_blocks_local = X_upper_diagonal_blocks_local_gpu.get()
+    X_arrow_bottom_blocks_local = X_arrow_bottom_blocks_local_gpu.get()
+    X_arrow_right_blocks_local = X_arrow_right_blocks_local_gpu.get()
 
     return (
         X_diagonal_blocks_local,
@@ -1834,13 +1835,13 @@ def top_sinv_gpu(
 
 
 def middle_sinv_gpu(
-    X_diagonal_blocks_local: np.ndarray,
-    X_lower_diagonal_blocks_local: np.ndarray,
-    X_upper_diagonal_blocks_local: np.ndarray,
-    X_arrow_bottom_blocks_local: np.ndarray,
-    X_arrow_right_blocks_local: np.ndarray,
-    X_top_2sided_arrow_blocks_local: np.ndarray,
-    X_left_2sided_arrow_blocks_local: np.ndarray,
+    X_diagonal_blocks_local: cp.ndarray,
+    X_lower_diagonal_blocks_local: cp.ndarray,
+    X_upper_diagonal_blocks_local: cp.ndarray,
+    X_arrow_bottom_blocks_local: cp.ndarray,
+    X_arrow_right_blocks_local: cp.ndarray,
+    X_top_2sided_arrow_blocks_local: cp.ndarray,
+    X_left_2sided_arrow_blocks_local: cp.ndarray,
     X_global_arrow_tip_block_local: np.ndarray,
     L_diagonal_blocks_local: np.ndarray,
     L_lower_diagonal_blocks_local: np.ndarray,
@@ -1850,7 +1851,7 @@ def middle_sinv_gpu(
     U_upper_diagonal_blocks_local: np.ndarray,
     U_arrow_right_blocks_local: np.ndarray,
     U_left_2sided_arrow_blocks_local: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray, np.ndarray]:
     """
 
     Parameters
@@ -1906,6 +1907,7 @@ def middle_sinv_gpu(
     diag_blocksize = X_diagonal_blocks_local.shape[0]
     n_blocks = X_diagonal_blocks_local.shape[1] // diag_blocksize
 
+    # Device side arrays
     X_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(X_diagonal_blocks_local)
     X_diagonal_blocks_local_gpu[:, :diag_blocksize] = cp.asarray(
         X_diagonal_blocks_local[:, :diag_blocksize]
@@ -1913,15 +1915,12 @@ def middle_sinv_gpu(
     X_diagonal_blocks_local_gpu[:, -diag_blocksize:] = cp.asarray(
         X_diagonal_blocks_local[:, -diag_blocksize:]
     )
-
     X_lower_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_lower_diagonal_blocks_local
     )
-
     X_upper_diagonal_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_upper_diagonal_blocks_local
     )
-
     X_arrow_bottom_blocks_local_gpu: cp.ndarray = cp.empty_like(
         X_arrow_bottom_blocks_local
     )
@@ -2173,11 +2172,11 @@ def middle_sinv_gpu(
         X_left_2sided_arrow_blocks_local_gpu[diag_blocksize : 2 * diag_blocksize, :]
     )
 
-    X_diagonal_blocks_local = cp.asnumpy(X_diagonal_blocks_local_gpu)
-    X_lower_diagonal_blocks_local = cp.asnumpy(X_lower_diagonal_blocks_local_gpu)
-    X_upper_diagonal_blocks_local = cp.asnumpy(X_upper_diagonal_blocks_local_gpu)
-    X_arrow_bottom_blocks_local = cp.asnumpy(X_arrow_bottom_blocks_local_gpu)
-    X_arrow_right_blocks_local = cp.asnumpy(X_arrow_right_blocks_local_gpu)
+    X_diagonal_blocks_local = X_diagonal_blocks_local_gpu.get()
+    X_lower_diagonal_blocks_local = X_lower_diagonal_blocks_local_gpu.get()
+    X_upper_diagonal_blocks_local = X_upper_diagonal_blocks_local_gpu.get()
+    X_arrow_bottom_blocks_local = X_arrow_bottom_blocks_local_gpu.get()
+    X_arrow_right_blocks_local = X_arrow_right_blocks_local_gpu.get()
 
     return (
         X_diagonal_blocks_local,
