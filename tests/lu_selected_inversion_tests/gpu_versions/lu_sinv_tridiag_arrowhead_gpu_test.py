@@ -17,7 +17,9 @@ import scipy.linalg as la
 try:
     import cupy
 except ImportError:
-    pass
+    import sys
+
+    sys.exit()
 
 from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
 from sdr.lu.lu_selected_inversion_gpu import lu_sinv_tridiag_arrowhead_gpu

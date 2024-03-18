@@ -17,12 +17,16 @@ import scipy.linalg as la
 try:
     import cupy
 except ImportError:
-    pass
+    import sys
+
+    sys.exit()
 
 from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_gpu
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (from_dense_to_tridiagonal_arrays,
-                                        from_tridiagonal_arrays_to_dense)
+from sdr.utils.matrix_transform import (
+    from_dense_to_tridiagonal_arrays,
+    from_tridiagonal_arrays_to_dense,
+)
 
 
 @pytest.mark.skipif(
