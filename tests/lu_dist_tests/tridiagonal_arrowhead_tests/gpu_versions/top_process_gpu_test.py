@@ -85,6 +85,7 @@ def test_lu_dist_top_process(
         A_diagonal_blocks_local_updated,
         A_arrow_bottom_blocks_local_updated,
         A_arrow_right_blocks_local_updated,
+        _,
     ) = top_factorize_gpu(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -141,6 +142,7 @@ def test_lu_dist_top_process(
         X_sdr_arrow_bottom_blocks,
         X_sdr_arrow_right_blocks,
         X_sdr_global_arrow_tip,
+        _,
     ) = top_sinv_gpu(
         X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,

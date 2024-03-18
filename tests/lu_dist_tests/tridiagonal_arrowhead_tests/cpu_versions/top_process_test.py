@@ -79,6 +79,7 @@ def test_lu_dist_top_process(
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
         Update_arrow_tip,
+        _,
     ) = top_factorize(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -135,6 +136,7 @@ def test_lu_dist_top_process(
         X_sdr_arrow_bottom_blocks,
         X_sdr_arrow_right_blocks,
         X_sdr_global_arrow_tip,
+        _,
     ) = top_sinv(
         X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
