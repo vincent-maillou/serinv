@@ -65,11 +65,11 @@ def lu_factorize_tridiag_gpu(
     )
 
     # Device side arrays
-    L_diagonal_blocks_gpu = cp.empty_like(A_diagonal_blocks_gpu)
-    L_lower_diagonal_blocks_gpu = cp.empty_like(A_lower_diagonal_blocks_gpu)
+    L_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(L_diagonal_blocks)
+    L_lower_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(L_lower_diagonal_blocks)
 
-    U_diagonal_blocks_gpu = cp.empty_like(A_diagonal_blocks_gpu)
-    U_upper_diagonal_blocks_gpu = cp.empty_like(A_upper_diagonal_blocks_gpu)
+    U_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(U_diagonal_blocks)
+    U_upper_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(U_upper_diagonal_blocks)
 
     for i in range(0, nblocks - 1, 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
@@ -193,30 +193,30 @@ def lu_factorize_tridiag_arrowhead_gpu(
     # Host side arrays
     L_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_diagonal_blocks)
     L_lower_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_lower_diagonal_blocks)
-    L_arrow_bottom_blocks: cp.ndarray = cpx.empty_like_pinned(A_arrow_bottom_blocks)
-    U_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_diagonal_blocks)
-    U_upper_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_upper_diagonal_blocks)
-    U_arrow_right_blocks: cp.ndarray = cpx.empty_like_pinned(A_arrow_right_blocks_gpu)
-
-    # Device side arrays
-    L_diagonal_blocks_gpu = cp.empty_like(A_diagonal_blocks_gpu)
-    L_lower_diagonal_blocks_gpu = cp.empty_like(A_lower_diagonal_blocks_gpu)
-    L_arrow_bottom_blocks_gpu = cp.empty(
+    L_arrow_bottom_blocks: cpx.ndarray = cpx.empty_pinned(
         (arrow_blocksize, n_diag_blocks * diag_blocksize + arrow_blocksize),
         dtype=A_diagonal_blocks.dtype,
     )
-
-    U_diagonal_blocks_gpu = cp.empty_like(A_diagonal_blocks_gpu)
-    U_upper_diagonal_blocks_gpu = cp.empty_like(A_upper_diagonal_blocks_gpu)
-    U_arrow_right_blocks_gpu = cp.empty(
+    U_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_diagonal_blocks)
+    U_upper_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_upper_diagonal_blocks)
+    U_arrow_right_blocks: cp.ndarray = cpx.empty_pinned(
         (n_diag_blocks * diag_blocksize + arrow_blocksize, arrow_blocksize),
         dtype=A_diagonal_blocks.dtype,
     )
 
-    L_inv_temp_gpu = cp.empty(
+    # Device side arrays
+    L_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(L_diagonal_blocks)
+    L_lower_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(L_lower_diagonal_blocks)
+    L_arrow_bottom_blocks_gpu: cp.ndarray = cp.empty_like(L_arrow_bottom_blocks)
+
+    U_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(U_diagonal_blocks)
+    U_upper_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(U_upper_diagonal_blocks)
+    U_arrow_right_blocks_gpu: cp.ndarray = cp.empty_like(U_arrow_right_blocks)
+
+    L_inv_temp_gpu: cp.ndarray = cp.empty(
         (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
     )
-    U_inv_temp_gpu = cp.empty(
+    U_inv_temp_gpu: cp.ndarray = cp.empty(
         (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
     )
 

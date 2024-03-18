@@ -72,12 +72,16 @@ def lu_sinv_tridiag_gpu(
     )
 
     # Device side arrays
-    X_diagonal_blocks_gpu = cp.empty_like(X_diagonal_blocks)
-    X_lower_diagonal_blocks_gpu = cp.empty_like(X_lower_diagonal_blocks)
-    X_upper_diagonal_blocks_gpu = cp.empty_like(X_upper_diagonal_blocks)
+    X_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_diagonal_blocks)
+    X_lower_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_lower_diagonal_blocks)
+    X_upper_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_upper_diagonal_blocks)
 
-    L_blk_inv_gpu = cp.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
-    U_blk_inv_gpu = cp.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
+    L_blk_inv_gpu: cp.ndarray = cp.empty(
+        (blocksize, blocksize), dtype=L_diagonal_blocks.dtype
+    )
+    U_blk_inv_gpu: cp.ndarray = cp.empty(
+        (blocksize, blocksize), dtype=L_diagonal_blocks.dtype
+    )
 
     L_blk_inv_gpu = cpla.solve_triangular(
         L_diagonal_blocks_gpu[:, -blocksize:], cp.eye(blocksize), lower=True
@@ -202,12 +206,12 @@ def lu_sinv_tridiag_arrowhead_gpu(
     )
 
     # Device side arrays
-    X_diagonal_blocks_gpu = cp.empty_like(X_diagonal_blocks)
-    X_lower_diagonal_blocks_gpu = cp.empty_like(X_lower_diagonal_blocks)
-    X_upper_diagonal_blocks_gpu = cp.empty_like(X_upper_diagonal_blocks)
-    X_arrow_bottom_blocks_gpu = cp.empty_like(X_arrow_bottom_blocks)
-    X_arrow_right_blocks_gpu = cp.empty_like(X_arrow_right_blocks)
-    X_arrow_tip_block_gpu = cp.empty_like(X_arrow_tip_block)
+    X_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_diagonal_blocks)
+    X_lower_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_lower_diagonal_blocks)
+    X_upper_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_upper_diagonal_blocks)
+    X_arrow_bottom_blocks_gpu: cp.ndarray = cp.empty_like(X_arrow_bottom_blocks)
+    X_arrow_right_blocks_gpu: cp.ndarray = cp.empty_like(X_arrow_right_blocks)
+    X_arrow_tip_block_gpu: cp.ndarray = cp.empty_like(X_arrow_tip_block)
 
     L_last_blk_inv_gpu = cp.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
