@@ -17,7 +17,9 @@ import pytest
 try:
     import cupy
 except ImportError:
-    pass
+    import sys
+
+    sys.exit()
 
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
     middle_factorize_gpu,
