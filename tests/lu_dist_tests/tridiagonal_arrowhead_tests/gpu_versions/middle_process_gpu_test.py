@@ -94,16 +94,16 @@ def test_lu_dist_middle_process(
     A_top_2sided_arrow_blocks_local[:, :diag_blocksize] = A_diagonal_blocks[
         :, :diag_blocksize
     ]
-    A_top_2sided_arrow_blocks_local[:, diag_blocksize : 2 * diag_blocksize] = (
-        A_upper_diagonal_blocks[:, :diag_blocksize]
-    )
+    A_top_2sided_arrow_blocks_local[
+        :, diag_blocksize : 2 * diag_blocksize
+    ] = A_upper_diagonal_blocks[:, :diag_blocksize]
 
     A_left_2sided_arrow_blocks_local[:diag_blocksize, :] = A_diagonal_blocks[
         :, :diag_blocksize
     ]
-    A_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :] = (
-        A_lower_diagonal_blocks[:, :diag_blocksize]
-    )
+    A_left_2sided_arrow_blocks_local[
+        diag_blocksize : 2 * diag_blocksize, :
+    ] = A_lower_diagonal_blocks[:, :diag_blocksize]
 
     (
         L_diagonal_blocks,
@@ -139,25 +139,25 @@ def test_lu_dist_middle_process(
     )
 
     # (top, top)
-    reduced_system[0:diag_blocksize, 0:diag_blocksize] = (
-        A_diagonal_blocks_local_updated[:, 0:diag_blocksize]
-    )
+    reduced_system[
+        0:diag_blocksize, 0:diag_blocksize
+    ] = A_diagonal_blocks_local_updated[:, 0:diag_blocksize]
     # (top, nblocks)
     reduced_system[
         0:diag_blocksize, -diag_blocksize - arrow_blocksize : -arrow_blocksize
     ] = A_top_2sided_arrow_blocks_local_updated[:, -diag_blocksize:]
     # (top, ndb+1)
-    reduced_system[0:diag_blocksize, -arrow_blocksize:] = (
-        A_arrow_right_blocks_local_updated[:diag_blocksize, :]
-    )
+    reduced_system[
+        0:diag_blocksize, -arrow_blocksize:
+    ] = A_arrow_right_blocks_local_updated[:diag_blocksize, :]
     # (nblocks, top)
     reduced_system[
         -diag_blocksize - arrow_blocksize : -arrow_blocksize, 0:diag_blocksize
     ] = A_left_2sided_arrow_blocks_local_updated[-diag_blocksize:, :]
     # (ndb+1, top)
-    reduced_system[-arrow_blocksize:, 0:diag_blocksize] = (
-        A_arrow_bottom_blocks_local_updated[:, :diag_blocksize]
-    )
+    reduced_system[
+        -arrow_blocksize:, 0:diag_blocksize
+    ] = A_arrow_bottom_blocks_local_updated[:, :diag_blocksize]
     # (nblocks, nblocks)
     reduced_system[
         -diag_blocksize - arrow_blocksize : -arrow_blocksize,

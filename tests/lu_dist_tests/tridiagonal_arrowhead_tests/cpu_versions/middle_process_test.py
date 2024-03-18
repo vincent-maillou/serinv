@@ -14,8 +14,7 @@ import copy as cp
 import numpy as np
 import pytest
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import (middle_factorize,
-                                                       middle_sinv)
+from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import middle_factorize, middle_sinv
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_dense
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
@@ -85,16 +84,16 @@ def test_lu_dist_middle_process(
     A_top_2sided_arrow_blocks_local[:, :diag_blocksize] = A_diagonal_blocks[
         :, :diag_blocksize
     ]
-    A_top_2sided_arrow_blocks_local[:, diag_blocksize : 2 * diag_blocksize] = (
-        A_upper_diagonal_blocks[:, :diag_blocksize]
-    )
+    A_top_2sided_arrow_blocks_local[
+        :, diag_blocksize : 2 * diag_blocksize
+    ] = A_upper_diagonal_blocks[:, :diag_blocksize]
 
     A_left_2sided_arrow_blocks_local[:diag_blocksize, :] = A_diagonal_blocks[
         :, :diag_blocksize
     ]
-    A_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :] = (
-        A_lower_diagonal_blocks[:, :diag_blocksize]
-    )
+    A_left_2sided_arrow_blocks_local[
+        diag_blocksize : 2 * diag_blocksize, :
+    ] = A_lower_diagonal_blocks[:, :diag_blocksize]
 
     (
         L_diagonal_blocks,

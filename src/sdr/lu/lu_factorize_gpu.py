@@ -96,10 +96,7 @@ def lu_factorize_tridiag_gpu(
         )
 
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
-        U_upper_diagonal_blocks_gpu[
-            :,
-            i * blocksize : (i + 1) * blocksize,
-        ] = (
+        U_upper_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize,] = (
             cpla.solve_triangular(
                 L_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
                 cp.eye(blocksize),

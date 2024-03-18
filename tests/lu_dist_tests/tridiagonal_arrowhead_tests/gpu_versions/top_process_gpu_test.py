@@ -107,18 +107,18 @@ def test_lu_dist_top_process(
     reduced_system = np.zeros(
         (diag_blocksize + arrow_blocksize, diag_blocksize + arrow_blocksize)
     )
-    reduced_system[0:diag_blocksize, 0:diag_blocksize] = (
-        A_diagonal_blocks_local_updated[:, :]
-    )
+    reduced_system[
+        0:diag_blocksize, 0:diag_blocksize
+    ] = A_diagonal_blocks_local_updated[:, :]
     reduced_system[-arrow_blocksize:, -arrow_blocksize:] = (
         A_arrow_tip_block + Update_arrow_tip
     )
-    reduced_system[0:diag_blocksize, -arrow_blocksize:] = (
-        A_arrow_right_blocks_local_updated[:, :]
-    )
-    reduced_system[-arrow_blocksize:, 0:diag_blocksize] = (
-        A_arrow_bottom_blocks_local_updated[:, :]
-    )
+    reduced_system[
+        0:diag_blocksize, -arrow_blocksize:
+    ] = A_arrow_right_blocks_local_updated[:, :]
+    reduced_system[
+        -arrow_blocksize:, 0:diag_blocksize
+    ] = A_arrow_bottom_blocks_local_updated[:, :]
 
     reduced_system_inv = np.linalg.inv(reduced_system)
 
