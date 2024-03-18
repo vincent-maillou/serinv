@@ -8,7 +8,7 @@ Integration testing of the lu_dist algorithm for tridiagonal arrowhead matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-import copy as cp
+from copy import deepcopy
 from os import environ
 
 import numpy as np
@@ -68,7 +68,7 @@ def test_lu_dist(
     )
 
     # ----- Reference/Checking data -----
-    A_ref = cp.deepcopy(A)
+    A_ref = deepcopy(A)
 
     X_ref = np.linalg.inv(A_ref)
 

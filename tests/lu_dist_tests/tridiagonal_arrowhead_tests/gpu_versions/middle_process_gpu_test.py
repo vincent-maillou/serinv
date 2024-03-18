@@ -9,7 +9,7 @@ matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-import copy as cp
+from copy import deepcopy
 
 import numpy as np
 import pytest
@@ -51,7 +51,7 @@ def test_lu_dist_middle_process(
     )
 
     # ----- Reference -----
-    A_ref = cp.deepcopy(A)
+    A_ref = deepcopy(A)
 
     X_ref = np.linalg.inv(A_ref)
 
