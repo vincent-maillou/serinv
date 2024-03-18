@@ -81,10 +81,7 @@ def lu_factorize_tridiag(
         )
 
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
-        U_upper_diagonal_blocks[
-            :,
-            i * blocksize : (i + 1) * blocksize,
-        ] = (
+        U_upper_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize,] = (
             la.solve_triangular(
                 L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
                 np.eye(blocksize),

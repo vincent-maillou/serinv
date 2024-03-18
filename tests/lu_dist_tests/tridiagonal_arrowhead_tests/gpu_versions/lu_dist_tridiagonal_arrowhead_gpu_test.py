@@ -8,22 +8,31 @@ Integration testing of the lu_dist algorithm for tridiagonal arrowhead matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-import copy as cp
+import sys
+
+from copy import deepcopy
 from os import environ
 
 import numpy as np
 import pytest
 from mpi4py import MPI
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
-    lu_dist_tridiagonal_arrowhead_gpu,
-)
+try:
+    from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
+        lu_dist_tridiagonal_arrowhead_gpu,
+    )
+except ImportError:
+    pass
+
 from sdr.utils import dist_utils, matrix_generation
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
 environ["OMP_NUM_THREADS"] = "1"
 
 
+@pytest.mark.skipif(
+    "cupy" not in sys.modules, reason="requires a working cupy installation"
+)
 @pytest.mark.gpu
 @pytest.mark.mpi(min_size=2)
 @pytest.mark.parametrize(
@@ -68,7 +77,7 @@ def test_lu_dist(
     )
 
     # ----- Reference/Checking data -----
-    A_ref = cp.deepcopy(A)
+    A_ref = deepcopy(A)
 
     X_ref = np.linalg.inv(A_ref)
 

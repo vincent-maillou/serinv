@@ -10,6 +10,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 try:
     import cupy as cp
+    import cupyx as cpx
     import cupyx.scipy.linalg as cpla
 except ImportError:
     pass
@@ -61,18 +62,26 @@ def lu_sinv_tridiag_gpu(
     U_diagonal_blocks_gpu: cp.ndarray = cp.asarray(U_diagonal_blocks)
     U_upper_diagonal_blocks_gpu: cp.ndarray = cp.asarray(U_upper_diagonal_blocks)
 
-    X_diagonal_blocks_gpu = cp.empty(
-        (blocksize, nblocks * blocksize), dtype=L_diagonal_blocks.dtype
+    # Host side arrays
+    X_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(L_diagonal_blocks_gpu)
+    X_lower_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(
+        L_lower_diagonal_blocks_gpu
     )
-    X_lower_diagonal_blocks_gpu = cp.empty(
-        (blocksize, (nblocks - 1) * blocksize), dtype=L_diagonal_blocks.dtype
-    )
-    X_upper_diagonal_blocks_gpu = cp.empty(
-        (blocksize, (nblocks - 1) * blocksize), dtype=L_diagonal_blocks.dtype
+    X_upper_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(
+        U_upper_diagonal_blocks_gpu
     )
 
-    L_blk_inv_gpu = cp.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
-    U_blk_inv_gpu = cp.empty((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
+    # Device side arrays
+    X_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_diagonal_blocks)
+    X_lower_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_lower_diagonal_blocks)
+    X_upper_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_upper_diagonal_blocks)
+
+    L_blk_inv_gpu: cp.ndarray = cp.empty(
+        (blocksize, blocksize), dtype=L_diagonal_blocks.dtype
+    )
+    U_blk_inv_gpu: cp.ndarray = cp.empty(
+        (blocksize, blocksize), dtype=L_diagonal_blocks.dtype
+    )
 
     L_blk_inv_gpu = cpla.solve_triangular(
         L_diagonal_blocks_gpu[:, -blocksize:], cp.eye(blocksize), lower=True
@@ -118,9 +127,9 @@ def lu_sinv_tridiag_gpu(
             @ L_lower_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
         ) @ L_blk_inv_gpu
 
-    X_diagonal_blocks = cp.asnumpy(X_diagonal_blocks_gpu)
-    X_lower_diagonal_blocks = cp.asnumpy(X_lower_diagonal_blocks_gpu)
-    X_upper_diagonal_blocks = cp.asnumpy(X_upper_diagonal_blocks_gpu)
+    X_diagonal_blocks = X_diagonal_blocks_gpu.get()
+    X_lower_diagonal_blocks = X_lower_diagonal_blocks_gpu.get()
+    X_upper_diagonal_blocks = X_upper_diagonal_blocks_gpu.get()
 
     return (X_diagonal_blocks, X_lower_diagonal_blocks, X_upper_diagonal_blocks)
 
@@ -178,26 +187,31 @@ def lu_sinv_tridiag_arrowhead_gpu(
     U_upper_diagonal_blocks_gpu: cp.ndarray = cp.asarray(U_upper_diagonal_blocks)
     U_arrow_right_blocks_gpu: cp.ndarray = cp.asarray(U_arrow_right_blocks)
 
-    X_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=L_diagonal_blocks.dtype
+    # Host side arrays
+    X_diagonal_blocks: cpx.ndarray = cpx.empty_like_pinned(L_diagonal_blocks_gpu)
+    X_lower_diagonal_blocks: cpx.ndarray = cpx.empty_like_pinned(
+        L_lower_diagonal_blocks_gpu
     )
-    X_lower_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
-        dtype=L_diagonal_blocks.dtype,
+    X_upper_diagonal_blocks: cpx.ndarray = cpx.empty_like_pinned(
+        U_upper_diagonal_blocks_gpu
     )
-    X_upper_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
-        dtype=L_diagonal_blocks.dtype,
-    )
-    X_arrow_bottom_blocks_gpu = cp.empty(
+    X_arrow_bottom_blocks: cpx.ndarray = cpx.empty_pinned(
         (arrow_blocksize, n_diag_blocks * diag_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_arrow_right_blocks_gpu = cp.empty(
+    X_arrow_right_blocks: cpx.ndarray = cpx.empty_pinned(
         (n_diag_blocks * diag_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    X_arrow_tip_block_gpu = cp.empty(
+    X_arrow_tip_block: cpx.ndarray = cpx.empty_pinned(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
+
+    # Device side arrays
+    X_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_diagonal_blocks)
+    X_lower_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_lower_diagonal_blocks)
+    X_upper_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(X_upper_diagonal_blocks)
+    X_arrow_bottom_blocks_gpu: cp.ndarray = cp.empty_like(X_arrow_bottom_blocks)
+    X_arrow_right_blocks_gpu: cp.ndarray = cp.empty_like(X_arrow_right_blocks)
+    X_arrow_tip_block_gpu: cp.ndarray = cp.empty_like(X_arrow_tip_block)
 
     L_last_blk_inv_gpu = cp.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
@@ -321,20 +335,17 @@ def lu_sinv_tridiag_arrowhead_gpu(
         ) @ L_blk_inv_gpu
 
         # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
-        X_arrow_right_blocks_gpu[i * diag_blocksize : (i + 1) * diag_blocksize, :] = (
-            U_blk_inv_gpu
-            @ (
-                -U_upper_diagonal_blocks_gpu[
-                    :, i * diag_blocksize : (i + 1) * diag_blocksize
-                ]
-                @ X_arrow_right_blocks_gpu[
-                    (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
-                ]
-                - U_arrow_right_blocks_gpu[
-                    i * diag_blocksize : (i + 1) * diag_blocksize, :
-                ]
-                @ X_arrow_tip_block_gpu[:, :]
-            )
+        X_arrow_right_blocks_gpu[
+            i * diag_blocksize : (i + 1) * diag_blocksize, :
+        ] = U_blk_inv_gpu @ (
+            -U_upper_diagonal_blocks_gpu[
+                :, i * diag_blocksize : (i + 1) * diag_blocksize
+            ]
+            @ X_arrow_right_blocks_gpu[
+                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
+            ]
+            - U_arrow_right_blocks_gpu[i * diag_blocksize : (i + 1) * diag_blocksize, :]
+            @ X_arrow_tip_block_gpu[:, :]
         )
 
         # --- Diagonal block part ---
@@ -353,12 +364,12 @@ def lu_sinv_tridiag_arrowhead_gpu(
             ]
         ) @ L_blk_inv_gpu
 
-    X_diagonal_blocks: np.ndarray = cp.asnumpy(X_diagonal_blocks_gpu)
-    X_lower_diagonal_blocks: np.ndarray = cp.asnumpy(X_lower_diagonal_blocks_gpu)
-    X_upper_diagonal_blocks: np.ndarray = cp.asnumpy(X_upper_diagonal_blocks_gpu)
-    X_arrow_bottom_blocks: np.ndarray = cp.asnumpy(X_arrow_bottom_blocks_gpu)
-    X_arrow_right_blocks: np.ndarray = cp.asnumpy(X_arrow_right_blocks_gpu)
-    X_arrow_tip_block: np.ndarray = cp.asnumpy(X_arrow_tip_block_gpu)
+    X_diagonal_blocks = X_diagonal_blocks_gpu.get()
+    X_lower_diagonal_blocks = X_lower_diagonal_blocks_gpu.get()
+    X_upper_diagonal_blocks = X_upper_diagonal_blocks_gpu.get()
+    X_arrow_bottom_blocks = X_arrow_bottom_blocks_gpu.get()
+    X_arrow_right_blocks = X_arrow_right_blocks_gpu.get()
+    X_arrow_tip_block = X_arrow_tip_block_gpu.get()
 
     return (
         X_diagonal_blocks,

@@ -127,11 +127,11 @@ def lu_dist_tridiagonal_arrowhead(
         )
     else:
         # Arrays that store the update of the 2sided pattern for the middle processes
-        A_top_2sided_arrow_blocks_local = np.zeros(
+        A_top_2sided_arrow_blocks_local = np.empty(
             (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
             dtype=A_diagonal_blocks_local.dtype,
         )
-        A_left_2sided_arrow_blocks_local = np.zeros(
+        A_left_2sided_arrow_blocks_local = np.empty(
             (n_diag_blocks_partition * diag_blocksize, diag_blocksize),
             dtype=A_diagonal_blocks_local.dtype,
         )
@@ -343,13 +343,15 @@ def top_factorize(
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     nblocks = A_diagonal_blocks_local.shape[1] // diag_blocksize
 
-    L_diagonal_blocks_local = np.zeros_like(A_diagonal_blocks_local)
-    L_lower_diagonal_blocks_local = np.zeros_like(A_lower_diagonal_blocks_local)
-    L_arrow_bottom_blocks_local = np.zeros_like(A_arrow_bottom_blocks_local)
-    U_diagonal_blocks_local = np.zeros_like(A_diagonal_blocks_local)
-    U_upper_diagonal_blocks_local = np.zeros_like(A_upper_diagonal_blocks_local)
-    U_arrow_right_blocks_local = np.zeros_like(A_arrow_right_blocks_local)
-    Update_arrow_tip_local = np.zeros_like(A_arrow_tip_block)
+    L_diagonal_blocks_local = np.empty_like(A_diagonal_blocks_local)
+    L_lower_diagonal_blocks_local = np.empty_like(A_lower_diagonal_blocks_local)
+    L_arrow_bottom_blocks_local = np.empty_like(A_arrow_bottom_blocks_local)
+    U_diagonal_blocks_local = np.empty_like(A_diagonal_blocks_local)
+    U_upper_diagonal_blocks_local = np.empty_like(A_upper_diagonal_blocks_local)
+    U_arrow_right_blocks_local = np.empty_like(A_arrow_right_blocks_local)
+    Update_arrow_tip_local = np.zeros_like(
+        A_arrow_tip_block
+    )  # Have to be zero-initialized
 
     for i in range(nblocks - 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
@@ -554,15 +556,17 @@ def middle_factorize(
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     n_blocks = A_diagonal_blocks_local.shape[1] // diag_blocksize
 
-    L_diagonal_blocks_local = np.zeros_like(A_diagonal_blocks_local)
-    L_lower_diagonal_blocks_local = np.zeros_like(A_lower_diagonal_blocks_local)
-    L_arrow_bottom_blocks_local = np.zeros_like(A_arrow_bottom_blocks_local)
-    L_upper_2sided_arrow_blocks_local = np.zeros_like(A_top_2sided_arrow_blocks_local)
-    U_diagonal_blocks_local = np.zeros_like(A_diagonal_blocks_local)
-    U_upper_diagonal_blocks_local = np.zeros_like(A_upper_diagonal_blocks_local)
-    U_arrow_right_blocks_local = np.zeros_like(A_arrow_right_blocks_local)
-    U_left_2sided_arrow_blocks_local = np.zeros_like(A_left_2sided_arrow_blocks_local)
-    Update_arrow_tip_local = np.zeros_like(A_arrow_tip_block)
+    L_diagonal_blocks_local = np.empty_like(A_diagonal_blocks_local)
+    L_lower_diagonal_blocks_local = np.empty_like(A_lower_diagonal_blocks_local)
+    L_arrow_bottom_blocks_local = np.empty_like(A_arrow_bottom_blocks_local)
+    L_upper_2sided_arrow_blocks_local = np.empty_like(A_top_2sided_arrow_blocks_local)
+    U_diagonal_blocks_local = np.empty_like(A_diagonal_blocks_local)
+    U_upper_diagonal_blocks_local = np.empty_like(A_upper_diagonal_blocks_local)
+    U_arrow_right_blocks_local = np.empty_like(A_arrow_right_blocks_local)
+    U_left_2sided_arrow_blocks_local = np.empty_like(A_left_2sided_arrow_blocks_local)
+    Update_arrow_tip_local = np.zeros_like(
+        A_arrow_tip_block
+    )  # Have to be zero-initialized
 
     for i in range(1, n_blocks - 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
@@ -955,9 +959,6 @@ def create_reduced_system(
     A_rs_arrow_tip_block = Update_arrow_tip
 
     if comm_rank == 0:
-        A_top_2sided_arrow_blocks_local = np.zeros((diag_blocksize, diag_blocksize))
-        A_left_2sided_arrow_blocks_local = np.zeros((diag_blocksize, diag_blocksize))
-
         A_rs_diagonal_blocks[:, :diag_blocksize] = A_diagonal_blocks_local[
             :, -diag_blocksize:
         ]
@@ -1232,32 +1233,32 @@ def update_sinv_reduced_system(
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
-    X_diagonal_blocks_local = np.zeros(
+    X_diagonal_blocks_local = np.empty(
         (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_lower_diagonal_blocks_local = np.zeros(
+    X_lower_diagonal_blocks_local = np.empty(
         (diag_blocksize, (n_diag_blocks_partition - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_upper_diagonal_blocks_local = np.zeros(
+    X_upper_diagonal_blocks_local = np.empty(
         (diag_blocksize, (n_diag_blocks_partition - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_arrow_bottom_blocks_local = np.zeros(
+    X_arrow_bottom_blocks_local = np.empty(
         (arrow_blocksize, n_diag_blocks_partition * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_arrow_right_blocks_local = np.zeros(
+    X_arrow_right_blocks_local = np.empty(
         (n_diag_blocks_partition * diag_blocksize, arrow_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
 
-    X_bridges_upper = np.zeros(
+    X_bridges_upper = np.empty(
         (diag_blocksize, (comm_size - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
-    X_bridges_lower = np.zeros(
+    X_bridges_lower = np.empty(
         (diag_blocksize, (comm_size - 1) * diag_blocksize),
         dtype=X_rs_diagonal_blocks.dtype,
     )
@@ -1281,11 +1282,11 @@ def update_sinv_reduced_system(
             :diag_blocksize, :
         ]
     else:
-        X_top_2sided_arrow_blocks_local = np.zeros(
+        X_top_2sided_arrow_blocks_local = np.empty(
             (diag_blocksize, n_diag_blocks_partition * diag_blocksize),
             dtype=X_rs_diagonal_blocks.dtype,
         )
-        X_left_2sided_arrow_blocks_local = np.zeros(
+        X_left_2sided_arrow_blocks_local = np.empty(
             (n_diag_blocks_partition * diag_blocksize, diag_blocksize),
             dtype=X_rs_diagonal_blocks.dtype,
         )

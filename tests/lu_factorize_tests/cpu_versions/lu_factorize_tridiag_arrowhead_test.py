@@ -14,8 +14,10 @@ import scipy.linalg as la
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import (from_arrowhead_arrays_to_dense,
-                                        from_dense_to_arrowhead_arrays)
+from sdr.utils.matrix_transform import (
+    from_arrowhead_arrays_to_dense,
+    from_dense_to_arrowhead_arrays,
+)
 
 
 @pytest.mark.cpu
