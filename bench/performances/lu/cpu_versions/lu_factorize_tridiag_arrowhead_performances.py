@@ -9,6 +9,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 import numpy as np
+import time
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_arrays
@@ -20,11 +21,11 @@ N_RUNS = 10
 # Testing of block tridiagonal arrowhead lu
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [5]
+    l_nblocks = [128]
     # ----- Populate the diagonal blocksizes list HERE -----
-    l_diag_blocksize = [3]
+    l_diag_blocksize = [100]
     # ----- Populate the arrow blocksizes list HERE -----
-    l_arrow_blocksize = [2]
+    l_arrow_blocksize = [25]
     symmetric = False
     diagonal_dominant = True
     seed = 63
@@ -35,6 +36,16 @@ if __name__ == "__main__":
         for diag_blocksize in l_diag_blocksize:
             for arrow_blocksize in l_arrow_blocksize:
 
+                print(
+                    "Starting data generation for:\n    nblocks: ",
+                    nblocks,
+                    " diag_blocksize: ",
+                    diag_blocksize,
+                    " arrow_blocksize: ",
+                    arrow_blocksize,
+                )
+
+                t_data_gen_start = time.perf_counter_ns()
                 (
                     A_diagonal_blocks_ref,
                     A_lower_diagonal_blocks_ref,
@@ -50,6 +61,10 @@ if __name__ == "__main__":
                     diagonal_dominant,
                     seed,
                 )
+                t_data_gen_stop = time.perf_counter_ns()
+                t_data_gen = t_data_gen_stop - t_data_gen_start
+
+                print("    Data generation took: ", t_data_gen * 1e-9, "s")
 
                 headers = {}
                 headers["N_WARMUPS"] = N_WARMUPS
@@ -69,6 +84,17 @@ if __name__ == "__main__":
                     A_arrow_right_blocks = A_arrow_right_blocks_ref.copy()
                     A_arrow_tip_block = A_arrow_tip_block_ref.copy()
 
+                    if i < N_WARMUPS:
+                        print("    Warmup run ", i, " ...", end="", flush=True)
+                    else:
+                        print(
+                            "    Starting run ",
+                            i - N_WARMUPS,
+                            " ...",
+                            end="",
+                            flush=True,
+                        )
+                    t_run_start = time.perf_counter_ns()
                     (
                         L_diagonal_blocks,
                         L_lower_diagonal_blocks,
@@ -85,6 +111,10 @@ if __name__ == "__main__":
                         A_arrow_right_blocks,
                         A_arrow_tip_block,
                     )
+                    t_run_stop = time.perf_counter_ns()
+                    t_run = t_run_stop - t_run_start
+
+                    print(" run took: ", t_run * 1e-9, "s")
 
                     if i >= N_WARMUPS:
                         runs_timings.append({**headers, **timings})

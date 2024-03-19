@@ -9,6 +9,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 import numpy as np
+import time
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
@@ -20,9 +21,9 @@ N_RUNS = 10
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [5]
+    l_nblocks = [128]
     # ----- Populate the blocksizes list HERE -----
-    l_blocksize = [2]
+    l_blocksize = [100]
     symmetric = False
     diagonal_dominant = True
     seed = 63
@@ -32,6 +33,14 @@ if __name__ == "__main__":
     for nblocks in l_nblocks:
         for blocksize in l_blocksize:
 
+            print(
+                "Starting data generation for:\n    nblocks: ",
+                nblocks,
+                " blocksize: ",
+                blocksize,
+            )
+
+            t_data_gen_start = time.perf_counter_ns()
             (
                 A_diagonal_blocks,
                 A_lower_diagonal_blocks,
@@ -51,6 +60,10 @@ if __name__ == "__main__":
                 A_lower_diagonal_blocks,
                 A_upper_diagonal_blocks,
             )
+            t_data_gen_stop = time.perf_counter_ns()
+            t_data_gen = t_data_gen_stop - t_data_gen_start
+
+            print("    Data generation took: ", t_data_gen * 1e-9, "s")
 
             headers = {}
             headers["N_WARMUPS"] = N_WARMUPS
@@ -67,6 +80,17 @@ if __name__ == "__main__":
                 U_diagonal_blocks = U_diagonal_blocks_ref.copy()
                 U_upper_diagonal_blocks = U_upper_diagonal_blocks_ref.copy()
 
+                if i < N_WARMUPS:
+                    print("    Warmup run ", i, " ...", end="", flush=True)
+                else:
+                    print(
+                        "    Starting run ",
+                        i - N_WARMUPS,
+                        " ...",
+                        end="",
+                        flush=True,
+                    )
+                t_run_start = time.perf_counter_ns()
                 (
                     X_sdr_diagonal_blocks,
                     X_sdr_lower_diagonal_blocks,
@@ -78,6 +102,10 @@ if __name__ == "__main__":
                     U_diagonal_blocks,
                     U_upper_diagonal_blocks,
                 )
+                t_run_stop = time.perf_counter_ns()
+                t_run = t_run_stop - t_run_start
+
+                print(" run took: ", t_run * 1e-9, "s")
 
                 if i >= N_WARMUPS:
                     runs_timings.append({**headers, **timings})
