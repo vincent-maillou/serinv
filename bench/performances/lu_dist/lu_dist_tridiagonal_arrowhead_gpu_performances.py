@@ -20,10 +20,13 @@ from sdr.utils.dist_utils import (
     extract_partition_tridiagonal_arrowhead_array,
     extract_bridges_tridiagonal_array,
 )
+from sdr.utils.gpu_utils import set_device
 
 PATH_TO_SAVE = "../../"
 N_WARMUPS = 3
 N_RUNS = 1
+
+N_GPU_PER_NODE = 1
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
@@ -42,6 +45,8 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
+
+    set_device(comm_rank, N_GPU_PER_NODE)
 
     for nblocks in l_nblocks:
         for diag_blocksize in l_diag_blocksize:
