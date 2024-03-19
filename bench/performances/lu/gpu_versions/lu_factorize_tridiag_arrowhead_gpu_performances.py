@@ -64,6 +64,18 @@ if __name__ == "__main__":
                 t_data_gen_stop = time.perf_counter_ns()
                 t_data_gen = t_data_gen_stop - t_data_gen_start
 
+                input_mem_size = (
+                    A_diagonal_blocks_ref.size * A_diagonal_blocks_ref.itemsize
+                    + A_lower_diagonal_blocks_ref.size
+                    * A_lower_diagonal_blocks_ref.itemsize
+                    + A_upper_diagonal_blocks_ref.size
+                    * A_upper_diagonal_blocks_ref.itemsize
+                    + A_arrow_bottom_blocks_ref.size
+                    * A_arrow_bottom_blocks_ref.itemsize
+                    + A_arrow_right_blocks_ref.size * A_arrow_right_blocks_ref.itemsize
+                    + A_arrow_tip_block_ref.size * A_arrow_tip_block_ref.itemsize
+                )
+                print("    Input data memory size: ", input_mem_size * 1e-9, "GB")
                 print("    Data generation took: ", t_data_gen * 1e-9, "s")
 
                 headers = {}
