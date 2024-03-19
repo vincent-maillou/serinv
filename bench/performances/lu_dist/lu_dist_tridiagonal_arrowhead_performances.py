@@ -161,6 +161,7 @@ if __name__ == "__main__":
                         )
                     )
 
+                    comm.Barrier()
                     (
                         X_diagonal_blocks_local,
                         X_lower_diagonal_blocks_local,
