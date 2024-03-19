@@ -13,7 +13,7 @@ import numpy as np
 from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_gpu
 from sdr.utils.matrix_generation import generate_tridiag_array
 
-PATH_TO_SAVE = "../../"
+PATH_TO_SAVE = "./"
 N_WARMUPS = 3
 N_RUNS = 10
 

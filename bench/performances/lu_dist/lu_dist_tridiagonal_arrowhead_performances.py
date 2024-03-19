@@ -19,17 +19,17 @@ from sdr.utils.dist_utils import (
     extract_bridges_tridiagonal_array,
 )
 
-PATH_TO_SAVE = "../../"
+PATH_TO_SAVE = "./"
 N_WARMUPS = 3
-N_RUNS = 1
+N_RUNS = 10
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [12]
+    l_nblocks = [128]
     # ----- Populate the diagonal blocksizes list HERE -----
-    l_diag_blocksize = [3]
+    l_diag_blocksize = [1000]
     # ----- Populate the arrow blocksizes list HERE -----
-    l_arrow_blocksize = [2]
+    l_arrow_blocksize = [250]
     diagonal_dominant = True
     symmetric = False
     seed = 63
