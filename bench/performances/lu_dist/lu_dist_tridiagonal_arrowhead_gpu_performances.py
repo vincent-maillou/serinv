@@ -157,13 +157,15 @@ if __name__ == "__main__":
     runs_timings = np.array(runs_timings)
     print("runs_timings: ", runs_timings)
     np.save(
-        PATH_TO_SAVE + f"lu_dist_tridiagonal_arrowhead_gpu_{comm_size}p_timings.npy",
+        PATH_TO_SAVE
+        + f"lu_dist_tridiagonal_arrowhead_gpu_nprocesses_{comm_size}_rank_{comm_rank}_timings.npy",
         runs_timings,
     )
 
     runs_sections = np.array(runs_sections)
     print("runs_sections:", runs_sections)
     np.save(
-        PATH_TO_SAVE + f"lu_dist_tridiagonal_arrowhead_gpu_{comm_size}p_sections.npy",
+        PATH_TO_SAVE
+        + f"lu_dist_tridiagonal_arrowhead_gpu_nprocesses_{comm_size}_rank_{comm_rank}_sections.npy",
         runs_sections,
     )
