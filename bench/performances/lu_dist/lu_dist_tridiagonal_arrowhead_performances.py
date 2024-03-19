@@ -11,6 +11,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import numpy as np
 import time
 from mpi4py import MPI
+from os import environ
 
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_arrays
@@ -23,6 +24,8 @@ from sdr.utils.dist_utils import (
 PATH_TO_SAVE = "./"
 N_WARMUPS = 3
 N_RUNS = 10
+
+environ["OMP_NUM_THREADS"] = "1"
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
