@@ -3,13 +3,14 @@
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
 @date: 2024-03
 
-Contains the lu selected factorization routines.
+Contains the lu selected factorization routines on GPU.
 
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 try:
     import cupy as cp
+    import cupyx as cpx
     import cupyx.scipy.linalg as cpla
 except ImportError:
     pass
@@ -39,13 +40,13 @@ def lu_factorize_tridiag_gpu(
 
     Returns
     -------
-    L_diagonal_blocks : np.ndarray
+    L_diagonal_blocks : cp.ndarray
         Diagonal blocks of the lower factor.
-    L_lower_diagonal_blocks : np.ndarray
+    L_lower_diagonal_blocks : cp.ndarray
         Lower diagonal blocks of the lower factor.
-    U_diagonal_blocks : np.ndarray
+    U_diagonal_blocks : cp.ndarray
         Diagonal blocks of the upper factor.
-    U_upper_diagonal_blocks : np.ndarray
+    U_upper_diagonal_blocks : cp.ndarray
         Upper diagonal blocks of the upper factor
     """
     timings: dict[str, float] = {}
@@ -66,19 +67,22 @@ def lu_factorize_tridiag_gpu(
     A_lower_diagonal_blocks_gpu: cp.ndarray = cp.asarray(A_lower_diagonal_blocks)
     A_upper_diagonal_blocks_gpu: cp.ndarray = cp.asarray(A_upper_diagonal_blocks)
 
-    L_diagonal_blocks_gpu = cp.empty(
-        (blocksize, nblocks * blocksize), dtype=A_diagonal_blocks.dtype
+    # Host side arrays
+    L_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_diagonal_blocks_gpu)
+    L_lower_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(
+        A_lower_diagonal_blocks_gpu
     )
-    L_lower_diagonal_blocks_gpu = cp.empty(
-        (blocksize, (nblocks - 1) * blocksize), dtype=A_diagonal_blocks.dtype
+    U_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_diagonal_blocks_gpu)
+    U_upper_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(
+        A_upper_diagonal_blocks_gpu
     )
 
-    U_diagonal_blocks_gpu = cp.empty(
-        (blocksize, nblocks * blocksize), dtype=A_diagonal_blocks.dtype
-    )
-    U_upper_diagonal_blocks_gpu = cp.empty(
-        (blocksize, (nblocks - 1) * blocksize), dtype=A_diagonal_blocks.dtype
-    )
+    # Device side arrays
+    L_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(L_diagonal_blocks)
+    L_lower_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(L_lower_diagonal_blocks)
+
+    U_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(U_diagonal_blocks)
+    U_upper_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(U_upper_diagonal_blocks)
     stream.synchronize()
     t_mem_stop = time.perf_counter_ns()
     t_mem += t_mem_stop - t_mem_start
@@ -176,15 +180,12 @@ def lu_factorize_tridiag_gpu(
         L_diagonal_blocks_gpu[:, -blocksize:],
         U_diagonal_blocks_gpu[:, -blocksize:],
     ) = cpla.lu(A_diagonal_blocks_gpu[:, -blocksize:], permute_l=True)
-    stream.synchronize()
-    t_lu_stop = time.perf_counter_ns()
-    t_lu += t_lu_stop - t_lu_start
 
     t_mem_start = time.perf_counter_ns()
-    L_diagonal_blocks: np.ndarray = cp.asnumpy(L_diagonal_blocks_gpu)
-    L_lower_diagonal_blocks: np.ndarray = cp.asnumpy(L_lower_diagonal_blocks_gpu)
-    U_diagonal_blocks: np.ndarray = cp.asnumpy(U_diagonal_blocks_gpu)
-    U_upper_diagonal_blocks: np.ndarray = cp.asnumpy(U_upper_diagonal_blocks_gpu)
+    L_diagonal_blocks = L_diagonal_blocks_gpu.get()
+    L_lower_diagonal_blocks = L_lower_diagonal_blocks_gpu.get()
+    U_diagonal_blocks = U_diagonal_blocks_gpu.get()
+    U_upper_diagonal_blocks = U_upper_diagonal_blocks_gpu.get()
     stream.synchronize()
     t_mem_stop = time.perf_counter_ns()
     t_mem += t_mem_stop - t_mem_start
@@ -231,15 +232,15 @@ def lu_factorize_tridiag_arrowhead_gpu(
 
     Returns
     -------
-    L_diagonal_blocks : np.ndarray
+    L_diagonal_blocks : cp.ndarray
         Diagonal blocks of the lower factor.
-    L_lower_diagonal_blocks : np.ndarray
+    L_lower_diagonal_blocks : cp.ndarray
         Lower diagonal blocks of the lower factor.
     L_arrow_bottom_blocks : np.ndarray
         Bottom arrow blocks of the lower factor.
-    U_diagonal_blocks : np.ndarray
+    U_diagonal_blocks : cp.ndarray
         Diagonal blocks of the upper factor.
-    U_upper_diagonal_blocks : np.ndarray
+    U_upper_diagonal_blocks : cp.ndarray
         Upper diagonal blocks of the upper factor
     U_arrow_right_blocks : np.ndarray
         Right arrow blocks of the upper factor
@@ -267,34 +268,33 @@ def lu_factorize_tridiag_arrowhead_gpu(
     A_arrow_right_blocks_gpu: cp.ndarray = cp.asarray(A_arrow_right_blocks)
     A_arrow_tip_block_gpu: cp.ndarray = cp.asarray(A_arrow_tip_block)
 
-    L_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=A_diagonal_blocks.dtype
-    )
-    L_lower_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
-        dtype=A_diagonal_blocks.dtype,
-    )
-    L_arrow_bottom_blocks_gpu = cp.empty(
+    # Host side arrays
+    L_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_diagonal_blocks)
+    L_lower_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_lower_diagonal_blocks)
+    L_arrow_bottom_blocks: cpx.ndarray = cpx.empty_pinned(
         (arrow_blocksize, n_diag_blocks * diag_blocksize + arrow_blocksize),
         dtype=A_diagonal_blocks.dtype,
     )
-
-    U_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=A_diagonal_blocks.dtype
-    )
-    U_upper_diagonal_blocks_gpu = cp.empty(
-        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize),
-        dtype=A_diagonal_blocks.dtype,
-    )
-    U_arrow_right_blocks_gpu = cp.empty(
+    U_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_diagonal_blocks)
+    U_upper_diagonal_blocks: cp.ndarray = cpx.empty_like_pinned(A_upper_diagonal_blocks)
+    U_arrow_right_blocks: cp.ndarray = cpx.empty_pinned(
         (n_diag_blocks * diag_blocksize + arrow_blocksize, arrow_blocksize),
         dtype=A_diagonal_blocks.dtype,
     )
 
-    L_inv_temp_gpu = cp.empty(
+    # Device side arrays
+    L_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(L_diagonal_blocks)
+    L_lower_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(L_lower_diagonal_blocks)
+    L_arrow_bottom_blocks_gpu: cp.ndarray = cp.empty_like(L_arrow_bottom_blocks)
+
+    U_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(U_diagonal_blocks)
+    U_upper_diagonal_blocks_gpu: cp.ndarray = cp.empty_like(U_upper_diagonal_blocks)
+    U_arrow_right_blocks_gpu: cp.ndarray = cp.empty_like(U_arrow_right_blocks)
+
+    L_inv_temp_gpu: cp.ndarray = cp.empty(
         (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
     )
-    U_inv_temp_gpu = cp.empty(
+    U_inv_temp_gpu: cp.ndarray = cp.empty(
         (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
     )
     stream.synchronize()
@@ -508,17 +508,14 @@ def lu_factorize_tridiag_arrowhead_gpu(
         L_arrow_bottom_blocks_gpu[:, -arrow_blocksize:],
         U_arrow_right_blocks_gpu[-arrow_blocksize:, :],
     ) = cpla.lu(A_arrow_tip_block_gpu[:, :], permute_l=True)
-    stream.synchronize()
-    t_lu_stop = time.perf_counter_ns()
-    t_lu += t_lu_stop - t_lu_start
 
     t_mem_start = time.perf_counter_ns()
-    L_diagonal_blocks: np.ndarray = cp.asnumpy(L_diagonal_blocks_gpu)
-    L_lower_diagonal_blocks: np.ndarray = cp.asnumpy(L_lower_diagonal_blocks_gpu)
-    L_arrow_bottom_blocks: np.ndarray = cp.asnumpy(L_arrow_bottom_blocks_gpu)
-    U_diagonal_blocks: np.ndarray = cp.asnumpy(U_diagonal_blocks_gpu)
-    U_upper_diagonal_blocks: np.ndarray = cp.asnumpy(U_upper_diagonal_blocks_gpu)
-    U_arrow_right_blocks: np.ndarray = cp.asnumpy(U_arrow_right_blocks_gpu)
+    L_diagonal_blocks = L_diagonal_blocks_gpu.get()
+    L_lower_diagonal_blocks = L_lower_diagonal_blocks_gpu.get()
+    L_arrow_bottom_blocks = L_arrow_bottom_blocks_gpu.get()
+    U_diagonal_blocks = U_diagonal_blocks_gpu.get()
+    U_upper_diagonal_blocks = U_upper_diagonal_blocks_gpu.get()
+    U_arrow_right_blocks = U_arrow_right_blocks_gpu.get()
     stream.synchronize()
     t_mem_stop = time.perf_counter_ns()
     t_mem += t_mem_stop - t_mem_start

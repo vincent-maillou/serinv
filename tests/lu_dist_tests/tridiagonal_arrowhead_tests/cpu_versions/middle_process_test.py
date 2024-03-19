@@ -84,16 +84,16 @@ def test_lu_dist_middle_process(
     A_top_2sided_arrow_blocks_local[:, :diag_blocksize] = A_diagonal_blocks[
         :, :diag_blocksize
     ]
-    A_top_2sided_arrow_blocks_local[:, diag_blocksize : 2 * diag_blocksize] = (
-        A_upper_diagonal_blocks[:, :diag_blocksize]
-    )
+    A_top_2sided_arrow_blocks_local[
+        :, diag_blocksize : 2 * diag_blocksize
+    ] = A_upper_diagonal_blocks[:, :diag_blocksize]
 
     A_left_2sided_arrow_blocks_local[:diag_blocksize, :] = A_diagonal_blocks[
         :, :diag_blocksize
     ]
-    A_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :] = (
-        A_lower_diagonal_blocks[:, :diag_blocksize]
-    )
+    A_left_2sided_arrow_blocks_local[
+        diag_blocksize : 2 * diag_blocksize, :
+    ] = A_lower_diagonal_blocks[:, :diag_blocksize]
 
     (
         L_diagonal_blocks,

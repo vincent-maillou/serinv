@@ -9,19 +9,28 @@ matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-import copy as cp
+import sys
+
+from copy import deepcopy
 
 import numpy as np
 import pytest
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
-    middle_factorize_gpu,
-    middle_sinv_gpu,
-)
+try:
+    from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
+        middle_factorize_gpu,
+        middle_sinv_gpu,
+    )
+except ImportError:
+    pass
+
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_dense
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
 
+@pytest.mark.skipif(
+    "cupy" not in sys.modules, reason="requires a working cupy installation"
+)
 @pytest.mark.gpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
@@ -51,7 +60,7 @@ def test_lu_dist_middle_process(
     )
 
     # ----- Reference -----
-    A_ref = cp.deepcopy(A)
+    A_ref = deepcopy(A)
 
     X_ref = np.linalg.inv(A_ref)
 
@@ -78,10 +87,12 @@ def test_lu_dist_middle_process(
 
     # Arrays that store the update of the 2sided pattern for the middle processes
     A_top_2sided_arrow_blocks_local = np.zeros(
-        (diag_blocksize, n_diag_blocks * diag_blocksize), dtype=A_diagonal_blocks.dtype
+        (diag_blocksize, n_diag_blocks * diag_blocksize),
+        dtype=A_diagonal_blocks.dtype,
     )
     A_left_2sided_arrow_blocks_local = np.zeros(
-        (n_diag_blocks * diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
+        (n_diag_blocks * diag_blocksize, diag_blocksize),
+        dtype=A_diagonal_blocks.dtype,
     )
 
     A_top_2sided_arrow_blocks_local[:, :diag_blocksize] = A_diagonal_blocks[
