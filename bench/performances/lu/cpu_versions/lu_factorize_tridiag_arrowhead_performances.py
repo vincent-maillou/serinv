@@ -10,6 +10,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import numpy as np
 import time
+from os import environ
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_arrays
@@ -17,6 +18,8 @@ from sdr.utils.matrix_generation import generate_tridiag_arrowhead_arrays
 PATH_TO_SAVE = "./"
 N_WARMUPS = 3
 N_RUNS = 10
+
+environ["OMP_NUM_THREADS"] = "1"
 
 # Testing of block tridiagonal arrowhead lu
 if __name__ == "__main__":
