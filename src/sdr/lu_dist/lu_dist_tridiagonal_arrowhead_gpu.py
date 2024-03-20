@@ -593,7 +593,7 @@ def top_factorize_gpu(
         lower=False,
     )
 
-    A_diagonal_blocks_updated = A_diagonal_blocks_local_gpu[:, -diag_blocksize:].get()
+    A_diagonal_blocks_local_gpu[:, -diag_blocksize:].get(out=A_diagonal_blocks_updated)
     A_arrow_bottom_blocks_updated = A_arrow_bottom_blocks_local_gpu[
         :, -diag_blocksize:
     ].get()
@@ -601,15 +601,15 @@ def top_factorize_gpu(
         -diag_blocksize:, :
     ].get()
 
-    L_diagonal_blocks_inv_local = L_diagonal_blocks_inv_local_gpu.get()
-    L_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local_gpu.get()
-    L_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local_gpu.get()
+    L_diagonal_blocks_inv_local_gpu.get(out=L_diagonal_blocks_inv_local)
+    L_lower_diagonal_blocks_local_gpu.get(out=L_lower_diagonal_blocks_local)
+    L_arrow_bottom_blocks_local_gpu.get(out=L_arrow_bottom_blocks_local)
 
-    U_diagonal_blocks_inv_local = U_diagonal_blocks_inv_local_gpu.get()
-    U_upper_diagonal_blocks_local = U_upper_diagonal_blocks_local_gpu.get()
-    U_arrow_right_blocks_local = U_arrow_right_blocks_local_gpu.get()
+    U_diagonal_blocks_inv_local_gpu.get(out=U_diagonal_blocks_inv_local)
+    U_upper_diagonal_blocks_local_gpu.get(out=U_upper_diagonal_blocks_local)
+    U_arrow_right_blocks_local_gpu.get(out=U_arrow_right_blocks_local)
 
-    Update_arrow_tip_local = Update_arrow_tip_local_gpu.get()
+    Update_arrow_tip_local_gpu.get(out=Update_arrow_tip_local)
 
     return (
         L_diagonal_blocks_inv_local,
@@ -1149,17 +1149,17 @@ def middle_factorize_gpu(
         A_left_2sided_arrow_blocks_local_gpu[-diag_blocksize:, :].get()
     )
 
-    L_diagonal_blocks_inv_local = L_diagonal_blocks_inv_local_gpu.get()
-    L_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local_gpu.get()
-    L_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local_gpu.get()
-    L_upper_2sided_arrow_blocks_local = L_upper_2sided_arrow_blocks_local_gpu.get()
+    L_diagonal_blocks_inv_local_gpu.get(out=L_diagonal_blocks_inv_local)
+    L_lower_diagonal_blocks_local_gpu.get(out=L_lower_diagonal_blocks_local)
+    L_arrow_bottom_blocks_local_gpu.get(out=L_arrow_bottom_blocks_local)
+    L_upper_2sided_arrow_blocks_local_gpu.get(out=L_upper_2sided_arrow_blocks_local)
 
-    U_diagonal_blocks_inv_local = U_diagonal_blocks_inv_local_gpu.get()
-    U_upper_diagonal_blocks_local = U_upper_diagonal_blocks_local_gpu.get()
-    U_arrow_right_blocks_local = U_arrow_right_blocks_local_gpu.get()
-    U_left_2sided_arrow_blocks_local = U_left_2sided_arrow_blocks_local_gpu.get()
+    U_diagonal_blocks_inv_local_gpu.get(out=U_diagonal_blocks_inv_local)
+    U_upper_diagonal_blocks_local_gpu.get(out=U_upper_diagonal_blocks_local)
+    U_arrow_right_blocks_local_gpu.get(out=U_arrow_right_blocks_local)
+    U_left_2sided_arrow_blocks_local_gpu.get(out=U_left_2sided_arrow_blocks_local)
 
-    Update_arrow_tip_local = Update_arrow_tip_local_gpu.get()
+    Update_arrow_tip_local_gpu.get(out=Update_arrow_tip_local)
 
     return (
         L_diagonal_blocks_inv_local,
@@ -1870,11 +1870,11 @@ def top_sinv_gpu(
             :, i * diag_blocksize : (i + 1) * diag_blocksize
         ]
 
-    X_diagonal_blocks_local = X_diagonal_blocks_local_gpu.get()
-    X_lower_diagonal_blocks_local = X_lower_diagonal_blocks_local_gpu.get()
-    X_upper_diagonal_blocks_local = X_upper_diagonal_blocks_local_gpu.get()
-    X_arrow_bottom_blocks_local = X_arrow_bottom_blocks_local_gpu.get()
-    X_arrow_right_blocks_local = X_arrow_right_blocks_local_gpu.get()
+    X_diagonal_blocks_local_gpu.get(out=X_diagonal_blocks_local)
+    X_lower_diagonal_blocks_local_gpu.get(out=X_lower_diagonal_blocks_local)
+    X_upper_diagonal_blocks_local_gpu.get(out=X_upper_diagonal_blocks_local)
+    X_arrow_bottom_blocks_local_gpu.get(out=X_arrow_bottom_blocks_local)
+    X_arrow_right_blocks_local_gpu.get(out=X_arrow_right_blocks_local)
 
     return (
         X_diagonal_blocks_local,
@@ -2221,11 +2221,11 @@ def middle_sinv_gpu(
         X_left_2sided_arrow_blocks_local_gpu[diag_blocksize : 2 * diag_blocksize, :]
     )
 
-    X_diagonal_blocks_local = X_diagonal_blocks_local_gpu.get()
-    X_lower_diagonal_blocks_local = X_lower_diagonal_blocks_local_gpu.get()
-    X_upper_diagonal_blocks_local = X_upper_diagonal_blocks_local_gpu.get()
-    X_arrow_bottom_blocks_local = X_arrow_bottom_blocks_local_gpu.get()
-    X_arrow_right_blocks_local = X_arrow_right_blocks_local_gpu.get()
+    X_diagonal_blocks_local_gpu.get(out=X_diagonal_blocks_local)
+    X_lower_diagonal_blocks_local_gpu.get(out=X_lower_diagonal_blocks_local)
+    X_upper_diagonal_blocks_local_gpu.get(out=X_upper_diagonal_blocks_local)
+    X_arrow_bottom_blocks_local_gpu.get(out=X_arrow_bottom_blocks_local)
+    X_arrow_right_blocks_local_gpu.get(out=X_arrow_right_blocks_local)
 
     return (
         X_diagonal_blocks_local,
