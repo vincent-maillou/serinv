@@ -1,70 +1,56 @@
-# STRONG CALING RUNS
+# STRONG SCALING ON PARTITIONS SIZE
 if __name__ == "__main__":
     # TODO: Check the biggest case we can run with the sequential code
     # use that as the baseline case for the strong scaling analysis
-    NB = 256
-    BS = 2000
-    AS = 500
-    N_PROCESSES = [2, 4, 8, 16]
+    total_number_of_blocks = 512
+    diag_blocksize = 2000
+    arrow_blocksize = 500
+    matrix_size = total_number_of_blocks * diag_blocksize
+    n_processes = [2, 4, 8, 16]
 
     print("\n")
-    print("         --- STRONG SCALING --- ")
-    for p, i in enumerate(N_PROCESSES):
-        partitons_size = NB // i
-        matrix_size = NB * BS
+    print("     --- STRONG SCALING ON PARTITIONS SIZE --- ")
+    for n_process in n_processes:
+        partition_size = total_number_of_blocks // n_process
         print(
-            f"    N_PROCESSES: {i}, NB: {NB}, BS: {BS}, AS: {AS}     (partitons_size = {partitons_size}, matrix_size = {matrix_size})"
+            f"    n_processes: {n_process}, partition_size: {partition_size}, total_number_of_blocks: {total_number_of_blocks} diag_blocksize: {diag_blocksize}, arrow_blocksize: {arrow_blocksize}, matrix_size: {matrix_size}"
         )
-
-
-# WEAK SCALING RUNS
-if __name__ == "__main__":
-    NB = [128, 256, 512, 1024]
-    BS = 2000
-    AS = 500
-    N_PROCESSES = [2, 4, 8, 16]
-
     print("\n")
-    print("         --- WEAK SCALING --- ")
-    for p, i in enumerate(N_PROCESSES):
-        for n, nb in enumerate(NB):
-            partitons_size = nb // i
-            matrix_size = nb * BS
+
+
+# WEAK SCALING ON PARTITIONS SIZE
+if __name__ == "__main__":
+    partitons_sizes = [128, 256]
+    diag_blocksize = 2000
+    arrow_blocksize = 500
+    n_processes = [2, 4, 8, 16]
+
+    print("     --- WEAK SCALING ON PARTITIONS SIZE --- ")
+    for partition_size in partitons_sizes:
+        for n_process in n_processes:
+            total_number_of_blocks = partition_size * n_process
+            matrix_size = partition_size * n_process * diag_blocksize
             print(
-                f"    N_PROCESSES: {i}, NB: {nb}, BS: {BS}, AS: {AS}     (partitons_size = {partitons_size}, matrix_size = {matrix_size})"
+                f"    n_processes: {n_process}, partition_size: {partition_size}, total_number_of_blocks: {total_number_of_blocks} diag_blocksize: {diag_blocksize}, arrow_blocksize: {arrow_blocksize}, matrix_size: {matrix_size}"
             )
         print("\n")
 
-# RATIO SCALING RUNS
+
+# WEAK SCALING ON PARTITIONS RATIO
 if __name__ == "__main__":
-    RATIO = [8, 16, 32, 64]
-    BS = 2000
-    AS = 500
-    N_PROCESSES = 2
+    partitons_ratios = [8, 16]
+    diag_blocksize = 2000
+    arrow_blocksize = 500
+    n_processes = [2, 4, 8, 16]
 
-    print("         --- RATIO SCALING --- ")
-    for ratio in RATIO:
-        partitons_size = N_PROCESSES * 2 * ratio
-        nb = partitons_size * N_PROCESSES
-        matrix_size = nb * BS
-        print(
-            f"    N_PROCESSES: {N_PROCESSES}, NB: {nb}, BS: {BS}, AS: {AS}     (partitons_size = {partitons_size}, ratio = {ratio}, matrix_size = {matrix_size})"
-        )
-    print("\n")
-
-# RATIO SCALING RUNS
-if __name__ == "__main__":
-    RATIO = [8, 16, 32]
-    BS = 2000
-    AS = 500
-    N_PROCESSES = 4
-
-    print("         --- RATIO SCALING --- ")
-    for ratio in RATIO:
-        partitons_size = N_PROCESSES * 2 * ratio
-        nb = partitons_size * N_PROCESSES
-        matrix_size = nb * BS
-        print(
-            f"    N_PROCESSES: {N_PROCESSES}, NB: {nb}, BS: {BS}, AS: {AS}     (partitons_size = {partitons_size}, ratio = {ratio}, matrix_size = {matrix_size})"
-        )
-    print("\n")
+    print("     --- WEAK SCALING ON PARTITIONS RATIO --- ")
+    for partition_ratio in partitons_ratios:
+        for n_process in n_processes:
+            reduced_system_size = n_process * 2
+            partition_size = partition_ratio * reduced_system_size
+            total_number_of_blocks = partition_size * n_process
+            matrix_size = total_number_of_blocks * diag_blocksize
+            print(
+                f"    n_processes: {n_process}, partition_size: {partition_size}, partition_ratio: {partition_ratio}, total_number_of_blocks: {total_number_of_blocks} diag_blocksize: {diag_blocksize}, arrow_blocksize: {arrow_blocksize}, matrix_size: {matrix_size}"
+            )
+        print("\n")
