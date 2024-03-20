@@ -127,9 +127,9 @@ def lu_sinv_tridiag_gpu(
             @ L_lower_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize]
         ) @ L_blk_inv_gpu
 
-    X_diagonal_blocks = X_diagonal_blocks_gpu.get()
-    X_lower_diagonal_blocks = X_lower_diagonal_blocks_gpu.get()
-    X_upper_diagonal_blocks = X_upper_diagonal_blocks_gpu.get()
+    X_diagonal_blocks_gpu.get(out=X_diagonal_blocks)
+    X_lower_diagonal_blocks_gpu.get(out=X_lower_diagonal_blocks)
+    X_upper_diagonal_blocks_gpu.get(out=X_upper_diagonal_blocks)
 
     return (X_diagonal_blocks, X_lower_diagonal_blocks, X_upper_diagonal_blocks)
 
@@ -335,17 +335,20 @@ def lu_sinv_tridiag_arrowhead_gpu(
         ) @ L_blk_inv_gpu
 
         # X_{i, ndb+1} = U_{i, i}^{-1} (- U_{i, i+1} X_{i+1, ndb+1} - U_{i, ndb+1} X_{ndb+1, ndb+1})
-        X_arrow_right_blocks_gpu[
-            i * diag_blocksize : (i + 1) * diag_blocksize, :
-        ] = U_blk_inv_gpu @ (
-            -U_upper_diagonal_blocks_gpu[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ]
-            @ X_arrow_right_blocks_gpu[
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
-            ]
-            - U_arrow_right_blocks_gpu[i * diag_blocksize : (i + 1) * diag_blocksize, :]
-            @ X_arrow_tip_block_gpu[:, :]
+        X_arrow_right_blocks_gpu[i * diag_blocksize : (i + 1) * diag_blocksize, :] = (
+            U_blk_inv_gpu
+            @ (
+                -U_upper_diagonal_blocks_gpu[
+                    :, i * diag_blocksize : (i + 1) * diag_blocksize
+                ]
+                @ X_arrow_right_blocks_gpu[
+                    (i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :
+                ]
+                - U_arrow_right_blocks_gpu[
+                    i * diag_blocksize : (i + 1) * diag_blocksize, :
+                ]
+                @ X_arrow_tip_block_gpu[:, :]
+            )
         )
 
         # --- Diagonal block part ---
@@ -364,12 +367,12 @@ def lu_sinv_tridiag_arrowhead_gpu(
             ]
         ) @ L_blk_inv_gpu
 
-    X_diagonal_blocks = X_diagonal_blocks_gpu.get()
-    X_lower_diagonal_blocks = X_lower_diagonal_blocks_gpu.get()
-    X_upper_diagonal_blocks = X_upper_diagonal_blocks_gpu.get()
-    X_arrow_bottom_blocks = X_arrow_bottom_blocks_gpu.get()
-    X_arrow_right_blocks = X_arrow_right_blocks_gpu.get()
-    X_arrow_tip_block = X_arrow_tip_block_gpu.get()
+    X_diagonal_blocks_gpu.get(out=X_diagonal_blocks)
+    X_lower_diagonal_blocks_gpu.get(out=X_lower_diagonal_blocks)
+    X_upper_diagonal_blocks_gpu.get(out=X_upper_diagonal_blocks)
+    X_arrow_bottom_blocks_gpu.get(out=X_arrow_bottom_blocks)
+    X_arrow_right_blocks_gpu.get(out=X_arrow_right_blocks)
+    X_arrow_tip_block_gpu.get(out=X_arrow_tip_block)
 
     return (
         X_diagonal_blocks,

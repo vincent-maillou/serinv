@@ -96,7 +96,10 @@ def lu_factorize_tridiag_gpu(
         )
 
         # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
-        U_upper_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize,] = (
+        U_upper_diagonal_blocks_gpu[
+            :,
+            i * blocksize : (i + 1) * blocksize,
+        ] = (
             cpla.solve_triangular(
                 L_diagonal_blocks_gpu[:, i * blocksize : (i + 1) * blocksize],
                 cp.eye(blocksize),
@@ -120,10 +123,10 @@ def lu_factorize_tridiag_gpu(
         U_diagonal_blocks_gpu[:, -blocksize:],
     ) = cpla.lu(A_diagonal_blocks_gpu[:, -blocksize:], permute_l=True)
 
-    L_diagonal_blocks = L_diagonal_blocks_gpu.get()
-    L_lower_diagonal_blocks = L_lower_diagonal_blocks_gpu.get()
-    U_diagonal_blocks = U_diagonal_blocks_gpu.get()
-    U_upper_diagonal_blocks = U_upper_diagonal_blocks_gpu.get()
+    L_diagonal_blocks_gpu.get(out=L_diagonal_blocks)
+    L_lower_diagonal_blocks_gpu.get(out=L_lower_diagonal_blocks)
+    U_diagonal_blocks_gpu.get(out=U_diagonal_blocks)
+    U_upper_diagonal_blocks_gpu.get(out=U_upper_diagonal_blocks)
 
     return (
         L_diagonal_blocks,
@@ -375,12 +378,12 @@ def lu_factorize_tridiag_arrowhead_gpu(
         U_arrow_right_blocks_gpu[-arrow_blocksize:, :],
     ) = cpla.lu(A_arrow_tip_block_gpu[:, :], permute_l=True)
 
-    L_diagonal_blocks = L_diagonal_blocks_gpu.get()
-    L_lower_diagonal_blocks = L_lower_diagonal_blocks_gpu.get()
-    L_arrow_bottom_blocks = L_arrow_bottom_blocks_gpu.get()
-    U_diagonal_blocks = U_diagonal_blocks_gpu.get()
-    U_upper_diagonal_blocks = U_upper_diagonal_blocks_gpu.get()
-    U_arrow_right_blocks = U_arrow_right_blocks_gpu.get()
+    L_diagonal_blocks_gpu.get(out=L_diagonal_blocks)
+    L_lower_diagonal_blocks_gpu.get(out=L_lower_diagonal_blocks)
+    L_arrow_bottom_blocks_gpu.get(out=L_arrow_bottom_blocks)
+    U_diagonal_blocks_gpu.get(out=U_diagonal_blocks)
+    U_upper_diagonal_blocks_gpu.get(out=U_upper_diagonal_blocks)
+    U_arrow_right_blocks_gpu.get(out=U_arrow_right_blocks)
 
     return (
         L_diagonal_blocks,
