@@ -158,9 +158,9 @@ def lu_sinv_tridiag_gpu(
         t_gemm += t_gemm_stop - t_gemm_start
 
     t_mem_start = time.perf_counter_ns()
-    X_diagonal_blocks = X_diagonal_blocks_gpu.get()
-    X_lower_diagonal_blocks = X_lower_diagonal_blocks_gpu.get()
-    X_upper_diagonal_blocks = X_upper_diagonal_blocks_gpu.get()
+    X_diagonal_blocks_gpu.get(out=X_diagonal_blocks)
+    X_lower_diagonal_blocks_gpu.get(out=X_lower_diagonal_blocks)
+    X_upper_diagonal_blocks_gpu.get(out=X_upper_diagonal_blocks)
     stream.synchronize()
     t_mem_stop = time.perf_counter_ns()
     t_mem += t_mem_stop - t_mem_start
@@ -446,12 +446,12 @@ def lu_sinv_tridiag_arrowhead_gpu(
         t_gemm += t_gemm_stop - t_gemm_start
 
     t_mem_start = time.perf_counter_ns()
-    X_diagonal_blocks = X_diagonal_blocks_gpu.get()
-    X_lower_diagonal_blocks = X_lower_diagonal_blocks_gpu.get()
-    X_upper_diagonal_blocks = X_upper_diagonal_blocks_gpu.get()
-    X_arrow_bottom_blocks = X_arrow_bottom_blocks_gpu.get()
-    X_arrow_right_blocks = X_arrow_right_blocks_gpu.get()
-    X_arrow_tip_block = X_arrow_tip_block_gpu.get()
+    X_diagonal_blocks_gpu.get(out=X_diagonal_blocks)
+    X_lower_diagonal_blocks_gpu.get(out=X_lower_diagonal_blocks)
+    X_upper_diagonal_blocks_gpu.get(out=X_upper_diagonal_blocks)
+    X_arrow_bottom_blocks_gpu.get(out=X_arrow_bottom_blocks)
+    X_arrow_right_blocks_gpu.get(out=X_arrow_right_blocks)
+    X_arrow_tip_block_gpu.get(out=X_arrow_tip_block)
     stream.synchronize()
     t_mem_stop = time.perf_counter_ns()
     t_mem += t_mem_stop - t_mem_start
