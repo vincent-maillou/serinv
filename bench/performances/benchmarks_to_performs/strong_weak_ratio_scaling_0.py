@@ -50,6 +50,7 @@ if __name__ == "__main__":
         print(
             f"    N_PROCESSES: {N_PROCESSES}, NB: {nb}, BS: {BS}, AS: {AS}     (partitons_size = {partitons_size}, ratio = {ratio}, matrix_size = {matrix_size})"
         )
+    print("\n")
 
 # RATIO SCALING RUNS
 if __name__ == "__main__":
@@ -66,3 +67,4 @@ if __name__ == "__main__":
         print(
             f"    N_PROCESSES: {N_PROCESSES}, NB: {nb}, BS: {BS}, AS: {AS}     (partitons_size = {partitons_size}, ratio = {ratio}, matrix_size = {matrix_size})"
         )
+    print("\n")
