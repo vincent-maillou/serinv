@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     print("\n")
     print("         --- WEAK SCALING --- ")
-    for n, nb in enumerate(NB):
-        for p, i in enumerate(N_PROCESSES):
+    for p, i in enumerate(N_PROCESSES):
+        for n, nb in enumerate(NB):
             partitons_size = nb // i
             matrix_size = nb * BS
             print(
