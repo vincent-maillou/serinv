@@ -146,7 +146,7 @@ def lu_dist_tridiagonal_arrowhead(
             A_bridges_upper,
         )
         t_reduced_system_stop = time.perf_counter_ns()
-        t_reduced_system = t_reduced_system_stop - t_reduced_system_start
+        t_reduced_system_allreduce = t_reduced_system_stop - t_reduced_system_start
     else:
         t_mem_start = time.perf_counter_ns()
         # Arrays that store the update of the 2sided pattern for the middle processes
@@ -223,7 +223,7 @@ def lu_dist_tridiagonal_arrowhead(
             A_left_2sided_arrow_blocks_local,
         )
         t_reduced_system_stop = time.perf_counter_ns()
-        t_reduced_system = t_reduced_system_stop - t_reduced_system_start
+        t_reduced_system_allreduce = t_reduced_system_stop - t_reduced_system_start
 
     timings["t_mem"] += timings_factorize["t_mem"]
     timings["t_lu"] += timings_factorize["t_lu"]
@@ -234,7 +234,7 @@ def lu_dist_tridiagonal_arrowhead(
     timings["t_comm"] += timings_reduced_system["t_comm"]
 
     sections["t_factorize_dist"] = t_factorize_dist
-    sections["t_reduced_system"] = t_reduced_system
+    sections["t_reduced_system_allreduce"] = t_reduced_system_allreduce
 
     t_sinv_rs_start = time.perf_counter_ns()
     (
