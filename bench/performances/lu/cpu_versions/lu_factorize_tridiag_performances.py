@@ -19,8 +19,6 @@ PATH_TO_SAVE = "./"
 N_WARMUPS = 3
 N_RUNS = 10
 
-environ["OMP_NUM_THREADS"] = "1"
-
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
     l_nblocks = [128]

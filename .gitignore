@@ -56,6 +56,13 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# output files
+*.err
+*.out
+
+#nvidia profiler
+*.nsys-rep
+
 # Translations
 *.mo
 *.pot
