@@ -113,6 +113,7 @@ if __name__ == "__main__":
                 headers["symmetric"] = symmetric
                 headers["diagonal_dominant"] = diagonal_dominant
                 headers["seed"] = seed
+                headers["total_runtime"] = 0.0
 
                 for i in range(N_WARMUPS + N_RUNS):
                     A_diagonal_blocks = A_diagonal_blocks_ref.copy()
@@ -133,7 +134,7 @@ if __name__ == "__main__":
                                 end="",
                                 flush=True,
                             )
-                    t_run_start = time.perf_counter_ns()
+
                     (
                         start_blockrows,
                         partition_sizes,
@@ -169,6 +170,7 @@ if __name__ == "__main__":
                     )
 
                     comm.Barrier()
+                    t_run_start = time.perf_counter_ns()
                     (
                         X_diagonal_blocks_local,
                         X_lower_diagonal_blocks_local,
@@ -190,8 +192,11 @@ if __name__ == "__main__":
                         A_bridges_lower,
                         A_bridges_upper,
                     )
+                    comm.Barrier()
                     t_run_stop = time.perf_counter_ns()
                     t_run = t_run_stop - t_run_start
+
+                    headers["total_runtime"] = t_run
 
                     if comm_rank == 0:
                         print(" run took: ", t_run * 1e-9, "s")

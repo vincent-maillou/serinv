@@ -106,6 +106,7 @@ if __name__ == "__main__":
                 headers["symmetric"] = symmetric
                 headers["diagonal_dominant"] = diagonal_dominant
                 headers["seed"] = seed
+                headers["total_runtime"] = 0.0
 
                 for i in range(N_WARMUPS + N_RUNS):
                     L_diagonal_blocks = L_diagonal_blocks_ref.copy()
@@ -146,6 +147,8 @@ if __name__ == "__main__":
                     t_run = t_run_stop - t_run_start
 
                     print(" run took: ", t_run * 1e-9, "s")
+
+                    headers["total_runtime"] = t_run
 
                     if i >= N_WARMUPS:
                         runs_timings.append({**headers, **timings})
