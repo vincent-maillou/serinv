@@ -96,7 +96,7 @@ def lu_dist_tridiagonal_arrowhead(
 
     sections: dict[str, float] = {}
 
-    t_factorize = 0.0
+    t_factorize_dist = 0.0
 
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     arrow_blocksize = A_arrow_bottom_blocks_local.shape[0]
@@ -106,7 +106,7 @@ def lu_dist_tridiagonal_arrowhead(
     comm_rank = comm.Get_rank()
 
     if comm_rank == 0:
-        t_factorize_start = time.perf_counter_ns()
+        t_factorize_dist_start = time.perf_counter_ns()
         (
             L_diagonal_blocks_inv,
             L_lower_diagonal_blocks,
@@ -124,8 +124,8 @@ def lu_dist_tridiagonal_arrowhead(
             A_arrow_right_blocks_local,
             A_arrow_tip_block,
         )
-        t_factorize_stop = time.perf_counter_ns()
-        t_factorize = t_factorize_stop - t_factorize_start
+        t_factorize_dist_stop = time.perf_counter_ns()
+        t_factorize_dist = t_factorize_dist_stop - t_factorize_dist_start
 
         t_reduced_system_start = time.perf_counter_ns()
         (
@@ -177,7 +177,7 @@ def lu_dist_tridiagonal_arrowhead(
 
         timings["t_mem"] += t_mem
 
-        t_factorize_start = time.perf_counter_ns()
+        t_factorize_dist_start = time.perf_counter_ns()
         (
             L_diagonal_blocks_inv,
             L_lower_diagonal_blocks,
@@ -199,8 +199,8 @@ def lu_dist_tridiagonal_arrowhead(
             A_left_2sided_arrow_blocks_local,
             A_arrow_tip_block,
         )
-        t_factorize_stop = time.perf_counter_ns()
-        t_factorize = t_factorize_stop - t_factorize_start
+        t_factorize_dist_stop = time.perf_counter_ns()
+        t_factorize_dist = t_factorize_dist_stop - t_factorize_dist_start
 
         t_reduced_system_start = time.perf_counter_ns()
         (
@@ -233,10 +233,10 @@ def lu_dist_tridiagonal_arrowhead(
     timings["t_mem"] += timings_reduced_system["t_mem"]
     timings["t_comm"] += timings_reduced_system["t_comm"]
 
-    sections["t_factorize"] = t_factorize
+    sections["t_factorize_dist"] = t_factorize_dist
     sections["t_reduced_system"] = t_reduced_system
 
-    t_sinv_start = time.perf_counter_ns()
+    t_sinv_rs_start = time.perf_counter_ns()
     (
         X_rs_diagonal_blocks,
         X_rs_lower_diagonal_blocks,
@@ -253,15 +253,15 @@ def lu_dist_tridiagonal_arrowhead(
         A_rs_arrow_right_blocks,
         A_rs_arrow_tip_block,
     )
-    t_sinv_stop = time.perf_counter_ns()
-    t_sinv = t_sinv_stop - t_sinv_start
+    t_sinv_rs_stop = time.perf_counter_ns()
+    t_sinv_rs = t_sinv_rs_stop - t_sinv_rs_start
 
     timings["t_mem"] += timings_sinv["t_mem"]
     timings["t_lu"] += timings_sinv["t_lu"]
     timings["t_trsm"] += timings_sinv["t_trsm"]
     timings["t_gemm"] += timings_sinv["t_gemm"]
 
-    sections["t_sinv"] = t_sinv
+    sections["t_sinv_rs"] = t_sinv_rs
 
     t_update_reduced_system_start = time.perf_counter_ns()
     (
@@ -296,7 +296,7 @@ def lu_dist_tridiagonal_arrowhead(
 
     sections["t_update_reduced_system"] = t_update_reduced_system
 
-    t_sinv_start = time.perf_counter_ns()
+    t_sinv_dist_start = time.perf_counter_ns()
     if comm_rank == 0:
         (
             X_diagonal_blocks_local,
@@ -347,13 +347,13 @@ def lu_dist_tridiagonal_arrowhead(
             U_arrow_right_blocks,
             U_left_2sided_arrow_blocks,
         )
-    t_sinv_stop = time.perf_counter_ns()
-    t_sinv = t_sinv_stop - t_sinv_start
+    t_sinv_dist_stop = time.perf_counter_ns()
+    t_sinv_dist = t_sinv_dist_stop - t_sinv_dist_start
 
     timings["t_mem"] += timings_sinv["t_mem"]
     timings["t_gemm"] += timings_sinv["t_gemm"]
 
-    sections["t_sinv"] = t_sinv
+    sections["t_sinv_dist"] = t_sinv_dist
 
     return (
         X_diagonal_blocks_local,
