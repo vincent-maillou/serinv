@@ -60,6 +60,9 @@ cover/
 *.err
 *.out
 
+#nvidia profiler
+*.nsys-rep
+
 # Translations
 *.mo
 *.pot
