@@ -27,11 +27,11 @@ N_RUNS = 10
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [128]
+    l_nblocks = [32]
     # ----- Populate the diagonal blocksizes list HERE -----
-    l_diag_blocksize = [1000]
+    l_diag_blocksize = [100]
     # ----- Populate the arrow blocksizes list HERE -----
-    l_arrow_blocksize = [250]
+    l_arrow_blocksize = [25]
     diagonal_dominant = True
     symmetric = False
     seed = 63

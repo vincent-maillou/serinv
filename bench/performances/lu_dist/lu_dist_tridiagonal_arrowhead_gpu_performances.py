@@ -8,6 +8,7 @@ Example of the lu_dist algorithm for tridiagonal arrowhead matrices.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import cupy as cp
 import numpy as np
 import time
 from mpi4py import MPI
@@ -22,7 +23,8 @@ from sdr.utils.dist_utils import (
     extract_partition_tridiagonal_arrowhead_array,
     extract_bridges_tridiagonal_array,
 )
-from sdr.utils.gpu_utils import set_device
+
+# from sdr.utils.gpu_utils import set_device
 
 PATH_TO_SAVE = "./"
 N_WARMUPS = 3
@@ -32,11 +34,11 @@ N_GPU_PER_NODE = 8
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [128]
+    l_nblocks = [32]
     # ----- Populate the diagonal blocksizes list HERE -----
-    l_diag_blocksize = [1000]
+    l_diag_blocksize = [100]
     # ----- Populate the arrow blocksizes list HERE -----
-    l_arrow_blocksize = [250]
+    l_arrow_blocksize = [25]
     diagonal_dominant = True
     symmetric = False
     seed = 63
@@ -48,7 +50,7 @@ if __name__ == "__main__":
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
-    set_device(comm_rank, N_GPU_PER_NODE)
+    # set_device(comm_rank, N_GPU_PER_NODE)
 
     for nblocks in l_nblocks:
         for diag_blocksize in l_diag_blocksize:
@@ -107,6 +109,7 @@ if __name__ == "__main__":
                 headers["N_WARMUPS"] = N_WARMUPS
                 headers["N_RUNS"] = N_RUNS
                 headers["MKL_NUM_THREADS"] = mkl.get_max_threads()
+                headers["GPU_DEVICE_ID"] = cp.cuda.get_device_id()
                 headers["COMM_SIZE"] = comm_size
                 headers["COMM_RANK"] = comm_rank
                 headers["nblocks"] = nblocks

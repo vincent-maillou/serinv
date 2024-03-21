@@ -21,7 +21,7 @@ N_RUNS = 10
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [128]
+    l_nblocks = [32]
     # ----- Populate the blocksizes list HERE -----
     l_blocksize = [100]
     symmetric = False

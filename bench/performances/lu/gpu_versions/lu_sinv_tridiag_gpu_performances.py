@@ -8,6 +8,7 @@ Tests for lu selected inversion routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import cupy as cp
 import numpy as np
 import time
 import mkl
@@ -23,7 +24,7 @@ N_RUNS = 10
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [128]
+    l_nblocks = [32]
     # ----- Populate the blocksizes list HERE -----
     l_blocksize = [100]
     symmetric = False
@@ -80,6 +81,7 @@ if __name__ == "__main__":
             headers["N_WARMUPS"] = N_WARMUPS
             headers["N_RUNS"] = N_RUNS
             headers["MKL_NUM_THREADS"] = mkl.get_max_threads()
+            headers["GPU_DEVICE_ID"] = cp.cuda.get_device_id()
             headers["nblocks"] = nblocks
             headers["blocksize"] = blocksize
             headers["symmetric"] = symmetric
