@@ -199,12 +199,14 @@ if __name__ == "__main__":
                         runs_timings.append({**headers, **timings})
                         runs_sections.append({**headers, **sections})
 
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+
     # Save the timings and nblocks and blocksize
     runs_timings = np.array(runs_timings)
     print("runs_timings: ", runs_timings)
     np.save(
         PATH_TO_SAVE
-        + f"lu_dist_tridiagonal_arrowhead_nprocesses_{comm_size}_rank_{comm_rank}_timings.npy",
+        + f"lu_dist_tridiagonal_arrowhead_nprocesses_{comm_size}_rank_{comm_rank}_timings_{timestamp}.npy",
         runs_timings,
     )
 
@@ -212,6 +214,6 @@ if __name__ == "__main__":
     print("runs_sections:", runs_sections)
     np.save(
         PATH_TO_SAVE
-        + f"lu_dist_tridiagonal_arrowhead_nprocesses_{comm_size}_rank_{comm_rank}_sections.npy",
+        + f"lu_dist_tridiagonal_arrowhead_nprocesses_{comm_size}_rank_{comm_rank}_sections_{timestamp}.npy",
         runs_sections,
     )

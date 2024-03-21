@@ -22,11 +22,11 @@ N_RUNS = 10
 # Testing of block tridiagonal arrowhead lu
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [128]
+    l_nblocks = [32]
     # ----- Populate the diagonal blocksizes list HERE -----
-    l_diag_blocksize = [1000]
+    l_diag_blocksize = [100]
     # ----- Populate the arrow blocksizes list HERE -----
-    l_arrow_blocksize = [250]
+    l_arrow_blocksize = [25]
     symmetric = False
     diagonal_dominant = True
     seed = 63
@@ -135,7 +135,12 @@ if __name__ == "__main__":
                     if i >= N_WARMUPS:
                         runs_timings.append({**headers, **timings})
 
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+
     # Save the timings and nblocks and blocksize
     runs_timings = np.array(runs_timings)
     print(runs_timings)
-    np.save(PATH_TO_SAVE + "lu_factorize_tridiag_arrowhead_timings.npy", runs_timings)
+    np.save(
+        PATH_TO_SAVE + f"lu_factorize_tridiag_arrowhead_timings_{timestamp}.npy",
+        runs_timings,
+    )

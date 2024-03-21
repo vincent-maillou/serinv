@@ -153,7 +153,12 @@ if __name__ == "__main__":
                     if i >= N_WARMUPS:
                         runs_timings.append({**headers, **timings})
 
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+
     # Save the timings and nblocks and blocksize
     runs_timings = np.array(runs_timings)
     print(runs_timings)
-    np.save(PATH_TO_SAVE + "lu_sinv_tridiag_arrowhead_timings.npy", runs_timings)
+    np.save(
+        PATH_TO_SAVE + f"lu_sinv_tridiag_arrowhead_timings_{timestamp}.npy",
+        runs_timings,
+    )
