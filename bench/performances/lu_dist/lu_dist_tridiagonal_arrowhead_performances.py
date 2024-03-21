@@ -11,7 +11,6 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import numpy as np
 import time
 from mpi4py import MPI
-from os import environ
 
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_arrays
