@@ -79,6 +79,7 @@ if __name__ == "__main__":
             headers["N_WARMUPS"] = N_WARMUPS
             headers["N_RUNS"] = N_RUNS
             headers["MKL_NUM_THREADS"] = mkl.get_max_threads()
+            headers["matrix_memory"] = input_mem_size * 1e-9
             headers["nblocks"] = nblocks
             headers["blocksize"] = blocksize
             headers["symmetric"] = symmetric

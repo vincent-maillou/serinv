@@ -85,6 +85,7 @@ if __name__ == "__main__":
                 headers["N_RUNS"] = N_RUNS
                 headers["MKL_NUM_THREADS"] = mkl.get_max_threads()
                 headers["GPU_DEVICE_ID"] = cp.cuda.get_device_id()
+                headers["matrix_memory"] = input_mem_size * 1e-9
                 headers["nblocks"] = nblocks
                 headers["blocksize"] = diag_blocksize
                 headers["arrow_blocksize"] = arrow_blocksize
