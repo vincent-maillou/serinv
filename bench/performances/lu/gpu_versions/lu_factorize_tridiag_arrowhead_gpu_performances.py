@@ -10,6 +10,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import numpy as np
 import time
+import mkl
 
 from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_arrays
@@ -81,6 +82,7 @@ if __name__ == "__main__":
                 headers = {}
                 headers["N_WARMUPS"] = N_WARMUPS
                 headers["N_RUNS"] = N_RUNS
+                headers["MKL_NUM_THREADS"] = mkl.get_max_threads()
                 headers["nblocks"] = nblocks
                 headers["blocksize"] = diag_blocksize
                 headers["arrow_blocksize"] = arrow_blocksize

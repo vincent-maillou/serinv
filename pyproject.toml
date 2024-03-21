@@ -25,6 +25,7 @@ dependencies = [
     "pytest-mpi",
     "pytest-cov",
     "coverage",
+    "mkl-service",
 ]
 
 [project.urls]

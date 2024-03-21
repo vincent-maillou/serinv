@@ -11,6 +11,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import numpy as np
 import time
 from mpi4py import MPI
+import mkl
 
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
     lu_dist_tridiagonal_arrowhead_gpu,
@@ -105,6 +106,7 @@ if __name__ == "__main__":
                 headers = {}
                 headers["N_WARMUPS"] = N_WARMUPS
                 headers["N_RUNS"] = N_RUNS
+                headers["MKL_NUM_THREADS"] = mkl.get_max_threads()
                 headers["COMM_SIZE"] = comm_size
                 headers["COMM_RANK"] = comm_rank
                 headers["nblocks"] = nblocks

@@ -10,6 +10,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import numpy as np
 import time
+import mkl
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_arrays
@@ -23,9 +24,9 @@ if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
     l_nblocks = [32]
     # ----- Populate the diagonal blocksizes list HERE -----
-    l_diag_blocksize = [100]
+    l_diag_blocksize = [1000]
     # ----- Populate the arrow blocksizes list HERE -----
-    l_arrow_blocksize = [25]
+    l_arrow_blocksize = [250]
     symmetric = False
     diagonal_dominant = True
     seed = 63
@@ -81,6 +82,7 @@ if __name__ == "__main__":
                 headers = {}
                 headers["N_WARMUPS"] = N_WARMUPS
                 headers["N_RUNS"] = N_RUNS
+                headers["MKL_NUM_THREADS"] = mkl.get_max_threads()
                 headers["nblocks"] = nblocks
                 headers["blocksize"] = diag_blocksize
                 headers["arrow_blocksize"] = arrow_blocksize

@@ -10,6 +10,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import numpy as np
 import time
+import mkl
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
@@ -77,6 +78,7 @@ if __name__ == "__main__":
             headers = {}
             headers["N_WARMUPS"] = N_WARMUPS
             headers["N_RUNS"] = N_RUNS
+            headers["MKL_NUM_THREADS"] = mkl.get_max_threads()
             headers["nblocks"] = nblocks
             headers["blocksize"] = blocksize
             headers["symmetric"] = symmetric
