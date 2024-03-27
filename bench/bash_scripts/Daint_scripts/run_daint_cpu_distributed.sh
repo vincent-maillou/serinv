@@ -1,10 +1,10 @@
 #!/bin/bash -l
-#SBATCH --job-name="daint_gpu_sequential"
+#SBATCH --job-name="daint_cpu_distributed"
 #SBATCH --account="s1212"
 #SBATCH --mail-type=ALL
 ##SBATCH --mail-user=vmaillou@iis.ee.ethz.ch
-#SBATCH --time=00:05:00
-#SBATCH --nodes=1
+#SBATCH --time=00:30:00
+#SBATCH --nodes=128
 #SBATCH --ntasks-per-core=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
@@ -13,9 +13,7 @@
 #SBATCH --hint=nomultithread
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-export CRAY_CUDA_MPS=1
 
-file=../../performances/lu/gpu_versions/lu_factorize_tridiag_arrowhead_gpu_performances.py
-# file=../../performances/lu/gpu_versions/lu_sinv_tridiag_arrowhead_gpu_performances.py
+file=../../performances/lu_dist/lu_dist_tridiagonal_arrowhead_performances.py
 
-srun nvidia-smi
+srun -n $SLURM_JOB_NUM_NODES python ${file}

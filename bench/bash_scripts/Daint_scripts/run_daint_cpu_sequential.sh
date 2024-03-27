@@ -1,9 +1,9 @@
 #!/bin/bash -l
-#SBATCH --job-name="daint_gpu_sequential"
+#SBATCH --job-name="daint_cpu_sequential"
 #SBATCH --account="s1212"
 #SBATCH --mail-type=ALL
 ##SBATCH --mail-user=vmaillou@iis.ee.ethz.ch
-#SBATCH --time=00:30:00
+#SBATCH --time=00:20:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-core=1
 #SBATCH --ntasks-per-node=1
@@ -12,11 +12,9 @@
 #SBATCH --constraint=gpu
 #SBATCH --hint=nomultithread
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.2/lib64/
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-export CRAY_CUDA_MPS=1
 
-# file=../../performances/lu/gpu_versions/lu_factorize_tridiag_arrowhead_gpu_performances.py
-file=../../performances/lu/gpu_versions/lu_sinv_tridiag_arrowhead_gpu_performances.py
+# file=../../performances/lu/cpu_versions/lu_factorize_tridiag_arrowhead_performances.py
+file=../../performances/lu/cpu_versions/lu_sinv_tridiag_arrowhead_performances.py
 
 srun python ${file}
