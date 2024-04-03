@@ -31,6 +31,8 @@ if __name__ == "__main__":
 
     runs_timings = []
 
+    print("LU FACTORIZE TRIDIAG GPU")
+
     for nblocks in l_nblocks:
         for blocksize in l_blocksize:
 

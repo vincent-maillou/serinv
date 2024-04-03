@@ -30,6 +30,8 @@ if __name__ == "__main__":
 
     runs_timings = []
 
+    print("LU SINV TRIDIAG ARROWHEAD CPU")
+
     for nblocks in l_nblocks:
         for blocksize in l_blocksize:
 

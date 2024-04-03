@@ -21,17 +21,18 @@ from sdr.utils.dist_utils import (
     extract_bridges_tridiagonal_array,
 )
 
-PATH_TO_SAVE = "./"
+PATH_TO_SAVE = "/users/vmaillou/bench_SDR/Daint_benchs/Daint_cpu_benchs/weak_scalling_partition/"
+# PATH_TO_SAVE = "./"
 N_WARMUPS = 3
 N_RUNS = 10
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [32]
+    l_nblocks = []
     # ----- Populate the diagonal blocksizes list HERE -----
-    l_diag_blocksize = [100]
+    l_diag_blocksize = [1000]
     # ----- Populate the arrow blocksizes list HERE -----
-    l_arrow_blocksize = [25]
+    l_arrow_blocksize = [250]
     diagonal_dominant = True
     symmetric = False
     seed = 63
@@ -43,7 +44,11 @@ if __name__ == "__main__":
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
-    partition_sizes = [l_nblocks[i] // comm_size for i in range(len(l_nblocks))]
+    # STRONG SCALLING
+    # partition_sizes = [l_nblocks[i] // comm_size for i in range(len(l_nblocks))]
+
+    # WEAK SCALLING
+    partition_sizes = [256]
 
     for partition_size in partition_sizes:
         for diag_blocksize in l_diag_blocksize:

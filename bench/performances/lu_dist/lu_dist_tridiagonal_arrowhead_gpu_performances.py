@@ -30,15 +30,15 @@ PATH_TO_SAVE = "./"
 N_WARMUPS = 3
 N_RUNS = 10
 
-N_GPU_PER_NODE = 8
+N_GPU_PER_NODE = 1
 
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [32]
+    l_nblocks = [512]
     # ----- Populate the diagonal blocksizes list HERE -----
-    l_diag_blocksize = [100]
+    l_diag_blocksize = [600]
     # ----- Populate the arrow blocksizes list HERE -----
-    l_arrow_blocksize = [25]
+    l_arrow_blocksize = [100]
     diagonal_dominant = True
     symmetric = False
     seed = 63
@@ -52,7 +52,11 @@ if __name__ == "__main__":
 
     # set_device(comm_rank, N_GPU_PER_NODE)
 
-    partition_sizes = [l_nblocks[i] // comm_size for i in range(len(l_nblocks))]
+    # STRONG SCALLING
+    # partition_sizes = [l_nblocks[i] // comm_size for i in range(len(l_nblocks))]
+
+    # WEAK SCALLING
+    partition_sizes = [256]
 
     for partition_size in partition_sizes:
         for diag_blocksize in l_diag_blocksize:

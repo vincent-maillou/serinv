@@ -17,7 +17,7 @@ from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_gpu
 from sdr.lu.lu_selected_inversion_gpu import lu_sinv_tridiag_gpu
 from sdr.utils.matrix_generation import generate_tridiag_array
 
-PATH_TO_SAVE = "../../"
+PATH_TO_SAVE = "../"
 N_WARMUPS = 3
 N_RUNS = 10
 
@@ -32,6 +32,8 @@ if __name__ == "__main__":
     seed = 63
 
     runs_timings = []
+
+    print("LU SINV TRIDIAG GPU")
 
     for nblocks in l_nblocks:
         for blocksize in l_blocksize:

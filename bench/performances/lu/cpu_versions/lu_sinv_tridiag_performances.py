@@ -16,7 +16,7 @@ from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
 from sdr.utils.matrix_generation import generate_tridiag_array
 
-PATH_TO_SAVE = "../../"
+PATH_TO_SAVE = "../"
 N_WARMUPS = 3
 N_RUNS = 10
 
@@ -30,6 +30,8 @@ if __name__ == "__main__":
     seed = 63
 
     runs_timings = []
+
+    print("LU SINV TRIDIAG CPU")
 
     for nblocks in l_nblocks:
         for blocksize in l_blocksize:

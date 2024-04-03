@@ -17,23 +17,25 @@ from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
 from sdr.lu.lu_selected_inversion_gpu import lu_sinv_tridiag_arrowhead_gpu
 from sdr.utils.matrix_generation import generate_tridiag_arrowhead_arrays
 
-PATH_TO_SAVE = "../../"
+PATH_TO_SAVE = "/users/vmaillou/bench_SDR/Daint_benchs/Daint_gpu_benchs/weak_scalling_partition/"
 N_WARMUPS = 3
 N_RUNS = 10
 
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":
     # ----- Populate the blocks list HERE -----
-    l_nblocks = [32]
+    l_nblocks = [256]
     # ----- Populate the diagonal blocksizes list HERE -----
-    l_diag_blocksize = [100]
+    l_diag_blocksize = [600]
     # ----- Populate the arrow blocksizes list HERE -----
-    l_arrow_blocksize = [25]
+    l_arrow_blocksize = [100]
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
     runs_timings = []
+
+    print("LU SINV TRIDIAG ARROWHEAD GPU")
 
     for nblocks in l_nblocks:
         for diag_blocksize in l_diag_blocksize:
