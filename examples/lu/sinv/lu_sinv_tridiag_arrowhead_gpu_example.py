@@ -21,7 +21,7 @@ from sdr.utils.matrix_transform import (
     from_dense_to_arrowhead_arrays,
 )
 
-# Testing of block tridiagonal lu sinv
+# Example of block tridiagonal lu sinv
 if __name__ == "__main__":
     nblocks = 6
     diag_blocksize = 3

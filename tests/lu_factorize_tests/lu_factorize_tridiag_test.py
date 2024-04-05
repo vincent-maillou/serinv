@@ -19,7 +19,6 @@ from sdr.utils.matrix_transform import (
     from_tridiagonal_arrays_to_dense,
 )
 
-
 @pytest.mark.cpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
@@ -48,7 +47,7 @@ def test_lu_decompose_tridiag(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
-    # --- Decomposition ---
+    # --- Factorization LU ---
 
     P_ref, L_ref, U_ref = la.lu(A)
 
