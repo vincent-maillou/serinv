@@ -62,30 +62,32 @@ if __name__ == "__main__":
     # --- Solving ---
     B = np.random.randn(A.shape[0], n_rhs)
     X_ref = np.linalg.solve(A, B)
-    X_sdr = lu_solve_tridiag_arrowhead(
+    Y_sdr, X_sdr = lu_solve_tridiag_arrowhead(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         L_arrow_bottom_blocks,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
-        B, 
+        B,
     )
 
-    fig, ax = plt.subplots(1, 3)
+    fig, ax = plt.subplots(1, 4)
     ax[0].set_title("X_ref: Reference lu solver")
     ax[0].matshow(X_ref)
-    
-    ax[1].set_title("X_sdr: Selected lu solver")
-    ax[1].matshow(X_sdr)
+
+    ax[1].set_title("Y_sdr: Selected lu solver")
+    ax[1].matshow(Y_sdr)
+
+    ax[2].set_title("X_sdr: Selected lu solver")
+    ax[2].matshow(X_sdr)
 
     X_diff = X_ref - X_sdr
-    ax[2].set_title("X_diff: Difference between X_ref and X_sdr")
-    ax[2].matshow(X_diff)
-    fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
+    ax[3].set_title("X_diff: Difference between X_ref and X_sdr")
+    ax[3].matshow(X_diff)
+    fig.colorbar(ax[3].matshow(X_diff), ax=ax[3], label="Relative error", shrink=0.4)
 
     plt.show()
-
 
 
 # @pytest.mark.cpu
