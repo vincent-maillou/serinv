@@ -118,53 +118,44 @@ def lu_solve_tridiag_arrowhead(
     arrow_blocksize = L_arrow_bottom_blocks.shape[0]
     n_diag_blocks = (L_diagonal_blocks.shape[1] - arrow_blocksize) // diag_blocksize
     
-    Y[0:diag_blocksize, :] = la.solve_triangular(
-        L_diagonal_blocks[: , 0:diag_blocksize], 
-        B[0:diag_blocksize, :], 
-        lower=True,
+    Y[0:diag_blocksize] = la.solve_triangular(
+        L[0:diag_blocksize, 0:diag_blocksize], B[0:diag_blocksize], lower=True
     )
-    for i in range(1, n_diag_blocks):
+    for i in range(0, n_diag_blocks):
         # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
-        Y[i * diag_blocksize : (i + 1) * diag_blocksize, :] = la.solve_triangular(
-            L_diagonal_blocks[
-                :,
+        Y[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
+            L[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
                 i * diag_blocksize : (i + 1) * diag_blocksize,
             ],
-            B[i * diag_blocksize : (i + 1) * diag_blocksize, :]
-            - L_lower_diagonal_blocks[
-                :,
-                (i-1) * diag_blocksize : i * diag_blocksize,
+            B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            - L[
+                i * diag_blocksize : (i + 1) * diag_blocksize,
+                (i - 1) * diag_blocksize : i * diag_blocksize,
             ]
             @ Y[(i - 1) * diag_blocksize : (i) * diag_blocksize],
             lower=True,
         )
-    
-    # Accumulation of the arrowhead blocks
-    B_temp = B[-arrow_blocksize:, :]
-    for i in range(0, n_diag_blocks):
-        B_temp[:, :] = (
-            B_temp[:, :]
-            - L_arrow_bottom_blocks[: , i * diag_blocksize : (i + 1) * diag_blocksize]
-            @ Y[i * diag_blocksize : (i + 1) * diag_blocksize, :]
-        )
 
+    # Accumulation of the arrowhead blocks
+    B_temp = B[-arrow_blocksize:]
+    for i in range(n_diag_blocks):
+        B_temp = (
+            B_temp
+            - L[-arrow_blocksize:, i * diag_blocksize : (i + 1) * diag_blocksize]
+            @ Y[i * diag_blocksize : (i + 1) * diag_blocksize]
+        )
     # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
-    Y[-arrow_blocksize:, :] = la.solve_triangular(
-        L_arrow_bottom_blocks[:, -arrow_blocksize:], 
-        B_temp[:, :], 
-        lower=True,
+    Y[-arrow_blocksize:] = la.solve_triangular(
+        L[-arrow_blocksize:, -arrow_blocksize:], B_temp, lower=True
     )
 
-    
     # ----- Backward substitution -----
     # X_{ndb+1} = U_{ndb+1,ndb+1}^{-1} (Y_{ndb+1})
-    X[-arrow_blocksize:, :] = la.solve_triangular(
-        U_arrow_right_blocks[-arrow_blocksize:, :], 
-        Y[-arrow_blocksize:, :], 
-        lower=False,
+    X[-arrow_blocksize:] = la.solve_triangular(
+        U[-arrow_blocksize:, -arrow_blocksize:], Y[-arrow_blocksize:], lower=False
     )
 
-    """ 
     # X_{ndb} = U_{ndb,ndb}^{-1} (Y_{ndb} - U_{ndb,ndb+1} X_{ndb+1})
     X[-arrow_blocksize - diag_blocksize : -arrow_blocksize] = la.solve_triangular(
         U[
@@ -197,7 +188,7 @@ def lu_solve_tridiag_arrowhead(
             ],
             Y_temp,
             lower=False,
-        ) """
+        )
 
     return X
 
