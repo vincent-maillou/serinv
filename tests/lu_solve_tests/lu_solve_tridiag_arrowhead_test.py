@@ -11,10 +11,13 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-import scipy.linalg as la
 
-from sdr.lu.lu_solve import lu_slv_tridiag_arrowhead
+from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
+from sdr.lu.lu_solve import lu_solve_tridiag_arrowhead
 from sdr.utils import matrix_generation
+from sdr.utils.matrix_transform import (
+    from_dense_to_arrowhead_arrays,
+)
 
 # Testing of block tridiagonal lu
 if __name__ == "__main__":
@@ -24,30 +27,55 @@ if __name__ == "__main__":
     symmetric = True
     diagonal_dominant = True
     seed = 63
+    n_rhs = 1
 
     A = matrix_generation.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
-    # P_ref, L_ref, U_ref = la.lu(A)
-    lu_ref, p_ref = la.lu_factor(A)
-    L_sdr, U_sdr = lu_dcmp_tridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
+    # --- Factorization LU ---
+    (
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_upper_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_right_blocks,
+        A_arrow_tip_block,
+    ) = from_dense_to_arrowhead_arrays(A, diag_blocksize, arrow_blocksize)
 
-    n_rhs = 1
-    B = np.random.randn(A.shape[0], n_rhs)
+    (
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+        L_arrow_bottom_blocks,
+        U_diagonal_blocks,
+        U_upper_diagonal_blocks,
+        U_arrow_right_blocks,
+    ) = lu_factorize_tridiag_arrowhead(
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_upper_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_right_blocks,
+        A_arrow_tip_block,
+    )
 
     # --- Solving ---
-
-    X_ref = la.lu_solve((lu_ref, p_ref), B)
-    # Is equivalent to..
-    # Y_ref = la.solve_triangular(L_ref, B, lower=True)
-    # X_ref = la.solve_triangular(U_ref, Y_ref, lower=False)
+    B = np.random.randn(A.shape[0], n_rhs)
+    X_ref = np.linalg.solve(A, B)
+    X_sdr = lu_solve_tridiag_arrowhead(
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+        L_arrow_bottom_blocks,
+        U_diagonal_blocks,
+        U_upper_diagonal_blocks,
+        U_arrow_right_blocks,
+        B, 
+    )
 
     fig, ax = plt.subplots(1, 3)
     ax[0].set_title("X_ref: Reference lu solver")
     ax[0].matshow(X_ref)
-
-    X_sdr = lu_slv_tridiag_arrowhead(L_sdr, U_sdr, B, diag_blocksize, arrow_blocksize)
+    
     ax[1].set_title("X_sdr: Selected lu solver")
     ax[1].matshow(X_sdr)
 
@@ -57,6 +85,8 @@ if __name__ == "__main__":
     fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
+
+
 
 # @pytest.mark.cpu
 # @pytest.mark.mpi_skip()
