@@ -10,6 +10,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.linalg as la
 import pytest
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
@@ -32,6 +33,10 @@ if __name__ == "__main__":
     A = matrix_generation.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
+
+    A_cp = A.copy()
+
+    P, L, U = la.lu(A_cp)
 
     # --- Factorization LU ---
     (
@@ -61,6 +66,7 @@ if __name__ == "__main__":
 
     # --- Solving ---
     B = np.random.randn(A.shape[0], n_rhs)
+
     X_ref = np.linalg.solve(A, B)
     Y_sdr, X_sdr = lu_solve_tridiag_arrowhead(
         L_diagonal_blocks,
@@ -72,20 +78,36 @@ if __name__ == "__main__":
         B,
     )
 
+
+    Y_ref = la.solve_triangular(L, B, lower=True)
+    X_ref_2 = la.solve_triangular(U, Y_ref, lower=False)
+
+
     fig, ax = plt.subplots(1, 4)
+    ax[0].set_title("Y reference")
+    ax[0].matshow(Y_ref)
+
+    ax[1].set_title("Y SerinV")
+    ax[1].matshow(Y_sdr)
+
+    ax[2].set_title("X reference")
+    ax[2].matshow(X_ref)
+
+    ax[3].set_title("X SerinV")
+    ax[3].matshow(X_ref_2)
+
+
+    fig, ax = plt.subplots(1, 3)
     ax[0].set_title("X_ref: Reference lu solver")
     ax[0].matshow(X_ref)
 
-    ax[1].set_title("Y_sdr: Selected lu solver")
-    ax[1].matshow(Y_sdr)
-
-    ax[2].set_title("X_sdr: Selected lu solver")
-    ax[2].matshow(X_sdr)
+    ax[1].set_title("X_sdr: Selected lu solver")
+    ax[1].matshow(X_sdr)
 
     X_diff = X_ref - X_sdr
-    ax[3].set_title("X_diff: Difference between X_ref and X_sdr")
-    ax[3].matshow(X_diff)
-    fig.colorbar(ax[3].matshow(X_diff), ax=ax[3], label="Relative error", shrink=0.4)
+    ax[2].set_title("X_diff: Difference between X_ref and X_sdr")
+    ax[2].matshow(X_diff)
+    fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
 
