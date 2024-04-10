@@ -150,19 +150,6 @@ def lu_solve_tridiag_arrowhead(
             lower=True,
         )
 
-
-    """ 
-    # OLD CODE THAT DO THE SAME ACCUMULATION BUT IN A LOOP
-    # Accumulation of the arrowhead blocks
-    B_tip_rhs = np.zeros((arrow_blocksize, n_rhs), dtype=B.dtype)
-    B_tip_rhs[:,:] = B[-arrow_blocksize:, :]
-    for i in range(0, n_diag_blocks):
-        B_tip_rhs[:,:] = (
-            B_tip_rhs[:,:]
-            + L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            @ Y[i * diag_blocksize : (i + 1) * diag_blocksize, :]
-        ) """
-
     # Accumulation of the arrowhead blocks
     # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i))
     B_tip_rhs = B[-arrow_blocksize:, :] - L_arrow_bottom_blocks[:, 0:-arrow_blocksize] @ Y[0:-arrow_blocksize, :]
@@ -172,7 +159,6 @@ def lu_solve_tridiag_arrowhead(
         B_tip_rhs[:,:], 
         lower=True,
     )
-
 
     # # ----- Backward substitution -----
     # # X_{ndb+1} = U_{ndb+1,ndb+1}^{-1} (Y_{ndb+1})

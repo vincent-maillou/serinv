@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as la
 import pytest
+import copy as cp
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.lu.lu_solve import lu_solve_tridiag_arrowhead
@@ -33,6 +34,8 @@ if __name__ == "__main__":
     A = matrix_generation.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
+
+    A_copy = cp.deepcopy(A)
 
     # --- Factorization LU ---
     (
@@ -89,14 +92,14 @@ if __name__ == "__main__":
         B,
     )
 
-    X_solve_ref = np.linalg.solve(A, B)
+    # X_solve_ref = np.linalg.solve(A_copy, B)
 
-    P, L, U = la.lu(A)
+    P, L, U = la.lu(A_copy)
 
     Y_L_solve_ref = la.solve_triangular(L, B, lower=True)
     X_U_solve_ref = la.solve_triangular(U, Y_L_solve_ref, lower=False)
 
-    A_inv_ref = la.inv(A)
+    A_inv_ref = la.inv(A_copy)
     X_inv_ref = A_inv_ref @ B
 
 
