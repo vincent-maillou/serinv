@@ -15,7 +15,7 @@ from mpi4py import MPI
 
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
 from sdr.utils import dist_utils, matrix_generation_dense
-from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
+from sdr.utils.matrix_transformation import from_dense_to_arrowhead_arrays
 
 if __name__ == "__main__":
     nblocks = 10

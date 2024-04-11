@@ -14,7 +14,7 @@ import scipy.linalg as la
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transform import (
+from sdr.utils.matrix_transformation import (
     from_dense_to_tridiagonal_arrays,
     from_tridiagonal_arrays_to_dense,
 )
