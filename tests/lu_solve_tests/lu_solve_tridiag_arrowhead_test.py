@@ -63,22 +63,6 @@ if __name__ == "__main__":
         A_arrow_tip_block,
     )
 
-    fig, ax = plt.subplots(2, 3)
-    ax[0, 0].set_title("L_diagonal_blocks")
-    ax[0, 0].matshow(L_diagonal_blocks)
-    ax[0, 1].set_title("L_lower_diagonal_blocks")
-    ax[0, 1].matshow(L_lower_diagonal_blocks)
-    ax[0, 2].set_title("L_arrow_bottom_blocks")
-    ax[0, 2].matshow(L_arrow_bottom_blocks)
-
-    ax[1, 0].set_title("U_diagonal_blocks")
-    ax[1, 0].matshow(U_diagonal_blocks)
-    ax[1, 1].set_title("U_upper_diagonal_blocks")
-    ax[1, 1].matshow(U_upper_diagonal_blocks)
-    ax[1, 2].set_title("U_arrow_right_blocks")
-    ax[1, 2].matshow(U_arrow_right_blocks)
-    plt.show()
-
     # --- Solving ---
     B = np.random.randn(A.shape[0], n_rhs)
 
@@ -92,52 +76,52 @@ if __name__ == "__main__":
         B,
     )
 
-    # X_solve_ref = np.linalg.solve(A_copy, B)
+    X_solve_ref = np.linalg.solve(A_copy, B)
 
-    P, L, U = la.lu(A_copy)
+    # P, L, U = la.lu(A_copy)
 
-    Y_L_solve_ref = la.solve_triangular(L, B, lower=True)
-    X_U_solve_ref = la.solve_triangular(U, Y_L_solve_ref, lower=False)
+    # Y_L_solve_ref = la.solve_triangular(L, B, lower=True)
+    # X_U_solve_ref = la.solve_triangular(U, Y_L_solve_ref, lower=False)
 
-    A_inv_ref = la.inv(A_copy)
-    X_inv_ref = A_inv_ref @ B
+    # A_inv_ref = la.inv(A_copy)
+    # X_inv_ref = A_inv_ref @ B
 
 
-    """ fig, ax = plt.subplots(1, 3)
-    fig.suptitle("Reference X comparison")
-    ax[0].set_title("X_solve_ref")
-    ax[0].matshow(X_solve_ref)
-    ax[1].set_title("X_U_solve_ref")
-    ax[1].matshow(X_U_solve_ref)
-    ax[2].set_title("X_inv_ref")
-    ax[2].matshow(X_inv_ref)
-    plt.show() """
+    # fig, ax = plt.subplots(1, 3)
+    # fig.suptitle("Reference X comparison")
+    # ax[0].set_title("X_solve_ref")
+    # ax[0].matshow(X_solve_ref)
+    # ax[1].set_title("X_U_solve_ref")
+    # ax[1].matshow(X_U_solve_ref)
+    # ax[2].set_title("X_inv_ref")
+    # ax[2].matshow(X_inv_ref)
+    # plt.show()
 
-    fig, ax = plt.subplots(1, 3)
-    fig.suptitle("")
-    ax[0].set_title("Y_L_solve_ref")
-    ax[0].matshow(Y_L_solve_ref)
-    ax[1].set_title("Y_sdr")
-    ax[1].matshow(Y_sdr)
-    Y_diff = Y_L_solve_ref - Y_sdr
-    ax[2].set_title("Y_diff")
-    ax[2].matshow(Y_diff)
-    plt.show()
+    # fig, ax = plt.subplots(1, 3)
+    # fig.suptitle("")
+    # ax[0].set_title("Y_L_solve_ref")
+    # ax[0].matshow(Y_L_solve_ref)
+    # ax[1].set_title("Y_sdr")
+    # ax[1].matshow(Y_sdr)
+    # Y_diff = Y_L_solve_ref - Y_sdr
+    # ax[2].set_title("Y_diff")
+    # ax[2].matshow(Y_diff)
+    # plt.show()
 
     # np.testing.assert_allclose(Y_L_solve_ref, Y_sdr)
 
 
-    """ fig, ax = plt.subplots(1, 3)
-    ax[0].set_title("X_ref: Reference lu solver")
-    ax[0].matshow(X_ref)
+    fig, ax = plt.subplots(1, 3)
+    ax[0].set_title("X_solve_ref: Reference lu solver")
+    ax[0].matshow(X_solve_ref)
 
     ax[1].set_title("X_sdr: Selected lu solver")
     ax[1].matshow(X_sdr)
 
-    X_diff = X_ref - X_sdr
-    ax[2].set_title("X_diff: Difference between X_ref and X_sdr")
+    X_diff = X_solve_ref - X_sdr
+    ax[2].set_title("X_diff: Difference between X_solve_ref and X_sdr")
     ax[2].matshow(X_diff)
-    fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4) """
+    fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
 
     plt.show()
 
