@@ -9,8 +9,9 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 import numpy as np
-
-from sdr.utils import matrix_transformation as mt
+from sdr.utils.matrix_transformation import (
+    make_diagonally_dominante_dense,
+)
 
 
 def generate_tridiag_dense(
@@ -64,7 +65,7 @@ def generate_tridiag_dense(
         A = A + A.T
 
     if diagonal_dominant:
-        A = mt.make_diagonally_dominante_dense(A)
+        A = make_diagonally_dominante_dense(A)
 
     return A
 
@@ -145,7 +146,7 @@ def generate_tridiag_arrowhead_dense(
         A = A + A.T
 
     if diagonal_dominant:
-        A = mt.make_diagonally_dominante_dense(A)
+        A = make_diagonally_dominante_dense(A)
 
     return A
 
@@ -222,7 +223,7 @@ def generate_block_ndiags_dense(
         A = A + A.T
 
     if diagonal_dominant:
-        A = mt.make_diagonally_dominante_dense(A)
+        A = make_diagonally_dominante_dense(A)
 
     return A
 
@@ -316,6 +317,6 @@ def generate_ndiags_arrowhead_dense(
         A = A + A.T
 
     if diagonal_dominant:
-        A = mt.make_diagonally_dominante_dense(A)
+        A = make_diagonally_dominante_dense(A)
 
     return A

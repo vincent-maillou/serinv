@@ -9,8 +9,11 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 import numpy as np
-
-from sdr.utils import matrix_transformation as mt
+from sdr.utils.matrix_transformation import (
+    make_symmetric_tridiagonal_arrays,
+    make_diagonally_dominante_tridiagonal_arrays,
+    make_diagonally_dominante_tridiagonal_arrowhead_arrays,
+)
 
 
 def generate_tridiag_array(
@@ -70,12 +73,12 @@ def generate_tridiag_array(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
             A_upper_diagonal_blocks,
-        ) = mt.make_symmetric_tridiagonal_arrays(
+        ) = make_symmetric_tridiagonal_arrays(
             A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
         )
 
     if diagonal_dominant:
-        A_diagonal_blocks = mt.make_diagonally_dominante_tridiagonal_arrays(
+        A_diagonal_blocks = make_diagonally_dominante_tridiagonal_arrays(
             A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks
         )
 
@@ -151,7 +154,7 @@ def generate_tridiag_arrowhead_arrays(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
             A_upper_diagonal_blocks,
-        ) = mt.make_symmetric_tridiagonal_arrays(
+        ) = make_symmetric_tridiagonal_arrays(
             A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
         )
 
@@ -163,7 +166,9 @@ def generate_tridiag_arrowhead_arrays(
         A_arrow_tip_block += A_arrow_tip_block.T
 
     if diagonal_dominant:
-        (A_diagonal_blocks) = mt.make_diagonally_dominante_tridiagonal_arrowhead_arrays(
+        (
+            A_diagonal_blocks
+        ) = make_diagonally_dominante_tridiagonal_arrowhead_arrays(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
             A_upper_diagonal_blocks,
