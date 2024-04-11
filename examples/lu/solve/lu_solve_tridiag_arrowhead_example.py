@@ -1,15 +1,15 @@
 """
 @author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
 @author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2023-11
+@date: 2024-02
 
-Tests for lu selected solving routines.
+Example for lu tridiagonal matrices selected factorization routine.
 
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 import copy as cp
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
@@ -19,31 +19,15 @@ from sdr.utils.matrix_transform import (
     from_dense_to_arrowhead_arrays,
 )
 
-
-@pytest.mark.cpu
-@pytest.mark.mpi_skip()
-@pytest.mark.parametrize(
-    "nblocks, diag_blocksize, arrow_blocksize, n_rhs",
-    [
-        (2, 2, 2, 1),
-        (2, 3, 2, 2),
-        (2, 2, 3, 5),
-        (10, 2, 2, 1),
-        (10, 3, 2, 4),
-        (10, 2, 3, 8),
-        (10, 10, 2, 1),
-        (10, 2, 10, 1),
-    ]
-)
-def test_lu_slv_tridiag_arrowhead(
-    nblocks: int,
-    diag_blocksize: int,
-    arrow_blocksize: int,
-    n_rhs: int,
-):
+# Example of block tridiagonal lu
+if __name__ == "__main__":
+    nblocks = 5
+    diag_blocksize = 3
+    arrow_blocksize = 2
     symmetric = False
     diagonal_dominant = True
     seed = 63
+    n_rhs = 1
 
     A = matrix_generation.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
@@ -92,4 +76,16 @@ def test_lu_slv_tridiag_arrowhead(
 
     X_solve_ref = np.linalg.solve(A_copy, B)
 
-    np.testing.assert_allclose(X_solve_ref, X_sdr)
+    fig, ax = plt.subplots(1, 3)
+    ax[0].set_title("X_solve_ref: Reference lu solver")
+    ax[0].matshow(X_solve_ref)
+
+    ax[1].set_title("X_sdr: Selected lu solver")
+    ax[1].matshow(X_sdr)
+
+    X_diff = X_solve_ref - X_sdr
+    ax[2].set_title("X_diff: Difference between X_solve_ref and X_sdr")
+    ax[2].matshow(X_diff)
+    fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
+
+    plt.show()
