@@ -17,9 +17,9 @@ from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
 from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transformation_dense import (
     cut_to_blocktridiag,
-    from_dense_to_tridiagonal_arrays,
     from_tridiagonal_arrays_to_dense,
 )
+from sdr.utils.matrix_transformation_arrays import from_dense_to_tridiagonal_arrays
 
 
 @pytest.mark.cpu

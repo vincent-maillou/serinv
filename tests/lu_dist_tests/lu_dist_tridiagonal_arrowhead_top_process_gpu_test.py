@@ -26,7 +26,7 @@ except ImportError:
     pass
 
 from sdr.utils.matrix_generation_dense import generate_tridiag_arrowhead_dense
-from sdr.utils.matrix_transformation_dense import from_dense_to_arrowhead_arrays
+from sdr.utils.matrix_transformation_arrays import from_dense_to_arrowhead_arrays
 
 
 @pytest.mark.skipif(

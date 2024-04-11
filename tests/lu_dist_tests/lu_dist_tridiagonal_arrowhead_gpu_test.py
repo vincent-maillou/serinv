@@ -24,8 +24,13 @@ try:
 except ImportError:
     pass
 
-from sdr.utils import dist_utils, matrix_generation_dense
-from sdr.utils.matrix_transformation_dense import from_dense_to_arrowhead_arrays
+from sdr.utils.dist_utils import(
+    get_partitions_indices,
+    extract_partition_tridiagonal_arrowhead_array,
+    extract_bridges_tridiagonal_array,
+)
+from sdr.utils import matrix_generation_dense
+from sdr.utils.matrix_transformation_arrays import from_dense_to_arrowhead_arrays
 
 environ["OMP_NUM_THREADS"] = "1"
 
@@ -72,7 +77,7 @@ def test_lu_dist(
         start_blockrows,
         partition_sizes,
         end_blockrows,
-    ) = dist_utils.get_partitions_indices(
+    ) = get_partitions_indices(
         n_partitions=comm_size, total_size=nblocks - 1
     )
 
@@ -97,7 +102,7 @@ def test_lu_dist(
         X_ref_arrow_bottom_blocks_local,
         X_ref_arrow_right_blocks_local,
         X_ref_arrow_tip_block_local,
-    ) = dist_utils.extract_partition_tridiagonal_arrowhead_array(
+    ) = extract_partition_tridiagonal_arrowhead_array(
         X_ref_diagonal_blocks,
         X_ref_lower_diagonal_blocks,
         X_ref_upper_diagonal_blocks,
@@ -111,7 +116,7 @@ def test_lu_dist(
     (
         X_ref_bridges_lower,
         X_ref_bridges_upper,
-    ) = dist_utils.extract_bridges_tridiagonal_array(
+    ) = extract_bridges_tridiagonal_array(
         X_ref_lower_diagonal_blocks, X_ref_upper_diagonal_blocks, start_blockrows
     )
     # -----------------------------------
@@ -132,7 +137,7 @@ def test_lu_dist(
         A_arrow_bottom_blocks_local,
         A_arrow_right_blocks_local,
         A_arrow_tip_block_local,
-    ) = dist_utils.extract_partition_tridiagonal_arrowhead_array(
+    ) = extract_partition_tridiagonal_arrowhead_array(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
@@ -143,7 +148,7 @@ def test_lu_dist(
         partition_sizes[comm_rank],
     )
 
-    (A_bridges_lower, A_bridges_upper) = dist_utils.extract_bridges_tridiagonal_array(
+    (A_bridges_lower, A_bridges_upper) = extract_bridges_tridiagonal_array(
         A_lower_diagonal_blocks, A_upper_diagonal_blocks, start_blockrows
     )
 

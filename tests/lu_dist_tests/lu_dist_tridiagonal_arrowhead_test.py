@@ -17,7 +17,7 @@ from mpi4py import MPI
 
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
 from sdr.utils import dist_utils, matrix_generation_dense
-from sdr.utils.matrix_transformation_dense import from_dense_to_arrowhead_arrays
+from sdr.utils.matrix_transformation_arrays import from_dense_to_arrowhead_arrays
 
 environ["OMP_NUM_THREADS"] = "1"
 
