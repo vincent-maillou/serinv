@@ -14,7 +14,7 @@ import copy as cp
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.lu.lu_solve import lu_solve_tridiag_arrowhead
-from sdr.utils import matrix_generation
+from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transform import (
     from_dense_to_arrowhead_arrays,
 )
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     seed = 63
     n_rhs = 1
 
-    A = matrix_generation.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 

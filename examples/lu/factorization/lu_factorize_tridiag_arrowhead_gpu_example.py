@@ -13,7 +13,7 @@ import numpy as np
 import scipy.linalg as la
 
 from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
-from sdr.utils import matrix_generation
+from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transform import (
     from_arrowhead_arrays_to_dense,
     from_dense_to_arrowhead_arrays,
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 

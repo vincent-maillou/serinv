@@ -15,7 +15,7 @@ import scipy.linalg as la
 
 from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag_arrowhead
 from sdr.cholesky.cholesky_selected_inversion import chol_sinv_tridiag_arrowhead
-from sdr.utils import matrix_generation
+from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transform import cut_to_blocktridiag_arrowhead
 
 # Testing of block tridiagonal cholesky sinv
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -78,7 +78,7 @@ def test_cholesky_sinv_tridiag_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 

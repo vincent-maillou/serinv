@@ -14,7 +14,7 @@ import scipy.linalg as la
 
 from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
-from sdr.utils import matrix_generation
+from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transform import (
     cut_to_blocktridiag,
     from_dense_to_tridiagonal_arrays,
@@ -46,7 +46,7 @@ def test_lu_sinv_tridiag(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_tridiag_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 

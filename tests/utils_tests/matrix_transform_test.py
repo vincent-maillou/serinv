@@ -11,7 +11,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sdr.utils import matrix_generation, matrix_transform
+from sdr.utils import matrix_generation_dense, matrix_transform
 
 if __name__ == "__main__":
     nblocks = 5
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_tridiag_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 

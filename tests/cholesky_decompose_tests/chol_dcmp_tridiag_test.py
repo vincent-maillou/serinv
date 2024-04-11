@@ -14,7 +14,7 @@ import pytest
 import scipy.linalg as la
 
 from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag
-from sdr.utils import matrix_generation
+from sdr.utils import matrix_generation_dense
 
 # Testing of block tridiagonal cholesky
 if __name__ == "__main__":
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_tridiag_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -80,7 +80,7 @@ def test_cholesky_decompose_tridiag(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_tridiag_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 

@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import middle_factorize, middle_sinv
-from sdr.utils.matrix_generation import generate_tridiag_arrowhead_dense
+from sdr.utils.matrix_generation_dense import generate_tridiag_arrowhead_dense
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
 

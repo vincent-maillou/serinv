@@ -15,7 +15,7 @@ import scipy.linalg as la
 
 from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
 from sdr.lu.lu_selected_inversion import lu_sinv_ndiags_arrowhead
-from sdr.utils import matrix_generation
+from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transform import cut_to_blockndiags_arrowhead
 
 # Testing of block tridiagonal lu sinv
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_ndiags_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,
@@ -85,7 +85,7 @@ def test_sinv_decompose_ndiags_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_ndiags_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,

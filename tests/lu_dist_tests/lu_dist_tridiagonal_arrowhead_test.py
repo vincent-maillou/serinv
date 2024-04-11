@@ -16,7 +16,7 @@ import pytest
 from mpi4py import MPI
 
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
-from sdr.utils import dist_utils, matrix_generation
+from sdr.utils import dist_utils, matrix_generation_dense
 from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
 
 environ["OMP_NUM_THREADS"] = "1"
@@ -53,7 +53,7 @@ def test_lu_dist(
     if nblocks // comm_size < 3:
         pytest.skip("Not enough blocks for the number of processes. Skipping test.")
 
-    A = matrix_generation.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
