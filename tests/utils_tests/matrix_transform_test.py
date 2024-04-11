@@ -11,7 +11,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sdr.utils import matrix_generation_dense, matrix_transformation
+from sdr.utils import matrix_generation_dense, matrix_transformation_dense
 
 if __name__ == "__main__":
     nblocks = 5
@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     plt.matshow(A_inv)
 
-    A_cut = matrix_transformation.cut_to_blocktridiag(A_inv, blocksize)
+    A_cut = matrix_transformation_dense.cut_to_blocktridiag(A_inv, blocksize)
 
     plt.matshow(A_cut)
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     plt.matshow(A_inv)
 
-    A_cut = matrix_transformation.cut_to_blocktridiag_arrowhead(
+    A_cut = matrix_transformation_dense.cut_to_blocktridiag_arrowhead(
         A_inv, diag_blocksize, arrow_blocksize
     )
 

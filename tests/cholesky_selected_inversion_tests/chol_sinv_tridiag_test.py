@@ -16,7 +16,7 @@ import scipy.linalg as la
 from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag
 from sdr.cholesky.cholesky_selected_inversion import chol_sinv_tridiag
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation import cut_to_blocktridiag
+from sdr.utils.matrix_transformation_dense import cut_to_blocktridiag
 
 # Testing of block tridiagonal cholesky sinv
 if __name__ == "__main__":

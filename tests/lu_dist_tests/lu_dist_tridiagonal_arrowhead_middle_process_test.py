@@ -16,7 +16,7 @@ import pytest
 
 from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import middle_factorize, middle_sinv
 from sdr.utils.matrix_generation_dense import generate_tridiag_arrowhead_dense
-from sdr.utils.matrix_transformation import from_dense_to_arrowhead_arrays
+from sdr.utils.matrix_transformation_dense import from_dense_to_arrowhead_arrays
 
 
 @pytest.mark.cpu

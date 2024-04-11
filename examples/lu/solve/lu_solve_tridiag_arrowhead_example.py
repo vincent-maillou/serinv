@@ -15,7 +15,7 @@ import copy as cp
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.lu.lu_solve import lu_solve_tridiag_arrowhead
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation import (
+from sdr.utils.matrix_transformation_dense import (
     from_dense_to_arrowhead_arrays,
 )
 

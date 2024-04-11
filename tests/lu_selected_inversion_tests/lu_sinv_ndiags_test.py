@@ -16,7 +16,7 @@ import scipy.linalg as la
 from sdr.lu.lu_decompose import lu_dcmp_ndiags
 from sdr.lu.lu_selected_inversion import lu_sinv_ndiags
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation import cut_to_block_ndiags
+from sdr.utils.matrix_transformation_dense import cut_to_block_ndiags
 
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":

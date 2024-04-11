@@ -22,7 +22,7 @@ except ImportError:
     pass
 
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation import (
+from sdr.utils.matrix_transformation_dense import (
     cut_to_blocktridiag_arrowhead,
     from_arrowhead_arrays_to_dense,
     from_dense_to_arrowhead_arrays,

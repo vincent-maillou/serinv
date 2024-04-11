@@ -21,7 +21,7 @@ except ImportError:
     pass
 
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation import (
+from sdr.utils.matrix_transformation_dense import (
     from_arrowhead_arrays_to_dense,
     from_dense_to_arrowhead_arrays,
 )

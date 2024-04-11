@@ -25,7 +25,7 @@ except ImportError:
     pass
 
 from sdr.utils import dist_utils, matrix_generation_dense
-from sdr.utils.matrix_transformation import from_dense_to_arrowhead_arrays
+from sdr.utils.matrix_transformation_dense import from_dense_to_arrowhead_arrays
 
 environ["OMP_NUM_THREADS"] = "1"
 

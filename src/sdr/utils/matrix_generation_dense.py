@@ -9,7 +9,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 import numpy as np
-from sdr.utils.matrix_transformation import (
+from sdr.utils.matrix_transformation_dense import (
     make_diagonally_dominante_dense,
 )
 

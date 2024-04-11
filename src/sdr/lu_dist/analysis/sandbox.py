@@ -4,7 +4,7 @@ import numpy as np
 from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
 from sdr.lu.lu_selected_inversion import lu_sinv_ndiags_arrowhead
 from sdr.utils.matrix_generation_dense import generate_tridiag_arrowhead_dense
-from sdr.utils.matrix_transformation import cut_to_blocktridiag_arrowhead
+from sdr.utils.matrix_transformation_dense import cut_to_blocktridiag_arrowhead
 
 
 def create_permutation_matrix(
