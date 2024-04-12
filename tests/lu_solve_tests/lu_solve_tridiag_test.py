@@ -14,7 +14,10 @@ import pytest
 from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.lu.lu_solve import lu_solve_tridiag
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import from_dense_to_tridiagonal_arrays
+from sdr.utils.matrix_transformation_arrays import (
+    convert_block_tridiagonal_dense_to_arrays,
+)
+
 
 @pytest.mark.cpu
 @pytest.mark.mpi_skip()
@@ -30,18 +33,14 @@ from sdr.utils.matrix_transformation_arrays import from_dense_to_tridiagonal_arr
         (2, 100, 5),
         (5, 100, 2),
         (10, 100, 1),
-    ]
+    ],
 )
-def test_lu_solve_tridiag(
-    nblocks: int,
-    blocksize: int,
-    n_rhs: int
-):
+def test_lu_solve_tridiag(nblocks: int, blocksize: int, n_rhs: int):
     symmetric = False
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -50,7 +49,7 @@ def test_lu_solve_tridiag(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
-    ) = from_dense_to_tridiagonal_arrays(A, blocksize)
+    ) = convert_block_tridiagonal_dense_to_arrays(A, blocksize)
 
     (
         L_diagonal_blocks,
@@ -71,7 +70,7 @@ def test_lu_solve_tridiag(
         L_lower_diagonal_blocks,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
-        B, 
+        B,
     )
 
     assert np.allclose(X_ref, X_sdr)

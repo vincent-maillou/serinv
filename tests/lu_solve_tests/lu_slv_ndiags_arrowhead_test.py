@@ -27,7 +27,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_blocks_banded_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,
@@ -97,7 +97,7 @@ def test_lu_slv_ndiags_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_blocks_banded_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,

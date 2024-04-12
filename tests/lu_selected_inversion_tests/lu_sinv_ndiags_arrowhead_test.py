@@ -16,7 +16,7 @@ import scipy.linalg as la
 from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
 from sdr.lu.lu_selected_inversion import lu_sinv_ndiags_arrowhead
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_dense import cut_to_blockndiags_arrowhead
+from sdr.utils.matrix_transformation_dense import zeros_to_blocks_banded_arrowhead_shape
 
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_blocks_banded_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,
@@ -41,7 +41,9 @@ if __name__ == "__main__":
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blockndiags_arrowhead(X_ref, ndiags, diag_blocksize, arrow_blocksize)
+    X_ref = zeros_to_blocks_banded_arrowhead_shape(
+        X_ref, ndiags, diag_blocksize, arrow_blocksize
+    )
 
     L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
 
@@ -85,7 +87,7 @@ def test_sinv_decompose_ndiags_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_blocks_banded_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,
@@ -98,7 +100,9 @@ def test_sinv_decompose_ndiags_arrowhead(
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blockndiags_arrowhead(X_ref, ndiags, diag_blocksize, arrow_blocksize)
+    X_ref = zeros_to_blocks_banded_arrowhead_shape(
+        X_ref, ndiags, diag_blocksize, arrow_blocksize
+    )
 
     L_sdr, U_sdr = lu_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
     X_sdr = lu_sinv_ndiags_arrowhead(

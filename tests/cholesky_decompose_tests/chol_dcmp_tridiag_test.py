@@ -24,7 +24,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -80,7 +80,7 @@ def test_cholesky_decompose_tridiag(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 

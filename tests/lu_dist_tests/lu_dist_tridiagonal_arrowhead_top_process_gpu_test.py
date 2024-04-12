@@ -25,8 +25,10 @@ try:
 except ImportError:
     pass
 
-from sdr.utils.matrix_generation_dense import generate_tridiag_arrowhead_dense
-from sdr.utils.matrix_transformation_arrays import from_dense_to_arrowhead_arrays
+from sdr.utils.matrix_generation_dense import generate_block_tridiagonal_arrowhead_dense
+from sdr.utils.matrix_transformation_arrays import (
+    convert_block_tridiagonal_arrowhead_dense_to_arrays,
+)
 
 
 @pytest.mark.skipif(
@@ -56,7 +58,7 @@ def test_lu_dist_top_process(
     symmetric = False
     seed = 63
 
-    A = generate_tridiag_arrowhead_dense(
+    A = generate_block_tridiagonal_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -72,7 +74,9 @@ def test_lu_dist_top_process(
         X_ref_arrow_bottom_blocks,
         X_ref_arrow_right_blocks,
         X_ref_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(X_ref, diag_blocksize, arrow_blocksize)
+    ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
+        X_ref, diag_blocksize, arrow_blocksize
+    )
     # ---------------------
 
     (
@@ -82,7 +86,9 @@ def test_lu_dist_top_process(
         A_arrow_bottom_blocks,
         A_arrow_right_blocks,
         A_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(A, diag_blocksize, arrow_blocksize)
+    ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
+        A, diag_blocksize, arrow_blocksize
+    )
 
     (
         L_diagonal_blocks,

@@ -16,7 +16,7 @@ import scipy.linalg as la
 from sdr.cholesky.cholesky_decompose import chol_dcmp_tridiag
 from sdr.cholesky.cholesky_selected_inversion import chol_sinv_tridiag
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_dense import cut_to_blocktridiag
+from sdr.utils.matrix_transformation_dense import zeros_to_block_tridiagonal_shape
 
 # Testing of block tridiagonal cholesky sinv
 if __name__ == "__main__":
@@ -26,14 +26,14 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blocktridiag(X_ref, blocksize)
+    X_ref = zeros_to_block_tridiagonal_shape(X_ref, blocksize)
 
     L_sdr = chol_dcmp_tridiag(A, blocksize)
 
@@ -77,14 +77,14 @@ def test_cholesky_sinv_tridiag(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blocktridiag(X_ref, blocksize)
+    X_ref = zeros_to_block_tridiagonal_shape(X_ref, blocksize)
 
     L_sdr = chol_dcmp_tridiag(A, blocksize)
     X_sdr = chol_sinv_tridiag(L_sdr, blocksize)

@@ -15,8 +15,8 @@ import scipy.linalg as la
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transformation_dense import (
-    from_arrowhead_arrays_to_dense,
-    from_dense_to_arrowhead_arrays,
+    convert_block_tridiagonal_arrowhead_arrays_to_dense,
+    convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 
 # Example of block tridiagonal arrowhead lu
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -47,7 +47,9 @@ if __name__ == "__main__":
         A_arrow_bottom_blocks,
         A_arrow_right_blocks,
         A_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(A, diag_blocksize, arrow_blocksize)
+    ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
+        A, diag_blocksize, arrow_blocksize
+    )
 
     (
         L_diagonal_blocks,
@@ -65,7 +67,7 @@ if __name__ == "__main__":
         A_arrow_tip_block,
     )
 
-    L_sdr = from_arrowhead_arrays_to_dense(
+    L_sdr = convert_block_tridiagonal_arrowhead_arrays_to_dense(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         np.zeros((diag_blocksize, (nblocks - 1) * diag_blocksize)),
@@ -74,7 +76,7 @@ if __name__ == "__main__":
         L_arrow_bottom_blocks[:, -arrow_blocksize:],
     )
 
-    U_sdr = from_arrowhead_arrays_to_dense(
+    U_sdr = convert_block_tridiagonal_arrowhead_arrays_to_dense(
         U_diagonal_blocks,
         np.zeros((diag_blocksize, (nblocks - 1) * diag_blocksize)),
         U_upper_diagonal_blocks,

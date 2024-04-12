@@ -15,7 +15,7 @@ from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.lu.lu_solve import lu_solve_tridiag
 from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transformation_dense import (
-    from_dense_to_tridiagonal_arrays,
+    convert_block_tridiagonal_dense_to_arrays,
 )
 
 # Example of block tridiagonal lu
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     seed = 63
     n_rhs = 1
 
-    A = matrix_generation_dense.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
-    ) = from_dense_to_tridiagonal_arrays(A, blocksize)
+    ) = convert_block_tridiagonal_dense_to_arrays(A, blocksize)
 
     (
         L_diagonal_blocks,
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         L_lower_diagonal_blocks,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
-        B, 
+        B,
     )
     ax[1].set_title("X_sdr: Selected lu solver")
     ax[1].matshow(X_sdr)

@@ -15,7 +15,9 @@ import copy as cp
 from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from sdr.lu.lu_solve import lu_solve_tridiag_arrowhead
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import from_dense_to_arrowhead_arrays
+from sdr.utils.matrix_transformation_arrays import (
+    convert_block_tridiagonal_arrowhead_dense_to_arrays,
+)
 
 
 @pytest.mark.cpu
@@ -31,7 +33,7 @@ from sdr.utils.matrix_transformation_arrays import from_dense_to_arrowhead_array
         (10, 2, 3, 8),
         (10, 10, 2, 1),
         (10, 2, 10, 1),
-    ]
+    ],
 )
 def test_lu_slv_tridiag_arrowhead(
     nblocks: int,
@@ -43,7 +45,7 @@ def test_lu_slv_tridiag_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -57,7 +59,9 @@ def test_lu_slv_tridiag_arrowhead(
         A_arrow_bottom_blocks,
         A_arrow_right_blocks,
         A_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(A, diag_blocksize, arrow_blocksize)
+    ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
+        A, diag_blocksize, arrow_blocksize
+    )
 
     (
         L_diagonal_blocks,

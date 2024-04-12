@@ -16,9 +16,9 @@ from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_arrowhead_gpu
 from sdr.lu.lu_selected_inversion_gpu import lu_sinv_tridiag_arrowhead_gpu
 from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transformation_dense import (
-    cut_to_blocktridiag_arrowhead,
-    from_arrowhead_arrays_to_dense,
-    from_dense_to_arrowhead_arrays,
+    zeros_to_block_tridiagonal_arrowhead_shape,
+    convert_block_tridiagonal_arrowhead_arrays_to_dense,
+    convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 
 # Example of block tridiagonal lu sinv
@@ -30,14 +30,16 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blocktridiag_arrowhead(X_ref, diag_blocksize, arrow_blocksize)
+    X_ref = zeros_to_block_tridiagonal_arrowhead_shape(
+        X_ref, diag_blocksize, arrow_blocksize
+    )
 
     (
         A_diagonal_blocks,
@@ -46,7 +48,9 @@ if __name__ == "__main__":
         A_arrow_bottom_blocks,
         A_arrow_right_blocks,
         A_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(A, diag_blocksize, arrow_blocksize)
+    ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
+        A, diag_blocksize, arrow_blocksize
+    )
 
     (
         L_diagonal_blocks,
@@ -80,7 +84,7 @@ if __name__ == "__main__":
         U_arrow_right_blocks,
     )
 
-    X_sdr = from_arrowhead_arrays_to_dense(
+    X_sdr = convert_block_tridiagonal_arrowhead_arrays_to_dense(
         X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
         X_sdr_upper_diagonal_blocks,

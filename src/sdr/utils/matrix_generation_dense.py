@@ -10,11 +10,11 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import numpy as np
 from sdr.utils.matrix_transformation_dense import (
-    make_diagonally_dominante_dense,
+    make_dense_matrix_diagonally_dominante,
 )
 
 
-def generate_tridiag_dense(
+def generate_block_tridiagonal_dense(
     nblocks: int,
     blocksize: int,
     symmetric: bool = False,
@@ -50,9 +50,9 @@ def generate_tridiag_dense(
     A = np.zeros((matrice_size, matrice_size))
 
     for i in range(nblocks):
-        A[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = np.random.rand(blocksize, blocksize)
+        A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            np.random.rand(blocksize, blocksize)
+        )
         if i > 0:
             A[
                 i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
@@ -65,12 +65,12 @@ def generate_tridiag_dense(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante_dense(A)
+        A = make_dense_matrix_diagonally_dominante(A)
 
     return A
 
 
-def generate_tridiag_arrowhead_dense(
+def generate_block_tridiagonal_arrowhead_dense(
     nblocks: int,
     diag_blocksize: int,
     arrow_blocksize: int,
@@ -146,12 +146,12 @@ def generate_tridiag_arrowhead_dense(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante_dense(A)
+        A = make_dense_matrix_diagonally_dominante(A)
 
     return A
 
 
-def generate_block_ndiags_dense(
+def generate_blocks_banded_dense(
     nblocks: int,
     ndiags: int,
     blocksize: int,
@@ -196,9 +196,9 @@ def generate_block_ndiags_dense(
     A = np.zeros((matrice_size, matrice_size))
 
     for i in range(nblocks):
-        A[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = np.random.rand(blocksize, blocksize)
+        A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            np.random.rand(blocksize, blocksize)
+        )
         for j in range(1, (ndiags + 1) // 2):
             if i + j < nblocks:
                 A[
@@ -223,12 +223,12 @@ def generate_block_ndiags_dense(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante_dense(A)
+        A = make_dense_matrix_diagonally_dominante(A)
 
     return A
 
 
-def generate_ndiags_arrowhead_dense(
+def generate_blocks_banded_arrowhead_dense(
     nblocks: int,
     ndiags: int,
     diag_blocksize: int,
@@ -317,6 +317,6 @@ def generate_ndiags_arrowhead_dense(
         A = A + A.T
 
     if diagonal_dominant:
-        A = make_diagonally_dominante_dense(A)
+        A = make_dense_matrix_diagonally_dominante(A)
 
     return A

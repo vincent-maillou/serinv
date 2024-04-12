@@ -11,7 +11,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import numpy as np
 
 
-def cut_to_blocktridiag(
+def zeros_to_block_tridiagonal_shape(
     A: np.ndarray,
     blocksize: int,
 ) -> np.ndarray:
@@ -54,7 +54,7 @@ def cut_to_blocktridiag(
     return A_cut
 
 
-def cut_to_blocktridiag_arrowhead(
+def zeros_to_block_tridiagonal_arrowhead_shape(
     A: np.ndarray,
     diag_blocksize: int,
     arrow_blocksize: int,
@@ -137,7 +137,7 @@ def cut_to_blocktridiag_arrowhead(
     return A_cut
 
 
-def cut_to_block_ndiags(
+def zeros_to_blocks_banded_shape(
     A: np.ndarray,
     ndiags: int,
     blocksize: int,
@@ -185,7 +185,7 @@ def cut_to_block_ndiags(
     return A_cut
 
 
-def cut_to_blockndiags_arrowhead(
+def zeros_to_blocks_banded_arrowhead_shape(
     A: np.ndarray,
     ndiags: int,
     diag_blocksize: int,
@@ -247,7 +247,7 @@ def cut_to_blockndiags_arrowhead(
     return A_cut
 
 
-def make_diagonally_dominante_dense(
+def make_dense_matrix_diagonally_dominante(
     A: np.ndarray,
 ) -> np.ndarray:
     """Make a dense matrix diagonally dominant.
@@ -268,7 +268,11 @@ def make_diagonally_dominante_dense(
     return A
 
 
-def from_tridiagonal_arrays_to_dense(
+def make_dense_matrix_symmetric():
+    pass
+
+
+def convert_block_tridiagonal_arrays_to_dense(
     A_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
     A_upper_diagonal_blocks: np.ndarray,
@@ -296,9 +300,9 @@ def from_tridiagonal_arrays_to_dense(
     A = np.zeros((blocksize * nblocks, blocksize * nblocks))
 
     for i in range(nblocks):
-        A[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
+        A[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
+        )
         if i < (nblocks - 1):
             A[
                 i * blocksize : (i + 1) * blocksize,
@@ -312,7 +316,7 @@ def from_tridiagonal_arrays_to_dense(
     return A
 
 
-def from_arrowhead_arrays_to_dense(
+def convert_block_tridiagonal_arrowhead_arrays_to_dense(
     A_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
     A_upper_diagonal_blocks: np.ndarray,
@@ -380,3 +384,10 @@ def from_arrowhead_arrays_to_dense(
 
     return A
 
+
+def convert_blocks_banded_arrays_to_dense():
+    pass
+
+
+def convert_blocks_banded_arrowhead_arrays_to_dense():
+    pass

@@ -20,7 +20,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -30,7 +30,9 @@ if __name__ == "__main__":
 
     plt.matshow(A_inv)
 
-    A_cut = matrix_transformation_dense.cut_to_blocktridiag(A_inv, blocksize)
+    A_cut = matrix_transformation_dense.zeros_to_block_tridiagonal_shape(
+        A_inv, blocksize
+    )
 
     plt.matshow(A_cut)
 
@@ -45,7 +47,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -55,7 +57,7 @@ if __name__ == "__main__":
 
     plt.matshow(A_inv)
 
-    A_cut = matrix_transformation_dense.cut_to_blocktridiag_arrowhead(
+    A_cut = matrix_transformation_dense.zeros_to_block_tridiagonal_arrowhead_shape(
         A_inv, diag_blocksize, arrow_blocksize
     )
 

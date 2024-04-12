@@ -16,10 +16,12 @@ from sdr.lu.lu_factorize import lu_factorize_tridiag
 from sdr.lu.lu_selected_inversion import lu_sinv_tridiag
 from sdr.utils import matrix_generation_dense
 from sdr.utils.matrix_transformation_dense import (
-    cut_to_blocktridiag,
-    from_tridiagonal_arrays_to_dense,
+    zeros_to_block_tridiagonal_shape,
+    convert_block_tridiagonal_arrays_to_dense,
 )
-from sdr.utils.matrix_transformation_arrays import from_dense_to_tridiagonal_arrays
+from sdr.utils.matrix_transformation_arrays import (
+    convert_block_tridiagonal_dense_to_arrays,
+)
 
 
 @pytest.mark.cpu
@@ -46,20 +48,20 @@ def test_lu_sinv_tridiag(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation_dense.generate_tridiag_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_dense(
         nblocks, blocksize, symmetric, diagonal_dominant, seed
     )
 
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blocktridiag(X_ref, blocksize)
+    X_ref = zeros_to_block_tridiagonal_shape(X_ref, blocksize)
 
     (
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
-    ) = from_dense_to_tridiagonal_arrays(A, blocksize)
+    ) = convert_block_tridiagonal_dense_to_arrays(A, blocksize)
 
     (
         L_diagonal_blocks,
@@ -83,7 +85,7 @@ def test_lu_sinv_tridiag(
         U_upper_diagonal_blocks,
     )
 
-    X_sdr_dense = from_tridiagonal_arrays_to_dense(
+    X_sdr_dense = convert_block_tridiagonal_arrays_to_dense(
         X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
         X_sdr_upper_diagonal_blocks,

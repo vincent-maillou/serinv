@@ -24,13 +24,15 @@ try:
 except ImportError:
     pass
 
-from sdr.utils.dist_utils import(
+from sdr.utils.dist_utils import (
     get_partitions_indices,
     extract_partition_tridiagonal_arrowhead_array,
     extract_bridges_tridiagonal_array,
 )
 from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import from_dense_to_arrowhead_arrays
+from sdr.utils.matrix_transformation_arrays import (
+    convert_block_tridiagonal_arrowhead_dense_to_arrays,
+)
 
 environ["OMP_NUM_THREADS"] = "1"
 
@@ -69,7 +71,7 @@ def test_lu_dist(
     if nblocks // comm_size < 3:
         pytest.skip("Not enough blocks for the number of processes. Skipping test.")
 
-    A = matrix_generation_dense.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -77,9 +79,7 @@ def test_lu_dist(
         start_blockrows,
         partition_sizes,
         end_blockrows,
-    ) = get_partitions_indices(
-        n_partitions=comm_size, total_size=nblocks - 1
-    )
+    ) = get_partitions_indices(n_partitions=comm_size, total_size=nblocks - 1)
 
     # ----- Reference/Checking data -----
     A_ref = deepcopy(A)
@@ -93,7 +93,9 @@ def test_lu_dist(
         X_ref_arrow_bottom_blocks,
         X_ref_arrow_right_blocks,
         X_ref_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(X_ref, diag_blocksize, arrow_blocksize)
+    ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
+        X_ref, diag_blocksize, arrow_blocksize
+    )
 
     (
         X_ref_diagonal_blocks_local,
@@ -128,7 +130,9 @@ def test_lu_dist(
         A_arrow_bottom_blocks,
         A_arrow_right_blocks,
         A_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(A, diag_blocksize, arrow_blocksize)
+    ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
+        A, diag_blocksize, arrow_blocksize
+    )
 
     (
         A_diagonal_blocks_local,

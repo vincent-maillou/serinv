@@ -10,13 +10,13 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import numpy as np
 from sdr.utils.matrix_transformation_dense import (
-    make_symmetric_tridiagonal_arrays,
-    make_diagonally_dominante_tridiagonal_arrays,
-    make_diagonally_dominante_tridiagonal_arrowhead_arrays,
+    make_arrays_block_tridiagonal_symmetric,
+    make_arrays_block_tridiagonal_diagonally_dominante,
+    make_arrays_block_tridiagonal_arrowhead_diagonally_dominante,
 )
 
 
-def generate_tridiag_array(
+def generate_block_tridiagonal_arrays(
     nblocks: int,
     blocksize: int,
     symmetric: bool = False,
@@ -60,32 +60,32 @@ def generate_tridiag_array(
             blocksize, blocksize
         )
         if i > 0:
-            A_upper_diagonal_blocks[
-                :, (i - 1) * blocksize : i * blocksize
-            ] = np.random.rand(blocksize, blocksize)
+            A_upper_diagonal_blocks[:, (i - 1) * blocksize : i * blocksize] = (
+                np.random.rand(blocksize, blocksize)
+            )
         if i < nblocks - 1:
-            A_lower_diagonal_blocks[
-                :, i * blocksize : (i + 1) * blocksize
-            ] = np.random.rand(blocksize, blocksize)
+            A_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] = (
+                np.random.rand(blocksize, blocksize)
+            )
 
     if symmetric:
         (
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
             A_upper_diagonal_blocks,
-        ) = make_symmetric_tridiagonal_arrays(
+        ) = make_arrays_block_tridiagonal_symmetric(
             A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
         )
 
     if diagonal_dominant:
-        A_diagonal_blocks = make_diagonally_dominante_tridiagonal_arrays(
+        A_diagonal_blocks = make_arrays_block_tridiagonal_diagonally_dominante(
             A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks
         )
 
     return (A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks)
 
 
-def generate_tridiag_arrowhead_arrays(
+def generate_block_tridiagonal_arrowhead_arrays(
     nblocks: int,
     diag_blocksize: int,
     arrow_blocksize: int,
@@ -136,7 +136,7 @@ def generate_tridiag_arrowhead_arrays(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
-    ) = generate_tridiag_array(
+    ) = generate_block_tridiagonal_arrays(
         n_diag_blocks, diag_blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -154,27 +154,27 @@ def generate_tridiag_arrowhead_arrays(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
             A_upper_diagonal_blocks,
-        ) = make_symmetric_tridiagonal_arrays(
+        ) = make_arrays_block_tridiagonal_symmetric(
             A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
         )
 
         for i in range(n_diag_blocks):
-            A_arrow_bottom_blocks[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ] = A_arrow_right_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize].T
+            A_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                A_arrow_right_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize].T
+            )
 
         A_arrow_tip_block += A_arrow_tip_block.T
 
     if diagonal_dominant:
-        (
-            A_diagonal_blocks
-        ) = make_diagonally_dominante_tridiagonal_arrowhead_arrays(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_upper_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_right_blocks,
-            A_arrow_tip_block,
+        (A_diagonal_blocks) = (
+            make_arrays_block_tridiagonal_arrowhead_diagonally_dominante(
+                A_diagonal_blocks,
+                A_lower_diagonal_blocks,
+                A_upper_diagonal_blocks,
+                A_arrow_bottom_blocks,
+                A_arrow_right_blocks,
+                A_arrow_tip_block,
+            )
         )
 
     return (
@@ -185,3 +185,11 @@ def generate_tridiag_arrowhead_arrays(
         A_arrow_right_blocks,
         A_arrow_tip_block,
     )
+
+
+def generate_blocks_banded_arrays():
+    pass
+
+
+def generate_blocks_banded_arrowhead_arrays():
+    pass
