@@ -28,6 +28,7 @@ if __name__ == '__main__':
     n_diag_blocks = (A.shape[0] - arrow_blocksize) // diag_blocksize
     print(f"n_diag_blocks: {n_diag_blocks}")
 
+    A = cut_to_blocktridiag_arrowhead(A, diag_blocksize, arrow_blocksize)
     X_ref = np.linalg.inv(A)
     X_ref = cut_to_blocktridiag_arrowhead(X_ref, diag_blocksize, arrow_blocksize)
 
@@ -172,71 +173,6 @@ if __name__ == '__main__':
     ax[2].set_title('X_pivot_SerinV')
     plt.show()
 
-
-    fig, ax = plt.subplots(3, 3)
-    ax[0, 0].matshow(X_ref_diagonal_blocks.real)
-    ax[0, 0].set_title('X_ref_diagonal_blocks')
-    ax[0, 1].matshow(X_ref_lower_diagonal_blocks.real)
-    ax[0, 1].set_title('X_ref_lower_diagonal_blocks')
-    ax[0, 2].matshow(X_ref_upper_diagonal_blocks.real)
-    ax[0, 2].set_title('X_ref_upper_diagonal_blocks')
-
-    ax[1, 0].matshow(X_inv_tip_diagonal_blocks.real)
-    ax[1, 0].set_title('X_inv_tip_diagonal_blocks')
-    ax[1, 1].matshow(X_inv_tip_lower_diagonal_blocks.real)
-    ax[1, 1].set_title('X_inv_tip_lower_diagonal_blocks')
-    ax[1, 2].matshow(X_inv_tip_upper_diagonal_blocks.real)
-    ax[1, 2].set_title('X_inv_tip_upper_diagonal_blocks')
-
-    X_inv_tip_diff = X_ref_diagonal_blocks - X_inv_tip_diagonal_blocks
-    ax[2, 0].matshow(X_inv_tip_diff.real)
-    ax[2, 0].set_title('X_inv_tip_diff')
-    fig.colorbar(ax[2, 0].matshow(X_inv_tip_diff.real), ax=ax[2, 0], label="Relative error")
-
-    X_inv_tip_diff = X_ref_lower_diagonal_blocks - X_inv_tip_lower_diagonal_blocks
-    ax[2, 1].matshow(X_inv_tip_diff.real)
-    ax[2, 1].set_title('X_inv_tip_diff')
-    fig.colorbar(ax[2, 0].matshow(X_inv_tip_diff.real), ax=ax[2, 1], label="Relative error")
-
-    X_inv_tip_diff = X_ref_upper_diagonal_blocks - X_inv_tip_upper_diagonal_blocks
-    ax[2, 2].matshow(X_inv_tip_diff.real)
-    ax[2, 2].set_title('X_inv_tip_diff')
-    fig.colorbar(ax[2, 0].matshow(X_inv_tip_diff.real), ax=ax[2, 2], label="Relative error")
-    plt.show()
-
-
-    fig, ax = plt.subplots(3, 3)
-    ax[0, 0].matshow(X_ref_arrow_bottom_blocks.real)
-    ax[0, 0].set_title('X_ref_arrow_bottom_blocks')
-    ax[0, 1].matshow(X_ref_arrow_right_blocks.real)
-    ax[0, 1].set_title('X_ref_arrow_right_blocks')
-    ax[0, 2].matshow(X_ref_arrow_tip_block.real)
-    ax[0, 2].set_title('X_ref_arrow_tip_block')
-
-    ax[1, 0].matshow(X_inv_tip_arrow_bottom_blocks.real)
-    ax[1, 0].set_title('X_inv_tip_arrow_bottom_blocks')
-    ax[1, 1].matshow(X_inv_tip_arrow_right_blocks.real)
-    ax[1, 1].set_title('X_inv_tip_arrow_right_blocks')
-    ax[1, 2].matshow(X_inv_tip_arrow_tip_block.real)
-    ax[1, 2].set_title('X_inv_tip_arrow_tip_block')
-
-    X_inv_tip_diff = X_ref_arrow_bottom_blocks - X_inv_tip_arrow_bottom_blocks
-    ax[2, 0].matshow(X_inv_tip_diff.real)
-    ax[2, 0].set_title('X_inv_tip_diff')
-    fig.colorbar(ax[2, 0].matshow(X_inv_tip_diff.real), ax=ax[2, 0], label="Relative error")
-
-    X_inv_tip_diff = X_ref_arrow_right_blocks - X_inv_tip_arrow_right_blocks
-    ax[2, 1].matshow(X_inv_tip_diff.real)
-    ax[2, 1].set_title('X_inv_tip_diff')
-    fig.colorbar(ax[2, 1].matshow(X_inv_tip_diff.real), ax=ax[2, 1], label="Relative error")
-
-    X_inv_tip_diff = X_ref_arrow_tip_block - X_inv_tip_arrow_tip_block
-    ax[2, 2].matshow(X_inv_tip_diff.real)
-    ax[2, 2].set_title('X_inv_tip_diff')
-    fig.colorbar(ax[2, 2].matshow(X_inv_tip_diff.real), ax=ax[2, 2], label="Relative error")
-    plt.show()
-
-
     fig, ax = plt.subplots(1, 3)
     ax[0].matshow(X_ref.real)
     ax[0].set_title('X_ref (Real Part)')
@@ -257,17 +193,5 @@ if __name__ == '__main__':
     ax[2].matshow(X_pivot_diff.real)
     ax[2].set_title('X_pivot_diff')
     fig.colorbar(ax[2].matshow(X_pivot_diff.real), ax=ax[2], label="Relative error")
-    plt.show()
-    
-    
-    fig, ax = plt.subplots(1, 3)
-    ax[0].matshow(X_inv_tip_SerinV.real)
-    ax[0].set_title('X_inv_tip_SerinV (Real Part)')
-    ax[1].matshow(X_pivot_SerinV.real)
-    ax[1].set_title('X_pivot_SerinV')
-    X_diff = X_inv_tip_SerinV - X_pivot_SerinV
-    ax[2].matshow(X_diff.real)
-    ax[2].set_title('X_diff')
-    fig.colorbar(ax[2].matshow(X_diff.real), ax=ax[2], label="Relative error")
     plt.show()
 
