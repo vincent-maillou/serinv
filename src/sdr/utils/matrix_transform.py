@@ -79,7 +79,7 @@ def cut_to_blocktridiag_arrowhead(
     matrice_size = A.shape[0]
     nblocks = ((matrice_size - arrow_blocksize) // diag_blocksize) + 1
 
-    A_cut = np.zeros((matrice_size, matrice_size))
+    A_cut = np.zeros((matrice_size, matrice_size), dtype=A.dtype)
 
     for i in range(nblocks):
         if i < nblocks - 1:
@@ -582,7 +582,8 @@ def from_arrowhead_arrays_to_dense(
         (
             n_diag_blocks * diag_blocksize + arrowhead_blocksize,
             n_diag_blocks * diag_blocksize + arrowhead_blocksize,
-        )
+        ),
+        dtype=A_diagonal_blocks.dtype,
     )
 
     for i in range(0, n_diag_blocks):
@@ -645,16 +646,16 @@ def from_dense_to_arrowhead_arrays(
 
     n_diag_blocks = (A.shape[0] - arrow_blocksize) // diag_blocksize
 
-    A_diagonal_blocks = np.empty((diag_blocksize, n_diag_blocks * diag_blocksize))
+    A_diagonal_blocks = np.empty((diag_blocksize, n_diag_blocks * diag_blocksize), dtype=A.dtype)
     A_lower_diagonal_blocks = np.empty(
-        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize)
+        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize), dtype=A.dtype
     )
     A_upper_diagonal_blocks = np.empty(
-        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize)
+        (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize), dtype=A.dtype
     )
-    A_arrow_bottom_blocks = np.empty((arrow_blocksize, n_diag_blocks * diag_blocksize))
-    A_arrow_right_blocks = np.empty((arrow_blocksize, n_diag_blocks * diag_blocksize))
-    A_arrow_tip_block = np.empty((arrow_blocksize, arrow_blocksize))
+    A_arrow_bottom_blocks = np.empty((arrow_blocksize, n_diag_blocks * diag_blocksize), dtype=A.dtype)
+    A_arrow_right_blocks = np.empty((arrow_blocksize, n_diag_blocks * diag_blocksize), dtype=A.dtype)
+    A_arrow_tip_block = np.empty((arrow_blocksize, arrow_blocksize), dtype=A.dtype)
 
     for i in range(0, n_diag_blocks):
         A_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = A[
