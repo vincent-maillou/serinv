@@ -11,6 +11,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import numpy as np
 from sdr.utils.matrix_transformation_dense import (
     make_dense_matrix_diagonally_dominante,
+    make_dense_matrix_symmetric,
 )
 
 
@@ -62,7 +63,7 @@ def generate_block_tridiagonal_dense(
             ] = np.random.rand(blocksize, blocksize)
 
     if symmetric:
-        A = A + A.T
+        A = make_dense_matrix_symmetric(A)
 
     if diagonal_dominant:
         A = make_dense_matrix_diagonally_dominante(A)
@@ -143,7 +144,7 @@ def generate_block_tridiagonal_arrowhead_dense(
             ] = np.random.rand(arrow_blocksize, arrow_blocksize)
 
     if symmetric:
-        A = A + A.T
+        A = make_dense_matrix_symmetric(A)
 
     if diagonal_dominant:
         A = make_dense_matrix_diagonally_dominante(A)
@@ -220,7 +221,7 @@ def generate_blocks_banded_dense(
                 ] = np.random.rand(blocksize, blocksize)
 
     if symmetric:
-        A = A + A.T
+        A = make_dense_matrix_symmetric(A)
 
     if diagonal_dominant:
         A = make_dense_matrix_diagonally_dominante(A)
@@ -314,7 +315,7 @@ def generate_blocks_banded_arrowhead_dense(
             ] = np.random.rand(arrow_blocksize, arrow_blocksize)
 
     if symmetric:
-        A = A + A.T
+        A = make_dense_matrix_symmetric(A)
 
     if diagonal_dominant:
         A = make_dense_matrix_diagonally_dominante(A)

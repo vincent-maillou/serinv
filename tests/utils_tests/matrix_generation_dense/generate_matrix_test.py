@@ -1,10 +1,10 @@
 import numpy as np
 
-from sdr.utils.matrix_transformation_dense import (
-    zeros_to_block_tridiagonal_shape,
-    zeros_to_block_tridiagonal_arrowhead_shape,
-    zeros_to_blocks_banded_shape,
-    zeros_to_blocks_banded_arrowhead_shape,
+from sdr.utils.matrix_generation_dense import (
+    generate_block_tridiagonal_dense,
+    generate_block_tridiagonal_arrowhead_dense,
+    generate_blocks_banded_dense,
+    generate_blocks_banded_arrowhead_dense,
 )
 
 N_DIAG_BLOCKS = 5
@@ -17,7 +17,10 @@ def test_zeros_to_block_tridiagonal_shape():
     matrix_size = N_DIAG_BLOCKS * DIAG_BLOCKSIZE
     A = np.random.rand(matrix_size, matrix_size)
 
-    A_tridiag = zeros_to_block_tridiagonal_shape(A, DIAG_BLOCKSIZE)
+    A_tridiag = generate_block_tridiagonal_dense(
+        N_DIAG_BLOCKS,
+        DIAG_BLOCKSIZE,
+    )
 
     assert A_tridiag.shape == (matrix_size, matrix_size)
 
@@ -32,8 +35,10 @@ def test_zeros_to_block_tridiagonal_arrowhead_shape():
     matrix_size = N_DIAG_BLOCKS * DIAG_BLOCKSIZE + ARROWHEAD_BLOCKSIZE
     A = np.random.rand(matrix_size, matrix_size)
 
-    A_tridiag_arrowhead = zeros_to_block_tridiagonal_arrowhead_shape(
-        A, DIAG_BLOCKSIZE, ARROWHEAD_BLOCKSIZE
+    A_tridiag_arrowhead = generate_block_tridiagonal_arrowhead_dense(
+        N_DIAG_BLOCKS + 1,
+        DIAG_BLOCKSIZE,
+        ARROWHEAD_BLOCKSIZE,
     )
 
     assert A_tridiag_arrowhead.shape == (matrix_size, matrix_size)
@@ -51,7 +56,11 @@ def test_zeros_to_blocks_banded_shape():
     matrix_size = N_DIAG_BLOCKS * DIAG_BLOCKSIZE
     A = np.random.rand(matrix_size, matrix_size)
 
-    A_tridiag = zeros_to_blocks_banded_shape(A, N_BLOCKS_BANDED, DIAG_BLOCKSIZE)
+    A_tridiag = generate_blocks_banded_dense(
+        N_DIAG_BLOCKS,
+        N_BLOCKS_BANDED,
+        DIAG_BLOCKSIZE,
+    )
 
     assert A_tridiag.shape == (matrix_size, matrix_size)
 
@@ -66,8 +75,11 @@ def test_zeros_to_blocks_banded_arrowhead_shape():
     matrix_size = N_DIAG_BLOCKS * DIAG_BLOCKSIZE + ARROWHEAD_BLOCKSIZE
     A = np.random.rand(matrix_size, matrix_size)
 
-    A_tridiag_arrowhead = zeros_to_blocks_banded_arrowhead_shape(
-        A, N_BLOCKS_BANDED, DIAG_BLOCKSIZE, ARROWHEAD_BLOCKSIZE
+    A_tridiag_arrowhead = generate_blocks_banded_arrowhead_dense(
+        N_DIAG_BLOCKS + 1,
+        N_BLOCKS_BANDED,
+        DIAG_BLOCKSIZE,
+        ARROWHEAD_BLOCKSIZE,
     )
 
     assert A_tridiag_arrowhead.shape == (matrix_size, matrix_size)
