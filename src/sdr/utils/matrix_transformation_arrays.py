@@ -56,8 +56,42 @@ def make_arrays_block_tridiagonal_symmetric(
     return (A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks)
 
 
-def make_arrays_block_tridiagonal_arrowhead_symmetric():
-    pass
+def make_arrays_block_tridiagonal_arrowhead_symmetric(
+    A_diagonal_blocks: np.ndarray,
+    A_lower_diagonal_blocks: np.ndarray,
+    A_upper_diagonal_blocks: np.ndarray,
+    A_arrow_bottom_blocks: np.ndarray,
+    A_arrow_right_blocks: np.ndarray,
+    A_arrow_tip_block: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    (
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_upper_diagonal_blocks,
+    ) = make_arrays_block_tridiagonal_symmetric(
+        A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
+    )
+
+    diagonal_blocksize = A_diagonal_blocks.shape[0]
+    n_diag_blocks = A_arrow_bottom_blocks.shape[1] // diagonal_blocksize
+
+    for i in range(n_diag_blocks):
+        A_arrow_bottom_blocks[
+            :, i * diagonal_blocksize : (i + 1) * diagonal_blocksize
+        ] = A_arrow_right_blocks[
+            i * diagonal_blocksize : (i + 1) * diagonal_blocksize, :
+        ].T
+
+    A_arrow_tip_block += A_arrow_tip_block.T
+
+    return (
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_upper_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_right_blocks,
+        A_arrow_tip_block,
+    )
 
 
 def make_arrays_blocks_banded_symmetric():

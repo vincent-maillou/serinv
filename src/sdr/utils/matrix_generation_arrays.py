@@ -11,6 +11,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import numpy as np
 from sdr.utils.matrix_transformation_dense import (
     make_arrays_block_tridiagonal_symmetric,
+    make_arrays_block_tridiagonal_arrowhead_symmetric,
     make_arrays_block_tridiagonal_diagonally_dominante,
     make_arrays_block_tridiagonal_arrowhead_diagonally_dominante,
 )
@@ -154,16 +155,17 @@ def generate_block_tridiagonal_arrowhead_arrays(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
             A_upper_diagonal_blocks,
-        ) = make_arrays_block_tridiagonal_symmetric(
-            A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
+            A_arrow_bottom_blocks,
+            A_arrow_right_blocks,
+            A_arrow_tip_block,
+        ) = make_arrays_block_tridiagonal_arrowhead_symmetric(
+            A_diagonal_blocks,
+            A_lower_diagonal_blocks,
+            A_upper_diagonal_blocks,
+            A_arrow_bottom_blocks,
+            A_arrow_right_blocks,
+            A_arrow_tip_block,
         )
-
-        for i in range(n_diag_blocks):
-            A_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-                A_arrow_right_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize].T
-            )
-
-        A_arrow_tip_block += A_arrow_tip_block.T
 
     if diagonal_dominant:
         (A_diagonal_blocks) = (
