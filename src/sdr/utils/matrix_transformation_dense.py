@@ -11,6 +11,10 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import numpy as np
 
 
+# -----------------------------------------------
+# Section: Zeros to Shape
+# -----------------------------------------------
+
 def zeros_to_block_tridiagonal_shape(
     A: np.ndarray,
     blocksize: int,
@@ -247,6 +251,10 @@ def zeros_to_blocks_banded_arrowhead_shape(
     return A_cut
 
 
+# -----------------------------------------------
+# Section: Make diagonally dominante
+# -----------------------------------------------
+
 def make_dense_matrix_diagonally_dominante(
     A: np.ndarray,
 ) -> np.ndarray:
@@ -268,9 +276,35 @@ def make_dense_matrix_diagonally_dominante(
     return A
 
 
-def make_dense_matrix_symmetric():
-    pass
+# -----------------------------------------------
+# Section: Make matrix symmetric
+# -----------------------------------------------
 
+
+def make_dense_matrix_symmetric(
+    A: np.ndarray,
+) -> np.ndarray:
+    """Make a dense matrix symmetric.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Input matrix.
+
+    Returns
+    -------
+    A : np.ndarray
+        Symmetric matrix.
+    """
+
+    A = 0.5 * (A + A.T)
+
+    return A
+
+
+# -----------------------------------------------
+# Section: Convert from arays to dense
+# -----------------------------------------------
 
 def convert_block_tridiagonal_arrays_to_dense(
     A_diagonal_blocks: np.ndarray,
