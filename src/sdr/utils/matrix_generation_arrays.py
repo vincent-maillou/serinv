@@ -22,7 +22,7 @@ def generate_block_tridiagonal_arrays(
     symmetric: bool = False,
     diagonal_dominant: bool = False,
     seed: int = None,
-) -> [np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Generate a block tridiagonal matrix returned as three arrays.
 
     Parameters

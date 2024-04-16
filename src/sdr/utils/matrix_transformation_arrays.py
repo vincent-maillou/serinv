@@ -11,6 +11,10 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 import numpy as np
 
 
+# -----------------------------------------------
+# Section: Make matrix symmetric
+# -----------------------------------------------
+
 def make_arrays_block_tridiagonal_symmetric(
     A_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
@@ -63,6 +67,10 @@ def make_arrays_blocks_banded_symmetric():
 def make_arrays_blocks_banded_arrowhead_symmetric():
     pass
 
+
+# -----------------------------------------------
+# Section: Make diagonally dominante
+# -----------------------------------------------
 
 def make_arrays_block_tridiagonal_diagonally_dominante(
     A_diagonal_blocks: np.ndarray,
@@ -213,6 +221,10 @@ def make_arrays_blocks_banded_diagonally_dominante():
 def make_arrays_blocks_banded_arrowhead_diagonally_dominante():
     pass
 
+
+# -----------------------------------------------
+# Section: Convert from dense to arrays
+# -----------------------------------------------
 
 def convert_block_tridiagonal_dense_to_arrays(
     A: np.ndarray,
