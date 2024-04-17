@@ -106,10 +106,11 @@ def make_arrays_blocks_banded_arrowhead_symmetric():
 # Section: Make diagonally dominante
 # -----------------------------------------------
 
+
 def make_arrays_block_tridiagonal_diagonally_dominante(
     A_diagonal_blocks: np.ndarray,
-    A_upper_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
+    A_upper_diagonal_blocks: np.ndarray,
 ) -> np.ndarray:
     """Make a tridiagonal matrix, passed as arrays, diagonally dominant.
 
@@ -117,10 +118,10 @@ def make_arrays_block_tridiagonal_diagonally_dominante(
     ----------
     A_diagonal_blocks: np.ndarray
         Diagonal blocks of the input matrix.
-    A_upper_diagonal_blocks: np.ndarray
-        Upper diagonal blocks of the input matrix.
     A_lower_diagonal_blocks: np.ndarray
         Lower diagonal blocks of the input matrix.
+    A_upper_diagonal_blocks: np.ndarray
+        Upper diagonal blocks of the input matrix.
 
     Returns
     -------
@@ -142,7 +143,7 @@ def make_arrays_block_tridiagonal_diagonally_dominante(
             A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] += np.diag(
                 np.sum(
                     np.abs(
-                        A_upper_diagonal_blocks[:, (i - 1) * blocksize : i * blocksize]
+                        A_lower_diagonal_blocks[:, (i - 1) * blocksize : i * blocksize]
                     ),
                     axis=1,
                 )
@@ -151,7 +152,7 @@ def make_arrays_block_tridiagonal_diagonally_dominante(
             A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] += np.diag(
                 np.sum(
                     np.abs(
-                        A_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
+                        A_upper_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
                     ),
                     axis=1,
                 )
@@ -192,60 +193,28 @@ def make_arrays_block_tridiagonal_arrowhead_diagonally_dominante(
     """
 
     diag_blocksize = A_diagonal_blocks.shape[0]
-
     n_diag_blocks = A_diagonal_blocks.shape[1] // diag_blocksize
-    for i in range(0, n_diag_blocks):
+
+    (A_diagonal_blocks) = make_arrays_block_tridiagonal_diagonally_dominante(
+        A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
+    )
+
+    for i in range(n_diag_blocks):
         A_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] += np.diag(
             np.sum(
                 np.abs(
-                    A_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+                    A_arrow_right_blocks[
+                        i * diag_blocksize : (i + 1) * diag_blocksize, :
+                    ]
                 ),
                 axis=1,
             )
         )
-        if i < n_diag_blocks - 1:
-            A_diagonal_blocks[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ] += np.diag(
-                np.sum(
-                    np.abs(
-                        A_upper_diagonal_blocks[
-                            :, i * diag_blocksize : (i + 1) * diag_blocksize
-                        ]
-                    ),
-                    axis=1,
-                )
-            )
-            A_diagonal_blocks[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ] += np.diag(
-                np.sum(
-                    np.abs(
-                        A_arrow_right_blocks[
-                            :, i * diag_blocksize : (i + 1) * diag_blocksize
-                        ]
-                    ),
-                    axis=1,
-                )
-            )
-        if i > 0:
-            A_diagonal_blocks[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ] += np.diag(
-                np.sum(
-                    np.abs(
-                        A_lower_diagonal_blocks[
-                            :, i * diag_blocksize : (i + 1) * diag_blocksize
-                        ]
-                    ),
-                    axis=1,
-                )
-            )
 
-        A_arrow_tip_block += np.diag(np.sum(np.abs(A_arrow_tip_block), axis=1))
-        A_arrow_tip_block += np.diag(np.sum(np.abs(A_arrow_bottom_blocks), axis=1))
+    A_arrow_tip_block += np.diag(np.sum(np.abs(A_arrow_tip_block), axis=1))
+    A_arrow_tip_block += np.diag(np.sum(np.abs(A_arrow_bottom_blocks), axis=1))
 
-    return A_diagonal_blocks
+    return (A_diagonal_blocks, A_arrow_tip_block)
 
 
 def make_arrays_blocks_banded_diagonally_dominante():

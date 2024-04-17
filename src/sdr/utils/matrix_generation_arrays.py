@@ -80,7 +80,7 @@ def generate_block_tridiagonal_arrays(
 
     if diagonal_dominant:
         A_diagonal_blocks = make_arrays_block_tridiagonal_diagonally_dominante(
-            A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks
+            A_diagonal_blocks, A_lower_diagonal_blocks, A_upper_diagonal_blocks
         )
 
     return (A_diagonal_blocks, A_upper_diagonal_blocks, A_lower_diagonal_blocks)
@@ -168,7 +168,7 @@ def generate_block_tridiagonal_arrowhead_arrays(
         )
 
     if diagonal_dominant:
-        (A_diagonal_blocks) = (
+        (A_diagonal_blocks, A_arrow_tip_block) = (
             make_arrays_block_tridiagonal_arrowhead_diagonally_dominante(
                 A_diagonal_blocks,
                 A_lower_diagonal_blocks,
