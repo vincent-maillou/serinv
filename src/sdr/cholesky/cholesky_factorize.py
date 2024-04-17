@@ -8,101 +8,88 @@ Contains the cholesky selected decompositions routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
-
 import numpy as np
+import numpy.linalg as npla
 import scipy.linalg as la
+import scipy.linalg as scla
 
 
-def chol_dcmp_tridiag(
-    A: np.ndarray,
-    blocksize: int,
-    overwrite: bool = False,
-) -> np.ndarray:
+def cholesky_factorize_block_tridiagonal(
+    A_diagonal_blocks: np.ndarray,
+    A_lower_diagonal_blocks: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
     """Perform the cholesky factorization of a block tridiagonal matrix. The
-        matrix is assumed to be symmetric positive definite.
+    matrix is assumed to be symmetric positive definite.
 
-        Current implementation doesn't modify the input matrix A.
+    Parameters
+    ----------
+    A_diagonal_blocks : np.ndarray
+        Diagonal blocks of the matrix.
+    A_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the matrix.
 
-        Parameters
-        ----------
-        A : np.ndarray
-            Input matrix to decompose. Overwrites A.
-        blocksize : int
-            Size of the blocks.
-    <<<<<<< HEAD
-        overwrite : bool
-            If True, the input matrix A is modified in place. Default is False.
-
-    =======
-
-    >>>>>>> main
-        Returns
-        -------
-        L : np.ndarray
-            The cholesky factorization of the matrix.
+    Returns
+    -------
+    L_diagonal_blocks : np.ndarray
+        Diagonal blocks of the cholesky factorization of the matrix.
+    L_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the cholesky factorization of the matrix.
 
     """
 
-    if overwrite:
-        L = A
-    else:
-        L = np.copy(A)
+    blocksize = A_diagonal_blocks.shape[0]
+    nblocks = A_diagonal_blocks.shape[1] // blocksize
 
-    nblocks = A.shape[0] // blocksize
-    for i in range(0, nblocks - 1):
+    L_diagonal_blocks = np.zeros_like(A_diagonal_blocks)
+    L_lower_diagonal_blocks = np.zeros_like(A_lower_diagonal_blocks)
+
+    for i in range(0, nblocks - 1, 1):
         # L_{i, i} = chol(A_{i, i})
-        L[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = la.cholesky(
-            L[
-                i * blocksize : (i + 1) * blocksize,
-                i * blocksize : (i + 1) * blocksize,
-            ],
-        ).T
+        L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] = npla.cholesky(
+            A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+        )
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L[
-            (i + 1) * blocksize : (i + 2) * blocksize,
+        L_lower_diagonal_blocks[
+            :,
             i * blocksize : (i + 1) * blocksize,
         ] = (
-            L[
-                (i + 1) * blocksize : (i + 2) * blocksize,
+            A_lower_diagonal_blocks[
+                :,
                 i * blocksize : (i + 1) * blocksize,
             ]
-            @ la.solve_triangular(
-                L[
-                    i * blocksize : (i + 1) * blocksize,
-                    i * blocksize : (i + 1) * blocksize,
-                ],
+            @ scla.solve_triangular(
+                L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
                 np.eye(blocksize),
                 lower=True,
             ).T
         )
 
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}^{T}
-        L[
-            (i + 1) * blocksize : (i + 2) * blocksize,
+        A_diagonal_blocks[
+            :,
             (i + 1) * blocksize : (i + 2) * blocksize,
         ] = (
-            L[
-                (i + 1) * blocksize : (i + 2) * blocksize,
+            A_diagonal_blocks[
+                :,
                 (i + 1) * blocksize : (i + 2) * blocksize,
             ]
-            - L[
-                (i + 1) * blocksize : (i + 2) * blocksize,
+            - L_lower_diagonal_blocks[
+                :,
                 i * blocksize : (i + 1) * blocksize,
             ]
-            @ L[
-                (i + 1) * blocksize : (i + 2) * blocksize,
+            @ L_lower_diagonal_blocks[
+                :,
                 i * blocksize : (i + 1) * blocksize,
             ].T
         )
 
-    L[-blocksize:, -blocksize:] = la.cholesky(L[-blocksize:, -blocksize:]).T
+    L_diagonal_blocks[:, -blocksize:] = npla.cholesky(A_diagonal_blocks[:, -blocksize:])
 
-    L[:] = L * np.tri(*L.shape, k=0)
-
-    return L
+    return (
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+    )
 
 
 def chol_dcmp_tridiag_arrowhead(
@@ -295,11 +282,14 @@ def chol_dcmp_ndiags(
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = la.cholesky(
-            L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize]
-        ).T
+        L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            la.cholesky(
+                L[
+                    i * blocksize : (i + 1) * blocksize,
+                    i * blocksize : (i + 1) * blocksize,
+                ]
+            ).T
+        )
 
         # Temporary storage of re-used triangular solving
         L_inv_temp = la.solve_triangular(

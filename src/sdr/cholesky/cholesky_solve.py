@@ -13,25 +13,18 @@ import numpy as np
 import scipy.linalg as la
 
 
-def chol_slv_tridiag(
-    L: np.ndarray,
+def cholesky_solve_block_tridiagonal(
+    L_diagonal_blocks: np.ndarray,
+    L_lower_diagonal_blocks: np.ndarray,
     B: np.ndarray,
-    blocksize: int,
-    overwrite: bool = False,
 ) -> np.ndarray:
     """Solve a cholesky decomposed matrix with a block tridiagonal structure
     against the given right hand side.
 
     Parameters
     ----------
-    L : np.ndarray
-        The cholesky factorization of the matrix.
-    B : np.ndarray
-        The right hand side.
-    blocksize : int
-        The blocksize of the matrix.
-    overwrite : bool
-        If True, the rhs B is overwritten with the solution X. Default is False.
+    L_diagonal_blocks : np.ndarray
+    L_lower_diagonal_blocks : np.ndarray
 
     Returns
     -------
@@ -39,41 +32,37 @@ def chol_slv_tridiag(
         The solution of the system.
     """
 
-    if overwrite:
-        X = B
-    else:
-        X = np.copy(B)
-
     # ----- Forward substitution -----
-    n_blocks = L.shape[0] // blocksize
+    blocksize = L_diagonal_blocks.shape[0]
+    nblocks = L_diagonal_blocks.shape[1] // blocksize
+
+    X = np.zeros_like(B)
+
     X[0:blocksize] = la.solve_triangular(
-        L[0:blocksize, 0:blocksize], B[0:blocksize], lower=True
+        L_diagonal_blocks[:, 0:blocksize], B[0:blocksize], lower=True
     )
-    for i in range(1, n_blocks, 1):
+
+    for i in range(1, nblocks, 1):
         # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
         X[i * blocksize : (i + 1) * blocksize] = la.solve_triangular(
-            L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
-            X[i * blocksize : (i + 1) * blocksize]
-            - L[
-                i * blocksize : (i + 1) * blocksize, (i - 1) * blocksize : i * blocksize
-            ]
+            L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+            B[i * blocksize : (i + 1) * blocksize]
+            - L_lower_diagonal_blocks[:, (i - 1) * blocksize : i * blocksize]
             @ X[(i - 1) * blocksize : (i) * blocksize],
             lower=True,
         )
 
     # ----- Backward substitution -----
     X[-blocksize:] = la.solve_triangular(
-        L[-blocksize:, -blocksize:], X[-blocksize:], lower=True, trans="T"
+        L_diagonal_blocks[:, -blocksize:], X[-blocksize:], lower=True, trans="T"
     )
-    for i in range(n_blocks - 2, -1, -1):
+
+    for i in range(nblocks - 2, -1, -1):
         # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i} X_{i+1})
         X[i * blocksize : (i + 1) * blocksize] = la.solve_triangular(
-            L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize],
+            L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
             X[i * blocksize : (i + 1) * blocksize]
-            - L[
-                (i + 1) * blocksize : (i + 2) * blocksize,
-                i * blocksize : (i + 1) * blocksize,
-            ].T
+            - L_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize].T
             @ X[(i + 1) * blocksize : (i + 2) * blocksize],
             lower=True,
             trans="T",

@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 import scipy.linalg as la
 
-from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags_arrowhead
+from sdr.cholesky.cholesky_factorize import chol_dcmp_ndiags_arrowhead
 from sdr.cholesky.cholesky_solve import chol_slv_ndiags_arrowhead
 from sdr.utils import matrix_generation_dense
 
