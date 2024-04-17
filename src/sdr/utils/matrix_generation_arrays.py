@@ -9,7 +9,7 @@ Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
 import numpy as np
-from sdr.utils.matrix_transformation_dense import (
+from sdr.utils.matrix_transformation_arrays import (
     make_arrays_block_tridiagonal_symmetric,
     make_arrays_block_tridiagonal_arrowhead_symmetric,
     make_arrays_block_tridiagonal_diagonally_dominante,
@@ -138,14 +138,20 @@ def generate_block_tridiagonal_arrowhead_arrays(
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
     ) = generate_block_tridiagonal_arrays(
-        n_diag_blocks, diag_blocksize, symmetric, diagonal_dominant, seed
+        n_diag_blocks,
+        diag_blocksize,
+        symmetric,
+        diagonal_dominant,
+        seed,
     )
 
     A_arrow_bottom_blocks = np.random.rand(
-        arrow_blocksize, n_diag_blocks * diag_blocksize
+        arrow_blocksize,
+        n_diag_blocks * diag_blocksize,
     )
     A_arrow_right_blocks = np.random.rand(
-        arrow_blocksize, n_diag_blocks * diag_blocksize
+        n_diag_blocks * diag_blocksize,
+        arrow_blocksize,
     )
 
     A_arrow_tip_block = np.random.rand(arrow_blocksize, arrow_blocksize)

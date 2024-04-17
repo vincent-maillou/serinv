@@ -318,7 +318,7 @@ def convert_block_tridiagonal_arrowhead_dense_to_arrays(
         (diag_blocksize, (n_diag_blocks - 1) * diag_blocksize)
     )
     A_arrow_bottom_blocks = np.empty((arrow_blocksize, n_diag_blocks * diag_blocksize))
-    A_arrow_right_blocks = np.empty((arrow_blocksize, n_diag_blocks * diag_blocksize))
+    A_arrow_right_blocks = np.empty((n_diag_blocks * diag_blocksize, arrow_blocksize))
     A_arrow_tip_block = np.empty((arrow_blocksize, arrow_blocksize))
 
     for i in range(0, n_diag_blocks):

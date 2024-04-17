@@ -364,10 +364,10 @@ def convert_block_tridiagonal_arrowhead_arrays_to_dense(
     ----------
     A_diagonal_blocks: np.ndarray
         Diagonal blocks of the input matrix.
-    A_upper_diagonal_blocks: np.ndarray
-        Upper diagonal blocks of the input matrix.
     A_lower_diagonal_blocks: np.ndarray
         Lower diagonal blocks of the input matrix.
+    A_upper_diagonal_blocks: np.ndarray
+        Upper diagonal blocks of the input matrix.
     A_arrow_bottom_blocks: np.ndarray
         Arrow bottom blocks of the input matrix.
     A_arrow_right_blocks: np.ndarray
