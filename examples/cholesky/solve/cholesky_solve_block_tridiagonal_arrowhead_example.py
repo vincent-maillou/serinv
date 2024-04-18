@@ -8,10 +8,10 @@ Tests for cholesky selected solving routines.
 Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as npla
 import copy as cp
-import pytest
 
 from sdr.cholesky.cholesky_factorize import (
     cholesky_factorize_block_tridiagonal_arrowhead,
@@ -22,28 +22,11 @@ from sdr.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 
-
-@pytest.mark.cpu
-@pytest.mark.mpi_skip()
-@pytest.mark.parametrize(
-    "nblocks, diag_blocksize, arrow_blocksize, n_rhs",
-    [
-        (2, 2, 2, 1),
-        (2, 3, 2, 2),
-        (2, 2, 3, 5),
-        (10, 2, 2, 1),
-        (10, 3, 2, 4),
-        (10, 2, 3, 8),
-        (10, 10, 2, 1),
-        (10, 2, 10, 1),
-    ],
-)
-def test_cholesky_slv_tridiag_arrowhead(
-    nblocks: int,
-    diag_blocksize: int,
-    arrow_blocksize: int,
-    n_rhs: int,
-):
+# Testing of block tridiagonal arrowhead cholesky
+if __name__ == "__main__":
+    nblocks = 5
+    diag_blocksize = 4
+    arrow_blocksize = 2
     symmetric = True
     diagonal_dominant = True
     seed = 63
@@ -77,6 +60,7 @@ def test_cholesky_slv_tridiag_arrowhead(
         A_arrow_tip_block,
     )
 
+    n_rhs = 3
     B = np.random.randn(A.shape[0], n_rhs)
 
     X_ref = npla.solve(A, B)
@@ -90,3 +74,17 @@ def test_cholesky_slv_tridiag_arrowhead(
     )
 
     assert np.allclose(X_ref, X_sdr)
+
+    fig, ax = plt.subplots(1, 3)
+    ax[0].set_title("X_ref")
+    ax[0].matshow(X_ref)
+
+    ax[1].set_title("X_sdr")
+    ax[1].matshow(X_sdr)
+
+    X_diff = X_ref - X_sdr
+    ax[2].set_title("X_diff: Difference between X_ref and X_sdr")
+    ax[2].matshow(X_diff)
+    fig.colorbar(ax[2].matshow(X_diff), ax=ax[2], label="Relative error", shrink=0.4)
+
+    plt.show()
