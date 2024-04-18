@@ -23,7 +23,7 @@ from sdr.utils.matrix_transformation_arrays import (
 @pytest.mark.cpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
-    "nblocks, blocksize, nrhs",
+    "nblocks, blocksize, n_rhs",
     [
         (2, 2, 1),
         (10, 2, 3),
@@ -36,12 +36,10 @@ from sdr.utils.matrix_transformation_arrays import (
         (10, 100, 1),
     ],
 )
-@pytest.mark.parametrize("overwrite", [True, False])
 def test_cholesky_slv_tridiag(
     nblocks: int,
     blocksize: int,
-    nrhs: int,
-    overwrite: bool,
+    n_rhs: int,
 ):
     symmetric = True
     diagonal_dominant = True
@@ -63,7 +61,6 @@ def test_cholesky_slv_tridiag(
         A_lower_diagonal_blocks,
     )
 
-    n_rhs = 2
     B = np.random.randn(A.shape[0], n_rhs)
 
     # --- Solving ---
