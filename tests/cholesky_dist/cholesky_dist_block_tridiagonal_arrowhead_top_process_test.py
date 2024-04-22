@@ -14,7 +14,10 @@ import copy as cp
 import numpy as np
 import pytest
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import top_factorize, top_sinv
+from sdr.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead import (
+    top_factorize,
+    top_sinv,
+)
 from sdr.utils.matrix_generation_dense import generate_block_tridiagonal_arrowhead_dense
 from sdr.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
@@ -36,13 +39,13 @@ from sdr.utils.matrix_transformation_arrays import (
         (10, 2, 10),
     ],
 )
-def test_cholesky_dist_block_tridiagonal_arrowhead_top_process(
+def test_cholesky_dist_top_process(
     nblocks: int,
     diag_blocksize: int,
     arrow_blocksize: int,
 ):
     diagonal_dominant = True
-    symmetric = False
+    symmetric = True
     seed = 63
 
     A = generate_block_tridiagonal_arrowhead_dense(
@@ -57,9 +60,9 @@ def test_cholesky_dist_block_tridiagonal_arrowhead_top_process(
     (
         X_ref_diagonal_blocks,
         X_ref_lower_diagonal_blocks,
-        X_ref_upper_diagonal_blocks,
+        _,
         X_ref_arrow_bottom_blocks,
-        X_ref_arrow_right_blocks,
+        _,
         X_ref_arrow_tip_block,
     ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
         X_ref, diag_blocksize, arrow_blocksize
@@ -69,9 +72,9 @@ def test_cholesky_dist_block_tridiagonal_arrowhead_top_process(
     (
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks,
+        _,
         A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
+        _,
         A_arrow_tip_block,
     ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
         A, diag_blocksize, arrow_blocksize
@@ -81,16 +84,11 @@ def test_cholesky_dist_block_tridiagonal_arrowhead_top_process(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         L_arrow_bottom_blocks,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
         Update_arrow_tip,
     ) = top_factorize(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks,
         A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
         A_arrow_tip_block,
     )
 
@@ -106,9 +104,9 @@ def test_cholesky_dist_block_tridiagonal_arrowhead_top_process(
     reduced_system[-arrow_blocksize:, -arrow_blocksize:] = (
         A_arrow_tip_block + Update_arrow_tip
     )
-    reduced_system[0:diag_blocksize, -arrow_blocksize:] = A_arrow_right_blocks[
-        -diag_blocksize:, :
-    ]
+    reduced_system[0:diag_blocksize, -arrow_blocksize:] = A_arrow_bottom_blocks[
+        :, -diag_blocksize:
+    ].T
     reduced_system[-arrow_blocksize:, 0:diag_blocksize] = A_arrow_bottom_blocks[
         :, -diag_blocksize:
     ]
@@ -117,9 +115,7 @@ def test_cholesky_dist_block_tridiagonal_arrowhead_top_process(
 
     X_sdr_diagonal_blocks = np.zeros_like(A_diagonal_blocks)
     X_sdr_lower_diagonal_blocks = np.zeros_like(A_lower_diagonal_blocks)
-    X_sdr_upper_diagonal_blocks = np.zeros_like(A_upper_diagonal_blocks)
     X_sdr_arrow_bottom_blocks = np.zeros_like(A_arrow_bottom_blocks)
-    X_sdr_arrow_right_blocks = np.zeros_like(A_arrow_right_blocks)
     X_sdr_global_arrow_tip = np.zeros_like(A_arrow_tip_block)
 
     X_sdr_diagonal_blocks[:, -diag_blocksize:] = reduced_system_inv[
@@ -128,41 +124,29 @@ def test_cholesky_dist_block_tridiagonal_arrowhead_top_process(
     X_sdr_arrow_bottom_blocks[:, -diag_blocksize:] = reduced_system_inv[
         -arrow_blocksize:, 0:diag_blocksize
     ]
-    X_sdr_arrow_right_blocks[-diag_blocksize:, :] = reduced_system_inv[
-        0:diag_blocksize, -arrow_blocksize:
-    ]
     X_sdr_global_arrow_tip = reduced_system_inv[-arrow_blocksize:, -arrow_blocksize:]
 
     # ----- Selected inversion part -----
     (
         X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
-        X_sdr_upper_diagonal_blocks,
         X_sdr_arrow_bottom_blocks,
-        X_sdr_arrow_right_blocks,
         X_sdr_global_arrow_tip,
     ) = top_sinv(
         X_sdr_diagonal_blocks,
         X_sdr_lower_diagonal_blocks,
-        X_sdr_upper_diagonal_blocks,
         X_sdr_arrow_bottom_blocks,
-        X_sdr_arrow_right_blocks,
         X_sdr_global_arrow_tip,
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         L_arrow_bottom_blocks,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
     )
 
     assert np.allclose(X_ref_diagonal_blocks, X_sdr_diagonal_blocks)
     assert np.allclose(X_ref_lower_diagonal_blocks, X_sdr_lower_diagonal_blocks)
-    assert np.allclose(X_ref_upper_diagonal_blocks, X_sdr_upper_diagonal_blocks)
     assert np.allclose(X_ref_arrow_bottom_blocks, X_sdr_arrow_bottom_blocks)
-    assert np.allclose(X_ref_arrow_right_blocks, X_sdr_arrow_right_blocks)
     assert np.allclose(X_ref_arrow_tip_block, X_sdr_global_arrow_tip)
 
 
 if __name__ == "__main__":
-    test_lu_dist_top_process(10, 10, 2)
+    test_cholesky_dist_top_process(10, 4, 2)
