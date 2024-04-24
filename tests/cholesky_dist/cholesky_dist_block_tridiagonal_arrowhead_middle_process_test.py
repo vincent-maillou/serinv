@@ -29,9 +29,9 @@ from sdr.utils.matrix_transformation_arrays import (
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize",
     [
-        (2, 2, 2),
-        (2, 3, 2),
-        (2, 2, 3),
+        (3, 2, 2),
+        (3, 3, 2),
+        (3, 2, 3),
         (10, 2, 2),
         (10, 3, 2),
         (10, 2, 3),
@@ -151,11 +151,60 @@ def test_cholesky_dist_middle_process(
 
     reduced_system_inv = np.linalg.inv(reduced_system)
 
-    import matplotlib.pyplot as plt
+    X_sdr_diagonal_blocks = np.zeros_like(A_diagonal_blocks)
+    X_sdr_lower_diagonal_blocks = np.zeros_like(A_lower_diagonal_blocks)
+    X_sdr_arrow_bottom_blocks = np.zeros_like(A_arrow_bottom_blocks)
+    X_sdr_top_2sided_arrow_blocks_local = np.zeros_like(A_top_2sided_arrow_blocks_local)
+    X_sdr_global_arrow_tip_block = np.zeros_like(A_arrow_tip_block)
 
-    plt.matshow(X_ref)
-    plt.matshow(reduced_system_inv)
-    plt.show()
+    # (top, top)
+    X_sdr_diagonal_blocks[:, 0:diag_blocksize] = reduced_system_inv[
+        0:diag_blocksize, 0:diag_blocksize
+    ]
+    # (top, nblocks)
+    X_sdr_top_2sided_arrow_blocks_local[:, -diag_blocksize:] = reduced_system_inv[
+        0:diag_blocksize, -diag_blocksize - arrow_blocksize : -arrow_blocksize
+    ]
+    # (ndb+1, top)
+    X_sdr_arrow_bottom_blocks[:, :diag_blocksize] = reduced_system_inv[
+        -arrow_blocksize:, 0:diag_blocksize
+    ]
+    # (nblocks, nblocks)
+    X_sdr_diagonal_blocks[:, -diag_blocksize:] = reduced_system_inv[
+        -diag_blocksize - arrow_blocksize : -arrow_blocksize,
+        -diag_blocksize - arrow_blocksize : -arrow_blocksize,
+    ]
+    # (ndb+1, nblocks)
+    X_sdr_arrow_bottom_blocks[:, -diag_blocksize:] = reduced_system_inv[
+        -arrow_blocksize:, -diag_blocksize - arrow_blocksize : -arrow_blocksize
+    ]
+    # (ndb+1, ndb+1)
+    X_sdr_global_arrow_tip_block = reduced_system_inv[
+        -arrow_blocksize:, -arrow_blocksize:
+    ]
+
+    # ----- Selected inversion part -----
+    (
+        X_sdr_diagonal_blocks,
+        X_sdr_lower_diagonal_blocks,
+        X_sdr_arrow_bottom_blocks,
+        X_sdr_global_arrow_tip_block,
+    ) = middle_sinv(
+        X_sdr_diagonal_blocks,
+        X_sdr_lower_diagonal_blocks,
+        X_sdr_arrow_bottom_blocks,
+        X_sdr_top_2sided_arrow_blocks_local,
+        X_sdr_global_arrow_tip_block,
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+        L_arrow_bottom_blocks,
+        L_upper_2sided_arrow_blocks,
+    )
+
+    assert np.allclose(X_ref_diagonal_blocks, X_sdr_diagonal_blocks)
+    assert np.allclose(X_ref_lower_diagonal_blocks, X_sdr_lower_diagonal_blocks)
+    assert np.allclose(X_ref_arrow_bottom_blocks, X_sdr_arrow_bottom_blocks)
+    assert np.allclose(X_ref_arrow_tip_block, X_sdr_global_arrow_tip_block)
 
 
 if __name__ == "__main__":
