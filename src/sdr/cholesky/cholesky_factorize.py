@@ -176,6 +176,7 @@ def cholesky_factorize_block_tridiagonal_arrowhead(
             @ L_inv_temp
         )
 
+        # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.T
         A_diagonal_blocks[
             :,
