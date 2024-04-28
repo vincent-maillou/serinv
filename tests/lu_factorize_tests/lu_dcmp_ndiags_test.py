@@ -1,12 +1,4 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2023-11
-
-Tests for lu selected decompositions routines.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import matplotlib.pyplot as plt
 import numpy as np

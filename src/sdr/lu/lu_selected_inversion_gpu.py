@@ -1,12 +1,4 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2024-03
-
-Contains the lu selected inversion routines.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 try:
     import cupy as cp

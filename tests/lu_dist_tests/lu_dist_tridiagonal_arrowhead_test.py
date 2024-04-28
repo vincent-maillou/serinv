@@ -1,12 +1,4 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2024-03
-
-Integration testing of the lu_dist algorithm for tridiagonal arrowhead matrices.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import copy as cp
 from os import environ
@@ -205,4 +197,3 @@ def test_lu_dist(
                 :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
             ],
         )
-
