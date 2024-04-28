@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from sdr.lu.lu_factorize import lu_factorize_tridiag
-from sdr.lu.lu_solve import lu_solve_tridiag
-from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.lu.lu_factorize import lu_factorize_tridiag
+from serinv.lu.lu_solve import lu_solve_tridiag
+from serinv.utils import matrix_generation_dense
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_dense_to_arrays,
 )
 

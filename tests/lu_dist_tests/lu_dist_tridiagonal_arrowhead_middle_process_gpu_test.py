@@ -8,15 +8,17 @@ import numpy as np
 import pytest
 
 try:
-    from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
+    from serinv.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
         middle_factorize_gpu,
         middle_sinv_gpu,
     )
 except ImportError:
     pass
 
-from sdr.utils.matrix_generation_dense import generate_block_tridiagonal_arrowhead_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.utils.matrix_generation_dense import (
+    generate_block_tridiagonal_arrowhead_dense,
+)
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 

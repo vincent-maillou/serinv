@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as la
 
-from sdr.lu.lu_factorize_gpu import lu_factorize_tridiag_gpu
-from sdr.lu.lu_selected_inversion_gpu import lu_sinv_tridiag_gpu
-from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_dense import (
+from serinv.lu.lu_factorize_gpu import lu_factorize_tridiag_gpu
+from serinv.lu.lu_selected_inversion_gpu import lu_sinv_tridiag_gpu
+from serinv.utils import matrix_generation_dense
+from serinv.utils.matrix_transformation_dense import (
     zeros_to_block_tridiagonal_shape,
     convert_block_tridiagonal_dense_to_arrays,
     convert_block_tridiagonal_arrays_to_dense,

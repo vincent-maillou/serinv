@@ -5,12 +5,12 @@ import numpy.linalg as npla
 import copy as cp
 import pytest
 
-from sdr.cholesky.cholesky_factorize import (
+from serinv.cholesky.cholesky_factorize import (
     cholesky_factorize_block_tridiagonal_arrowhead,
 )
-from sdr.cholesky.cholesky_solve import cholesky_solve_block_tridiagonal_arrowhead
-from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.cholesky.cholesky_solve import cholesky_solve_block_tridiagonal_arrowhead
+from serinv.utils import matrix_generation_dense
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 

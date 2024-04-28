@@ -5,10 +5,12 @@ import numpy as np
 import pytest
 import scipy.linalg as la
 
-from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
-from sdr.lu.lu_selected_inversion import lu_sinv_ndiags_arrowhead
-from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_dense import zeros_to_blocks_banded_arrowhead_shape
+from serinv.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
+from serinv.lu.lu_selected_inversion import lu_sinv_ndiags_arrowhead
+from serinv.utils import matrix_generation_dense
+from serinv.utils.matrix_transformation_dense import (
+    zeros_to_blocks_banded_arrowhead_shape,
+)
 
 # Testing of block tridiagonal lu sinv
 if __name__ == "__main__":

@@ -5,10 +5,10 @@ import numpy.linalg as npla
 import scipy.linalg as scla
 from mpi4py import MPI
 
-from sdr.cholesky.cholesky_factorize import (
+from serinv.cholesky.cholesky_factorize import (
     cholesky_factorize_block_tridiagonal_arrowhead,
 )
-from sdr.cholesky.cholesky_selected_inversion import (
+from serinv.cholesky.cholesky_selected_inversion import (
     cholesky_sinv_block_tridiagonal_arrowhead,
 )
 

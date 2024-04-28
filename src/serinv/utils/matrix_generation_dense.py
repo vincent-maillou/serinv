@@ -1,7 +1,7 @@
 # Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import numpy as np
-from sdr.utils.matrix_transformation_dense import (
+from serinv.utils.matrix_transformation_dense import (
     make_dense_matrix_diagonally_dominante,
     make_dense_matrix_symmetric,
 )

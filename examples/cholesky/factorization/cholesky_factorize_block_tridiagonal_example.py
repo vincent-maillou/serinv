@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as la
 
-from sdr.cholesky.cholesky_factorize import cholesky_factorize_block_tridiagonal
-from sdr.utils.matrix_generation_dense import generate_block_tridiagonal_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.cholesky.cholesky_factorize import cholesky_factorize_block_tridiagonal
+from serinv.utils.matrix_generation_dense import generate_block_tridiagonal_dense
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_dense_to_arrays,
 )
 

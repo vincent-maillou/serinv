@@ -2,7 +2,9 @@
 
 import numpy as np
 
-from sdr.utils.matrix_transformation_dense import make_dense_matrix_diagonally_dominante
+from serinv.utils.matrix_transformation_dense import (
+    make_dense_matrix_diagonally_dominante,
+)
 
 
 N_DIAG_BLOCKS = 5

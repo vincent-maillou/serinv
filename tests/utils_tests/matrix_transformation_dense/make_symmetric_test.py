@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from sdr.utils.matrix_transformation_dense import make_dense_matrix_symmetric
+from serinv.utils.matrix_transformation_dense import make_dense_matrix_symmetric
 
 
 N_DIAG_BLOCKS = 5

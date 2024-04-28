@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 import scipy.linalg as la
 
-from sdr.cholesky.cholesky_factorize import chol_dcmp_ndiags
-from sdr.utils import matrix_generation_dense
+from serinv.cholesky.cholesky_factorize import chol_dcmp_ndiags
+from serinv.utils import matrix_generation_dense
 
 # Testing of block n-diagonals cholesky
 if __name__ == "__main__":

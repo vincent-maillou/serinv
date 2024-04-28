@@ -3,10 +3,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sdr.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
-from sdr.lu.lu_selected_inversion import lu_sinv_ndiags_arrowhead
-from sdr.utils.matrix_generation_dense import generate_block_tridiagonal_arrowhead_dense
-from sdr.utils.matrix_transformation_dense import (
+from serinv.lu.lu_decompose import lu_dcmp_ndiags_arrowhead
+from serinv.lu.lu_selected_inversion import lu_sinv_ndiags_arrowhead
+from serinv.utils.matrix_generation_dense import (
+    generate_block_tridiagonal_arrowhead_dense,
+)
+from serinv.utils.matrix_transformation_dense import (
     zeros_to_block_tridiagonal_arrowhead_shape,
 )
 

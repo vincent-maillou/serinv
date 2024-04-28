@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as la
 
-from sdr.cholesky.cholesky_factorize import cholesky_factorize_block_tridiagonal
-from sdr.cholesky.cholesky_selected_inversion import cholesky_sinv_block_tridiagonal
-from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.cholesky.cholesky_factorize import cholesky_factorize_block_tridiagonal
+from serinv.cholesky.cholesky_selected_inversion import cholesky_sinv_block_tridiagonal
+from serinv.utils import matrix_generation_dense
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_dense_to_arrays,
 )
 

@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
-from sdr.utils.matrix_generation_arrays import (
+from serinv.utils.matrix_generation_arrays import (
     generate_block_tridiagonal_arrays,
     generate_block_tridiagonal_arrowhead_arrays,
 )
 
-from sdr.utils.matrix_transformation_dense import (
+from serinv.utils.matrix_transformation_dense import (
     convert_block_tridiagonal_arrays_to_dense,
     convert_block_tridiagonal_arrowhead_arrays_to_dense,
 )

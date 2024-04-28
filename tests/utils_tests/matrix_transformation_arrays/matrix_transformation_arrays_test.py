@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.utils.matrix_transformation_arrays import (
     make_arrays_block_tridiagonal_symmetric,
     make_arrays_block_tridiagonal_arrowhead_symmetric,
 )

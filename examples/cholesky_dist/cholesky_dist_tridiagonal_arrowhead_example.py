@@ -5,11 +5,11 @@ import copy as cp
 import numpy as np
 from mpi4py import MPI
 
-from sdr.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead import (
+from serinv.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead import (
     cholesky_dist_block_tridiagonal_arrowhead,
 )
-from sdr.utils import dist_utils, matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.utils import dist_utils, matrix_generation_dense
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 

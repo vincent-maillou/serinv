@@ -5,9 +5,11 @@ import copy as cp
 import numpy as np
 import pytest
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import middle_factorize, middle_sinv
-from sdr.utils.matrix_generation_dense import generate_block_tridiagonal_arrowhead_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.lu_dist.lu_dist_tridiagonal_arrowhead import middle_factorize, middle_sinv
+from serinv.utils.matrix_generation_dense import (
+    generate_block_tridiagonal_arrowhead_dense,
+)
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 

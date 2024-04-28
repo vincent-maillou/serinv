@@ -5,12 +5,14 @@ import copy as cp
 import numpy as np
 import pytest
 
-from sdr.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead import (
+from serinv.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead import (
     top_factorize,
     top_sinv,
 )
-from sdr.utils.matrix_generation_dense import generate_block_tridiagonal_arrowhead_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.utils.matrix_generation_dense import (
+    generate_block_tridiagonal_arrowhead_dense,
+)
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 

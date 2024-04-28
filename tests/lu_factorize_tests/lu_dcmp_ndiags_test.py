@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 import scipy.linalg as la
 
-from sdr.lu.lu_decompose import lu_dcmp_ndiags
-from sdr.utils import matrix_generation_dense
+from serinv.lu.lu_decompose import lu_dcmp_ndiags
+from serinv.utils import matrix_generation_dense
 
 # Testing of block n-diagonals lu
 if __name__ == "__main__":

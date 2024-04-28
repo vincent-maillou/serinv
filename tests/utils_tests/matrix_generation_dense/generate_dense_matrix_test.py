@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from sdr.utils.matrix_generation_dense import (
+from serinv.utils.matrix_generation_dense import (
     generate_block_tridiagonal_dense,
     generate_block_tridiagonal_arrowhead_dense,
     generate_blocks_banded_dense,
