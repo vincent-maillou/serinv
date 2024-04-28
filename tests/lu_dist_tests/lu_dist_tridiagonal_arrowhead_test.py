@@ -206,6 +206,3 @@ def test_lu_dist(
             ],
         )
 
-
-if __name__ == "__main__":
-    test_lu_dist(10, 3, 2)
