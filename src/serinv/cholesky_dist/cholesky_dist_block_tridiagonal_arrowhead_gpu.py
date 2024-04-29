@@ -19,7 +19,7 @@ from serinv.cholesky.cholesky_selected_inversion import (
 )
 
 
-def cholesky_dist_block_tridiagonal_arrowhead(
+def cholesky_dist_block_tridiagonal_arrowhead_gpu(
     A_diagonal_blocks_local: np.ndarray,
     A_lower_diagonal_blocks_local: np.ndarray,
     A_arrow_bottom_blocks_local: np.ndarray,
@@ -45,6 +45,8 @@ def cholesky_dist_block_tridiagonal_arrowhead(
             L_lower_diagonal_blocks,
             L_arrow_bottom_blocks,
             Update_arrow_tip,
+            A_diagonal_blocks_local_updated,
+            A_arrow_bottom_blocks_local_updated,
         ) = top_factorize_gpu(
             A_diagonal_blocks_local,
             A_lower_diagonal_blocks_local,
@@ -58,8 +60,8 @@ def cholesky_dist_block_tridiagonal_arrowhead(
             A_rs_arrow_bottom_blocks,
             A_rs_arrow_tip_block,
         ) = create_reduced_system(
-            A_diagonal_blocks_local,
-            A_arrow_bottom_blocks_local,
+            A_diagonal_blocks_local_updated,
+            A_arrow_bottom_blocks_local_updated,
             A_arrow_tip_block,
             Update_arrow_tip,
             A_bridges_lower,
@@ -84,7 +86,10 @@ def cholesky_dist_block_tridiagonal_arrowhead(
             L_arrow_bottom_blocks,
             L_upper_2sided_arrow_blocks,
             Update_arrow_tip,
-        ) = middle_factorize(
+            A_diagonal_blocks_local_updated,
+            A_arrow_bottom_blocks_local_updated,
+            A_top_2sided_arrow_blocks_local_updated,
+        ) = middle_factorize_gpu(
             A_diagonal_blocks_local,
             A_lower_diagonal_blocks_local,
             A_arrow_bottom_blocks_local,
@@ -98,12 +103,12 @@ def cholesky_dist_block_tridiagonal_arrowhead(
             A_rs_arrow_bottom_blocks,
             A_rs_arrow_tip_block,
         ) = create_reduced_system(
-            A_diagonal_blocks_local,
-            A_arrow_bottom_blocks_local,
+            A_diagonal_blocks_local_updated,
+            A_arrow_bottom_blocks_local_updated,
             A_arrow_tip_block,
             Update_arrow_tip,
             A_bridges_lower,
-            A_top_2sided_arrow_blocks_local,
+            A_top_2sided_arrow_blocks_local_updated,
         )
 
     (
@@ -156,7 +161,7 @@ def cholesky_dist_block_tridiagonal_arrowhead(
             X_lower_diagonal_blocks_local,
             X_arrow_bottom_blocks_local,
             _,
-        ) = middle_sinv(
+        ) = middle_sinv_gpu(
             X_diagonal_blocks_local,
             X_lower_diagonal_blocks_local,
             X_arrow_bottom_blocks_local,
@@ -633,28 +638,24 @@ def create_reduced_system(
     A_rs_diagonal_blocks = np.zeros(
         (diag_blocksize, n_diag_blocks_reduced_system * diag_blocksize),
         dtype=A_diagonal_blocks_local.dtype,
-    )
+    )  # Have to be zero-initialized
     A_rs_lower_diagonal_blocks = np.zeros(
         (diag_blocksize, (n_diag_blocks_reduced_system - 1) * diag_blocksize),
         dtype=A_diagonal_blocks_local.dtype,
-    )
+    )  # Have to be zero-initialized
     A_rs_arrow_bottom_blocks = np.zeros(
         (arrow_blocksize, n_diag_blocks_reduced_system * diag_blocksize),
         dtype=A_diagonal_blocks_local.dtype,
-    )
+    )  # Have to be zero-initialized
     A_rs_arrow_tip_block = np.zeros(
         (arrow_blocksize, arrow_blocksize), dtype=A_diagonal_blocks_local.dtype
-    )
+    )  # Have to be zero-initialized
 
     A_rs_arrow_tip_block = Update_arrow_tip
 
     if comm_rank == 0:
-        A_rs_diagonal_blocks[:, :diag_blocksize] = A_diagonal_blocks_local[
-            :, -diag_blocksize:
-        ]
-        A_rs_arrow_bottom_blocks[:, :diag_blocksize] = A_arrow_bottom_blocks_local[
-            :, -diag_blocksize:
-        ]
+        A_rs_diagonal_blocks[:, :diag_blocksize] = A_diagonal_blocks_local[:, :]
+        A_rs_arrow_bottom_blocks[:, :diag_blocksize] = A_arrow_bottom_blocks_local[:, :]
     else:
         start_index = diag_blocksize + (comm_rank - 1) * 2 * diag_blocksize
 

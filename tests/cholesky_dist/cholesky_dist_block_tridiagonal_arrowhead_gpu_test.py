@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from mpi4py import MPI
 
-from serinv.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead import (
-    cholesky_dist_block_tridiagonal_arrowhead,
+from serinv.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead_gpu import (
+    cholesky_dist_block_tridiagonal_arrowhead_gpu,
 )
 from serinv.utils import dist_utils, matrix_generation_dense
 from serinv.utils.matrix_transformation_arrays import (
@@ -33,7 +33,7 @@ environ["OMP_NUM_THREADS"] = "1"
         (13, 2, 10),
     ],
 )
-def test_lu_dist(
+def test_cholesky_dist(
     nblocks: int,
     diag_blocksize: int,
     arrow_blocksize: int,
@@ -97,7 +97,7 @@ def test_lu_dist(
 
     (
         X_ref_bridges_lower,
-        X_ref_bridges_upper,
+        _,
     ) = dist_utils.extract_bridges_tridiagonal_array(
         X_ref_lower_diagonal_blocks, X_ref_upper_diagonal_blocks, start_blockrows
     )
@@ -132,7 +132,7 @@ def test_lu_dist(
         partition_sizes[comm_rank],
     )
 
-    (A_bridges_lower, A_bridges_upper) = dist_utils.extract_bridges_tridiagonal_array(
+    (A_bridges_lower, _) = dist_utils.extract_bridges_tridiagonal_array(
         A_lower_diagonal_blocks, A_upper_diagonal_blocks, start_blockrows
     )
 
@@ -142,7 +142,7 @@ def test_lu_dist(
         X_arrow_bottom_blocks_local,
         X_arrow_tip_block_local,
         X_bridges_lower,
-    ) = cholesky_dist_block_tridiagonal_arrowhead(
+    ) = cholesky_dist_block_tridiagonal_arrowhead_gpu(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks_local,
@@ -174,3 +174,7 @@ def test_lu_dist(
                 :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
             ],
         )
+
+
+if __name__ == "__main__":
+    test_cholesky_dist(10, 3, 2)
