@@ -1,24 +1,31 @@
 # Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
+import sys
+
 import copy as cp
-from os import environ
 
 import numpy as np
 import pytest
 from mpi4py import MPI
 
-from serinv.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead_gpu import (
-    cholesky_dist_block_tridiagonal_arrowhead_gpu,
-)
+try:
+    from serinv.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead_gpu import (
+        cholesky_dist_block_tridiagonal_arrowhead_gpu,
+    )
+
+except ImportError:
+    pass
+
 from serinv.utils import dist_utils, matrix_generation_dense
 from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 
-environ["OMP_NUM_THREADS"] = "1"
 
-
-@pytest.mark.cpu
+@pytest.mark.skipif(
+    "cupy" not in sys.modules, reason="requires a working cupy installation"
+)
+@pytest.mark.gpu
 @pytest.mark.mpi(min_size=2)
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize",

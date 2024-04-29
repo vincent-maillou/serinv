@@ -1,14 +1,21 @@
 # Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
+import sys
+
 import copy as cp
 
 import numpy as np
 import pytest
 
-from serinv.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead_gpu import (
-    middle_factorize_gpu,
-    middle_sinv_gpu,
-)
+try:
+    from serinv.cholesky_dist.cholesky_dist_block_tridiagonal_arrowhead_gpu import (
+        middle_factorize_gpu,
+        middle_sinv_gpu,
+    )
+
+except ImportError:
+    pass
+
 from serinv.utils.matrix_generation_dense import (
     generate_block_tridiagonal_arrowhead_dense,
 )
@@ -17,7 +24,10 @@ from serinv.utils.matrix_transformation_arrays import (
 )
 
 
-@pytest.mark.cpu
+@pytest.mark.skipif(
+    "cupy" not in sys.modules, reason="requires a working cupy installation"
+)
+@pytest.mark.gpu
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize(
     "nblocks, diag_blocksize, arrow_blocksize",
