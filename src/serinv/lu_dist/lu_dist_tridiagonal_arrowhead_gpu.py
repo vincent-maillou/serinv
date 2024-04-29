@@ -346,6 +346,7 @@ def top_factorize_gpu(
         Local update of the arrow tip block.
     """
     diag_blocksize = A_diagonal_blocks_local.shape[0]
+    arrowhead_blocksize = A_arrow_bottom_blocks_local.shape[0]
     nblocks = A_diagonal_blocks_local.shape[1] // diag_blocksize
 
     A_diagonal_blocks_local_gpu: np.ndarray = cp.asarray(A_diagonal_blocks_local)
@@ -366,11 +367,11 @@ def top_factorize_gpu(
         dtype=A_diagonal_blocks_local.dtype,
     )
     A_arrow_bottom_blocks_updated: np.ndarray = cpx.empty_pinned(
-        (diag_blocksize, diag_blocksize),
+        (arrowhead_blocksize, diag_blocksize),
         dtype=A_diagonal_blocks_local.dtype,
     )
     A_arrow_right_blocks_updated: np.ndarray = cpx.empty_pinned(
-        (diag_blocksize, diag_blocksize),
+        (diag_blocksize, arrowhead_blocksize),
         dtype=A_diagonal_blocks_local.dtype,
     )
 
@@ -585,9 +586,9 @@ def top_factorize_gpu(
     )
 
     A_diagonal_blocks_local_gpu[:, -diag_blocksize:].get(out=A_diagonal_blocks_updated)
-    A_arrow_bottom_blocks_updated = A_arrow_bottom_blocks_local_gpu[
-        :, -diag_blocksize:
-    ].get()
+    A_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:].get(
+        out=A_arrow_bottom_blocks_updated
+    )
     A_arrow_right_blocks_updated = A_arrow_right_blocks_local_gpu[
         -diag_blocksize:, :
     ].get()
