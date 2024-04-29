@@ -2,7 +2,7 @@
 
 LU distributed selected inversion
 =================================
-.. currentmodule:: sdr.cholesky_dist
+.. currentmodule:: serinv.cholesky_dist
 
 .. autosummary::
     :toctree: generated/

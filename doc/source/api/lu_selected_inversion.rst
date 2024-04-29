@@ -2,7 +2,7 @@
 
 Selected Inversion
 ==================
-.. currentmodule:: sdr.lu.lu_selected_inversion
+.. currentmodule:: serinv.lu.lu_selected_inversion
 
 .. autosummary::
     :toctree: generated/

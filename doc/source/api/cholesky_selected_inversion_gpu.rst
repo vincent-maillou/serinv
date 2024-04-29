@@ -2,7 +2,7 @@
 
 Selected Inversion
 ==================
-.. currentmodule:: sdr.cholesky.cholesky_selected_inversion_gpu
+.. currentmodule:: serinv.cholesky.cholesky_selected_inversion_gpu
 
 .. autosummary::
     :toctree: generated/

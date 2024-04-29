@@ -2,7 +2,7 @@
 
 Decompose
 =========
-.. currentmodule:: sdr.cholesky.cholesky_factorize
+.. currentmodule:: serinv.cholesky.cholesky_factorize
 
 .. autosummary::
     :toctree: generated/

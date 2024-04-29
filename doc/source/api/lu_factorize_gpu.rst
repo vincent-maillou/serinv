@@ -2,7 +2,7 @@
 
 LU factorize
 ============
-.. currentmodule:: sdr.lu.lu_factorize_gpu
+.. currentmodule:: serinv.lu.lu_factorize_gpu
 
 .. autosummary::
     :toctree: generated/

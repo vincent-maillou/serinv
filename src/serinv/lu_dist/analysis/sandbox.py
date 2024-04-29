@@ -178,7 +178,7 @@ if __name__ == "__main__":
 
     norme_diff = np.linalg.norm(ref_inverse - Ptsdr_inverseP_cut)
     print(f"Norme ref: {norme_ref}")
-    print(f"Norme sdr: {norme_sdr}")
+    print(f"Norme serinv: {norme_sdr}")
     print(f"Norme diff: {norme_diff}")
 
     plt.show()

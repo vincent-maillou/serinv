@@ -2,7 +2,7 @@
 
 Selected Inversion
 ==================
-.. currentmodule:: sdr.cholesky.cholesky_solve
+.. currentmodule:: serinv.cholesky.cholesky_solve
 
 .. autosummary::
     :toctree: generated/

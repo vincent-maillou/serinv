@@ -2,7 +2,7 @@
 
 LU distributed selected inversion
 =================================
-.. currentmodule:: sdr.lu_dist
+.. currentmodule:: serinv.lu_dist
 
 .. autosummary::
     :toctree: generated/

@@ -2,7 +2,7 @@
 
 Decompose
 =========
-.. currentmodule:: sdr.cholesky.cholesky_factorize_gpu
+.. currentmodule:: serinv.cholesky.cholesky_factorize_gpu
 
 .. autosummary::
     :toctree: generated/
