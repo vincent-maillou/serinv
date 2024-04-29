@@ -11,11 +11,11 @@ except ImportError:
 
 import numpy as np
 
-from serinv.cholesky.cholesky_factorize import (
-    cholesky_factorize_block_tridiagonal_arrowhead,
+from serinv.cholesky.cholesky_factorize_gpu import (
+    cholesky_factorize_block_tridiagonal_arrowhead_gpu,
 )
-from serinv.cholesky.cholesky_selected_inversion import (
-    cholesky_sinv_block_tridiagonal_arrowhead,
+from serinv.cholesky.cholesky_selected_inversion_gpu import (
+    cholesky_sinv_block_tridiagonal_arrowhead_gpu,
 )
 
 
@@ -735,7 +735,7 @@ def inverse_reduced_system(
         L_lower_diagonal_blocks,
         L_arrow_bottom_blocks,
         L_arrow_tip_block,
-    ) = cholesky_factorize_block_tridiagonal_arrowhead(
+    ) = cholesky_factorize_block_tridiagonal_arrowhead_gpu(
         A_rs_diagonal_blocks,
         A_rs_lower_diagonal_blocks,
         A_rs_arrow_bottom_blocks,
@@ -747,7 +747,7 @@ def inverse_reduced_system(
         X_rs_lower_diagonal_blocks,
         X_rs_arrow_bottom_blocks,
         X_rs_arrow_tip_block,
-    ) = cholesky_sinv_block_tridiagonal_arrowhead(
+    ) = cholesky_sinv_block_tridiagonal_arrowhead_gpu(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         L_arrow_bottom_blocks,
