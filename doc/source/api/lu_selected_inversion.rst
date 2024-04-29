@@ -9,5 +9,3 @@ Selected Inversion
     
     lu_sinv_tridiag
     lu_sinv_tridiag_arrowhead
-    lu_sinv_ndiags
-    lu_sinv_ndiags_arrowhead

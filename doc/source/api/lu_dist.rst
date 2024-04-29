@@ -8,3 +8,4 @@ LU distributed selected inversion
     :toctree: generated/
     
     lu_dist_tridiagonal_arrowhead
+    lu_dist_tridiagonal_arrowhead_gpu

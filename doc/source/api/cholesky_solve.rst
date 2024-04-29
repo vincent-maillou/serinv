@@ -7,7 +7,5 @@ Selected Inversion
 .. autosummary::
     :toctree: generated/
     
-    chol_slv_tridiag
-    chol_slv_tridiag_arrowhead
-    chol_slv_ndiags
-    chol_slv_ndiags_arrowhead
+    cholesky_solve_block_tridiagonal
+    cholesky_solve_block_tridiagonal_arrowhead
