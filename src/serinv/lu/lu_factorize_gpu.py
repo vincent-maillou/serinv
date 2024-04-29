@@ -172,7 +172,6 @@ def lu_factorize_tridiag_arrowhead_gpu(
 
     diag_blocksize = A_diagonal_blocks.shape[0]
     arrow_blocksize = A_arrow_bottom_blocks.shape[0]
-
     n_diag_blocks = A_diagonal_blocks.shape[1] // diag_blocksize
 
     A_diagonal_blocks_gpu: cp.ndarray = cp.asarray(A_diagonal_blocks)
