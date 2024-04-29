@@ -4,69 +4,14 @@ import copy
 seed = 10
 
 
-np.random.seed(seed)
-
-def cut_to_banded(
-    A: np.ndarray,
-    ndiags : int
-):
-    for i in range(A.shape[0]):
-        for j in range(A.shape[1]):
-            if abs(i-j) > ndiags:
-                A[i, j] = 0
-    return A
-
-
-def create_banded_matrix(
-        matrix_size: int,
-        ndiags: int
-):
-    A = np.zeros((matrix_size, matrix_size), dtype=np.float32)
-    assert matrix_size >= 2*ndiags+1
-    tmp = np.random.randint(1,10, size=(matrix_size,  2*ndiags+1)) #+ 1j * np.random.rand(matrix_size, 2*ndiags+1)
-    for i in range(matrix_size):
-        for j in range(max(0,i-ndiags), min(matrix_size, i+ndiags+1)):
-            A[i, j] = tmp[i, j-i+ndiags]
-    np.fill_diagonal(A, np.sum(np.abs(A), axis=1)+10)
-    return A
-
-
-np.set_printoptions(edgeitems=30, linewidth=100000, 
-    formatter=dict(float=lambda x: "%.3g" % x))
-
-@pytest.mark.parametrize(
-        "matrix_size, ndiags",
-        [(1, 0),
-         (2, 0),
-         (3, 0),
-         (4, 0),
-         (5, 0),
-         (3, 1),
-         (4, 1),
-         (5, 1),
-         (5, 2),
-         (6, 2),
-         (7, 2),
-         (8, 2),
-         (9, 3),
-         (10, 2),
-         (10, 4),
-         (11, 4),
-         (12, 4),
-         (20, 5),
-         (21, 5),
-         (23, 5),
-         (25, 5),
-         (20, 6),
-         (21, 6),
-         (23, 6),
-         (25, 6),
-        ]
-)
-
 def sinv_ndiags(in_A: np.ndarray,
             ndiags: int
 ) -> np.ndarray:
+    """
+    Selected inversion of a band matrix with ndiags diagonals.
+    There is no blocking (block size is 1).
+    This results in poor parallelism (only 1D, and occasionally, 2D parallelism).
+    """
     A = copy.deepcopy(in_A)
     n = A.shape[0]
     A_inv = np.zeros(in_A.shape, dtype=in_A.dtype)
@@ -109,7 +54,7 @@ def sinv_ndiags(in_A: np.ndarray,
 
 def sinv_ndiags_with_enough_parallelism(in_A: np.ndarray,
             ndiags: int,
-            b: int
+            b: int = 1
 ) -> np.ndarray:
     """ 
     Perform the selected inversion on the given input matrix in_A. The sparsity structure is encoded in the loop ranges.
@@ -130,6 +75,18 @@ def sinv_ndiags_with_enough_parallelism(in_A: np.ndarray,
     A = copy.deepcopy(in_A)
     n = A.shape[0]
     A_inv = np.zeros(in_A.shape, dtype=in_A.dtype)
+
+    # debug only
+    import scipy as sp
+    p, l, u = sp.linalg.lu(in_A)
+    ref_lu = u + np.tril(l, k=-1)
+    ref_invL = np.linalg.inv(l)
+    ref_invU = np.linalg.inv(u)
+    ref_invA = np.linalg.inv(in_A)
+    ref_invLU = ref_invU + np.tril(ref_invL, k=-1)
+    invL = invert_L(l)
+    invU = invert_U(u)
+    # END debug only
 
     # in the following, we denote an additional iteration variable kk that would loop over b (for k in range(b))
     # to expose additinal degree of paralellism.
@@ -157,7 +114,111 @@ def sinv_ndiags_with_enough_parallelism(in_A: np.ndarray,
             -A[start:end, start:end])
         # END in-place LU decomposition without pivoting
 
+    for k in range(n-b, -b, -b):        
+        a00_start = k
+        a11_start = k+b
+        a11_end=min(k+b+ndiags,n)
 
+        A_inv[a00_start:a11_start, a00_start:a11_start] = \
+                invert_LU(A[a00_start:a11_start, a00_start:a11_start])
+
+        L_inv = np.tril(A_inv[a00_start:a11_start, a00_start:a11_start], k=-1) + np.eye(b)
+        U_inv = np.triu(A_inv[a00_start:a11_start, a00_start:a11_start], k=0)
+        
+        # if k < n-b:
+        # col = A @ col
+        A_inv[a11_start:a11_end, a00_start:a11_start] =  \
+                A_inv[a11_start:a11_end, a00_start:a11_start] - \
+                A_inv[a11_start:a11_end, a11_start:a11_end] @ \
+                    A[a11_start:a11_end, a00_start:a11_start]  @ L_inv
+        
+    
+        # row = row @ A   <- the same A as above! Reuse?
+        A_inv[a00_start:a11_start, a11_start:a11_end] = \
+            A_inv[a00_start:a11_start, a11_start:a11_end] - \
+                U_inv @ A[a00_start:a11_start, a11_start:a11_end] @ \
+                A_inv[a11_start:a11_end, a11_start:a11_end]
+            
+
+
+        A_inv[a00_start:a11_start, a00_start:a11_start]  = \
+            -(A_inv[a00_start:a11_start, a11_start:a11_end] @ \
+            A[a11_start:a11_end, a00_start:a11_start] - \
+            U_inv) @ \
+            L_inv
+
+        # A_inv[a00_start:a11_start, a00_start:a11_start] = \
+        #     GEMM_UL( A_inv[a00_start:a11_start, a00_start:a11_start])
+        
+    return A_inv
+
+
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# ---- HELPER FUNCTIONS for in-place routines -------------------------
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+def invert_LU(in_LU: np.ndarray) -> np.ndarray:
+    """
+    NOTE: input matrix LU already has the inverted diagonal!
+    """
+    LU = copy.deepcopy(in_LU)
+    n = LU.shape[0]
+    A_inv = np.zeros(LU.shape, dtype=LU.dtype)
+    for k in range(n):
+        kk = n - k - 1
+        # A_inv[kk, kk] = 1/LU[kk,kk]
+        A_inv[kk, kk] = LU[kk,kk]
+        for i in range(k):
+            ii = n - i - 1
+            # l = LU[k,i]
+            # u = LU[kk,ii] * A_inv[ii, ii]
+            LU[kk,ii]  = LU[kk,ii] * A_inv[ii, ii]
+
+            for j in range(i+1, k):
+                jj = n - j - 1
+                # l += LU[k,j] * A_inv[j, i]
+                LU[k,i] += LU[k,j] * A_inv[j, i]
+                # u += LU[kk,jj] * A_inv[jj, ii]
+                LU[kk,ii] += LU[kk,jj] * A_inv[jj, ii]
+            # A_inv[k, i] = -l
+            A_inv[k, i] = -LU[k,i]
+            # A_inv[kk, ii] = -u * A_inv[kk,kk]
+            A_inv[kk, ii] = -LU[kk,ii] * A_inv[kk,kk]
+    return A_inv
+
+
+def invert_L(L: np.ndarray) -> np.ndarray:
+    n = L.shape[0]
+    L_inv = np.zeros(L.shape, dtype=L.dtype)
+    for k in range(n):
+        L_inv[k, k] = 1 # 1/L[k,k]
+        for i in range(k):
+            s = 0
+            for j in range(i, k):
+                s = s+ L[k,j] * L_inv[j, i]
+                # L_inv[i, k] -= L_inv[i, j] * L[j, k]
+            # L_inv[k, i] = 0
+            L_inv[k, i] = -s * L[k,k]
+    return L_inv
+
+
+def invert_U(U: np.ndarray) -> np.ndarray:
+    n = U.shape[0]
+    U_inv = np.zeros(U.shape, dtype=U.dtype)
+    for kk in range(n):
+        k = n - kk - 1
+        U_inv[k, k] = 1/U[k,k]
+        for ii in range(kk):
+            i = n - ii - 1
+            s = 0
+            for jj in range(ii, kk):
+                j = n - jj - 1
+                s = s+ U[k,j] * U_inv[j, i]
+                # L_inv[i, k] -= L_inv[i, j] * L[j, k]
+            # L_inv[k, i] = 0
+            U_inv[k, i] = -s * U_inv[k,k]
+    return U_inv
 
 
 def inplace_LU(in_A: np.ndarray,
@@ -232,14 +293,78 @@ def inplace_GEMM(in_A: np.ndarray,
     Nothing to add. Just good ol' GEMM  C = A*B + C
     """
     C = copy.deepcopy(in_C)
-    M,N = in_A.shape
-    K = in_B.shape[1]
+    M,K = in_A.shape
+    N = in_B.shape[1]
     for k in range(K):
         for i in range(N):
             for j in range(M):
                 C[i,j] += in_A[i,k]*in_B[k,j]
     return C
 
+
+
+
+
+
+np.random.seed(seed)
+
+def cut_to_banded(
+    A: np.ndarray,
+    ndiags : int
+):
+    for i in range(A.shape[0]):
+        for j in range(A.shape[1]):
+            if abs(i-j) > ndiags:
+                A[i, j] = 0
+    return A
+
+
+def create_banded_matrix(
+        matrix_size: int,
+        ndiags: int
+):
+    A = np.zeros((matrix_size, matrix_size), dtype=np.float32)
+    assert matrix_size >= 2*ndiags+1
+    tmp = np.random.randint(1,10, size=(matrix_size,  2*ndiags+1)) #+ 1j * np.random.rand(matrix_size, 2*ndiags+1)
+    for i in range(matrix_size):
+        for j in range(max(0,i-ndiags), min(matrix_size, i+ndiags+1)):
+            A[i, j] = tmp[i, j-i+ndiags]
+    np.fill_diagonal(A, np.sum(np.abs(A), axis=1)+10)
+    return A
+
+
+np.set_printoptions(edgeitems=30, linewidth=100000, 
+    formatter=dict(float=lambda x: "%.3g" % x))
+
+@pytest.mark.parametrize(
+        "matrix_size, ndiags",
+        [(1, 0),
+         (2, 0),
+         (3, 0),
+         (4, 0),
+         (5, 0),
+         (3, 1),
+         (4, 1),
+         (5, 1),
+         (5, 2),
+         (6, 2),
+         (7, 2),
+         (8, 2),
+         (9, 3),
+         (10, 2),
+         (10, 4),
+         (11, 4),
+         (12, 4),
+         (20, 5),
+         (21, 5),
+         (23, 5),
+         (25, 5),
+         (20, 6),
+         (21, 6),
+         (23, 6),
+         (25, 6),
+        ]
+)
 
 
 def test_sinv_ndiags(
@@ -255,7 +380,7 @@ def test_sinv_ndiags(
     reference_inverse = np.linalg.inv(A)
     assert np.linalg.norm(reference_inverse @ A- np.eye(matrix_size))/np.linalg.norm(A) < 1e-7
     
-    test_inverse = sinv_ndiags(A, ndiags)
+    test_inverse = sinv_ndiags_with_enough_parallelism(A, ndiags, b=4)
 
     cut_to_banded(reference_inverse, ndiags)
     cut_to_banded(test_inverse, ndiags)
