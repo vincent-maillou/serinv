@@ -1,20 +1,12 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2024-02
-
-Example for lu tridiagonal matrices selected factorization routine.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sdr.lu.lu_factorize import lu_factorize_tridiag
-from sdr.lu.lu_solve import lu_solve_tridiag
-from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_dense import (
+from serinv.lu.lu_factorize import lu_factorize_tridiag
+from serinv.lu.lu_solve import lu_solve_tridiag
+from serinv.utils import matrix_generation_dense
+from serinv.utils.matrix_transformation_dense import (
     convert_block_tridiagonal_dense_to_arrays,
 )
 

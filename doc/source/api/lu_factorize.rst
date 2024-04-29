@@ -2,7 +2,7 @@
 
 LU factorize
 ============
-.. currentmodule:: sdr.lu.lu_factorize
+.. currentmodule:: serinv.lu.lu_factorize
 
 .. autosummary::
     :toctree: generated/

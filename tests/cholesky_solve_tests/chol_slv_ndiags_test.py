@@ -1,21 +1,13 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2023-11
-
-Tests for cholesky selected solving routines.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import scipy.linalg as la
 
-from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags
-from sdr.cholesky.cholesky_solve import chol_slv_ndiags
-from sdr.utils import matrix_generation_dense
+from serinv.cholesky.cholesky_factorize import chol_dcmp_ndiags
+from serinv.cholesky.cholesky_solve import chol_slv_ndiags
+from serinv.utils import matrix_generation_dense
 
 # Testing of block tridiagonal cholesky
 if __name__ == "__main__":

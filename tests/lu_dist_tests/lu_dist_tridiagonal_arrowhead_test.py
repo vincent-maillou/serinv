@@ -1,12 +1,4 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2024-03
-
-Integration testing of the lu_dist algorithm for tridiagonal arrowhead matrices.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import copy as cp
 from os import environ
@@ -15,9 +7,9 @@ import numpy as np
 import pytest
 from mpi4py import MPI
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
-from sdr.utils import dist_utils, matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.lu_dist.lu_dist_tridiagonal_arrowhead import lu_dist_tridiagonal_arrowhead
+from serinv.utils import dist_utils, matrix_generation_dense
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 
@@ -205,7 +197,3 @@ def test_lu_dist(
                 :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
             ],
         )
-
-
-if __name__ == "__main__":
-    test_lu_dist(10, 3, 2)

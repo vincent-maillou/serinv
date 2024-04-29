@@ -1,21 +1,13 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2023-11
-
-Tests for lu selected solving routines.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import numpy as np
 import pytest
 import copy as cp
 
-from sdr.lu.lu_factorize import lu_factorize_tridiag_arrowhead
-from sdr.lu.lu_solve import lu_solve_tridiag_arrowhead
-from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.lu.lu_factorize import lu_factorize_tridiag_arrowhead
+from serinv.lu.lu_solve import lu_solve_tridiag_arrowhead
+from serinv.utils import matrix_generation_dense
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 

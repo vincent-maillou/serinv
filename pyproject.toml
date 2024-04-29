@@ -3,11 +3,11 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "SDR"
+name = "SerinV"
 version = "0.1"
 authors = [{ name = "Vincent Maillou", email = "vmaillou@iis.ee.ethz.ch" },
            { name = "Lisa Gaedke-Merzhaeuser", email = "lisa.gaedke.merzhaeuser@usi.ch" }]
-description = "Implementations of selected factorizations algorithms and solvers"
+description = "Implementations of selected factorization, inversion and solving algorithms."
 readme = "README.MD"
 requires-python = ">=3.9"
 license = {text = "GPL-3-Clause"}
@@ -28,10 +28,10 @@ dependencies = [
 ]
 
 [project.urls]
-repository = "https://github.com/vincent-maillou/SDR"
+repository = "https://github.com/vincent-maillou/serinv"
 
 [tool.setuptools.dynamic]
-version = { attr = "sdr" }
+version = { attr = "serinv.__about__.__version__" }
 
 [tool.pytest.ini_options]
 markers = [
@@ -41,3 +41,6 @@ markers = [
 
 [tool.coverage.run]
 omit = ['*gpu*.py']
+
+[tool.isort]
+profile = "black"

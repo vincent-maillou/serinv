@@ -6,6 +6,9 @@ cholesky
 .. toctree::
     :maxdepth: 2
 
-    cholesky_decompose
-    cholesky_solve
+    cholesky_factorize
+    cholesky_factorize_gpu
     cholesky_selected_inversion
+    cholesky_selected_inversion_gpu
+    cholesky_solve
+

@@ -1,23 +1,15 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2024-03
-
-Example of the lu_dist algorithm for tridiagonal arrowhead matrices.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import copy as cp
 
 import numpy as np
 from mpi4py import MPI
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
+from serinv.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
     lu_dist_tridiagonal_arrowhead_gpu,
 )
-from sdr.utils import dist_utils, matrix_generation_dense
-from sdr.utils.matrix_transformation_dense import (
+from serinv.utils import dist_utils, matrix_generation_dense
+from serinv.utils.matrix_transformation_dense import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 

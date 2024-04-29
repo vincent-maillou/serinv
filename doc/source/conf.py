@@ -6,8 +6,8 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "SDR"
-copyright = "2023, Vincent Maillou, Lisa Gaedke-merzhaeuser"
+project = "SerinV"
+copyright = "2023-2024, Vincent Maillou, Lisa Gaedke-merzhaeuser"
 author = "Vincent Maillou, Lisa Gaedke-merzhaeuser"
 release = "0.1"
 
@@ -32,12 +32,12 @@ exclude_patterns = []
 html_theme = "pydata_sphinx_theme"
 
 html_theme_options = {
-    "github_url": "https://github.com/vincent-maillou/SDR",
+    "github_url": "https://github.com/vincent-maillou/SerinV",
     "collapse_navigation": True,
     "icon_links": [],  # See https://github.com/pydata/pydata-sphinx-theme/issues/1220
 }
 
-html_css_files = ["sdr.css"]
+html_css_files = ["serinv.css"]
 
 html_context = {"default_mode": "light"}
 
@@ -49,7 +49,7 @@ html_use_modindex = True
 
 html_file_suffix = ".html"
 
-htmlhelp_basename = "sdr"
+htmlhelp_basename = "serinv"
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),

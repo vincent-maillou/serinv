@@ -1,11 +1,13 @@
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
+
 import numpy as np
 
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.utils.matrix_transformation_arrays import (
     make_arrays_block_tridiagonal_diagonally_dominante,
     make_arrays_block_tridiagonal_arrowhead_diagonally_dominante,
 )
 
-from sdr.utils.matrix_transformation_dense import (
+from serinv.utils.matrix_transformation_dense import (
     convert_block_tridiagonal_arrays_to_dense,
     convert_block_tridiagonal_arrowhead_arrays_to_dense,
 )

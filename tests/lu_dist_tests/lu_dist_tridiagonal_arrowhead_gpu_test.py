@@ -1,12 +1,4 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2024-03
-
-Integration testing of the lu_dist algorithm for tridiagonal arrowhead matrices.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import sys
 
@@ -18,19 +10,19 @@ import pytest
 from mpi4py import MPI
 
 try:
-    from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
+    from serinv.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
         lu_dist_tridiagonal_arrowhead_gpu,
     )
 except ImportError:
     pass
 
-from sdr.utils.dist_utils import (
+from serinv.utils.dist_utils import (
     get_partitions_indices,
     extract_partition_tridiagonal_arrowhead_array,
     extract_bridges_tridiagonal_array,
 )
-from sdr.utils import matrix_generation_dense
-from sdr.utils.matrix_transformation_arrays import (
+from serinv.utils import matrix_generation_dense
+from serinv.utils.matrix_transformation_arrays import (
     convert_block_tridiagonal_arrowhead_dense_to_arrays,
 )
 

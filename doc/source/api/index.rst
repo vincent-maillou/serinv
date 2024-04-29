@@ -1,4 +1,4 @@
-.. module:: sdr
+.. module:: serinv
 
 .. _api_reference:
 
@@ -9,5 +9,6 @@ API Reference
     :maxdepth: 2
 
     cholesky
+    cholesky_dist
     lu
     lu_dist
