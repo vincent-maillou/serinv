@@ -1,21 +1,13 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2023-11
-
-Tests for cholesky selected solving routines.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import scipy.linalg as la
 
-from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags_arrowhead
-from sdr.cholesky.cholesky_solve import chol_slv_ndiags_arrowhead
-from sdr.utils import matrix_generation
+from serinv.cholesky.cholesky_factorize import chol_dcmp_ndiags_arrowhead
+from serinv.cholesky.cholesky_solve import chol_slv_ndiags_arrowhead
+from serinv.utils import matrix_generation_dense
 
 # Testing of block tridiagonal arrowhead cholesky
 if __name__ == "__main__":
@@ -27,7 +19,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_blocks_banded_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,
@@ -111,7 +103,7 @@ def test_cholesky_slv_ndiags_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_blocks_banded_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,

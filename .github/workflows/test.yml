@@ -27,7 +27,7 @@ jobs:
         
       - name: Run tests
         run: |
-          pytest -m cpu --cov=src/sdr --cov-report=term --cov-report=xml tests/
+          pytest -m cpu --cov=src/serinv --cov-report=term --cov-report=xml tests/
           mpiexec -n 2 pytest -m cpu --with-mpi tests/
       
       - name: Code Coverage Summary

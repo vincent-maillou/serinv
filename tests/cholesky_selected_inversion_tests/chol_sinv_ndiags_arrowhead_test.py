@@ -1,22 +1,16 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2023-11
-
-Tests for cholesky selected inversion routines.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import scipy.linalg as la
 
-from sdr.cholesky.cholesky_decompose import chol_dcmp_ndiags_arrowhead
-from sdr.cholesky.cholesky_selected_inversion import chol_sinv_ndiags_arrowhead
-from sdr.utils import matrix_generation
-from sdr.utils.matrix_transform import cut_to_blockndiags_arrowhead
+from serinv.cholesky.cholesky_factorize import chol_dcmp_ndiags_arrowhead
+from serinv.cholesky.cholesky_selected_inversion import chol_sinv_ndiags_arrowhead
+from serinv.utils import matrix_generation_dense
+from serinv.utils.matrix_transformation_dense import (
+    zeros_to_blocks_banded_arrowhead_shape,
+)
 
 # Testing of block tridiagonal cholesky sinv
 if __name__ == "__main__":
@@ -28,7 +22,7 @@ if __name__ == "__main__":
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_blocks_banded_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,
@@ -41,7 +35,9 @@ if __name__ == "__main__":
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blockndiags_arrowhead(X_ref, ndiags, diag_blocksize, arrow_blocksize)
+    X_ref = zeros_to_blocks_banded_arrowhead_shape(
+        X_ref, ndiags, diag_blocksize, arrow_blocksize
+    )
 
     L_sdr = chol_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
 
@@ -83,7 +79,7 @@ def test_cholesky_sinv_ndiags_arrowhead(
     diagonal_dominant = True
     seed = 63
 
-    A = matrix_generation.generate_ndiags_arrowhead_dense(
+    A = matrix_generation_dense.generate_blocks_banded_arrowhead_dense(
         nblocks,
         ndiags,
         diag_blocksize,
@@ -96,7 +92,9 @@ def test_cholesky_sinv_ndiags_arrowhead(
     # --- Inversion ---
 
     X_ref = la.inv(A)
-    X_ref = cut_to_blockndiags_arrowhead(X_ref, ndiags, diag_blocksize, arrow_blocksize)
+    X_ref = zeros_to_blocks_banded_arrowhead_shape(
+        X_ref, ndiags, diag_blocksize, arrow_blocksize
+    )
 
     L_sdr = chol_dcmp_ndiags_arrowhead(A, ndiags, diag_blocksize, arrow_blocksize)
     X_sdr = chol_sinv_ndiags_arrowhead(L_sdr, ndiags, diag_blocksize, arrow_blocksize)

@@ -1,23 +1,17 @@
-"""
-@author: Vincent Maillou (vmaillou@iis.ee.ethz.ch)
-@author: Lisa Gaedke-Merzhaeuser  (lisa.gaedke.merzhaeuser@usi.ch)
-@date: 2024-03
-
-Example of the lu_dist algorithm for tridiagonal arrowhead matrices.
-
-Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
-"""
+# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
 
 import copy as cp
 
 import numpy as np
 from mpi4py import MPI
 
-from sdr.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
+from serinv.lu_dist.lu_dist_tridiagonal_arrowhead_gpu import (
     lu_dist_tridiagonal_arrowhead_gpu,
 )
-from sdr.utils import dist_utils, matrix_generation
-from sdr.utils.matrix_transform import from_dense_to_arrowhead_arrays
+from serinv.utils import dist_utils, matrix_generation_dense
+from serinv.utils.matrix_transformation_dense import (
+    convert_block_tridiagonal_arrowhead_dense_to_arrays,
+)
 
 if __name__ == "__main__":
     nblocks = 10
@@ -36,7 +30,7 @@ if __name__ == "__main__":
             "Each processes should have at least 3 blocks to perfrome the middle factorization."
         )
 
-    A = matrix_generation.generate_tridiag_arrowhead_dense(
+    A = matrix_generation_dense.generate_block_tridiagonal_arrowhead_dense(
         nblocks, diag_blocksize, arrow_blocksize, symmetric, diagonal_dominant, seed
     )
 
@@ -60,7 +54,9 @@ if __name__ == "__main__":
         X_ref_arrow_bottom_blocks,
         X_ref_arrow_right_blocks,
         X_ref_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(X_ref, diag_blocksize, arrow_blocksize)
+    ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
+        X_ref, diag_blocksize, arrow_blocksize
+    )
 
     (
         X_ref_diagonal_blocks_local,
@@ -95,7 +91,9 @@ if __name__ == "__main__":
         A_arrow_bottom_blocks,
         A_arrow_right_blocks,
         A_arrow_tip_block,
-    ) = from_dense_to_arrowhead_arrays(A, diag_blocksize, arrow_blocksize)
+    ) = convert_block_tridiagonal_arrowhead_dense_to_arrays(
+        A, diag_blocksize, arrow_blocksize
+    )
 
     (
         A_diagonal_blocks_local,

@@ -1,6 +1,9 @@
+# Numpy/Scipy storage files
+*.npy
+*.npz
+
 # Custom ignore
 *.bench
-*.npy
 
 # Byte-compiled / optimized / DLL files
 .vscode/
