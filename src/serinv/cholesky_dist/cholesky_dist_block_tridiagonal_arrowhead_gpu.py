@@ -173,12 +173,17 @@ def cholesky_dist_block_tridiagonal_arrowhead_gpu(
             L_upper_2sided_arrow_blocks,
         )
 
+    timings = {}
+    sections = {}
+
     return (
         X_diagonal_blocks_local,
         X_lower_diagonal_blocks_local,
         X_arrow_bottom_blocks_local,
         X_global_arrow_tip,
         X_bridges_lower,
+        timings,
+        sections,
     )
 
 
