@@ -7,6 +7,7 @@ import numpy as np
 # Section: Make matrix symmetric
 # -----------------------------------------------
 
+
 def make_arrays_block_tridiagonal_symmetric(
     A_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
@@ -220,6 +221,7 @@ def make_arrays_blocks_banded_arrowhead_diagonally_dominante():
 # -----------------------------------------------
 # Section: Convert from dense to arrays
 # -----------------------------------------------
+
 
 def convert_block_tridiagonal_dense_to_arrays(
     A: np.ndarray,

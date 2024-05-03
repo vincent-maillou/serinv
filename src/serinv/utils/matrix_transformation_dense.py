@@ -7,6 +7,7 @@ import numpy as np
 # Section: Zeros to Shape
 # -----------------------------------------------
 
+
 def zeros_to_block_tridiagonal_shape(
     A: np.ndarray,
     blocksize: int,
@@ -247,6 +248,7 @@ def zeros_to_blocks_banded_arrowhead_shape(
 # Section: Make diagonally dominante
 # -----------------------------------------------
 
+
 def make_dense_matrix_diagonally_dominante(
     A: np.ndarray,
 ) -> np.ndarray:
@@ -297,6 +299,7 @@ def make_dense_matrix_symmetric(
 # -----------------------------------------------
 # Section: Convert from arays to dense
 # -----------------------------------------------
+
 
 def convert_block_tridiagonal_arrays_to_dense(
     A_diagonal_blocks: np.ndarray,

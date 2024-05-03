@@ -76,71 +76,6 @@ def get_partitions_indices(
     return (start_blockrows, partition_sizes, end_blockrows)
 
 
-def extract_partition_tridiagonal_arrowhead_dense(
-    A_global: np.ndarray,
-    start_blockrow: int,
-    partition_size: int,
-    diag_blocksize: int,
-    arrow_blocksize: int,
-):
-    """Extract the local partition of a block tridiagonal arrowhead matrix,
-    passed as dense.
-
-    Parameters
-    ----------
-    A_global : np.ndarray
-        Global block tridiagonal matrix.
-    start_blockrow : int
-        Index of the first blockrow of the partition in the global matrix.
-    partition_size : int
-        Size of the partition.
-    diag_blocksize : int
-        Size of the diagonal blocks.
-    arrow_blocksize : int
-        Size of the arrow blocks.
-
-    Returns
-    -------
-    A_local : np.ndarray
-        Local diagonal blocks of the partition.
-    A_arrow_bottom : np.ndarray
-        Local arrow bottom blocks of the partition.
-    A_arrow_right : np.ndarray
-        Local arrow right blocks of the partition.
-    A_arrow_tip : np.ndarray
-        Local arrow tip block of the partition.
-    """
-    A_local = np.zeros(
-        (partition_size * diag_blocksize, partition_size * diag_blocksize),
-        dtype=A_global.dtype,
-    )
-    A_arrow_bottom = np.zeros(
-        (arrow_blocksize, partition_size * arrow_blocksize), dtype=A_global.dtype
-    )
-    A_arrow_right = np.zeros(
-        (partition_size * arrow_blocksize, arrow_blocksize), dtype=A_global.dtype
-    )
-
-    stop_blockrow = start_blockrow + partition_size
-
-    A_local = A_global[
-        start_blockrow * diag_blocksize : stop_blockrow * diag_blocksize,
-        start_blockrow * diag_blocksize : stop_blockrow * diag_blocksize,
-    ]
-    A_arrow_bottom = A_global[
-        -arrow_blocksize:,
-        start_blockrow * diag_blocksize : stop_blockrow * diag_blocksize,
-    ]
-    A_arrow_right = A_global[
-        start_blockrow * diag_blocksize : stop_blockrow * diag_blocksize,
-        -arrow_blocksize:,
-    ]
-
-    A_arrow_tip = A_global[-arrow_blocksize:, -arrow_blocksize:]
-
-    return (A_local, A_arrow_bottom, A_arrow_right, A_arrow_tip)
-
-
 def extract_partition_tridiagonal_arrowhead_array(
     A_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
@@ -245,56 +180,6 @@ def extract_partition_tridiagonal_arrowhead_array(
     )
 
 
-def extract_bridges_tridiagonal_dense(
-    A: np.ndarray,
-    diag_blocksize: int,
-    start_blockrows: list,
-) -> tuple[list, list]:
-    """Extract the bridge blocks from the lower and upper diagonal blocks of a
-    block tridiagonal matrix, passed as dense.
-
-    Parameters
-    ----------
-    A : np.ndarray
-        Block tridiagonal matrix.
-    diag_blocksize : int
-        Size of the diagonal blocks.
-    start_blockrows : list
-        List of the indices of the first blockrow of each partition in the
-        global matrix.
-
-    Returns
-    -------
-    Bridges_lower : list
-        Lower bridge blocks.
-    Bridges_upper : list
-        Upper bridge blocks.
-    """
-
-    Bridges_lower: list = []
-    Bridges_upper: list = []
-
-    for i in range(1, len(start_blockrows)):
-        upper_bridge = np.zeros((diag_blocksize, diag_blocksize))
-        lower_bridge = np.zeros((diag_blocksize, diag_blocksize))
-
-        start_ixd = start_blockrows[i] * diag_blocksize
-
-        upper_bridge = A[
-            start_ixd - diag_blocksize : start_ixd,
-            start_ixd : start_ixd + diag_blocksize,
-        ]
-        lower_bridge = A[
-            start_ixd : start_ixd + diag_blocksize,
-            start_ixd - diag_blocksize : start_ixd,
-        ]
-
-        Bridges_upper.append(upper_bridge)
-        Bridges_lower.append(lower_bridge)
-
-    return (Bridges_upper, Bridges_lower)
-
-
 def extract_bridges_tridiagonal_array(
     A_lower_diagonal_blocks: np.ndarray,
     A_upper_diagonal_blocks: np.ndarray,
@@ -335,11 +220,11 @@ def extract_bridges_tridiagonal_array(
     for i in range(0, n_bridges):
         start_ixd = start_blockrows[i + 1] * diag_blocksize
 
-        Bridges_lower[
-            :, i * diag_blocksize : (i + 1) * diag_blocksize
-        ] = A_lower_diagonal_blocks[:, start_ixd - diag_blocksize : start_ixd]
-        Bridges_upper[
-            :, i * diag_blocksize : (i + 1) * diag_blocksize
-        ] = A_upper_diagonal_blocks[:, start_ixd - diag_blocksize : start_ixd]
+        Bridges_lower[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
+            A_lower_diagonal_blocks[:, start_ixd - diag_blocksize : start_ixd]
+        )
+        Bridges_upper[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
+            A_upper_diagonal_blocks[:, start_ixd - diag_blocksize : start_ixd]
+        )
 
     return (Bridges_lower, Bridges_upper)
