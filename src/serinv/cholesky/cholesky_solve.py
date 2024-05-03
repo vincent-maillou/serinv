@@ -25,36 +25,36 @@ def cholesky_solve_block_tridiagonal(
     """
 
     # ----- Forward substitution -----
-    blocksize = L_diagonal_blocks.shape[0]
-    nblocks = L_diagonal_blocks.shape[1] // blocksize
+    blocksize = L_diagonal_blocks.shape[1]
+    nblocks = L_diagonal_blocks.shape[0]
 
     X = np.zeros_like(B)
 
     X[0:blocksize] = la.solve_triangular(
-        L_diagonal_blocks[:, 0:blocksize], B[0:blocksize], lower=True
+        L_diagonal_blocks[0, :, :], B[0:blocksize], lower=True
     )
 
     for i in range(1, nblocks, 1):
         # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
         X[i * blocksize : (i + 1) * blocksize] = la.solve_triangular(
-            L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+            L_diagonal_blocks[i, :, :],
             B[i * blocksize : (i + 1) * blocksize]
-            - L_lower_diagonal_blocks[:, (i - 1) * blocksize : i * blocksize]
+            - L_lower_diagonal_blocks[i - 1, :, :]
             @ X[(i - 1) * blocksize : (i) * blocksize],
             lower=True,
         )
 
     # ----- Backward substitution -----
     X[-blocksize:] = la.solve_triangular(
-        L_diagonal_blocks[:, -blocksize:], X[-blocksize:], lower=True, trans="T"
+        L_diagonal_blocks[-1, :, :], X[-blocksize:], lower=True, trans="T"
     )
 
     for i in range(nblocks - 2, -1, -1):
         # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i} X_{i+1})
         X[i * blocksize : (i + 1) * blocksize] = la.solve_triangular(
-            L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+            L_diagonal_blocks[i, :, :],
             X[i * blocksize : (i + 1) * blocksize]
-            - L_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize].T
+            - L_lower_diagonal_blocks[i, :, :].T
             @ X[(i + 1) * blocksize : (i + 2) * blocksize],
             lower=True,
             trans="T",
@@ -91,15 +91,15 @@ def cholesky_solve_block_tridiagonal_arrowhead(
     X : np.ndarray
         The solution of the system.
     """
-    diag_blocksize = L_diagonal_blocks.shape[0]
-    arrow_blocksize = L_arrow_bottom_blocks.shape[0]
-    n_diag_blocks = L_diagonal_blocks.shape[1] // diag_blocksize
+    diag_blocksize = L_diagonal_blocks.shape[1]
+    arrow_blocksize = L_arrow_bottom_blocks.shape[1]
+    n_diag_blocks = L_diagonal_blocks.shape[0]
 
     X = np.zeros_like(B, dtype=B.dtype)
 
     # ----- Forward substitution -----
     X[0:diag_blocksize] = la.solve_triangular(
-        L_diagonal_blocks[:, 0:diag_blocksize],
+        L_diagonal_blocks[0, :, :],
         B[0:diag_blocksize],
         lower=True,
     )
@@ -107,16 +107,17 @@ def cholesky_solve_block_tridiagonal_arrowhead(
     for i in range(1, n_diag_blocks):
         # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
         X[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
+            L_diagonal_blocks[i, :, :],
             B[i * diag_blocksize : (i + 1) * diag_blocksize]
-            - L_lower_diagonal_blocks[:, (i - 1) * diag_blocksize : i * diag_blocksize]
+            - L_lower_diagonal_blocks[i - 1, :, :]
             @ X[(i - 1) * diag_blocksize : (i) * diag_blocksize],
             lower=True,
         )
 
     # Accumulation of the arrowhead blocks
     B_tip_rhs = (
-        B[-arrow_blocksize:, :] - L_arrow_bottom_blocks[:, :] @ X[0:-arrow_blocksize, :]
+        B[-arrow_blocksize:, :]
+        - L_arrow_bottom_blocks[:, :, :] @ X[0:-arrow_blocksize, :]
     )
 
     # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
@@ -135,9 +136,9 @@ def cholesky_solve_block_tridiagonal_arrowhead(
 
     # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
     X[-arrow_blocksize - diag_blocksize : -arrow_blocksize] = la.solve_triangular(
-        L_diagonal_blocks[:, -diag_blocksize:],
+        L_diagonal_blocks[-1, :, :],
         X[-arrow_blocksize - diag_blocksize : -arrow_blocksize]
-        - L_arrow_bottom_blocks[:, -diag_blocksize:].T @ X[-arrow_blocksize:],
+        - L_arrow_bottom_blocks[-1, :, :].T @ X[-arrow_blocksize:],
         lower=True,
         trans="T",
     )
@@ -145,14 +146,11 @@ def cholesky_solve_block_tridiagonal_arrowhead(
     for i in range(n_diag_blocks - 2, -1, -1):
         # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
         X[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
+            L_diagonal_blocks[i, :, :],
             X[i * diag_blocksize : (i + 1) * diag_blocksize]
-            - L_lower_diagonal_blocks[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ].T
+            - L_lower_diagonal_blocks[i, :, :].T
             @ X[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-            - L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize].T
-            @ X[-arrow_blocksize:],
+            - L_arrow_bottom_blocks[i, :, :].T @ X[-arrow_blocksize:],
             lower=True,
             trans="T",
         )

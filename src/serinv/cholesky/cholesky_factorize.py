@@ -29,54 +29,35 @@ def cholesky_factorize_block_tridiagonal(
 
     """
 
-    blocksize = A_diagonal_blocks.shape[0]
-    nblocks = A_diagonal_blocks.shape[1] // blocksize
+    blocksize = A_diagonal_blocks.shape[1]
+    nblocks = A_diagonal_blocks.shape[0]
 
     L_diagonal_blocks = np.zeros_like(A_diagonal_blocks)
     L_lower_diagonal_blocks = np.zeros_like(A_lower_diagonal_blocks)
 
     for i in range(0, nblocks - 1, 1):
         # L_{i, i} = chol(A_{i, i})
-        L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] = npla.cholesky(
-            A_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+        L_diagonal_blocks[i, :, :] = npla.cholesky(
+            A_diagonal_blocks[i, :, :],
         )
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L_lower_diagonal_blocks[
-            :,
-            i * blocksize : (i + 1) * blocksize,
-        ] = (
-            A_lower_diagonal_blocks[
-                :,
-                i * blocksize : (i + 1) * blocksize,
-            ]
+        L_lower_diagonal_blocks[i, :, :] = (
+            A_lower_diagonal_blocks[i, :, :]
             @ scla.solve_triangular(
-                L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+                L_diagonal_blocks[i, :, :],
                 np.eye(blocksize),
                 lower=True,
             ).T
         )
 
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}^{T}
-        A_diagonal_blocks[
-            :,
-            (i + 1) * blocksize : (i + 2) * blocksize,
-        ] = (
-            A_diagonal_blocks[
-                :,
-                (i + 1) * blocksize : (i + 2) * blocksize,
-            ]
-            - L_lower_diagonal_blocks[
-                :,
-                i * blocksize : (i + 1) * blocksize,
-            ]
-            @ L_lower_diagonal_blocks[
-                :,
-                i * blocksize : (i + 1) * blocksize,
-            ].T
+        A_diagonal_blocks[i + 1, :, :] = (
+            A_diagonal_blocks[i + 1, :, :]
+            - L_lower_diagonal_blocks[i, :, :] @ L_lower_diagonal_blocks[i, :, :].T
         )
 
-    L_diagonal_blocks[:, -blocksize:] = npla.cholesky(A_diagonal_blocks[:, -blocksize:])
+    L_diagonal_blocks[-1, :, :] = npla.cholesky(A_diagonal_blocks[-1, :, :])
 
     return (
         L_diagonal_blocks,
@@ -110,8 +91,8 @@ def cholesky_factorize_block_tridiagonal_arrowhead(
         The cholesky factorization of the matrix.
     """
 
-    diag_blocksize = A_diagonal_blocks.shape[0]
-    n_diag_blocks = A_diagonal_blocks.shape[1] // diag_blocksize
+    diag_blocksize = A_diagonal_blocks.shape[1]
+    n_diag_blocks = A_diagonal_blocks.shape[0]
 
     L_diagonal_blocks = np.zeros_like(A_diagonal_blocks)
     L_lower_diagonal_blocks = np.zeros_like(A_lower_diagonal_blocks)
@@ -124,106 +105,48 @@ def cholesky_factorize_block_tridiagonal_arrowhead(
 
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L_diagonal_blocks[
-            :,
-            i * diag_blocksize : (i + 1) * diag_blocksize,
-        ] = npla.cholesky(
-            A_diagonal_blocks[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ]
-        )
+        L_diagonal_blocks[i, :, :] = npla.cholesky(A_diagonal_blocks[i, :, :])
 
         # Temporary storage of used twice lower triangular solving
         L_inv_temp[:, :] = la.solve_triangular(
-            L_diagonal_blocks[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ],
+            L_diagonal_blocks[i, :, :],
             np.eye(diag_blocksize),
             lower=True,
         ).T
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L_lower_diagonal_blocks[
-            :,
-            i * diag_blocksize : (i + 1) * diag_blocksize,
-        ] = (
-            A_lower_diagonal_blocks[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ]
-            @ L_inv_temp
-        )
+        L_lower_diagonal_blocks[i, :, :] = A_lower_diagonal_blocks[i, :, :] @ L_inv_temp
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
-        L_arrow_bottom_blocks[
-            :,
-            i * diag_blocksize : (i + 1) * diag_blocksize,
-        ] = (
-            A_arrow_bottom_blocks[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ]
-            @ L_inv_temp
-        )
+        L_arrow_bottom_blocks[i, :, :] = A_arrow_bottom_blocks[i, :, :] @ L_inv_temp
 
         # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.T
-        A_diagonal_blocks[
-            :,
-            (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-        ] = (
-            A_diagonal_blocks[
-                :,
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-            ]
-            - L_lower_diagonal_blocks[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ]
-            @ L_lower_diagonal_blocks[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ].T
+        A_diagonal_blocks[i + 1, :, :] = (
+            A_diagonal_blocks[i + 1, :, :]
+            - L_lower_diagonal_blocks[i, :, :] @ L_lower_diagonal_blocks[i, :, :].T
         )
 
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.T
-        A_arrow_bottom_blocks[
-            :,
-            (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-        ] = (
-            A_arrow_bottom_blocks[
-                :,
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-            ]
-            - L_arrow_bottom_blocks[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ]
-            @ L_lower_diagonal_blocks[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ].T
+        A_arrow_bottom_blocks[i + 1, :, :] = (
+            A_arrow_bottom_blocks[i + 1, :, :]
+            - L_arrow_bottom_blocks[i, :, :] @ L_lower_diagonal_blocks[i, :, :].T
         )
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.T
         A_arrow_tip_block[:, :] = (
             A_arrow_tip_block[:, :]
-            - L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            @ L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize].T
+            - L_arrow_bottom_blocks[i, :, :] @ L_arrow_bottom_blocks[i, :, :].T
         )
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
-    L_diagonal_blocks[:, -diag_blocksize:] = npla.cholesky(
-        A_diagonal_blocks[:, -diag_blocksize:]
-    )
+    L_diagonal_blocks[-1, :, :] = npla.cholesky(A_diagonal_blocks[-1, :, :])
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
-    L_arrow_bottom_blocks[:, -diag_blocksize:] = (
-        A_arrow_bottom_blocks[:, -diag_blocksize:]
+    L_arrow_bottom_blocks[-1, :, :] = (
+        A_arrow_bottom_blocks[-1, :, :]
         @ la.solve_triangular(
-            L_diagonal_blocks[:, -diag_blocksize:],
+            L_diagonal_blocks[-1, :, :],
             np.eye(diag_blocksize),
             lower=True,
         ).T
@@ -232,8 +155,7 @@ def cholesky_factorize_block_tridiagonal_arrowhead(
     # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
     A_arrow_tip_block[:, :] = (
         A_arrow_tip_block[:, :]
-        - L_arrow_bottom_blocks[:, -diag_blocksize:]
-        @ L_arrow_bottom_blocks[:, -diag_blocksize:].T
+        - L_arrow_bottom_blocks[-1, :, :] @ L_arrow_bottom_blocks[-1, :, :].T
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})

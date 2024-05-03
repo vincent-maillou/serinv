@@ -37,8 +37,8 @@ def cholesky_factorize_block_tridiagonal_arrowhead_gpu(
         The cholesky factorization of the matrix.
     """
 
-    diag_blocksize = A_diagonal_blocks.shape[0]
-    n_diag_blocks = A_diagonal_blocks.shape[1] // diag_blocksize
+    diag_blocksize = A_diagonal_blocks.shape[1]
+    n_diag_blocks = A_diagonal_blocks.shape[0]
 
     A_diagonal_blocks_gpu: cp.ndarray = cp.asarray(A_diagonal_blocks)
     A_lower_diagonal_blocks_gpu: cp.ndarray = cp.asarray(A_lower_diagonal_blocks)
@@ -63,95 +63,54 @@ def cholesky_factorize_block_tridiagonal_arrowhead_gpu(
 
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L_diagonal_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            cholesky(
-                A_diagonal_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            )
-        )
+        L_diagonal_blocks_gpu[i, :, :] = cholesky(A_diagonal_blocks_gpu[i, :, :])
 
         # Temporary storage of used twice lower triangular solving
         L_inv_temp_gpu[:, :] = cpla.solve_triangular(
-            L_diagonal_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize],
+            L_diagonal_blocks_gpu[i, :, :],
             cp.eye(diag_blocksize),
             lower=True,
         ).T
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L_lower_diagonal_blocks_gpu[
-            :, i * diag_blocksize : (i + 1) * diag_blocksize
-        ] = (
-            A_lower_diagonal_blocks_gpu[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ]
-            @ L_inv_temp_gpu
+        L_lower_diagonal_blocks_gpu[i, :, :] = (
+            A_lower_diagonal_blocks_gpu[i, :, :] @ L_inv_temp_gpu
         )
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
-        L_arrow_bottom_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            A_arrow_bottom_blocks_gpu[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            @ L_inv_temp_gpu
+        L_arrow_bottom_blocks_gpu[i, :, :] = (
+            A_arrow_bottom_blocks_gpu[i, :, :] @ L_inv_temp_gpu
         )
 
         # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.T
-        A_diagonal_blocks_gpu[
-            :,
-            (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-        ] = (
-            A_diagonal_blocks_gpu[
-                :,
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-            ]
-            - L_lower_diagonal_blocks_gpu[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ]
-            @ L_lower_diagonal_blocks_gpu[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ].T
+        A_diagonal_blocks_gpu[i + 1, :, :] = (
+            A_diagonal_blocks_gpu[i + 1, :, :]
+            - L_lower_diagonal_blocks_gpu[i, :, :]
+            @ L_lower_diagonal_blocks_gpu[i, :, :].T
         )
 
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.T
-        A_arrow_bottom_blocks_gpu[
-            :,
-            (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-        ] = (
-            A_arrow_bottom_blocks_gpu[
-                :,
-                (i + 1) * diag_blocksize : (i + 2) * diag_blocksize,
-            ]
-            - L_arrow_bottom_blocks_gpu[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ]
-            @ L_lower_diagonal_blocks_gpu[
-                :,
-                i * diag_blocksize : (i + 1) * diag_blocksize,
-            ].T
+        A_arrow_bottom_blocks_gpu[i + 1, :, :] = (
+            A_arrow_bottom_blocks_gpu[i + 1, :, :]
+            - L_arrow_bottom_blocks_gpu[i, :, :]
+            @ L_lower_diagonal_blocks_gpu[i, :, :].T
         )
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.T
         A_arrow_tip_block_gpu[:, :] = (
             A_arrow_tip_block_gpu[:, :]
-            - L_arrow_bottom_blocks_gpu[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ]
-            @ L_arrow_bottom_blocks_gpu[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ].T
+            - L_arrow_bottom_blocks_gpu[i, :, :] @ L_arrow_bottom_blocks_gpu[i, :, :].T
         )
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
-    L_diagonal_blocks_gpu[:, -diag_blocksize:] = cholesky(
-        A_diagonal_blocks_gpu[:, -diag_blocksize:]
-    )
+    L_diagonal_blocks_gpu[-1, :, :] = cholesky(A_diagonal_blocks_gpu[-1, :, :])
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
-    L_arrow_bottom_blocks_gpu[:, -diag_blocksize:] = (
-        A_arrow_bottom_blocks_gpu[:, -diag_blocksize:]
+    L_arrow_bottom_blocks_gpu[-1, :, :] = (
+        A_arrow_bottom_blocks_gpu[-1, :, :]
         @ cpla.solve_triangular(
-            L_diagonal_blocks_gpu[:, -diag_blocksize:],
+            L_diagonal_blocks_gpu[-1, :, :],
             cp.eye(diag_blocksize),
             lower=True,
         ).T
@@ -160,8 +119,7 @@ def cholesky_factorize_block_tridiagonal_arrowhead_gpu(
     # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
     A_arrow_tip_block_gpu[:, :] = (
         A_arrow_tip_block_gpu[:, :]
-        - L_arrow_bottom_blocks_gpu[:, -diag_blocksize:]
-        @ L_arrow_bottom_blocks_gpu[:, -diag_blocksize:].T
+        - L_arrow_bottom_blocks_gpu[-1, :, :] @ L_arrow_bottom_blocks_gpu[-1, :, :].T
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})

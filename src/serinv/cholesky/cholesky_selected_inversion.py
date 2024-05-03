@@ -23,37 +23,37 @@ def cholesky_sinv_block_tridiagonal(
         Selected inversion of the matrix.
     """
 
-    blocksize = L_diagonal_blocks.shape[0]
-    nblocks = L_diagonal_blocks.shape[1] // blocksize
+    blocksize = L_diagonal_blocks.shape[1]
+    nblocks = L_diagonal_blocks.shape[0]
 
     X_diagonal_blocks = np.zeros_like(L_diagonal_blocks)
     X_lower_diagonal_blocks = np.zeros_like(L_lower_diagonal_blocks)
     L_blk_inv = np.zeros((blocksize, blocksize), dtype=L_diagonal_blocks.dtype)
 
     L_blk_inv = la.solve_triangular(
-        L_diagonal_blocks[:, -blocksize:], np.eye(blocksize), lower=True
+        L_diagonal_blocks[-1, :, :], np.eye(blocksize), lower=True
     )
-    X_diagonal_blocks[:, -blocksize:] = L_blk_inv.T @ L_blk_inv
+
+    X_diagonal_blocks[-1, :, :] = L_blk_inv.T @ L_blk_inv
 
     for i in range(nblocks - 2, -1, -1):
         L_blk_inv = la.solve_triangular(
-            L_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize],
+            L_diagonal_blocks[i, :, :],
             np.eye(blocksize),
             lower=True,
         )
 
         # X_{i+1, i} = -X_{i+1, i+1} L_{i+1, i} L_{i, i}^{-1}
-        X_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] = (
-            -X_diagonal_blocks[:, (i + 1) * blocksize : (i + 2) * blocksize]
-            @ L_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
+        X_lower_diagonal_blocks[i, :, :] = (
+            -X_diagonal_blocks[i + 1, :, :]
+            @ L_lower_diagonal_blocks[i, :, :]
             @ L_blk_inv
         )
 
         # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}^{T} L_{i+1, i}) L_{i, i}^{-1}
-        X_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize] = (
+        X_diagonal_blocks[i, :, :] = (
             L_blk_inv.T
-            - X_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize].T
-            @ L_lower_diagonal_blocks[:, i * blocksize : (i + 1) * blocksize]
+            - X_lower_diagonal_blocks[i, :, :].T @ L_lower_diagonal_blocks[i, :, :]
         ) @ L_blk_inv
 
     return (
@@ -86,9 +86,9 @@ def cholesky_sinv_block_tridiagonal_arrowhead(
         Selected inversion of the matrix.
     """
 
-    diag_blocksize = L_diagonal_blocks.shape[0]
-    arrow_blocksize = L_arrow_tip_block.shape[0]
-    n_diag_blocks = L_diagonal_blocks.shape[1] // diag_blocksize
+    diag_blocksize = L_diagonal_blocks.shape[1]
+    arrow_blocksize = L_arrow_tip_block.shape[1]
+    n_diag_blocks = L_diagonal_blocks.shape[0]
 
     X_diagonal_blocks = np.zeros_like(L_diagonal_blocks)
     X_lower_diagonal_blocks = np.zeros_like(L_lower_diagonal_blocks)
@@ -109,64 +109,49 @@ def cholesky_sinv_block_tridiagonal_arrowhead(
     X_arrow_tip_block[:, :] = L_last_blk_inv.T @ L_last_blk_inv
 
     L_blk_inv = la.solve_triangular(
-        L_diagonal_blocks[:, -diag_blocksize:],
+        L_diagonal_blocks[-1, :, :],
         np.eye(diag_blocksize),
         lower=True,
     )
 
     # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
-    X_arrow_bottom_blocks[:, -diag_blocksize:] = (
-        -X_arrow_tip_block[:, :]
-        @ L_arrow_bottom_blocks[:, -diag_blocksize:]
-        @ L_blk_inv
+    X_arrow_bottom_blocks[-1, :, :] = (
+        -X_arrow_tip_block[:, :] @ L_arrow_bottom_blocks[-1, :, :] @ L_blk_inv
     )
 
     # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
-    X_diagonal_blocks[:, -diag_blocksize:] = (
+    X_diagonal_blocks[-1, :, :] = (
         L_blk_inv.T
-        - X_arrow_bottom_blocks[:, -diag_blocksize:].T
-        @ L_arrow_bottom_blocks[:, -diag_blocksize:]
+        - X_arrow_bottom_blocks[-1, :, :].T @ L_arrow_bottom_blocks[-1, :, :]
     ) @ L_blk_inv
 
     for i in range(n_diag_blocks - 2, -1, -1):
         L_blk_inv = la.solve_triangular(
-            L_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize],
+            L_diagonal_blocks[i, :, :],
             np.eye(diag_blocksize),
             lower=True,
         )
 
         # --- Off-diagonal block part ---
         # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}^{T} L_{ndb+1, i}) L_{i, i}^{-1}
-        X_lower_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            -X_diagonal_blocks[:, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-            @ L_lower_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            - X_arrow_bottom_blocks[
-                :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
-            ].T
-            @ L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+        X_lower_diagonal_blocks[i, :, :] = (
+            -X_diagonal_blocks[i + 1, :, :] @ L_lower_diagonal_blocks[i, :, :]
+            - X_arrow_bottom_blocks[i + 1, :, :].T @ L_arrow_bottom_blocks[i, :, :]
         ) @ L_blk_inv
 
         # --- Arrowhead part ---
         # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-        X_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
-            -X_arrow_bottom_blocks[
-                :, (i + 1) * diag_blocksize : (i + 2) * diag_blocksize
-            ]
-            @ L_lower_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            - X_arrow_tip_block[:, :]
-            @ L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+        X_arrow_bottom_blocks[i, :, :] = (
+            -X_arrow_bottom_blocks[i + 1, :, :] @ L_lower_diagonal_blocks[i, :, :]
+            - X_arrow_tip_block[:, :] @ L_arrow_bottom_blocks[i, :, :]
         ) @ L_blk_inv
 
         # --- Diagonal block part ---
         # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}^{T} L_{i+1, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
-        X_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize] = (
+        X_diagonal_blocks[i, :, :] = (
             L_blk_inv.T
-            - X_lower_diagonal_blocks[
-                :, i * diag_blocksize : (i + 1) * diag_blocksize
-            ].T
-            @ L_lower_diagonal_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
-            - X_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize].T
-            @ L_arrow_bottom_blocks[:, i * diag_blocksize : (i + 1) * diag_blocksize]
+            - X_lower_diagonal_blocks[i, :, :].T @ L_lower_diagonal_blocks[i, :, :]
+            - X_arrow_bottom_blocks[i, :, :].T @ L_arrow_bottom_blocks[i, :, :]
         ) @ L_blk_inv
 
     return (
@@ -272,9 +257,9 @@ def chol_sinv_ndiags(
         # X_{i, i} = (L_{i, i}^{-T} - sum_{k=i+1}^{min(i+ndiags/2, nblocks)} X_{i, k} L_{k, i}) L_{i, i}^{-1}
 
         # X_{i, i} = L_{i, i}^{-T}
-        X[
-            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
-        ] = L_blk_inv.T
+        X[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
+            L_blk_inv.T
+        )
 
         for k in range(i + 1, min(i + n_offdiags_blk + 1, nblocks), 1):
             # X_{i, i} = X_{i, i} - X_{k, i}.T L_{k, i}
