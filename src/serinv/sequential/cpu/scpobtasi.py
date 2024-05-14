@@ -27,9 +27,13 @@ def scpobtasi(
     Returns
     -------
     X_diagonal_blocks : np.ndarray
+        Diagonal blocks of the selected inverse.
     X_lower_diagonal_blocks : np.ndarray
+        Lower diagonal blocks of the selected inverse.
     X_arrow_bottom_blocks : np.ndarray
+        Arrow bottom blocks of the selected inverse.
     X_arrow_tip_block : np.ndarray
+        Arrow tip block of the selected inverse.
     """
 
     diag_blocksize = L_diagonal_blocks.shape[0]
