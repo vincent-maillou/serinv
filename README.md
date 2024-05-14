@@ -10,7 +10,31 @@
 
 SerinV bundle implementations of several selected factorization, inversion and solver algorithms for severals types of block-structured sparse matrices.
 
-## How to install
+# Routine Naming Conventions
+## Computation scheme:
+	S: Sequential
+	D: Distributed nested dissection scheme
+## Backend:
+	C: CPU
+	G: GPU
+## Type of matrix:
+	PO: Symmetric or Hermitian positive definite
+	DD: General, square, diagonoally dominante matrix
+## Sparsity pattern:
+	BT: Block Tridiagonal
+	BTA: Block Tridiagonal Arrowhead
+	BB: Block Banded
+	BBA: Block Banded Arrowhead
+## operations performed:
+	F: Perform matrix factorization
+	S: Solve the linear system with factored matrix
+	SI: Compute the selected inverse matrix using the factorization
+
+Examples:
+  - sc_pobtaf: Perform the factorization of a symmetric positive definite block tridiagonal arrowhead matrix using a sequential CPU backend.
+  - dg_ddbtsi: Compute the selected inverse of a general diagonally dominant block tridiagonal matrix using a distributed GPU backend.
+
+# How to install
     # Recommended: Create a new conda environment with python version above 3.9
     conda create --name serinv_env python=3.11
 
