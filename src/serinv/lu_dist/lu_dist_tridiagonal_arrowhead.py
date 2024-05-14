@@ -6,7 +6,7 @@ from mpi4py import MPI
 
 from serinv.lu.lu_factorize import lu_factorize_tridiag_arrowhead
 from serinv.lu.lu_selected_inversion import lu_sinv_tridiag_arrowhead
-
+from serinv.sinv.sinv import sinv_tridiagonal_arrowhead
 
 def lu_dist_tridiagonal_arrowhead(
     A_diagonal_blocks_local: np.ndarray,
@@ -1174,35 +1174,19 @@ def inverse_reduced_system(
     """
 
     (
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
-    ) = lu_factorize_tridiag_arrowhead(
-        A_rs_diagonal_blocks,
-        A_rs_lower_diagonal_blocks,
-        A_rs_upper_diagonal_blocks,
-        A_rs_arrow_bottom_blocks,
-        A_rs_arrow_right_blocks,
-        A_rs_arrow_tip_block,
-    )
-
-    (
         X_rs_diagonal_blocks,
         X_rs_lower_diagonal_blocks,
         X_rs_upper_diagonal_blocks,
         X_rs_arrow_bottom_blocks,
         X_rs_arrow_right_blocks,
         X_rs_arrow_tip_block,
-    ) = lu_sinv_tridiag_arrowhead(
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
+    ) = sinv_tridiagonal_arrowhead(
+        A_rs_diagonal_blocks,
+        A_rs_lower_diagonal_blocks,
+        A_rs_arrow_bottom_blocks,
+        A_rs_arrow_tip_block,
+        A_rs_upper_diagonal_blocks,
+        A_rs_arrow_right_blocks,
     )
 
     return (

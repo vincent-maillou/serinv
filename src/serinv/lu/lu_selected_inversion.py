@@ -110,6 +110,7 @@ def lu_sinv_tridiag_arrowhead(
     U_diagonal_blocks: np.ndarray,
     U_upper_diagonal_blocks: np.ndarray,
     U_arrow_right_blocks: np.ndarray,
+    P_arrow_tip_block: np.ndarray,
 ) -> np.ndarray:
     """Perform a selected inversion from a lu decomposed matrix with a
     block tridiagonal arrowhead structure.
@@ -185,6 +186,7 @@ def lu_sinv_tridiag_arrowhead(
     )
 
     X_arrow_tip_block[:, :] = U_last_blk_inv @ L_last_blk_inv
+    X_arrow_tip_block[:, :] = X_arrow_tip_block[:, :] @ P_arrow_tip_block.T
 
     L_blk_inv = la.solve_triangular(
         L_diagonal_blocks[:, -diag_blocksize:],

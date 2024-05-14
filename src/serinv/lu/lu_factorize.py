@@ -301,9 +301,10 @@ def lu_factorize_tridiag_arrowhead(
 
     # L_{ndb+1, ndb+1}, U_{ndb+1, ndb+1} = lu_dcmp(A_{ndb+1, ndb+1})
     (
+        P_arrow_tip_block,
         L_arrow_bottom_blocks[:, -arrow_blocksize:],
         U_arrow_right_blocks[-arrow_blocksize:, :],
-    ) = la.lu(A_arrow_tip_block[:, :], permute_l=True)
+    ) = la.lu(A_arrow_tip_block[:, :], permute_l=False)
 
     return (
         L_diagonal_blocks,
@@ -312,4 +313,5 @@ def lu_factorize_tridiag_arrowhead(
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
+        P_arrow_tip_block,
     )
