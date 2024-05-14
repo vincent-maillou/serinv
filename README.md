@@ -31,8 +31,8 @@ SerinV bundle implementations of several selected factorization, inversion and s
 	SI: Compute the selected inverse matrix using the factorization
 
 Examples:
-  - sc_pobtaf: Perform the factorization of a symmetric positive definite block tridiagonal arrowhead matrix using a sequential CPU backend.
-  - dg_ddbtsi: Compute the selected inverse of a general diagonally dominant block tridiagonal matrix using a distributed GPU backend.
+  - scpobtaf: Perform the factorization of a symmetric positive definite block tridiagonal arrowhead matrix using a sequential CPU backend.
+  - dgddbtsi: Compute the selected inverse of a general diagonally dominant block tridiagonal matrix using a distributed GPU backend.
 
 # How to install
     # Recommended: Create a new conda environment with python version above 3.9
