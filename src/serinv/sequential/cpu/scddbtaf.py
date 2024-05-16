@@ -43,12 +43,16 @@ def scddbtaf(
         Lower diagonal blocks of the lower factor.
     L_arrow_bottom_blocks : np.ndarray
         Bottom arrow blocks of the lower factor.
+    L_arrow_tip_block : np.ndarray
+        Tip arrow block of the lower factor.
     U_diagonal_blocks : np.ndarray
         Diagonal blocks of the upper factor.
     U_upper_diagonal_blocks : np.ndarray
         Upper diagonal blocks of the upper factor
     U_arrow_right_blocks : np.ndarray
         Right arrow blocks of the upper factor
+    U_arrow_tip_block : np.ndarray
+        Tip arrow block of the upper factor
     """
 
     diag_blocksize = A_diagonal_blocks.shape[1]
