@@ -3,7 +3,6 @@
 import cupy as cp
 import cupyx as cpx
 import cupyx.scipy.linalg as cpla
-
 import numpy as np
 
 

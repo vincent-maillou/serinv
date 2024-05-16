@@ -17,6 +17,9 @@ def scddbtaf(
 
     The matrix is assumed to be block-diagonally dominant.
 
+    The tip of the arrowhead is returned as the last block of the lower and upper
+    arrows vectors.
+
     Parameters
     ----------
     A_diagonal_blocks : np.ndarray

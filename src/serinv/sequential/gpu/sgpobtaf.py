@@ -3,9 +3,8 @@
 import cupy as cp
 import cupyx as cpx
 import cupyx.scipy.linalg as cpla
-from cupy.linalg import cholesky
-
 import numpy as np
+from cupy.linalg import cholesky
 
 
 def sgpobtaf(
