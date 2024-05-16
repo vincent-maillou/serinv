@@ -39,9 +39,11 @@ def test_scddbtaf(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         L_arrow_bottom_blocks,
+        L_arrow_tip_block,
         U_diagonal_blocks,
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
+        U_arrow_tip_block,
     ) = scddbtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -55,9 +57,9 @@ def test_scddbtaf(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         np.zeros_like(A_upper_diagonal_blocks),
-        L_arrow_bottom_blocks[:, :-arrowhead_blocksize],
+        L_arrow_bottom_blocks,
         np.zeros_like(A_arrow_right_blocks),
-        L_arrow_bottom_blocks[:, -arrowhead_blocksize:],
+        L_arrow_tip_block,
     )
 
     U_serinv = bta_arrays_to_dense_factory(
@@ -65,8 +67,8 @@ def test_scddbtaf(
         np.zeros_like(A_lower_diagonal_blocks),
         U_upper_diagonal_blocks,
         np.zeros_like(A_arrow_bottom_blocks),
-        U_arrow_right_blocks[:-arrowhead_blocksize, :],
-        U_arrow_right_blocks[-arrowhead_blocksize:, :],
+        U_arrow_right_blocks,
+        U_arrow_tip_block,
     )
 
     assert np.allclose(L_ref, L_serinv)

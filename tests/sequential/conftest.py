@@ -17,43 +17,55 @@ def bta_dense_to_arrays_factory():
     ):
         """Converts a block tridiagonal arrowhead matrix from a dense representation to arrays of blocks."""
         A_diagonal_blocks = np.zeros(
-            (diagonal_blocksize, n_diag_blocks * diagonal_blocksize),
+            (n_diag_blocks, diagonal_blocksize, diagonal_blocksize),
             dtype=np.complex128,
         )
 
         A_lower_diagonal_blocks = np.zeros(
-            (diagonal_blocksize, (n_diag_blocks - 1) * diagonal_blocksize),
+            (n_diag_blocks - 1, diagonal_blocksize, diagonal_blocksize),
             dtype=np.complex128,
         )
         A_upper_diagonal_blocks = np.zeros(
-            (diagonal_blocksize, (n_diag_blocks - 1) * diagonal_blocksize),
+            (n_diag_blocks - 1, diagonal_blocksize, diagonal_blocksize),
+            dtype=np.complex128,
+        )
+
+        A_arrow_bottom_blocks = np.zeros(
+            (n_diag_blocks, arrowhead_blocksize, diagonal_blocksize),
+            dtype=np.complex128,
+        )
+
+        A_arrow_right_blocks = np.zeros(
+            (n_diag_blocks, diagonal_blocksize, arrowhead_blocksize),
             dtype=np.complex128,
         )
 
         for i in range(n_diag_blocks):
-            A_diagonal_blocks[
-                :, i * diagonal_blocksize : (i + 1) * diagonal_blocksize
-            ] = bta[
+            A_diagonal_blocks[i, :, :] = bta[
                 i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
                 i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
             ]
             if i > 0:
-                A_lower_diagonal_blocks[
-                    :, (i - 1) * diagonal_blocksize : i * diagonal_blocksize
-                ] = bta[
+                A_lower_diagonal_blocks[i - 1, :, :] = bta[
                     i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
                     (i - 1) * diagonal_blocksize : i * diagonal_blocksize,
                 ]
             if i < n_diag_blocks - 1:
-                A_upper_diagonal_blocks[
-                    :, i * diagonal_blocksize : (i + 1) * diagonal_blocksize
-                ] = bta[
+                A_upper_diagonal_blocks[i, :, :] = bta[
                     i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
                     (i + 1) * diagonal_blocksize : (i + 2) * diagonal_blocksize,
                 ]
 
-        A_arrow_bottom_blocks = bta[-arrowhead_blocksize:, :-arrowhead_blocksize]
-        A_arrow_right_blocks = bta[:-arrowhead_blocksize, -arrowhead_blocksize:]
+            A_arrow_bottom_blocks[i, :, :] = bta[
+                -arrowhead_blocksize:,
+                i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+            ]
+
+            A_arrow_right_blocks[i, :, :] = bta[
+                i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+                -arrowhead_blocksize:,
+            ]
+
         A_arrow_tip_block = bta[-arrowhead_blocksize:, -arrowhead_blocksize:]
 
         return (
@@ -79,9 +91,9 @@ def bta_arrays_to_dense_factory():
         A_arrow_tip_block: np.ndarray,
     ):
         """Converts arrays of blocks to a block tridiagonal arrowhead matrix in a dense representation."""
-        diagonal_blocksize = A_diagonal_blocks.shape[0]
-        arrowhead_blocksize = A_arrow_bottom_blocks.shape[0]
-        n_diag_blocks = A_diagonal_blocks.shape[1] // diagonal_blocksize
+        diagonal_blocksize = A_diagonal_blocks.shape[1]
+        arrowhead_blocksize = A_arrow_bottom_blocks.shape[1]
+        n_diag_blocks = A_diagonal_blocks.shape[0]
 
         bta = np.zeros(
             (
@@ -95,26 +107,28 @@ def bta_arrays_to_dense_factory():
             bta[
                 i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
                 i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
-            ] = A_diagonal_blocks[
-                :, i * diagonal_blocksize : (i + 1) * diagonal_blocksize
-            ]
+            ] = A_diagonal_blocks[i, :, :]
             if i > 0:
                 bta[
                     i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
                     (i - 1) * diagonal_blocksize : i * diagonal_blocksize,
-                ] = A_lower_diagonal_blocks[
-                    :, (i - 1) * diagonal_blocksize : i * diagonal_blocksize
-                ]
+                ] = A_lower_diagonal_blocks[i - 1, :, :]
             if i < n_diag_blocks - 1:
                 bta[
                     i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
                     (i + 1) * diagonal_blocksize : (i + 2) * diagonal_blocksize,
-                ] = A_upper_diagonal_blocks[
-                    :, i * diagonal_blocksize : (i + 1) * diagonal_blocksize
-                ]
+                ] = A_upper_diagonal_blocks[i, :, :]
 
-        bta[-arrowhead_blocksize:, :-arrowhead_blocksize] = A_arrow_bottom_blocks
-        bta[:-arrowhead_blocksize, -arrowhead_blocksize:] = A_arrow_right_blocks
+            bta[
+                -arrowhead_blocksize:,
+                i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+            ] = A_arrow_bottom_blocks[i, :, :]
+
+            bta[
+                i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+                -arrowhead_blocksize:,
+            ] = A_arrow_right_blocks[i, :, :]
+
         bta[-arrowhead_blocksize:, -arrowhead_blocksize:] = A_arrow_tip_block
 
         return bta
