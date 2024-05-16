@@ -56,26 +56,12 @@ def scddbtasi(
     arrow_blocksize = L_arrow_bottom_blocks.shape[1]
     n_diag_blocks = L_diagonal_blocks.shape[0]
 
-    X_diagonal_blocks = np.empty(
-        (n_diag_blocks, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks.dtype
-    )
-    X_lower_diagonal_blocks = np.empty(
-        (n_diag_blocks - 1, diag_blocksize, diag_blocksize),
-        dtype=L_diagonal_blocks.dtype,
-    )
-    X_upper_diagonal_blocks = np.empty(
-        (n_diag_blocks - 1, diag_blocksize, diag_blocksize),
-        dtype=L_diagonal_blocks.dtype,
-    )
-    X_arrow_bottom_blocks = np.empty(
-        (n_diag_blocks, arrow_blocksize, diag_blocksize), dtype=L_diagonal_blocks.dtype
-    )
-    X_arrow_right_blocks = np.empty(
-        (n_diag_blocks, diag_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
-    )
-    X_arrow_tip_block = np.empty(
-        (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
-    )
+    X_diagonal_blocks = np.empty_like(L_diagonal_blocks)
+    X_lower_diagonal_blocks = np.empty_like(L_lower_diagonal_blocks)
+    X_upper_diagonal_blocks = np.empty_like(U_upper_diagonal_blocks)
+    X_arrow_bottom_blocks = np.empty_like(L_arrow_bottom_blocks)
+    X_arrow_right_blocks = np.empty_like(U_arrow_right_blocks)
+    X_arrow_tip_block = np.empty_like(L_arrow_tip_block)
 
     L_last_blk_inv = np.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype

@@ -59,35 +59,15 @@ def scddbtaf(
     arrow_blocksize = A_arrow_bottom_blocks.shape[1]
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
-    L_diagonal_blocks = np.empty(
-        (n_diag_blocks, diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
-    )
-    L_lower_diagonal_blocks = np.empty(
-        (n_diag_blocks - 1, diag_blocksize, diag_blocksize),
-        dtype=A_diagonal_blocks.dtype,
-    )
-    L_arrow_bottom_blocks = np.empty(
-        (n_diag_blocks, arrow_blocksize, diag_blocksize),
-        dtype=A_diagonal_blocks.dtype,
-    )
-    L_arrow_tip_block = np.empty(
-        (arrow_blocksize, arrow_blocksize), dtype=A_diagonal_blocks.dtype
-    )
+    L_diagonal_blocks = np.empty_like(A_diagonal_blocks)
+    L_lower_diagonal_blocks = np.empty_like(A_lower_diagonal_blocks)
+    L_arrow_bottom_blocks = np.empty_like(A_arrow_bottom_blocks)
+    L_arrow_tip_block = np.empty_like(A_arrow_tip_block)
 
-    U_diagonal_blocks = np.empty(
-        (n_diag_blocks, diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
-    )
-    U_upper_diagonal_blocks = np.empty(
-        (n_diag_blocks - 1, diag_blocksize, diag_blocksize),
-        dtype=A_diagonal_blocks.dtype,
-    )
-    U_arrow_right_blocks = np.empty(
-        (n_diag_blocks, diag_blocksize, arrow_blocksize),
-        dtype=A_diagonal_blocks.dtype,
-    )
-    U_arrow_tip_block = np.empty(
-        (arrow_blocksize, arrow_blocksize), dtype=A_diagonal_blocks.dtype
-    )
+    U_diagonal_blocks = np.empty_like(A_diagonal_blocks)
+    U_upper_diagonal_blocks = np.empty_like(A_upper_diagonal_blocks)
+    U_arrow_right_blocks = np.empty_like(A_arrow_right_blocks)
+    U_arrow_tip_block = np.empty_like(A_arrow_tip_block)
 
     L_inv_temp = np.empty(
         (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
