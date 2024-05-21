@@ -13,7 +13,7 @@ from serinv.sequential.cpu import scddbtasi
 )
 def test_scddbtaf(
     dd_bta,
-    bta_dense_to_arrays_factory,
+    bta_dense_to_arrays,
     diagonal_blocksize,
     arrowhead_blocksize,
     n_diag_blocks,
@@ -28,7 +28,7 @@ def test_scddbtaf(
         X_arrow_bottom_blocks_ref,
         X_arrow_right_blocks_ref,
         X_arrow_tip_block_ref,
-    ) = bta_dense_to_arrays_factory(
+    ) = bta_dense_to_arrays(
         X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
     )
 
@@ -39,7 +39,7 @@ def test_scddbtaf(
         A_arrow_bottom_blocks,
         A_arrow_right_blocks,
         A_arrow_tip_block,
-    ) = bta_dense_to_arrays_factory(
+    ) = bta_dense_to_arrays(
         dd_bta, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
     )
 
