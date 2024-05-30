@@ -1,92 +1,120 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
+try:
+    import cupy as cp
+    import cupyx.scipy.linalg as cu_la
+
+    CUPY_AVAIL = True
+
+except:
+    CUPY_AVAIL = False
+
 import numpy as np
-import scipy.linalg as la
+import scipy.linalg as np_la
 
 
 def ddbtasi(
-    L_diagonal_blocks: np.ndarray,
-    L_lower_diagonal_blocks: np.ndarray,
-    L_arrow_bottom_blocks: np.ndarray,
-    L_arrow_tip_block: np.ndarray,
-    U_diagonal_blocks: np.ndarray,
-    U_upper_diagonal_blocks: np.ndarray,
-    U_arrow_right_blocks: np.ndarray,
-    U_arrow_tip_block: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    L_diagonal_blocks: np.ndarray | cp.ndarray,
+    L_lower_diagonal_blocks: np.ndarray | cp.ndarray,
+    L_arrow_bottom_blocks: np.ndarray | cp.ndarray,
+    L_arrow_tip_block: np.ndarray | cp.ndarray,
+    U_diagonal_blocks: np.ndarray | cp.ndarray,
+    U_upper_diagonal_blocks: np.ndarray | cp.ndarray,
+    U_arrow_right_blocks: np.ndarray | cp.ndarray,
+    U_arrow_tip_block: np.ndarray | cp.ndarray,
+) -> tuple[
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+]:
     """Perform a selected inversion from a lu factorized matrix using
-    a sequential algorithm on a CPU backend.
+    a sequential block algorithm.
+
+    Note:
+    -----
+    - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
     ----------
-    L_diagonal_blocks : np.ndarray
+    L_diagonal_blocks : np.ndarray | cp.ndarray
         Diagonal blocks of the lower factor of the lu factorization of the matrix.
-    L_lower_diagonal_blocks : np.ndarray
+    L_lower_diagonal_blocks : np.ndarray | cp.ndarray
         Lower diagonal blocks of the lower factor of the lu factorization of the matrix.
-    L_arrow_bottom_blocks : np.ndarray
+    L_arrow_bottom_blocks : np.ndarray | cp.ndarray
         Bottom arrow blocks of the lower factor of the lu factorization of the matrix.
-    L_arrow_tip_block : np.ndarray
+    L_arrow_tip_block : np.ndarray | cp.ndarray
         Tip arrow block of the lower factor of the lu factorization of the matrix.
-    U_diagonal_blocks : np.ndarray
+    U_diagonal_blocks : np.ndarray | cp.ndarray
         Diagonal blocks of the upper factor of the lu factorization of the matrix.
-    U_upper_diagonal_blocks : np.ndarray
+    U_upper_diagonal_blocks : np.ndarray | cp.ndarray
         Upper diagonal blocks of the upper factor of the lu factorization of the matrix.
-    U_arrow_right_blocks : np.ndarray
+    U_arrow_right_blocks : np.ndarray | cp.ndarray
         Right arrow blocks of the upper factor of the lu factorization of the matrix.
-    U_arrow_tip_block : np.ndarray
+    U_arrow_tip_block : np.ndarray | cp.ndarray
         Tip arrow block of the upper factor of the lu factorization of the matrix.
 
     Returns
     -------
-    X_diagonal_blocks : np.ndarray
+    X_diagonal_blocks : np.ndarray | cp.ndarray
         Diagonal blocks of the selected inversion of the matrix.
-    X_lower_diagonal_blocks : np.ndarray
+    X_lower_diagonal_blocks : np.ndarray | cp.ndarray
         Lower diagonal blocks of the selected inversion of the matrix.
-    X_upper_diagonal_blocks : np.ndarray
+    X_upper_diagonal_blocks : np.ndarray | cp.ndarray
         Upper diagonal blocks of the selected inversion of the matrix.
-    X_arrow_bottom_blocks : np.ndarray
+    X_arrow_bottom_blocks : np.ndarray | cp.ndarray
         Bottom arrow blocks of the selected inversion of the matrix.
-    X_arrow_right_blocks : np.ndarray
+    X_arrow_right_blocks : np.ndarray | cp.ndarray
         Right arrow blocks of the selected inversion of the matrix.
-    X_arrow_tip_block : np.ndarray
+    X_arrow_tip_block : np.ndarray | cp.ndarray
         Tip arrow block of the selected inversion of the matrix.
     """
+
+    la = np_la
+    if CUPY_AVAIL:
+        xp = cp.get_array_module(L_diagonal_blocks)
+        if xp == cp:
+            la = cu_la
+    else:
+        xp = np
 
     diag_blocksize = L_diagonal_blocks.shape[1]
     arrow_blocksize = L_arrow_bottom_blocks.shape[1]
     n_diag_blocks = L_diagonal_blocks.shape[0]
 
-    X_diagonal_blocks = np.empty_like(L_diagonal_blocks)
-    X_lower_diagonal_blocks = np.empty_like(L_lower_diagonal_blocks)
-    X_upper_diagonal_blocks = np.empty_like(U_upper_diagonal_blocks)
-    X_arrow_bottom_blocks = np.empty_like(L_arrow_bottom_blocks)
-    X_arrow_right_blocks = np.empty_like(U_arrow_right_blocks)
-    X_arrow_tip_block = np.empty_like(L_arrow_tip_block)
+    X_diagonal_blocks = xp.empty_like(L_diagonal_blocks)
+    X_lower_diagonal_blocks = xp.empty_like(L_lower_diagonal_blocks)
+    X_upper_diagonal_blocks = xp.empty_like(U_upper_diagonal_blocks)
+    X_arrow_bottom_blocks = xp.empty_like(L_arrow_bottom_blocks)
+    X_arrow_right_blocks = xp.empty_like(U_arrow_right_blocks)
+    X_arrow_tip_block = xp.empty_like(L_arrow_tip_block)
 
-    L_last_blk_inv = np.empty(
+    L_last_blk_inv = xp.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
-    U_last_blk_inv = np.empty(
+    U_last_blk_inv = xp.empty(
         (arrow_blocksize, arrow_blocksize), dtype=L_diagonal_blocks.dtype
     )
 
     L_last_blk_inv = la.solve_triangular(
-        L_arrow_tip_block[:, :], np.eye(arrow_blocksize), lower=True
+        L_arrow_tip_block[:, :], xp.eye(arrow_blocksize), lower=True
     )
     U_last_blk_inv = la.solve_triangular(
-        U_arrow_tip_block[:, :], np.eye(arrow_blocksize), lower=False
+        U_arrow_tip_block[:, :], xp.eye(arrow_blocksize), lower=False
     )
 
     X_arrow_tip_block[:, :] = U_last_blk_inv @ L_last_blk_inv
 
     L_blk_inv = la.solve_triangular(
         L_diagonal_blocks[-1, :, :],
-        np.eye(diag_blocksize),
+        xp.eye(diag_blocksize),
         lower=True,
     )
     U_blk_inv = la.solve_triangular(
         U_diagonal_blocks[-1, :, :],
-        np.eye(diag_blocksize),
+        xp.eye(diag_blocksize),
         lower=False,
     )
 
@@ -109,13 +137,13 @@ def ddbtasi(
     for i in range(n_diag_blocks - 2, -1, -1):
         L_blk_inv = la.solve_triangular(
             L_diagonal_blocks[i, :, :],
-            np.eye(diag_blocksize),
+            xp.eye(diag_blocksize),
             lower=True,
         )
 
         U_blk_inv = la.solve_triangular(
             U_diagonal_blocks[i, :, :],
-            np.eye(diag_blocksize),
+            xp.eye(diag_blocksize),
             lower=False,
         )
 

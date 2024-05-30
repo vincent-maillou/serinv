@@ -1,78 +1,101 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
+try:
+    import cupy as cp
+    import cupyx.scipy.linalg as cu_la
+
+    CUPY_AVAIL = True
+
+except:
+    CUPY_AVAIL = False
+
 import numpy as np
-import scipy.linalg as la
+import scipy.linalg as np_la
 
 
 def ddbtaf(
-    A_diagonal_blocks: np.ndarray,
-    A_lower_diagonal_blocks: np.ndarray,
-    A_upper_diagonal_blocks: np.ndarray,
-    A_arrow_bottom_blocks: np.ndarray,
-    A_arrow_right_blocks: np.ndarray,
-    A_arrow_tip_block: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    A_diagonal_blocks: np.ndarray | cp.ndarray,
+    A_lower_diagonal_blocks: np.ndarray | cp.ndarray,
+    A_upper_diagonal_blocks: np.ndarray | cp.ndarray,
+    A_arrow_bottom_blocks: np.ndarray | cp.ndarray,
+    A_arrow_right_blocks: np.ndarray | cp.ndarray,
+    A_arrow_tip_block: np.ndarray | cp.ndarray,
+) -> tuple[
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+    np.ndarray | cp.ndarray,
+]:
     """Perform the LU factorization of a block tridiagonal matrix using
-    a sequential algotithm on a CPU backend.
+    a sequential block algorithm.
 
-    The matrix is assumed to be block-diagonally dominant.
-
-    The tip of the arrowhead is returned as the last block of the lower and upper
-    arrows vectors.
+    Note:
+    -----
+    - The matrix is assumed to be block-diagonally dominant.
+    - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
     ----------
-    A_diagonal_blocks : np.ndarray
+    A_diagonal_blocks : np.ndarray | cp.ndarray
         The blocks on the diagonal of the matrix.
-    A_lower_diagonal_blocks : np.ndarray
+    A_lower_diagonal_blocks : np.ndarray | cp.ndarray
         The blocks on the lower diagonal of the matrix.
-    A_upper_diagonal_blocks : np.ndarray
+    A_upper_diagonal_blocks : np.ndarray | cp.ndarray
         The blocks on the upper diagonal of the matrix.
-    A_arrow_bottom_blocks : np.ndarray
+    A_arrow_bottom_blocks : np.ndarray | cp.ndarray
         The blocks on the bottom arrow of the matrix.
-    A_arrow_right_blocks : np.ndarray
+    A_arrow_right_blocks : np.ndarray | cp.ndarray
         The blocks on the right arrow of the matrix.
-    A_arrow_tip_block : np.ndarray
+    A_arrow_tip_block : np.ndarray | cp.ndarray
         The block at the tip of the arrowhead.
 
     Returns
     -------
-    L_diagonal_blocks : np.ndarray
+    L_diagonal_blocks : np.ndarray | cp.ndarray
         Diagonal blocks of the lower factor.
-    L_lower_diagonal_blocks : np.ndarray
+    L_lower_diagonal_blocks : np.ndarray | cp.ndarray
         Lower diagonal blocks of the lower factor.
-    L_arrow_bottom_blocks : np.ndarray
+    L_arrow_bottom_blocks : np.ndarray | cp.ndarray
         Bottom arrow blocks of the lower factor.
-    L_arrow_tip_block : np.ndarray
+    L_arrow_tip_block : np.ndarray | cp.ndarray
         Tip arrow block of the lower factor.
-    U_diagonal_blocks : np.ndarray
+    U_diagonal_blocks : np.ndarray | cp.ndarray
         Diagonal blocks of the upper factor.
-    U_upper_diagonal_blocks : np.ndarray
+    U_upper_diagonal_blocks : np.ndarray | cp.ndarray
         Upper diagonal blocks of the upper factor
-    U_arrow_right_blocks : np.ndarray
+    U_arrow_right_blocks : np.ndarray | cp.ndarray
         Right arrow blocks of the upper factor
-    U_arrow_tip_block : np.ndarray
+    U_arrow_tip_block : np.ndarray | cp.ndarray
         Tip arrow block of the upper factor
     """
 
+    la = np_la
+    if CUPY_AVAIL:
+        xp = cp.get_array_module(A_diagonal_blocks)
+        if xp == cp:
+            la = cu_la
+    else:
+        xp = np
+
     diag_blocksize = A_diagonal_blocks.shape[1]
-    arrow_blocksize = A_arrow_bottom_blocks.shape[1]
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
-    L_diagonal_blocks = np.empty_like(A_diagonal_blocks)
-    L_lower_diagonal_blocks = np.empty_like(A_lower_diagonal_blocks)
-    L_arrow_bottom_blocks = np.empty_like(A_arrow_bottom_blocks)
-    L_arrow_tip_block = np.empty_like(A_arrow_tip_block)
+    L_diagonal_blocks = xp.empty_like(A_diagonal_blocks)
+    L_lower_diagonal_blocks = xp.empty_like(A_lower_diagonal_blocks)
+    L_arrow_bottom_blocks = xp.empty_like(A_arrow_bottom_blocks)
+    L_arrow_tip_block = xp.empty_like(A_arrow_tip_block)
 
-    U_diagonal_blocks = np.empty_like(A_diagonal_blocks)
-    U_upper_diagonal_blocks = np.empty_like(A_upper_diagonal_blocks)
-    U_arrow_right_blocks = np.empty_like(A_arrow_right_blocks)
-    U_arrow_tip_block = np.empty_like(A_arrow_tip_block)
+    U_diagonal_blocks = xp.empty_like(A_diagonal_blocks)
+    U_upper_diagonal_blocks = xp.empty_like(A_upper_diagonal_blocks)
+    U_arrow_right_blocks = xp.empty_like(A_arrow_right_blocks)
+    U_arrow_tip_block = xp.empty_like(A_arrow_tip_block)
 
-    L_inv_temp = np.empty(
+    L_inv_temp = xp.empty(
         (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
     )
-    U_inv_temp = np.empty(
+    U_inv_temp = xp.empty(
         (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
     )
 
@@ -89,7 +112,7 @@ def ddbtaf(
         # Compute lower factors
         U_inv_temp = la.solve_triangular(
             U_diagonal_blocks[i, :, :],
-            np.eye(diag_blocksize),
+            xp.eye(diag_blocksize),
             lower=False,
         )
 
@@ -102,7 +125,7 @@ def ddbtaf(
         # Compute upper factors
         L_inv_temp = la.solve_triangular(
             L_diagonal_blocks[i, :, :],
-            np.eye(diag_blocksize),
+            xp.eye(diag_blocksize),
             lower=True,
         )
 
@@ -153,7 +176,7 @@ def ddbtaf(
         -1, :, :
     ] @ la.solve_triangular(
         U_diagonal_blocks[-1, :, :],
-        np.eye(diag_blocksize),
+        xp.eye(diag_blocksize),
         lower=False,
     )
 
@@ -161,7 +184,7 @@ def ddbtaf(
     U_arrow_right_blocks[-1, :, :] = (
         la.solve_triangular(
             L_diagonal_blocks[-1, :, :],
-            np.eye(diag_blocksize),
+            xp.eye(diag_blocksize),
             lower=True,
         )
         @ A_arrow_right_blocks[-1, :, :]

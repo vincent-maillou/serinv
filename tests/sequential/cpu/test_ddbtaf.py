@@ -1,16 +1,26 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
+try:
+    import cupy as cp
+    import cupyx.scipy.linalg as cu_la
+
+    CUPY_AVAIL = True
+
+except:
+    CUPY_AVAIL = False
+
 import numpy as np
-import scipy.linalg as la
+import scipy.linalg as np_la
+
 import pytest
 
 from serinv.sequential import ddbtaf
 
 
-@pytest.mark.parametrize(
-    "diagonal_blocksize, arrowhead_blocksize, n_diag_blocks",
-    [(3, 2, 5), (2, 3, 3), (5, 5, 2)],
-)
+@pytest.mark.parametrize("diagonal_blocksize", [2, 3])
+@pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
+@pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
+@pytest.mark.parametrize("device_array", [False, True])
 def test_ddbtaf(
     dd_bta,
     bta_dense_to_arrays,
@@ -19,6 +29,13 @@ def test_ddbtaf(
     arrowhead_blocksize,
     n_diag_blocks,
 ):
+    la = np_la
+    if CUPY_AVAIL:
+        xp = cp.get_array_module(dd_bta)
+        if xp == cp:
+            la = cu_la
+    else:
+        xp = np
 
     P_ref, L_ref, U_ref = la.lu(dd_bta)
 

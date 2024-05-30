@@ -161,7 +161,7 @@ def dd_bta(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
     n_diag_blocks: int,
-    device_array: bool = False,
+    device_array: bool,
 ):
     """Returns a random, diagonaly dominant general, block tridiagonal arrowhead matrix."""
     xp = cp if device_array and CUPY_AVAIL else np
