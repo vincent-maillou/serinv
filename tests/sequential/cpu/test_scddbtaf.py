@@ -1,17 +1,17 @@
-# Copyright 2023-2024 ETH Zurich & USI. All rights reserved.
+# Copyright 2023-2024 ETH Zurich. All rights reserved.
 
 import numpy as np
 import scipy.linalg as la
 import pytest
 
-from serinv.sequential.cpu import scddbtaf
+from serinv.sequential import ddbtaf
 
 
 @pytest.mark.parametrize(
     "diagonal_blocksize, arrowhead_blocksize, n_diag_blocks",
     [(3, 2, 5), (2, 3, 3), (5, 5, 2)],
 )
-def test_scddbtaf(
+def test_ddbtaf(
     dd_bta,
     bta_dense_to_arrays,
     bta_arrays_to_dense,
@@ -44,7 +44,7 @@ def test_scddbtaf(
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
         U_arrow_tip_block,
-    ) = scddbtaf(
+    ) = ddbtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,

@@ -1,4 +1,4 @@
-# Copyright 2023-2024 ETH Zurich and USI. All rights reserved.
+# Copyright 2023-2024 ETH Zurich. All rights reserved.
 
 try:
     import cupy as cp

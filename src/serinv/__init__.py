@@ -1,4 +1,4 @@
-# Copyright 2023-2024 ETH Zurich & USI. All rights reserved.
+# Copyright 2023-2024 ETH Zurich. All rights reserved.
 
 from serinv.__about__ import __version__
 

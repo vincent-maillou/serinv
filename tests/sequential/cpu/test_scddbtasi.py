@@ -1,10 +1,10 @@
-# Copyright 2023-2024 ETH Zurich & USI. All rights reserved.
+# Copyright 2023-2024 ETH Zurich. All rights reserved.
 
 import numpy as np
 import pytest
 
-from serinv.sequential.cpu import scddbtaf
-from serinv.sequential.cpu import scddbtasi
+from serinv.sequential import ddbtaf
+from serinv.sequential import ddbtasi
 
 
 @pytest.mark.parametrize(
@@ -52,7 +52,7 @@ def test_scddbtaf(
         U_upper_diagonal_blocks,
         U_arrow_right_blocks,
         U_arrow_tip_block,
-    ) = scddbtaf(
+    ) = ddbtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
@@ -68,7 +68,7 @@ def test_scddbtaf(
         X_arrow_bottom_blocks_serinv,
         X_arrow_right_blocks_serinv,
         X_arrow_tip_block_serinv,
-    ) = scddbtasi(
+    ) = ddbtasi(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
         L_arrow_bottom_blocks,
