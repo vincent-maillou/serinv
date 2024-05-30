@@ -6,7 +6,7 @@ import scipy.linalg as la
 import scipy.linalg as scla
 
 
-def scpobtaf(
+def pobtaf(
     A_diagonal_blocks: np.ndarray,
     A_lower_diagonal_blocks: np.ndarray,
     A_arrow_bottom_blocks: np.ndarray,

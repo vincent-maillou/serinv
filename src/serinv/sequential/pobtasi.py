@@ -4,7 +4,7 @@ import numpy as np
 import scipy.linalg as la
 
 
-def scpobtasi(
+def pobtasi(
     L_diagonal_blocks: np.ndarray,
     L_lower_diagonal_blocks: np.ndarray,
     L_arrow_bottom_blocks: np.ndarray,
