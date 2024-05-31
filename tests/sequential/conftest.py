@@ -157,6 +157,18 @@ def bta_arrays_to_dense():
 
 
 @pytest.fixture(scope="function", autouse=True)
+def bta_symmetrize():
+    def _bta_symmetrize(
+        bta: np.ndarray | cp.ndarray,
+    ):
+        """Symmetrizes a block tridiagonal arrowhead matrix."""
+
+        return (bta + bta.conj().T) / 2
+
+    return _bta_symmetrize
+
+
+@pytest.fixture(scope="function", autouse=True)
 def dd_bta(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
