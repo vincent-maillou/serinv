@@ -28,7 +28,7 @@ def ddbtaf(
     np.ndarray | cp.ndarray,
     np.ndarray | cp.ndarray,
 ]:
-    """Perform the LU factorization of a block tridiagonal matrix using
+    """Perform the LU factorization of a block tridiagonal arrowhead matrix using
     a sequential block algorithm.
 
     Note:
