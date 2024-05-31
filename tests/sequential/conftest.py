@@ -184,7 +184,7 @@ def dd_bta(
             diagonal_blocksize * n_diag_blocks + arrowhead_blocksize,
             diagonal_blocksize * n_diag_blocks + arrowhead_blocksize,
         ),
-        dtype=xp.complex128,
+        dtype=dtype,
     )
 
     rc = (1.0 + 1.0j) if dtype == np.complex128 else 1.0
@@ -230,3 +230,24 @@ def dd_bta(
         DD_BTA[i, i] = 1 + xp.sum(DD_BTA[i, :])
 
     return DD_BTA
+
+
+@pytest.fixture(scope="function", autouse=False)
+def b_rhs(
+    n_rhs: int,
+    diagonal_blocksize: int,
+    arrowhead_blocksize: int,
+    n_diag_blocks: int,
+    device_array: bool,
+    dtype: np.dtype,
+):
+    """Returns a random right-hand side."""
+    xp = cp if device_array and CUPY_AVAIL else np
+
+    rc = (1.0 + 1.0j) if dtype == np.complex128 else 1.0
+
+    B = rc * xp.random.rand(
+        diagonal_blocksize * n_diag_blocks + arrowhead_blocksize, n_rhs
+    )
+
+    return B
