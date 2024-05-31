@@ -5,6 +5,7 @@ from serinv.sequential.ddbtasi import ddbtasi
 from serinv.sequential.ddbtas import ddbtas
 from serinv.sequential.pobtaf import pobtaf
 from serinv.sequential.pobtasi import pobtasi
+from serinv.sequential.pobtas import pobtas
 
 __all__ = [
     "ddbtaf",
@@ -12,4 +13,5 @@ __all__ = [
     "ddbtas",
     "pobtaf",
     "pobtasi",
+    "pobtas",
 ]
