@@ -20,8 +20,12 @@ def pobtas(
     L_arrow_tip_block: np.ndarray | cp.ndarray,
     B: np.ndarray | cp.ndarray,
 ) -> np.ndarray | cp.ndarray:
-    """Solve a linear system using a cholesky factorization of a block tridiagonal matrix
-    using a sequential algorithm on CPU backend.
+    """Solve a block tridiagonal arrowhead linear system given its Cholesky factorization
+    using a sequential block algorithm.
+
+    Note:
+    -----
+    - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
     ----------

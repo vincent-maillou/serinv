@@ -66,7 +66,6 @@ def ddbtas(
     else:
         xp = np
 
-    Y = xp.zeros_like(B)
     X = xp.zeros_like(B)
 
     # ----- Forward substitution -----
@@ -75,7 +74,7 @@ def ddbtas(
     n_diag_blocks = L_diagonal_blocks.shape[0]
     n_rhs = B.shape[1]
 
-    Y[0:diag_blocksize, :] = la.solve_triangular(
+    X[0:diag_blocksize, :] = la.solve_triangular(
         L_diagonal_blocks[0, :, :],
         B[0:diag_blocksize, :],
         lower=True,
@@ -83,29 +82,23 @@ def ddbtas(
 
     for i in range(1, n_diag_blocks):
         # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
-        Y[i * diag_blocksize : (i + 1) * diag_blocksize, :] = la.solve_triangular(
+        X[i * diag_blocksize : (i + 1) * diag_blocksize, :] = la.solve_triangular(
             L_diagonal_blocks[i, :, :],
             B[i * diag_blocksize : (i + 1) * diag_blocksize, :]
             - L_lower_diagonal_blocks[i - 1, :, :]
-            @ Y[(i - 1) * diag_blocksize : i * diag_blocksize, :],
+            @ X[(i - 1) * diag_blocksize : i * diag_blocksize, :],
             lower=True,
         )
 
     # Accumulation of the arrowhead blocks
-    # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i))
-    # B_tip_rhs = (
-    #     B[-arrow_blocksize:, :]
-    #     - L_arrow_bottom_blocks[:, 0:-arrow_blocksize] @ Y[0:-arrow_blocksize, :]
-    # )
-
     B_tip_rhs = B[-arrow_blocksize:, :]
     for i in range(0, n_diag_blocks):
         B_tip_rhs -= (
             L_arrow_bottom_blocks[i, :, :]
-            @ Y[i * diag_blocksize : (i + 1) * diag_blocksize, :]
+            @ X[i * diag_blocksize : (i + 1) * diag_blocksize, :]
         )
 
-    Y[-arrow_blocksize:, :] = la.solve_triangular(
+    X[-arrow_blocksize:, :] = la.solve_triangular(
         L_arrow_tip_block[:, :],
         B_tip_rhs[:, :],
         lower=True,
@@ -115,30 +108,26 @@ def ddbtas(
     # X_{ndb+1} = U_{ndb+1,ndb+1}^{-1} (Y_{ndb+1})
     X[-arrow_blocksize:, :] = la.solve_triangular(
         U_arrow_tip_block[:, :],
-        Y[-arrow_blocksize:, :],
+        X[-arrow_blocksize:, :],
         lower=False,
     )
 
     # X_{ndb} = U_{ndb,ndb}^{-1} (Y_{ndb} - U_{ndb,ndb+1} X_{ndb+1})
     X[-arrow_blocksize - diag_blocksize : -arrow_blocksize, :] = la.solve_triangular(
         U_diagonal_blocks[-1, :, :],
-        Y[-arrow_blocksize - diag_blocksize : -arrow_blocksize, :]
+        X[-arrow_blocksize - diag_blocksize : -arrow_blocksize, :]
         - U_arrow_right_blocks[-1, :, :] @ X[-arrow_blocksize:, :],
         lower=False,
     )
 
-    Y_temp = xp.zeros((diag_blocksize, n_rhs), dtype=B.dtype)
     for i in range(n_diag_blocks - 2, -1, -1):
         # X_{i} = U_{i,i}^{-1} (Y_{i} - U_{i,i+1} X_{i+1}) - U_{i,ndb+1} X_{ndb+1}
-        Y_temp = (
-            Y[i * diag_blocksize : (i + 1) * diag_blocksize, :]
-            - U_upper_diagonal_blocks[i, :, :]
-            @ X[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :]
-            - U_arrow_right_blocks[i, :, :] @ X[-arrow_blocksize:, :]
-        )
         X[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
             U_diagonal_blocks[i, :, :],
-            Y_temp,
+            X[i * diag_blocksize : (i + 1) * diag_blocksize, :]
+            - U_upper_diagonal_blocks[i, :, :]
+            @ X[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize, :]
+            - U_arrow_right_blocks[i, :, :] @ X[-arrow_blocksize:, :],
             lower=False,
         )
 
