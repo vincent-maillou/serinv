@@ -26,8 +26,9 @@ def ddbtasinv(
     np.ndarray | cp.ndarray,
     np.ndarray | cp.ndarray,
 ]:
-    """Perform the LU factorization of a block tridiagonal arrowhead matrix using
-    a sequential block algorithm.
+    """Perform the selected inversion of a block tridiagonal arrowhead matrix. Do
+    not explicitly factorize the matrix, but rather compute the selected inverse
+    using a schur complement approach.
 
     Note:
     -----
