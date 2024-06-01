@@ -18,9 +18,9 @@ SerinV bundle implementations of several factorization, selected-inversion and s
 	DD: General, square, diagonoally dominante matrix
 ## Sparsity pattern:
 	BT: Block Tridiagonal
-	BTA: Block Tridiagonal Arrowhead
+	BTA: Block Tridiagonal Arrowhead, by convention the arrowhead is pointing down.
 	BB: Block Banded
-	BBA: Block Banded Arrowhead
+	BBA: Block Banded Arrowhead, by convention the arrowhead is pointing down.
 ## operations performed:
 	F: Perform matrix Factorization
 	S: Solve a linear system given a factorization
