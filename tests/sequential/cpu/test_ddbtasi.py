@@ -22,14 +22,13 @@ from serinv.sequential import ddbtaf, ddbtasi
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
 @pytest.mark.parametrize("device_array", [False, True])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
-def test_scddbtaf(
+def test_ddbtasi(
     dd_bta,
     bta_dense_to_arrays,
     diagonal_blocksize,
     arrowhead_blocksize,
     n_diag_blocks,
 ):
-    la = np_la
     if CUPY_AVAIL:
         xp = cp.get_array_module(dd_bta)
         if xp == cp:
@@ -37,7 +36,7 @@ def test_scddbtaf(
     else:
         xp = np
 
-    X_ref = np.linalg.inv(dd_bta)
+    X_ref = xp.linalg.inv(dd_bta)
 
     (
         X_diagonal_blocks_ref,
@@ -97,9 +96,9 @@ def test_scddbtaf(
         U_arrow_tip_block,
     )
 
-    assert np.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)
-    assert np.allclose(X_lower_diagonal_blocks_ref, X_lower_diagonal_blocks_serinv)
-    assert np.allclose(X_upper_diagonal_blocks_ref, X_upper_diagonal_blocks_serinv)
-    assert np.allclose(X_arrow_bottom_blocks_ref, X_arrow_bottom_blocks_serinv)
-    assert np.allclose(X_arrow_right_blocks_ref, X_arrow_right_blocks_serinv)
-    assert np.allclose(X_arrow_tip_block_ref, X_arrow_tip_block_serinv)
+    assert xp.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)
+    assert xp.allclose(X_lower_diagonal_blocks_ref, X_lower_diagonal_blocks_serinv)
+    assert xp.allclose(X_upper_diagonal_blocks_ref, X_upper_diagonal_blocks_serinv)
+    assert xp.allclose(X_arrow_bottom_blocks_ref, X_arrow_bottom_blocks_serinv)
+    assert xp.allclose(X_arrow_right_blocks_ref, X_arrow_right_blocks_serinv)
+    assert xp.allclose(X_arrow_tip_block_ref, X_arrow_tip_block_serinv)

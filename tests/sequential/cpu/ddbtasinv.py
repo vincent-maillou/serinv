@@ -14,7 +14,7 @@ import scipy.linalg as np_la
 
 import pytest
 
-from serinv.sequential import ddbtaf
+from serinv.sequential import ddbtasinv
 
 
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
@@ -22,10 +22,9 @@ from serinv.sequential import ddbtaf
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
 @pytest.mark.parametrize("device_array", [False, True])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
-def test_ddbtaf(
+def test_ddbtasinv(
     dd_bta,
     bta_dense_to_arrays,
-    bta_arrays_to_dense,
     diagonal_blocksize,
     arrowhead_blocksize,
     n_diag_blocks,
@@ -38,9 +37,18 @@ def test_ddbtaf(
     else:
         xp = np
 
-    P_ref, L_ref, U_ref = la.lu(dd_bta)
+    X_ref = xp.linalg.inv(dd_bta)
 
-    assert xp.allclose(P_ref, xp.eye(P_ref.shape[0]))
+    (
+        X_diagonal_blocks_ref,
+        X_lower_diagonal_blocks_ref,
+        X_upper_diagonal_blocks_ref,
+        X_arrow_bottom_blocks_ref,
+        X_arrow_right_blocks_ref,
+        X_arrow_tip_block_ref,
+    ) = bta_dense_to_arrays(
+        X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
+    )
 
     (
         A_diagonal_blocks,
@@ -54,15 +62,13 @@ def test_ddbtaf(
     )
 
     (
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
-        U_arrow_tip_block,
-    ) = ddbtaf(
+        X_diagonal_blocks_serinv,
+        X_lower_diagonal_blocks_serinv,
+        X_upper_diagonal_blocks_serinv,
+        X_arrow_bottom_blocks_serinv,
+        X_arrow_right_blocks_serinv,
+        X_arrow_tip_block_serinv,
+    ) = ddbtasinv(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
@@ -71,23 +77,9 @@ def test_ddbtaf(
         A_arrow_tip_block,
     )
 
-    L_serinv = bta_arrays_to_dense(
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        xp.zeros_like(A_upper_diagonal_blocks),
-        L_arrow_bottom_blocks,
-        xp.zeros_like(A_arrow_right_blocks),
-        L_arrow_tip_block,
-    )
-
-    U_serinv = bta_arrays_to_dense(
-        U_diagonal_blocks,
-        xp.zeros_like(A_lower_diagonal_blocks),
-        U_upper_diagonal_blocks,
-        xp.zeros_like(A_arrow_bottom_blocks),
-        U_arrow_right_blocks,
-        U_arrow_tip_block,
-    )
-
-    assert xp.allclose(L_ref, L_serinv)
-    assert xp.allclose(U_ref, U_serinv)
+    assert np.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)
+    assert np.allclose(X_lower_diagonal_blocks_ref, X_lower_diagonal_blocks_serinv)
+    assert np.allclose(X_upper_diagonal_blocks_ref, X_upper_diagonal_blocks_serinv)
+    assert np.allclose(X_arrow_bottom_blocks_ref, X_arrow_bottom_blocks_serinv)
+    assert np.allclose(X_arrow_right_blocks_ref, X_arrow_right_blocks_serinv)
+    assert np.allclose(X_arrow_tip_block_ref, X_arrow_tip_block_serinv)

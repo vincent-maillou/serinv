@@ -34,7 +34,7 @@ def test_pobtaf(
     else:
         xp = np
 
-    L_ref = np.linalg.cholesky(bta_symmetrize(dd_bta))
+    L_ref = xp.linalg.cholesky(bta_symmetrize(dd_bta))
 
     (
         A_diagonal_blocks,
@@ -62,10 +62,10 @@ def test_pobtaf(
     L_serinv = bta_arrays_to_dense(
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
-        np.zeros_like(A_upper_diagonal_blocks),
+        xp.zeros_like(A_upper_diagonal_blocks),
         L_arrow_bottom_blocks,
-        np.zeros_like(A_arrow_right_blocks),
+        xp.zeros_like(A_arrow_right_blocks),
         L_arrow_tip_block,
     )
 
-    assert np.allclose(L_ref, L_serinv)
+    assert xp.allclose(L_ref, L_serinv)
