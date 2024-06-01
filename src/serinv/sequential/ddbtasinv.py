@@ -31,7 +31,11 @@ def ddbtasinv(
 
     Note:
     -----
-    - The matrix is assumed to be block-diagonally dominant.
+    - This implementation will handle pivoting of the diagonal blocks, hence strict
+        diagonal dominance is not required. Nevertheless, the matrix must be invertible
+        and the diagonal blocks must be invertibles.
+    - If strict diagonal dominance is not satisfied, full accuracy cannot be guaranteed
+        since no pivoting between the blocks will be performed.
     - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
@@ -83,9 +87,9 @@ def ddbtasinv(
     X_diagonal_blocks[0, :, :] = xp.linalg.inv(A_diagonal_blocks[0, :, :])
 
     for i in range(1, n_diag_blocks):
-        # X_{ii} = (X_{ii} - A_{i,i-1} @ X_{i-1,i-1} @ A_{i-1,i})^{-1}
+        # X_{ii} = (A_{ii} - A_{i,i-1} @ X_{i-1,i-1} @ A_{i-1,i})^{-1}
         X_diagonal_blocks[i, :, :] = xp.linalg.inv(
-            X_diagonal_blocks[i, :, :]
+            A_diagonal_blocks[i, :, :]
             - A_lower_diagonal_blocks[i - 1, :, :]
             @ X_diagonal_blocks[i - 1, :, :]
             @ A_upper_diagonal_blocks[i - 1, :, :]
@@ -115,10 +119,80 @@ def ddbtasinv(
             @ A_arrow_right_blocks[i - 1, :, :]
         )
 
-    # X_{ndb+1, ndb+1} = A_{ndb+1, ndb+1}^{-1}
-    X_arrow_tip_block[:, :] = xp.linalg.inv(A_arrow_tip_block[:, :])
+    # X_{ndb+1, ndb+1} = (A_{ndb+1, ndb+1} - A_{ndb+1,ndb} @ X_{ndb,ndb} @ A_{ndb,ndb+1})^{-1}
+    X_arrow_tip_block[:, :] = xp.linalg.inv(
+        A_arrow_tip_block[:, :]
+        - A_arrow_bottom_blocks[-1, :, :]
+        @ X_diagonal_blocks[-1, :, :]
+        @ A_arrow_right_blocks[-1, :, :]
+    )
 
     # Backward pass
+    X_arrow_bottom_blocks[-1, :, :] = (
+        -X_arrow_tip_block[:, :]
+        @ A_arrow_bottom_blocks[-1, :, :]
+        @ X_diagonal_blocks[-1, :, :]
+    )
+
+    X_arrow_right_blocks[-1, :, :] = (
+        -X_diagonal_blocks[-1, :, :]
+        @ A_arrow_right_blocks[-1, :, :]
+        @ X_arrow_tip_block[:, :]
+    )
+
+    X_diagonal_blocks[-1, :, :] = (
+        X_diagonal_blocks[-1, :, :]
+        + X_diagonal_blocks[-1, :, :]
+        @ A_arrow_right_blocks[-1, :, :]
+        @ X_arrow_tip_block[:, :]
+        @ A_arrow_bottom_blocks[-1, :, :]
+        @ X_diagonal_blocks[-1, :, :]
+    )
+
+    for i in range(n_diag_blocks - 2, -1, -1):
+        # X_{i,i+1} = - X_{ii} @ (A_{i,i+1} @ X_{i+1,i+1} + A_{i,ndb+1} @ X_{ndb+1,i+1})
+        # B1 = (A_{i,i+1} @ X_{i+1,i+1} + A_{i,ndb+1} @ X_{ndb+1,i+1})
+        B1 = (
+            A_upper_diagonal_blocks[i, :, :] @ X_diagonal_blocks[i + 1, :, :]
+            + A_arrow_right_blocks[i, :, :] @ X_arrow_bottom_blocks[i + 1, :, :]
+        )
+        # X_{i,i+1} = - X_{ii} @ B1
+        X_upper_diagonal_blocks[i, :, :] = -X_diagonal_blocks[i, :, :] @ B1
+
+        # X_{i,ndb+1} = - X_{ii} @ (A_{i,i+1} @ X_{i+1,ndb+1} + A_{i,ndb+1} @ X_{ndb+1,ndb+1})
+        # B2 = (A_{i,i+1} @ X_{i+1,ndb+1} + A_{i,ndb+1} @ X_{ndb+1,ndb+1})
+        B2 = (
+            A_upper_diagonal_blocks[i, :, :] @ X_arrow_right_blocks[i + 1, :, :]
+            + A_arrow_right_blocks[i, :, :] @ X_arrow_tip_block[:, :]
+        )
+        # X_{i,ndb+1} = - X_{ii} @ B2
+        X_arrow_right_blocks[i, :, :] = -X_diagonal_blocks[i, :, :] @ B2
+
+        # X_{i+1,i} = - (X_{i+1,i+1} @ A_{i+1,i} + X_{i+1,ndb+1} @ A_{ndb+1,i}) @ X_{ii}
+        # C1 = (X_{i+1,i+1} @ A_{i+1,i} + X_{i+1,ndb+1} @ A_{ndb+1,i})
+        C1 = (
+            X_diagonal_blocks[i + 1, :, :] @ A_lower_diagonal_blocks[i, :, :]
+            + X_arrow_right_blocks[i + 1, :, :] @ A_arrow_bottom_blocks[i, :, :]
+        )
+        # X_{i+1,i} = - C1 @ X_{ii}
+        X_lower_diagonal_blocks[i, :, :] = -C1 @ X_diagonal_blocks[i, :, :]
+
+        # X_{ndb+1,i} = - (X_{ndb+1,i+1} @ A_{i+1,i} + X_{ndb+1,ndb+1} @ A_{ndb+1,i}) @ X_{ii}
+        # C2 = (X_{ndb+1,i+1} @ A_{i+1,i} + X_{ndb+1,ndb+1} @ A_{ndb+1,i})
+        C2 = (
+            X_arrow_bottom_blocks[i + 1, :, :] @ A_lower_diagonal_blocks[i, :, :]
+            + X_arrow_tip_block[:, :] @ A_arrow_bottom_blocks[i, :, :]
+        )
+        # X_{ndb+1,i} = - C2 @ X_{ii}
+        X_arrow_bottom_blocks[i, :, :] = -C2 @ X_diagonal_blocks[i, :, :]
+
+        # X_{i,i} = X_{i,i} + X_{i,i} @ (B1 @ C1 + B2 @ C2) @ X_{i,i}
+        X_diagonal_blocks[i, :, :] = (
+            X_diagonal_blocks[i, :, :]
+            + X_diagonal_blocks[i, :, :]
+            @ (B1 @ C1 + B2 @ C2)
+            @ X_diagonal_blocks[i, :, :]
+        )
 
     return (
         X_diagonal_blocks,
