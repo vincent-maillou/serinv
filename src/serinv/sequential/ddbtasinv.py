@@ -83,6 +83,12 @@ def ddbtasinv(
     X_arrow_right_blocks = xp.zeros_like(A_arrow_right_blocks)
     X_arrow_tip_block = xp.zeros_like(A_arrow_tip_block)
 
+    # Buffers for the intermediate results of the backward pass
+    B1 = xp.zeros_like(X_diagonal_blocks[0, :, :])
+    B2 = xp.zeros_like(X_arrow_right_blocks[0, :, :])
+    C1 = xp.zeros_like(X_diagonal_blocks[0, :, :])
+    C2 = xp.zeros_like(X_arrow_bottom_blocks[0, :, :])
+
     # Forward pass
     X_diagonal_blocks[0, :, :] = xp.linalg.inv(A_diagonal_blocks[0, :, :])
 
@@ -152,45 +158,45 @@ def ddbtasinv(
     for i in range(n_diag_blocks - 2, -1, -1):
         # X_{i,i+1} = - X_{ii} @ (A_{i,i+1} @ X_{i+1,i+1} + A_{i,ndb+1} @ X_{ndb+1,i+1})
         # B1 = (A_{i,i+1} @ X_{i+1,i+1} + A_{i,ndb+1} @ X_{ndb+1,i+1})
-        B1 = (
+        B1[:, :] = (
             A_upper_diagonal_blocks[i, :, :] @ X_diagonal_blocks[i + 1, :, :]
             + A_arrow_right_blocks[i, :, :] @ X_arrow_bottom_blocks[i + 1, :, :]
         )
         # X_{i,i+1} = - X_{ii} @ B1
-        X_upper_diagonal_blocks[i, :, :] = -X_diagonal_blocks[i, :, :] @ B1
+        X_upper_diagonal_blocks[i, :, :] = -X_diagonal_blocks[i, :, :] @ B1[:, :]
 
         # X_{i,ndb+1} = - X_{ii} @ (A_{i,i+1} @ X_{i+1,ndb+1} + A_{i,ndb+1} @ X_{ndb+1,ndb+1})
         # B2 = (A_{i,i+1} @ X_{i+1,ndb+1} + A_{i,ndb+1} @ X_{ndb+1,ndb+1})
-        B2 = (
+        B2[:, :] = (
             A_upper_diagonal_blocks[i, :, :] @ X_arrow_right_blocks[i + 1, :, :]
             + A_arrow_right_blocks[i, :, :] @ X_arrow_tip_block[:, :]
         )
         # X_{i,ndb+1} = - X_{ii} @ B2
-        X_arrow_right_blocks[i, :, :] = -X_diagonal_blocks[i, :, :] @ B2
+        X_arrow_right_blocks[i, :, :] = -X_diagonal_blocks[i, :, :] @ B2[:, :]
 
         # X_{i+1,i} = - (X_{i+1,i+1} @ A_{i+1,i} + X_{i+1,ndb+1} @ A_{ndb+1,i}) @ X_{ii}
         # C1 = (X_{i+1,i+1} @ A_{i+1,i} + X_{i+1,ndb+1} @ A_{ndb+1,i})
-        C1 = (
+        C1[:, :] = (
             X_diagonal_blocks[i + 1, :, :] @ A_lower_diagonal_blocks[i, :, :]
             + X_arrow_right_blocks[i + 1, :, :] @ A_arrow_bottom_blocks[i, :, :]
         )
         # X_{i+1,i} = - C1 @ X_{ii}
-        X_lower_diagonal_blocks[i, :, :] = -C1 @ X_diagonal_blocks[i, :, :]
+        X_lower_diagonal_blocks[i, :, :] = -C1[:, :] @ X_diagonal_blocks[i, :, :]
 
         # X_{ndb+1,i} = - (X_{ndb+1,i+1} @ A_{i+1,i} + X_{ndb+1,ndb+1} @ A_{ndb+1,i}) @ X_{ii}
         # C2 = (X_{ndb+1,i+1} @ A_{i+1,i} + X_{ndb+1,ndb+1} @ A_{ndb+1,i})
-        C2 = (
+        C2[:, :] = (
             X_arrow_bottom_blocks[i + 1, :, :] @ A_lower_diagonal_blocks[i, :, :]
             + X_arrow_tip_block[:, :] @ A_arrow_bottom_blocks[i, :, :]
         )
         # X_{ndb+1,i} = - C2 @ X_{ii}
-        X_arrow_bottom_blocks[i, :, :] = -C2 @ X_diagonal_blocks[i, :, :]
+        X_arrow_bottom_blocks[i, :, :] = -C2[:, :] @ X_diagonal_blocks[i, :, :]
 
         # X_{i,i} = X_{i,i} + X_{i,i} @ (B1 @ C1 + B2 @ C2) @ X_{i,i}
         X_diagonal_blocks[i, :, :] = (
             X_diagonal_blocks[i, :, :]
             + X_diagonal_blocks[i, :, :]
-            @ (B1 @ C1 + B2 @ C2)
+            @ (B1[:, :] @ C1[:, :] + B2[:, :] @ C2[:, :])
             @ X_diagonal_blocks[i, :, :]
         )
 
