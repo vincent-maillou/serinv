@@ -197,7 +197,10 @@ def ddbtasinv(
         X_diagonal_blocks[i, :, :] = (
             X_diagonal_blocks[i, :, :]
             + X_diagonal_blocks[i, :, :]
-            @ (B1[:, :] @ C1[:, :] + B2[:, :] @ C2[:, :])
+            @ (
+                B1[:, :] @ A_lower_diagonal_blocks[i, :, :]
+                + B2[:, :] @ A_arrow_bottom_blocks[i, :, :]
+            )
             @ X_diagonal_blocks[i, :, :]
         )
 
