@@ -105,20 +105,24 @@ def check_ddbta(
 
     arrow_colsum = xp.zeros((arrowhead_blocksize), dtype=A_diagonal_blocks.dtype)
     for i in range(A_diagonal_blocks.shape[0]):
+        diag = xp.abs(xp.diag(A_diagonal_blocks[i, :, :]))
+        colsum = (
+            xp.sum(A_diagonal_blocks[i, :, :], axis=1)
+            - xp.diag(A_diagonal_blocks[i, :, :][:, :])
+            + xp.sum(A_arrow_right_blocks[i, :, :], axis=1)
+        )
+        if i > 0:
+            colsum += xp.sum(A_lower_diagonal_blocks[i - 1, :, :], axis=1)
+        if i < A_diagonal_blocks.shape[0] - 1:
+            colsum += xp.sum(A_upper_diagonal_blocks[i, :, :], axis=1)
+
+        ddbta[i * diagonal_blocksize : (i + 1) * diagonal_blocksize] = diag > colsum
+
         arrow_colsum[:] += xp.sum(A_arrow_bottom_blocks[i, :, :], axis=1)
 
-    ddbta[-arrowhead_blocksize:] = np.abs(np.diag(A_arrow_tip_block[:, :])) > np.abs(
-        np.sum(A_arrow_tip_block, axis=1)
-        - np.diag(A_arrow_tip_block[:, :])
+    ddbta[-arrowhead_blocksize:] = xp.abs(xp.diag(A_arrow_tip_block[:, :])) > xp.abs(
+        xp.sum(A_arrow_tip_block, axis=1)
+        - xp.diag(A_arrow_tip_block[:, :])
         + arrow_colsum
     )
     return ddbta
-
-    # ddbta[-arrowhead_blocksize:] = np.abs(np.diag(A_arrow_tip_block[:, :])) > np.sum(
-    #     np.abs(
-    #         tip_sum[:, :]
-    #         + A_arrow_tip_block[:, :]
-    #         - np.diag(np.diag(A_arrow_tip_block[:, :]))
-    #     ),
-    #     axis=1,
-    # )
