@@ -7,13 +7,13 @@ name = "SerinV"
 version = "0.1"
 authors = [{ name = "Vincent Maillou", email = "vmaillou@iis.ee.ethz.ch" },
            { name = "Lisa Gaedke-Merzhaeuser", email = "lisa.gaedke.merzhaeuser@usi.ch" }]
-description = "Implementations of selected factorization, inversion and solving algorithms."
+description = "Implementations of selected inversion, factorization and solve algorithms."
 readme = "README.MD"
 requires-python = ">=3.9"
-license = {text = "GPL-3-Clause"}
+license = {text = "BSD-3-Clause"}
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: GPL-3.0 License",
+    "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
