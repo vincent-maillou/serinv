@@ -17,7 +17,7 @@ np.random.seed(SEED)
 import pytest
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function", autouse=False)
 def bta_dense_to_arrays():
     def _bta_dense_to_arrays(
         bta: np.ndarray | cp.ndarray,
@@ -95,7 +95,7 @@ def bta_dense_to_arrays():
     return _bta_dense_to_arrays
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function", autouse=False)
 def bta_arrays_to_dense():
     def _bta_arrays_to_dense(
         A_diagonal_blocks: np.ndarray | cp.ndarray,
@@ -156,7 +156,7 @@ def bta_arrays_to_dense():
     return _bta_arrays_to_dense
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function", autouse=False)
 def bta_symmetrize():
     def _bta_symmetrize(
         bta: np.ndarray | cp.ndarray,
@@ -168,7 +168,7 @@ def bta_symmetrize():
     return _bta_symmetrize
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function", autouse=False)
 def dd_bta(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
@@ -230,6 +230,66 @@ def dd_bta(
         DD_BTA[i, i] = 1 + xp.sum(DD_BTA[i, :])
 
     return DD_BTA
+
+
+@pytest.fixture(scope="function", autouse=False)
+def rand_bta(
+    diagonal_blocksize: int,
+    arrowhead_blocksize: int,
+    n_diag_blocks: int,
+    device_array: bool,
+    dtype: np.dtype,
+):
+    """Returns a random, diagonaly dominant general, block tridiagonal arrowhead matrix."""
+    xp = cp if device_array and CUPY_AVAIL else np
+
+    RAND_BTA = xp.zeros(
+        (
+            diagonal_blocksize * n_diag_blocks + arrowhead_blocksize,
+            diagonal_blocksize * n_diag_blocks + arrowhead_blocksize,
+        ),
+        dtype=dtype,
+    )
+
+    rc = (1.0 + 1.0j) if dtype == np.complex128 else 1.0
+
+    # Fill the lower arrowhead blocks
+    RAND_BTA[-arrowhead_blocksize:, :-arrowhead_blocksize] = rc * xp.random.rand(
+        arrowhead_blocksize, n_diag_blocks * diagonal_blocksize
+    )
+    # Fill the right arrowhead blocks
+    RAND_BTA[:-arrowhead_blocksize, -arrowhead_blocksize:] = rc * xp.random.rand(
+        n_diag_blocks * diagonal_blocksize, arrowhead_blocksize
+    )
+
+    # Fill the tip of the arrowhead
+    RAND_BTA[-arrowhead_blocksize:, -arrowhead_blocksize:] = rc * xp.random.rand(
+        arrowhead_blocksize, arrowhead_blocksize
+    )
+
+    # Fill the diagonal blocks
+    for i in range(n_diag_blocks):
+        RAND_BTA[
+            i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+            i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+        ] = rc * xp.random.rand(diagonal_blocksize, diagonal_blocksize) + rc * xp.eye(
+            diagonal_blocksize
+        )
+
+        # Fill the off-diagonal blocks
+        if i > 0:
+            RAND_BTA[
+                i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+                (i - 1) * diagonal_blocksize : i * diagonal_blocksize,
+            ] = rc * xp.random.rand(diagonal_blocksize, diagonal_blocksize)
+
+        if i < n_diag_blocks - 1:
+            RAND_BTA[
+                i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+                (i + 1) * diagonal_blocksize : (i + 2) * diagonal_blocksize,
+            ] = rc * xp.random.rand(diagonal_blocksize, diagonal_blocksize)
+
+    return RAND_BTA
 
 
 @pytest.fixture(scope="function", autouse=False)
