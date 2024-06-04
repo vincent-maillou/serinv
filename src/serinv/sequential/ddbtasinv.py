@@ -38,6 +38,7 @@ def ddbtasinv(
     - If strict diagonal dominance is not satisfied, full accuracy cannot be guaranteed
         since no pivoting between the blocks will be performed.
     - If a device array is given, the algorithm will run on the GPU.
+    - Will overwrite the input, A, matrix.
 
     Parameters
     ----------
