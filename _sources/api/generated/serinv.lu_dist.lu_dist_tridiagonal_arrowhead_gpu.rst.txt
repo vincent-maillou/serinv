@@ -1,0 +1,36 @@
+﻿serinv.lu\_dist.lu\_dist\_tridiagonal\_arrowhead\_gpu
+=====================================================
+
+.. automodule:: serinv.lu_dist.lu_dist_tridiagonal_arrowhead_gpu
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+   
+      create_reduced_system
+      inverse_reduced_system_gpu
+      lu_dist_tridiagonal_arrowhead_gpu
+      middle_factorize_gpu
+      middle_sinv_gpu
+      top_factorize_gpu
+      top_sinv_gpu
+      update_sinv_reduced_system
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

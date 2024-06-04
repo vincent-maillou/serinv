@@ -1,0 +1,6 @@
+﻿serinv.cholesky.cholesky\_factorize.cholesky\_factorize\_block\_tridiagonal\_arrowhead
+======================================================================================
+
+.. currentmodule:: serinv.cholesky.cholesky_factorize
+
+.. autofunction:: cholesky_factorize_block_tridiagonal_arrowhead

@@ -1,0 +1,6 @@
+﻿serinv.lu.lu\_factorize.lu\_factorize\_tridiag
+==============================================
+
+.. currentmodule:: serinv.lu.lu_factorize
+
+.. autofunction:: lu_factorize_tridiag

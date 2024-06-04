@@ -1,0 +1,6 @@
+﻿serinv.cholesky.cholesky\_factorize\_gpu.cholesky\_factorize\_block\_tridiagonal\_arrowhead\_gpu
+================================================================================================
+
+.. currentmodule:: serinv.cholesky.cholesky_factorize_gpu
+
+.. autofunction:: cholesky_factorize_block_tridiagonal_arrowhead_gpu

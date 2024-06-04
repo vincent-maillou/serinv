@@ -1,0 +1,6 @@
+﻿serinv.lu.lu\_factorize\_gpu.lu\_factorize\_tridiag\_gpu
+========================================================
+
+.. currentmodule:: serinv.lu.lu_factorize_gpu
+
+.. autofunction:: lu_factorize_tridiag_gpu

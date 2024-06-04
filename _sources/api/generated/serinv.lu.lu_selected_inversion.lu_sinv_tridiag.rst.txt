@@ -1,0 +1,6 @@
+﻿serinv.lu.lu\_selected\_inversion.lu\_sinv\_tridiag
+===================================================
+
+.. currentmodule:: serinv.lu.lu_selected_inversion
+
+.. autofunction:: lu_sinv_tridiag

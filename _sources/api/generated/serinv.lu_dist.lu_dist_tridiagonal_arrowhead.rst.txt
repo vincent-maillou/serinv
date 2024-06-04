@@ -1,0 +1,36 @@
+﻿serinv.lu\_dist.lu\_dist\_tridiagonal\_arrowhead
+================================================
+
+.. automodule:: serinv.lu_dist.lu_dist_tridiagonal_arrowhead
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+   
+      create_reduced_system
+      inverse_reduced_system
+      lu_dist_tridiagonal_arrowhead
+      middle_factorize
+      middle_sinv
+      top_factorize
+      top_sinv
+      update_sinv_reduced_system
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
