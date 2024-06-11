@@ -34,6 +34,7 @@ def ddbtaf(
     Note:
     -----
     - The matrix is assumed to be block-diagonally dominant.
+    - The given matrix will be overwritten.
     - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
