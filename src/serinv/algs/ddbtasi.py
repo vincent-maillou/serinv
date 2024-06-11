@@ -124,14 +124,13 @@ def ddbtasi(
     )
 
     # X_{ndb, ndb+1} = -U_{ndb, ndb}^{-1} U_{ndb, ndb+1} X_{ndb+1, ndb+1}
-    X_arrow_right_blocks[-diag_blocksize:, :] = (
+    X_arrow_right_blocks[-1, :, :] = (
         -U_blk_inv @ U_arrow_right_blocks[-1, :, :] @ X_arrow_tip_block[:, :]
     )
 
     # X_{ndb, ndb} = (U_{ndb, ndb}^{-1} - X_{ndb, ndb+1} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
-    X_diagonal_blocks[-diag_blocksize:, -diag_blocksize:] = (
-        U_blk_inv
-        - X_arrow_right_blocks[-diag_blocksize:, :] @ L_arrow_bottom_blocks[-1, :, :]
+    X_diagonal_blocks[-1, :, :] = (
+        U_blk_inv - X_arrow_right_blocks[-1, :, :] @ L_arrow_bottom_blocks[-1, :, :]
     ) @ L_blk_inv
 
     for i in range(n_diag_blocks - 2, -1, -1):
