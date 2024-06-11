@@ -85,6 +85,10 @@ def ddbtasinv(
     X_arrow_right_blocks = xp.zeros_like(A_arrow_right_blocks)
     X_arrow_tip_block = xp.zeros_like(A_arrow_tip_block)
 
+    # Buffers for the intermediate results of the forward pass
+    D0 = xp.zeros_like(A_diagonal_blocks[0, :, :])
+    D1 = xp.zeros_like(A_arrow_right_blocks[0, :, :])
+
     # Buffers for the intermediate results of the backward pass
     B1 = xp.zeros_like(X_diagonal_blocks[0, :, :])
     B2 = xp.zeros_like(X_arrow_right_blocks[0, :, :])
@@ -95,36 +99,32 @@ def ddbtasinv(
     X_diagonal_blocks[0, :, :] = xp.linalg.inv(A_diagonal_blocks[0, :, :])
 
     for i in range(1, n_diag_blocks):
+        # Precompute reused matmul: D0 = X_{i-1,i-1} @ A_{i-1,i}
+        D0[:, :] = X_diagonal_blocks[i - 1, :, :] @ A_upper_diagonal_blocks[i - 1, :, :]
+
+        # Precompute reused matmul: D1 = X_{i-1,i-1} @ A_{i,nbd+1}
+        D1[:, :] = X_diagonal_blocks[i - 1, :, :] @ A_arrow_right_blocks[i - 1, :, :]
+
         # X_{ii} = (A_{ii} - A_{i,i-1} @ X_{i-1,i-1} @ A_{i-1,i})^{-1}
         X_diagonal_blocks[i, :, :] = xp.linalg.inv(
-            A_diagonal_blocks[i, :, :]
-            - A_lower_diagonal_blocks[i - 1, :, :]
-            @ X_diagonal_blocks[i - 1, :, :]
-            @ A_upper_diagonal_blocks[i - 1, :, :]
+            A_diagonal_blocks[i, :, :] - A_lower_diagonal_blocks[i - 1, :, :] @ D0[:, :]
         )
 
         # A_{i,ndb+1} = A_{i,ndb+1} - A_{i,i-1} @ X_{i-1,i-1} @ A_{i-1,ndb+1}
         A_arrow_right_blocks[i, :, :] = (
             A_arrow_right_blocks[i, :, :]
-            - A_lower_diagonal_blocks[i - 1, :, :]
-            @ X_diagonal_blocks[i - 1, :, :]
-            @ A_arrow_right_blocks[i - 1, :, :]
+            - A_lower_diagonal_blocks[i - 1, :, :] @ D1[:, :]
         )
 
         # A_{ndb+1,i} = A_{ndb+1,i} - A_{ndb+1,i-1} @ X_{i-1,i-1} @ A_{i-1,i}
         A_arrow_bottom_blocks[i, :, :] = (
             A_arrow_bottom_blocks[i, :, :]
-            - A_arrow_bottom_blocks[i - 1, :, :]
-            @ X_diagonal_blocks[i - 1, :, :]
-            @ A_upper_diagonal_blocks[i - 1, :, :]
+            - A_arrow_bottom_blocks[i - 1, :, :] @ D0[:, :]
         )
 
         # A_{ndb+1,ndb+1} = A_{ndb+1,ndb+1} - A_{ndb+1,i-1} @ X_{i-1,i-1} @ A_{i-1,ndb+1}
         A_arrow_tip_block[:, :] = (
-            A_arrow_tip_block[:, :]
-            - A_arrow_bottom_blocks[i - 1, :, :]
-            @ X_diagonal_blocks[i - 1, :, :]
-            @ A_arrow_right_blocks[i - 1, :, :]
+            A_arrow_tip_block[:, :] - A_arrow_bottom_blocks[i - 1, :, :] @ D1[:, :]
         )
 
     # X_{ndb+1, ndb+1} = (A_{ndb+1, ndb+1} - A_{ndb+1,ndb} @ X_{ndb,ndb} @ A_{ndb,ndb+1})^{-1}
