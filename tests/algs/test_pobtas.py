@@ -12,7 +12,7 @@ import numpy as np
 
 import pytest
 
-from serinv.sequential import pobtasinv
+from serinv.algs import pobtaf, pobtas
 
 
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
@@ -20,10 +20,12 @@ from serinv.sequential import pobtasinv
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
 @pytest.mark.parametrize("device_array", [False, True])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
-def test_pobtasinv(
+@pytest.mark.parametrize("n_rhs", [1, 2, 3])
+def test_pobtas(
     dd_bta,
-    bta_symmetrize,
+    b_rhs,
     bta_dense_to_arrays,
+    bta_symmetrize,
     diagonal_blocksize,
     arrowhead_blocksize,
     n_diag_blocks,
@@ -34,19 +36,9 @@ def test_pobtasinv(
         xp = np
 
     A = bta_symmetrize(dd_bta)
+    B = b_rhs
 
-    X_ref = xp.linalg.inv(A)
-
-    (
-        X_diagonal_blocks_ref,
-        X_lower_diagonal_blocks_ref,
-        _,
-        X_arrow_bottom_blocks_ref,
-        _,
-        X_arrow_tip_block_ref,
-    ) = bta_dense_to_arrays(
-        X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
-    )
+    X_ref = xp.linalg.solve(A, B)
 
     (
         A_diagonal_blocks,
@@ -58,18 +50,23 @@ def test_pobtasinv(
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
     (
-        X_diagonal_blocks_serinv,
-        X_lower_diagonal_blocks_serinv,
-        X_arrow_bottom_blocks_serinv,
-        X_arrow_tip_block_serinv,
-    ) = pobtasinv(
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+        L_arrow_bottom_blocks,
+        L_arrow_tip_block,
+    ) = pobtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_arrow_bottom_blocks,
         A_arrow_tip_block,
     )
 
-    assert np.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)
-    assert np.allclose(X_lower_diagonal_blocks_ref, X_lower_diagonal_blocks_serinv)
-    assert np.allclose(X_arrow_bottom_blocks_ref, X_arrow_bottom_blocks_serinv)
-    assert np.allclose(X_arrow_tip_block_ref, X_arrow_tip_block_serinv)
+    X_serinv = pobtas(
+        L_diagonal_blocks,
+        L_lower_diagonal_blocks,
+        L_arrow_bottom_blocks,
+        L_arrow_tip_block,
+        B,
+    )
+
+    assert xp.allclose(X_serinv, X_ref)

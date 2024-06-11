@@ -12,7 +12,7 @@ import numpy as np
 
 import pytest
 
-from serinv.sequential import ddbtaf, ddbtas
+from serinv.algs import pobtasinv
 
 
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
@@ -20,10 +20,9 @@ from serinv.sequential import ddbtaf, ddbtas
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
 @pytest.mark.parametrize("device_array", [False, True])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
-@pytest.mark.parametrize("n_rhs", [1, 2, 3])
-def test_ddbtas(
+def test_pobtasinv(
     dd_bta,
-    b_rhs,
+    bta_symmetrize,
     bta_dense_to_arrays,
     diagonal_blocksize,
     arrowhead_blocksize,
@@ -34,48 +33,43 @@ def test_ddbtas(
     else:
         xp = np
 
-    A = dd_bta
-    B = b_rhs
+    A = bta_symmetrize(dd_bta)
 
-    X_ref = xp.linalg.solve(A, B)
+    X_ref = xp.linalg.inv(A)
+
+    (
+        X_diagonal_blocks_ref,
+        X_lower_diagonal_blocks_ref,
+        _,
+        X_arrow_bottom_blocks_ref,
+        _,
+        X_arrow_tip_block_ref,
+    ) = bta_dense_to_arrays(
+        X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
+    )
 
     (
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks,
+        _,
         A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
+        _,
         A_arrow_tip_block,
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
     (
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
-        U_arrow_tip_block,
-    ) = ddbtaf(
+        X_diagonal_blocks_serinv,
+        X_lower_diagonal_blocks_serinv,
+        X_arrow_bottom_blocks_serinv,
+        X_arrow_tip_block_serinv,
+    ) = pobtasinv(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks,
         A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
         A_arrow_tip_block,
     )
 
-    X_serinv = ddbtas(
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
-        U_arrow_tip_block,
-        B,
-    )
-
-    assert xp.allclose(X_serinv, X_ref)
+    assert np.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)
+    assert np.allclose(X_lower_diagonal_blocks_ref, X_lower_diagonal_blocks_serinv)
+    assert np.allclose(X_arrow_bottom_blocks_ref, X_arrow_bottom_blocks_serinv)
+    assert np.allclose(X_arrow_tip_block_ref, X_arrow_tip_block_serinv)

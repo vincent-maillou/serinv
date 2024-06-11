@@ -12,7 +12,7 @@ import numpy as np
 
 import pytest
 
-from serinv.sequential import pobtaf
+from serinv.algs import pobtaf
 
 
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])

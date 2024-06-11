@@ -14,7 +14,7 @@ import scipy.linalg as np_la
 
 import pytest
 
-from serinv.sequential import ddbtaf, ddbtasi
+from serinv.algs import ddbtaf, ddbtasi
 
 
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
