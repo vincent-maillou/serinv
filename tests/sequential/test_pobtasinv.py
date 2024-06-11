@@ -12,7 +12,7 @@ import numpy as np
 
 import pytest
 
-from serinv.sequential import ddbtasinv
+from serinv.sequential import pobtasinv
 
 
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
@@ -20,8 +20,9 @@ from serinv.sequential import ddbtasinv
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
 @pytest.mark.parametrize("device_array", [False, True])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
-def test_ddbtasinv(
+def test_pobtasinv(
     dd_bta,
+    bta_symmetrize,
     bta_dense_to_arrays,
     diagonal_blocksize,
     arrowhead_blocksize,
@@ -32,14 +33,16 @@ def test_ddbtasinv(
     else:
         xp = np
 
-    X_ref = xp.linalg.inv(dd_bta)
+    A = bta_symmetrize(dd_bta)
+
+    X_ref = xp.linalg.inv(A)
 
     (
         X_diagonal_blocks_ref,
         X_lower_diagonal_blocks_ref,
-        X_upper_diagonal_blocks_ref,
+        _,
         X_arrow_bottom_blocks_ref,
-        X_arrow_right_blocks_ref,
+        _,
         X_arrow_tip_block_ref,
     ) = bta_dense_to_arrays(
         X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
@@ -48,33 +51,25 @@ def test_ddbtasinv(
     (
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks,
+        _,
         A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
+        _,
         A_arrow_tip_block,
-    ) = bta_dense_to_arrays(
-        dd_bta, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
-    )
+    ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
     (
         X_diagonal_blocks_serinv,
         X_lower_diagonal_blocks_serinv,
-        X_upper_diagonal_blocks_serinv,
         X_arrow_bottom_blocks_serinv,
-        X_arrow_right_blocks_serinv,
         X_arrow_tip_block_serinv,
-    ) = ddbtasinv(
+    ) = pobtasinv(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_upper_diagonal_blocks,
         A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
         A_arrow_tip_block,
     )
 
     assert np.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)
     assert np.allclose(X_lower_diagonal_blocks_ref, X_lower_diagonal_blocks_serinv)
-    assert np.allclose(X_upper_diagonal_blocks_ref, X_upper_diagonal_blocks_serinv)
     assert np.allclose(X_arrow_bottom_blocks_ref, X_arrow_bottom_blocks_serinv)
-    assert np.allclose(X_arrow_right_blocks_ref, X_arrow_right_blocks_serinv)
     assert np.allclose(X_arrow_tip_block_ref, X_arrow_tip_block_serinv)

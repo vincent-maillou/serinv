@@ -8,6 +8,7 @@ from serinv.sequential.ddbtasinv import ddbtasinv
 from serinv.sequential.pobtaf import pobtaf
 from serinv.sequential.pobtasi import pobtasi
 from serinv.sequential.pobtas import pobtas
+from serinv.sequential.pobtasinv import pobtasinv
 
 __all__ = [
     "ddbtaf",
@@ -17,4 +18,5 @@ __all__ = [
     "pobtaf",
     "pobtasi",
     "pobtas",
+    "pobtasinv",
 ]
