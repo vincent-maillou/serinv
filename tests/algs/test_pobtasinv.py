@@ -27,6 +27,7 @@ def test_pobtasinv(
     diagonal_blocksize,
     arrowhead_blocksize,
     n_diag_blocks,
+    device_array,
 ):
     if CUPY_AVAIL:
         xp = cp.get_array_module(dd_bta)
@@ -76,10 +77,19 @@ def test_pobtasinv(
     assert np.allclose(X_arrow_tip_block_ref, X_arrow_tip_block_serinv)
 
     # Check for in-place operations
-    assert X_diagonal_blocks_serinv.ctypes.data == A_diagonal_blocks.ctypes.data
-    assert (
-        X_lower_diagonal_blocks_serinv.ctypes.data
-        == A_lower_diagonal_blocks.ctypes.data
-    )
-    assert X_arrow_bottom_blocks_serinv.ctypes.data == A_arrow_bottom_blocks.ctypes.data
-    assert X_arrow_tip_block_serinv.ctypes.data == A_arrow_tip_block.ctypes.data
+    if device_array:
+        assert X_diagonal_blocks_serinv.data == A_diagonal_blocks.data
+        assert X_lower_diagonal_blocks_serinv.data == A_lower_diagonal_blocks.data
+        assert X_arrow_bottom_blocks_serinv.data == A_arrow_bottom_blocks.data
+        assert X_arrow_tip_block_serinv.data == A_arrow_tip_block.data
+    else:
+        assert X_diagonal_blocks_serinv.ctypes.data == A_diagonal_blocks.ctypes.data
+        assert (
+            X_lower_diagonal_blocks_serinv.ctypes.data
+            == A_lower_diagonal_blocks.ctypes.data
+        )
+        assert (
+            X_arrow_bottom_blocks_serinv.ctypes.data
+            == A_arrow_bottom_blocks.ctypes.data
+        )
+        assert X_arrow_tip_block_serinv.ctypes.data == A_arrow_tip_block.ctypes.data
