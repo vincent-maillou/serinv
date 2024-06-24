@@ -8,7 +8,7 @@ try:
     CUPY_AVAIL = True
     cp.random.seed(SEED)
 
-except:
+except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
