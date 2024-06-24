@@ -5,7 +5,7 @@ try:
 
     CUPY_AVAIL = True
 
-except:
+except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
@@ -69,7 +69,17 @@ def test_pobtasinv(
         A_arrow_tip_block,
     )
 
+    # Check algorithm validity
     assert np.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)
     assert np.allclose(X_lower_diagonal_blocks_ref, X_lower_diagonal_blocks_serinv)
     assert np.allclose(X_arrow_bottom_blocks_ref, X_arrow_bottom_blocks_serinv)
     assert np.allclose(X_arrow_tip_block_ref, X_arrow_tip_block_serinv)
+
+    # Check for in-place operations
+    assert X_diagonal_blocks_serinv.ctypes.data == A_diagonal_blocks.ctypes.data
+    assert (
+        X_lower_diagonal_blocks_serinv.ctypes.data
+        == A_lower_diagonal_blocks.ctypes.data
+    )
+    assert X_arrow_bottom_blocks_serinv.ctypes.data == A_arrow_bottom_blocks.ctypes.data
+    assert X_arrow_tip_block_serinv.ctypes.data == A_arrow_tip_block.ctypes.data
