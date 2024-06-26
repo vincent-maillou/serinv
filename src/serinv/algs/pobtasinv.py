@@ -31,8 +31,8 @@ def pobtasinv(
     Note:
     -----
     - By convention takes and produce lower triangular parts of the matrix.
-    - If a device array is given, the algorithm will run on the GPU.
     - Will overwrite the inputs and store the results in them (in-place).
+    - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
     ----------
@@ -44,6 +44,8 @@ def pobtasinv(
         The blocks on the bottom arrow of the matrix.
     A_arrow_tip_block : ArrayLike
         The block at the tip of the arrowhead.
+    device_streaming : bool
+        Whether to use streamed GPU computation.
 
     Returns
     -------

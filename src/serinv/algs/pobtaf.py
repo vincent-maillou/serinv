@@ -30,7 +30,7 @@ def pobtaf(
     Note:
     -----
     - The matrix is assumed to be symmetric positive definite.
-    - The given matrix will be overwritten.
+    - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
