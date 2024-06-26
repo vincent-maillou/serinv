@@ -2,6 +2,7 @@
 
 try:
     import cupy as cp
+    import cupyx as cpx
 
     CUPY_AVAIL = True
 
@@ -20,6 +21,7 @@ from serinv.algs import pobtasinv
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
 @pytest.mark.parametrize("device_array", [False, True])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
+@pytest.mark.parametrize("device_streaming", [False, True])
 def test_pobtasinv(
     dd_bta,
     bta_symmetrize,
@@ -28,6 +30,7 @@ def test_pobtasinv(
     arrowhead_blocksize,
     n_diag_blocks,
     device_array,
+    device_streaming,
 ):
     if CUPY_AVAIL:
         xp = cp.get_array_module(dd_bta)
@@ -58,6 +61,21 @@ def test_pobtasinv(
         A_arrow_tip_block,
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
+    if CUPY_AVAIL and device_streaming and not device_array:
+        A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks)
+        A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :]
+        A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)
+        A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks[:, :, :]
+        A_arrow_bottom_blocks_pinned = cpx.zeros_like_pinned(A_arrow_bottom_blocks)
+        A_arrow_bottom_blocks_pinned[:, :, :] = A_arrow_bottom_blocks[:, :, :]
+        A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block)
+        A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block[:, :]
+
+        A_diagonal_blocks = A_diagonal_blocks_pinned
+        A_lower_diagonal_blocks = A_lower_diagonal_blocks_pinned
+        A_arrow_bottom_blocks = A_arrow_bottom_blocks_pinned
+        A_arrow_tip_block = A_arrow_tip_block_pinned
+
     (
         X_diagonal_blocks_serinv,
         X_lower_diagonal_blocks_serinv,
@@ -68,6 +86,7 @@ def test_pobtasinv(
         A_lower_diagonal_blocks,
         A_arrow_bottom_blocks,
         A_arrow_tip_block,
+        device_streaming,
     )
 
     # Check algorithm validity
