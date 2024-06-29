@@ -24,9 +24,8 @@ def pobtasinv(
     ArrayLike,
     ArrayLike,
 ]:
-    """Perform the selected inversion of a block tridiagonal arrowhead matrix. Do
-    not explicitly factorize the matrix, but rather compute the selected inverse
-    using a schur complement approach.
+    """Perform the Schur-complement-based selected inversion of a block tridiagonal
+    arrowhead matrix.
 
     Note:
     -----
@@ -109,7 +108,7 @@ def _pobtasinv(
     C1 = xp.zeros_like(X_diagonal_blocks[0, :, :])
     C2 = xp.zeros_like(X_arrow_bottom_blocks[0, :, :])
 
-    # Forward pass
+    # Forward Schur-complement
     X_diagonal_blocks[0, :, :] = xp.linalg.inv(A_diagonal_blocks[0, :, :])
 
     for i in range(1, n_diag_blocks):
@@ -146,7 +145,7 @@ def _pobtasinv(
         @ A_arrow_bottom_blocks[-1, :, :].conj().T
     )
 
-    # Backward pass
+    # Backward block-selected inversion
     A_arrow_bottom_blocks_i[:, :] = A_arrow_bottom_blocks[-1, :, :]
 
     X_arrow_bottom_blocks[-1, :, :] = (
@@ -252,7 +251,7 @@ def _streaming_pobtasinv(
     C2 = cp.zeros_like(X_arrow_bottom_blocks[0, :, :])
     cp.cuda.nvtx.RangePop()
 
-    # Forward pass
+    # Forward Schur-complement
     cp.cuda.nvtx.RangePush("_streaming_pobtasinv:fwd_pass")
     A_diagonal_blocks_d[0, :, :].set(arr=A_diagonal_blocks[0, :, :])
     A_arrow_bottom_blocks_d[0, :, :].set(arr=A_arrow_bottom_blocks[0, :, :])
@@ -308,7 +307,7 @@ def _streaming_pobtasinv(
     X_arrow_tip_block_d[:, :].get(out=X_arrow_tip_block[:, :])
     cp.cuda.nvtx.RangePop()
 
-    # Backward pass
+    # Backward block-selected inversion
     cp.cuda.nvtx.RangePush("_streaming_pobtasinv:bwd_pass")
     A_arrow_bottom_blocks_d_i[:, :] = A_arrow_bottom_blocks_d[
         (n_diag_blocks - 1) % 2, :, :

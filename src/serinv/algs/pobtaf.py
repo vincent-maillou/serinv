@@ -92,17 +92,16 @@ def _pobtaf(
         xp = np
 
     diag_blocksize = A_diagonal_blocks.shape[1]
-    n_diag_blocks = A_diagonal_blocks.shape[0]
 
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
     L_arrow_bottom_blocks = A_arrow_bottom_blocks
     L_arrow_tip_block = A_arrow_tip_block
 
-    L_inv_temp = xp.zeros(
-        (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
-    )
+    L_inv_temp = xp.zeros_like(A_diagonal_blocks[0])
 
+    # Forward block-Cholesky
+    n_diag_blocks = A_diagonal_blocks.shape[0]
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
         L_diagonal_blocks[i, :, :] = xp.linalg.cholesky(A_diagonal_blocks[i, :, :])
