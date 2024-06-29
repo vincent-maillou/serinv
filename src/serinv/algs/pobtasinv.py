@@ -103,6 +103,13 @@ def _pobtasinv(
     # Buffers for the intermediate results of the forward pass
     D0 = xp.zeros_like(A_diagonal_blocks[0, :, :])
 
+    # Buffers for the intermediate results of the backward pass
+    A_lower_diagonal_blocks_i = xp.zeros_like(A_diagonal_blocks[0, :, :])
+    A_arrow_bottom_blocks_i = xp.zeros_like(A_arrow_bottom_blocks[0, :, :])
+
+    C1 = xp.zeros_like(X_diagonal_blocks[0, :, :])
+    C2 = xp.zeros_like(X_arrow_bottom_blocks[0, :, :])
+
     # Forward pass
     X_diagonal_blocks[0, :, :] = xp.linalg.inv(A_diagonal_blocks[0, :, :])
 
@@ -139,13 +146,6 @@ def _pobtasinv(
         @ X_diagonal_blocks[-1, :, :]
         @ A_arrow_bottom_blocks[-1, :, :].conj().T
     )
-
-    # Buffers for the intermediate results of the backward pass
-    A_lower_diagonal_blocks_i = xp.zeros_like(A_diagonal_blocks[0, :, :])
-    A_arrow_bottom_blocks_i = xp.zeros_like(A_arrow_bottom_blocks[0, :, :])
-
-    C1 = xp.zeros_like(X_diagonal_blocks[0, :, :])
-    C2 = xp.zeros_like(X_arrow_bottom_blocks[0, :, :])
 
     # Backward pass
     A_arrow_bottom_blocks_i[:, :] = A_arrow_bottom_blocks[-1, :, :]
@@ -217,9 +217,7 @@ def _streaming_pobtasinv(
     ArrayLike,
     ArrayLike,
 ]:
-    compute_stream = cp.cuda.Stream(non_blocking=True)
-    h2d_stream = cp.cuda.Stream(non_blocking=True)
-    d2h_stream = cp.cuda.Stream(non_blocking=True)
+    cp.cuda.nvtx.RangePush("_streaming_pobtasinv:mem_init")
 
     # X hosts arrays pointers
     X_diagonal_blocks = A_diagonal_blocks
@@ -236,7 +234,7 @@ def _streaming_pobtasinv(
         (2, *A_arrow_bottom_blocks.shape[1:]), dtype=A_arrow_bottom_blocks.dtype
     )
     A_arrow_tip_block_d = cp.zeros_like(A_arrow_tip_block)
-    A_arrow_tip_block_d.set(arr=A_arrow_tip_block, stream=h2d_stream)
+    A_arrow_tip_block_d.set(arr=A_arrow_tip_block)
 
     # X Device buffers arrays pointers
     X_diagonal_blocks_d = A_diagonal_blocks_d
@@ -247,192 +245,150 @@ def _streaming_pobtasinv(
     # Buffers for the intermediate results of the forward pass
     D0 = cp.zeros_like(A_diagonal_blocks[0, :, :])
 
-    # Forward pass
-    A_diagonal_blocks_d[0, :, :].set(arr=A_diagonal_blocks[0, :, :], stream=h2d_stream)
-    A_arrow_bottom_blocks_d[0, :, :].set(
-        arr=A_arrow_bottom_blocks[0, :, :], stream=h2d_stream
-    )
-
-    compute_stream.wait_event(h2d_stream.record())
-    with compute_stream:
-        X_diagonal_blocks_d[0, :, :] = cp.linalg.inv(A_diagonal_blocks_d[0, :, :])
-
-    n_diag_blocks = A_diagonal_blocks.shape[0]
-    for i in range(1, n_diag_blocks):
-        h2d_stream.wait_event(d2h_stream.record())
-        A_lower_diagonal_blocks_d[:, :].set(
-            arr=A_lower_diagonal_blocks[i - 1, :, :], stream=h2d_stream
-        )
-
-        A_diagonal_blocks_d[i % 2, :, :].set(
-            arr=A_diagonal_blocks[i, :, :], stream=h2d_stream
-        )
-
-        A_arrow_bottom_blocks_d[i % 2, :, :].set(
-            arr=A_arrow_bottom_blocks[i, :, :], stream=h2d_stream
-        )
-
-        compute_stream.wait_event(h2d_stream.record())
-        with compute_stream:
-            # Precompute reused matmul: D0 = X_{i-1,i-1} @ A_{i,i-1}^{\dagger}
-            D0[:, :] = (
-                X_diagonal_blocks_d[(i - 1) % 2, :, :]
-                @ A_lower_diagonal_blocks_d[:, :].conj().T
-            )
-
-            # X_{ii} = (A_{ii} - A_{i,i-1} @ X_{i-1,i-1} @ A_{i,i-1}^{\dagger})^{-1}
-            X_diagonal_blocks_d[i % 2, :, :] = cp.linalg.inv(
-                A_diagonal_blocks_d[i % 2, :, :]
-                - A_lower_diagonal_blocks_d[:, :] @ D0[:, :]
-            )
-
-            # A_{ndb+1,i} = A_{ndb+1,i} - A_{ndb+1,i-1} @ X_{i-1,i-1} @ A_{i,i-1}^{\dagger}
-            A_arrow_bottom_blocks_d[i % 2, :, :] = (
-                A_arrow_bottom_blocks_d[i % 2, :, :]
-                - A_arrow_bottom_blocks_d[(i - 1) % 2, :, :] @ D0[:, :]
-            )
-
-            # A_{ndb+1,ndb+1} = A_{ndb+1,ndb+1} - A_{ndb+1,i-1} @ X_{i-1,i-1} @ A_{i-1,ndb+1}
-            A_arrow_tip_block_d[:, :] = (
-                A_arrow_tip_block_d[:, :]
-                - A_arrow_bottom_blocks_d[(i - 1) % 2, :, :]
-                @ X_diagonal_blocks_d[(i - 1) % 2, :, :]
-                @ A_arrow_bottom_blocks_d[(i - 1) % 2, :, :].conj().T
-            )
-
-        d2h_stream.wait_event(compute_stream.record())
-        X_diagonal_blocks_d[(i - 1) % 2, :, :].get(
-            out=X_diagonal_blocks[i - 1, :, :], stream=d2h_stream
-        )
-        A_arrow_bottom_blocks_d[i % 2, :, :].get(
-            out=A_arrow_bottom_blocks[i, :, :], stream=d2h_stream
-        )
-
-    with compute_stream:
-        # X_{ndb+1, ndb+1} = (A_{ndb+1, ndb+1} - A_{ndb+1,ndb} @ X_{ndb,ndb} @ A_{ndb,ndb+1})^{-1}
-        X_arrow_tip_block_d[:, :] = cp.linalg.inv(
-            A_arrow_tip_block_d[:, :]
-            - A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-            @ X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-            @ A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
-        )
-
-    d2h_stream.wait_event(compute_stream.record())
-    X_arrow_tip_block_d[:, :].get(out=X_arrow_tip_block[:, :], stream=d2h_stream)
-
-    # Sync all streams before backward pass
-    d2h_stream.synchronize()
-
-    # nvtx annotations
-    cp.cuda.nvtx.Mark("End of Forward Pass")
-
     # Buffers for the intermediate results of the backward pass
     A_lower_diagonal_blocks_d_i = cp.zeros_like(A_diagonal_blocks[0, :, :])
     A_arrow_bottom_blocks_d_i = cp.zeros_like(A_arrow_bottom_blocks[0, :, :])
 
     C1 = cp.zeros_like(X_diagonal_blocks[0, :, :])
     C2 = cp.zeros_like(X_arrow_bottom_blocks[0, :, :])
+    cp.cuda.nvtx.RangePop()
+
+    # Forward pass
+    cp.cuda.nvtx.RangePush("_streaming_pobtasinv:fwd_pass")
+    A_diagonal_blocks_d[0, :, :].set(arr=A_diagonal_blocks[0, :, :])
+    A_arrow_bottom_blocks_d[0, :, :].set(arr=A_arrow_bottom_blocks[0, :, :])
+
+    X_diagonal_blocks_d[0, :, :] = cp.linalg.inv(A_diagonal_blocks_d[0, :, :])
+
+    n_diag_blocks = A_diagonal_blocks.shape[0]
+    for i in range(1, n_diag_blocks):
+        # --- Host 2 Device transfers ---
+        A_lower_diagonal_blocks_d[:, :].set(arr=A_lower_diagonal_blocks[i - 1, :, :])
+        A_diagonal_blocks_d[i % 2, :, :].set(arr=A_diagonal_blocks[i, :, :])
+        A_arrow_bottom_blocks_d[i % 2, :, :].set(arr=A_arrow_bottom_blocks[i, :, :])
+
+        # --- Computations ---
+        # Precompute reused matmul: D0 = X_{i-1,i-1} @ A_{i,i-1}^{\dagger}
+        D0[:, :] = (
+            X_diagonal_blocks_d[(i - 1) % 2, :, :]
+            @ A_lower_diagonal_blocks_d[:, :].conj().T
+        )
+
+        # X_{ii} = (A_{ii} - A_{i,i-1} @ X_{i-1,i-1} @ A_{i,i-1}^{\dagger})^{-1}
+        X_diagonal_blocks_d[i % 2, :, :] = cp.linalg.inv(
+            A_diagonal_blocks_d[i % 2, :, :]
+            - A_lower_diagonal_blocks_d[:, :] @ D0[:, :]
+        )
+
+        # A_{ndb+1,i} = A_{ndb+1,i} - A_{ndb+1,i-1} @ X_{i-1,i-1} @ A_{i,i-1}^{\dagger}
+        A_arrow_bottom_blocks_d[i % 2, :, :] = (
+            A_arrow_bottom_blocks_d[i % 2, :, :]
+            - A_arrow_bottom_blocks_d[(i - 1) % 2, :, :] @ D0[:, :]
+        )
+
+        # A_{ndb+1,ndb+1} = A_{ndb+1,ndb+1} - A_{ndb+1,i-1} @ X_{i-1,i-1} @ A_{i-1,ndb+1}
+        A_arrow_tip_block_d[:, :] = (
+            A_arrow_tip_block_d[:, :]
+            - A_arrow_bottom_blocks_d[(i - 1) % 2, :, :]
+            @ X_diagonal_blocks_d[(i - 1) % 2, :, :]
+            @ A_arrow_bottom_blocks_d[(i - 1) % 2, :, :].conj().T
+        )
+
+        # --- Device 2 Host transfers ---
+        X_diagonal_blocks_d[(i - 1) % 2, :, :].get(out=X_diagonal_blocks[i - 1, :, :])
+        A_arrow_bottom_blocks_d[i % 2, :, :].get(out=A_arrow_bottom_blocks[i, :, :])
+
+    # X_{ndb+1, ndb+1} = (A_{ndb+1, ndb+1} - A_{ndb+1,ndb} @ X_{ndb,ndb} @ A_{ndb,ndb+1})^{-1}
+    X_arrow_tip_block_d[:, :] = cp.linalg.inv(
+        A_arrow_tip_block_d[:, :]
+        - A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :]
+        @ X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
+        @ A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
+    )
+
+    X_arrow_tip_block_d[:, :].get(out=X_arrow_tip_block[:, :])
+    cp.cuda.nvtx.RangePop()
 
     # Backward pass
+    cp.cuda.nvtx.RangePush("_streaming_pobtasinv:bwd_pass")
     A_arrow_bottom_blocks_d_i[:, :] = A_arrow_bottom_blocks_d[
         (n_diag_blocks - 1) % 2, :, :
     ]
 
-    with compute_stream:
-        X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
-            -X_arrow_tip_block_d[:, :]
-            @ A_arrow_bottom_blocks_d_i[:, :]
-            @ X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-        )
-
-    d2h_stream.wait_event(compute_stream.record())
-    X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-        out=X_arrow_bottom_blocks[n_diag_blocks - 1, :, :], stream=d2h_stream
+    X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
+        -X_arrow_tip_block_d[:, :]
+        @ A_arrow_bottom_blocks_d_i[:, :]
+        @ X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
     )
 
-    with compute_stream:
-        X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
-            X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-            + X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-            @ A_arrow_bottom_blocks_d_i[:, :].conj().T
-            @ X_arrow_tip_block_d[:, :]
-            @ A_arrow_bottom_blocks_d_i[:, :]
-            @ X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-        )
+    X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
+        out=X_arrow_bottom_blocks[n_diag_blocks - 1, :, :]
+    )
 
-    d2h_stream.wait_event(compute_stream.record())
+    X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
+        X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
+        + X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
+        @ A_arrow_bottom_blocks_d_i[:, :].conj().T
+        @ X_arrow_tip_block_d[:, :]
+        @ A_arrow_bottom_blocks_d_i[:, :]
+        @ X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
+    )
+
     X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-        out=X_diagonal_blocks[n_diag_blocks - 1, :, :], stream=d2h_stream
+        out=X_diagonal_blocks[n_diag_blocks - 1, :, :]
     )
 
     for i in range(n_diag_blocks - 2, -1, -1):
-        h2d_stream.wait_event(d2h_stream.record())
-        A_lower_diagonal_blocks_d[:, :].set(
-            arr=A_lower_diagonal_blocks[i, :, :], stream=h2d_stream
+        # --- Host 2 Device transfers ---
+        A_lower_diagonal_blocks_d[:, :].set(arr=A_lower_diagonal_blocks[i, :, :])
+
+        A_arrow_bottom_blocks_d[i % 2, :, :].set(arr=A_arrow_bottom_blocks[i, :, :])
+
+        X_diagonal_blocks_d[i % 2, :, :].set(arr=X_diagonal_blocks[i, :, :])
+
+        A_lower_diagonal_blocks_d_i[:, :] = A_lower_diagonal_blocks_d[:, :]
+        A_arrow_bottom_blocks_d_i[:, :] = A_arrow_bottom_blocks_d[i % 2, :, :]
+
+        # --- Computations ---
+        # X_{i+1,i} = - (X_{i+1,i+1} @ A_{i+1,i} + X_{i+1,ndb+1} @ A_{ndb+1,i}) @ X_{ii}
+        # C1 = (X_{i+1,i+1} @ A_{i+1,i} + X_{ndb+1,i+1}^{\dagger} @ A_{ndb+1,i})
+        C1[:, :] = (
+            X_diagonal_blocks_d[(i + 1) % 2, :, :] @ A_lower_diagonal_blocks_d_i[:, :]
+            + X_arrow_bottom_blocks_d[(i + 1) % 2, :, :].conj().T
+            @ A_arrow_bottom_blocks_d_i[:, :]
+        )
+        # X_{i+1,i} = - C1 @ X_{ii}
+        X_lower_diagonal_blocks_d[:, :] = -C1[:, :] @ X_diagonal_blocks_d[i % 2, :, :]
+
+        # X_{ndb+1,i} = - (X_{ndb+1,i+1} @ A_{i+1,i} + X_{ndb+1,ndb+1} @ A_{ndb+1,i}) @ X_{ii}
+        # C2 = (X_{ndb+1,i+1} @ A_{i+1,i} + X_{ndb+1,ndb+1} @ A_{ndb+1,i})
+        C2[:, :] = (
+            X_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
+            @ A_lower_diagonal_blocks_d_i[:, :]
+            + X_arrow_tip_block_d[:, :] @ A_arrow_bottom_blocks_d_i[:, :]
+        )
+        # X_{ndb+1,i} = - C2 @ X_{ii}
+        X_arrow_bottom_blocks_d[i % 2, :, :] = (
+            -C2[:, :] @ X_diagonal_blocks_d[i % 2, :, :]
         )
 
-        A_arrow_bottom_blocks_d[i % 2, :, :].set(
-            arr=A_arrow_bottom_blocks[i, :, :], stream=h2d_stream
-        )
-
-        X_diagonal_blocks_d[i % 2, :, :].set(
-            arr=X_diagonal_blocks[i, :, :], stream=h2d_stream
-        )
-
-        compute_stream.wait_event(h2d_stream.record())
-        with compute_stream:
-            A_lower_diagonal_blocks_d_i[:, :] = A_lower_diagonal_blocks_d[:, :]
-            A_arrow_bottom_blocks_d_i[:, :] = A_arrow_bottom_blocks_d[i % 2, :, :]
-
-            # X_{i+1,i} = - (X_{i+1,i+1} @ A_{i+1,i} + X_{i+1,ndb+1} @ A_{ndb+1,i}) @ X_{ii}
-            # C1 = (X_{i+1,i+1} @ A_{i+1,i} + X_{ndb+1,i+1}^{\dagger} @ A_{ndb+1,i})
-            C1[:, :] = (
-                X_diagonal_blocks_d[(i + 1) % 2, :, :]
-                @ A_lower_diagonal_blocks_d_i[:, :]
-                + X_arrow_bottom_blocks_d[(i + 1) % 2, :, :].conj().T
-                @ A_arrow_bottom_blocks_d_i[:, :]
+        X_diagonal_blocks_d[i % 2, :, :] = (
+            X_diagonal_blocks_d[i % 2, :, :]
+            + X_diagonal_blocks_d[i % 2, :, :]
+            @ (
+                A_lower_diagonal_blocks_d_i[:, :].conj().T @ C1[:, :]
+                + A_arrow_bottom_blocks_d_i[:, :].conj().T @ C2[:, :]
             )
-            # X_{i+1,i} = - C1 @ X_{ii}
-            X_lower_diagonal_blocks_d[:, :] = (
-                -C1[:, :] @ X_diagonal_blocks_d[i % 2, :, :]
-            )
-
-            # X_{ndb+1,i} = - (X_{ndb+1,i+1} @ A_{i+1,i} + X_{ndb+1,ndb+1} @ A_{ndb+1,i}) @ X_{ii}
-            # C2 = (X_{ndb+1,i+1} @ A_{i+1,i} + X_{ndb+1,ndb+1} @ A_{ndb+1,i})
-            C2[:, :] = (
-                X_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
-                @ A_lower_diagonal_blocks_d_i[:, :]
-                + X_arrow_tip_block_d[:, :] @ A_arrow_bottom_blocks_d_i[:, :]
-            )
-            # X_{ndb+1,i} = - C2 @ X_{ii}
-            X_arrow_bottom_blocks_d[i % 2, :, :] = (
-                -C2[:, :] @ X_diagonal_blocks_d[i % 2, :, :]
-            )
-
-            X_diagonal_blocks_d[i % 2, :, :] = (
-                X_diagonal_blocks_d[i % 2, :, :]
-                + X_diagonal_blocks_d[i % 2, :, :]
-                @ (
-                    A_lower_diagonal_blocks_d_i[:, :].conj().T @ C1[:, :]
-                    + A_arrow_bottom_blocks_d_i[:, :].conj().T @ C2[:, :]
-                )
-                @ X_diagonal_blocks_d[i % 2, :, :]
-            )
-
-        d2h_stream.wait_event(compute_stream.record())
-        X_lower_diagonal_blocks_d[:, :].get(
-            out=X_lower_diagonal_blocks[i, :, :], stream=d2h_stream
+            @ X_diagonal_blocks_d[i % 2, :, :]
         )
 
-        X_arrow_bottom_blocks_d[i % 2, :, :].get(
-            out=X_arrow_bottom_blocks[i, :, :], stream=d2h_stream
-        )
+        # --- Device 2 Host transfers ---
+        X_lower_diagonal_blocks_d[:, :].get(out=X_lower_diagonal_blocks[i, :, :])
+        X_arrow_bottom_blocks_d[i % 2, :, :].get(out=X_arrow_bottom_blocks[i, :, :])
+        X_diagonal_blocks_d[i % 2, :, :].get(out=X_diagonal_blocks[i, :, :])
 
-        X_diagonal_blocks_d[i % 2, :, :].get(
-            out=X_diagonal_blocks[i, :, :], stream=d2h_stream
-        )
-
-    d2h_stream.synchronize()
+    cp.cuda.Device().synchronize()
+    cp.cuda.nvtx.RangePop()
 
     return (
         X_diagonal_blocks,
