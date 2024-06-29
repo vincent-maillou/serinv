@@ -31,7 +31,7 @@ We have adopted a LAPACK-like naming convention for the routines. The naming con
 
 ## Examples:
   - pobtaf: Perform the factorization of a block-tridiagonal with arrowhead, symmetric positive definite, matrix.
-  - d_ddbtsi: Compute the selected inversion of a block-tridiagonal, diagonally dominant, matrix given its LU factorization.
+  - d_ddbtsi: Compute the selected inversion of a block-tridiagonal, diagonally dominant, matrix given its LU factorization, using a distributed algorithm.
 
 # How to install
 First, you'll need to instal the project in your current environment. You can do this by running the following commands:
