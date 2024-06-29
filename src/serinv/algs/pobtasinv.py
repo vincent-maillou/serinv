@@ -60,7 +60,6 @@ def pobtasinv(
     """
 
     if CUPY_AVAIL and cp.get_array_module(A_diagonal_blocks) == np and device_streaming:
-        print("Streamed GPU computation...")
         return _streaming_pobtasinv(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
@@ -263,8 +262,8 @@ def _streaming_pobtasinv(
     n_diag_blocks = A_diagonal_blocks.shape[0]
     for i in range(1, n_diag_blocks):
         # --- Host 2 Device transfers ---
-        A_lower_diagonal_blocks_d[:, :].set(arr=A_lower_diagonal_blocks[i - 1, :, :])
         A_diagonal_blocks_d[i % 2, :, :].set(arr=A_diagonal_blocks[i, :, :])
+        A_lower_diagonal_blocks_d[:, :].set(arr=A_lower_diagonal_blocks[i - 1, :, :])
         A_arrow_bottom_blocks_d[i % 2, :, :].set(arr=A_arrow_bottom_blocks[i, :, :])
 
         # --- Computations ---
@@ -340,11 +339,9 @@ def _streaming_pobtasinv(
 
     for i in range(n_diag_blocks - 2, -1, -1):
         # --- Host 2 Device transfers ---
-        A_lower_diagonal_blocks_d[:, :].set(arr=A_lower_diagonal_blocks[i, :, :])
-
-        A_arrow_bottom_blocks_d[i % 2, :, :].set(arr=A_arrow_bottom_blocks[i, :, :])
-
         X_diagonal_blocks_d[i % 2, :, :].set(arr=X_diagonal_blocks[i, :, :])
+        A_lower_diagonal_blocks_d[:, :].set(arr=A_lower_diagonal_blocks[i, :, :])
+        A_arrow_bottom_blocks_d[i % 2, :, :].set(arr=A_arrow_bottom_blocks[i, :, :])
 
         A_lower_diagonal_blocks_d_i[:, :] = A_lower_diagonal_blocks_d[:, :]
         A_arrow_bottom_blocks_d_i[:, :] = A_arrow_bottom_blocks_d[i % 2, :, :]
@@ -383,9 +380,9 @@ def _streaming_pobtasinv(
         )
 
         # --- Device 2 Host transfers ---
+        X_diagonal_blocks_d[i % 2, :, :].get(out=X_diagonal_blocks[i, :, :])
         X_lower_diagonal_blocks_d[:, :].get(out=X_lower_diagonal_blocks[i, :, :])
         X_arrow_bottom_blocks_d[i % 2, :, :].get(out=X_arrow_bottom_blocks[i, :, :])
-        X_diagonal_blocks_d[i % 2, :, :].get(out=X_diagonal_blocks[i, :, :])
 
     cp.cuda.Device().synchronize()
     cp.cuda.nvtx.RangePop()
