@@ -98,6 +98,7 @@ def test_pobtasi(
         L_lower_diagonal_blocks,
         L_arrow_bottom_blocks,
         L_arrow_tip_block,
+        device_streaming,
     )
 
     assert xp.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)
