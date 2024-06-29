@@ -218,6 +218,7 @@ def _streaming_pobtaf(
     # Forward pass
     cp.cuda.nvtx.RangePush("_streaming_pobtaf:fwd_cholesky")
 
+    # --- Host 2 Device transfers ---
     A_diagonal_blocks_d[0, :, :].set(arr=A_diagonal_blocks[0, :, :])
     A_arrow_bottom_blocks_d[0, :, :].set(arr=A_arrow_bottom_blocks[0, :, :])
     A_arrow_tip_block_d.set(arr=A_arrow_tip_block)
