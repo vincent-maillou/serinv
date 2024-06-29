@@ -232,7 +232,6 @@ def _streaming_pobtasinv(
         (2, *A_arrow_bottom_blocks.shape[1:]), dtype=A_arrow_bottom_blocks.dtype
     )
     A_arrow_tip_block_d = cp.zeros_like(A_arrow_tip_block)
-    A_arrow_tip_block_d.set(arr=A_arrow_tip_block)
 
     # X Device buffers arrays pointers
     X_diagonal_blocks_d = A_diagonal_blocks_d
@@ -255,6 +254,7 @@ def _streaming_pobtasinv(
     cp.cuda.nvtx.RangePush("_streaming_pobtasinv:fwd_pass")
     A_diagonal_blocks_d[0, :, :].set(arr=A_diagonal_blocks[0, :, :])
     A_arrow_bottom_blocks_d[0, :, :].set(arr=A_arrow_bottom_blocks[0, :, :])
+    A_arrow_tip_block_d.set(arr=A_arrow_tip_block)
 
     X_diagonal_blocks_d[0, :, :] = cp.linalg.inv(A_diagonal_blocks_d[0, :, :])
 
