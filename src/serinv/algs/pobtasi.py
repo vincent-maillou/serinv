@@ -21,8 +21,8 @@ def pobtasi(
     L_arrow_tip_block: ArrayLike,
     device_streaming: bool = False,
 ) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike]:
-    """Perform a selected inversion of a block tridiagonal arrowhead matrix using a
-    sequential block algorithm.
+    """Perform a selected inversion of a block tridiagonal with arrowhead matrix
+    using a sequential block algorithm.
 
     Note:
     -----
@@ -32,26 +32,26 @@ def pobtasi(
     Parameters
     ----------
     L_diagonal_blocks : ArrayLike
-        Diagonal blocks of the cholesky factorization.
+        Diagonal blocks of L.
     L_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of the cholesky factorization.
+        Lower diagonal blocks of L.
     L_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of the cholesky factorization.
+        Arrow bottom blocks of L.
     L_arrow_tip_block : ArrayLike
-        Arrow tip block of the cholesky factorization.
+        Arrow tip block of L.
     device_streaming : bool
         Whether to use streamed GPU computation.
 
     Returns
     -------
     X_diagonal_blocks : ArrayLike
-        Diagonal blocks of the selected inverse.
+        Diagonal blocks of X.
     X_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of the selected inverse.
+        Lower diagonal blocks of X.
     X_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of the selected inverse.
+        Arrow bottom blocks of X.
     X_arrow_tip_block : ArrayLike
-        Arrow tip block of the selected inverse.
+        Arrow tip block of X.
     """
     if CUPY_AVAIL and cp.get_array_module(L_diagonal_blocks) == np and device_streaming:
         return _streaming_pobtasi(

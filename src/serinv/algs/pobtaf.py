@@ -26,34 +26,38 @@ def pobtaf(
     ArrayLike,
     ArrayLike,
 ]:
-    """Perform the Cholesky factorization of a block tridiagonal arrowhead matrix using
-    a sequential block algorithm.
+    """Perform the Cholesky factorization of a block tridiagonal with arrowhead
+    matrix using a sequential block algorithm.
 
     Note:
     -----
-    - The matrix is assumed to be symmetric positive definite.
+    - The matrix, A, is assumed to be symmetric positive definite.
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
     ----------
     A_diagonal_blocks : ArrayLike
-        Diagonal blocks of the matrix.
+        Diagonal blocks of A.
     A_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of the matrix.
+        Lower diagonal blocks of A.
     A_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of the matrix.
+        Arrow bottom blocks of A.
     A_arrow_tip_block : ArrayLike
-        Arrow tip block of the matrix.
+        Arrow tip block of A.
     device_streaming : bool
         Whether to use streamed GPU computation.
 
     Returns
     -------
     L_diagonal_blocks : ArrayLike
+        Diagonal blocks of L.
     L_lower_diagonal_blocks : ArrayLike
+        Lower diagonal blocks of L.
     L_arrow_bottom_blocks : ArrayLike
+        Arrow bottom blocks of L.
     L_arrow_tip_block : ArrayLike
+        Arrow tip block of L.
     """
 
     if CUPY_AVAIL and cp.get_array_module(A_diagonal_blocks) == np and device_streaming:
