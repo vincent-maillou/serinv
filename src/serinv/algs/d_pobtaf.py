@@ -2,11 +2,12 @@
 
 try:
     import cupy as cp
+    import cupyx as cpx
     import cupyx.scipy.linalg as cu_la
 
     CUPY_AVAIL = True
 
-except:
+except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
@@ -116,8 +117,7 @@ def _d_pobtaf(
     L_upper_nested_dissection_buffer_local = None
     L_inv_temp = xp.zeros_like(A_diagonal_blocks_local[0])
 
-    Update_arrow_tip_block_local = xp.zeros_like(A_arrow_tip_block_global)
-    Update_arrow_tip_block_global = xp.zeros_like(Update_arrow_tip_block_local)
+    Update_arrow_tip_block = xp.zeros_like(A_arrow_tip_block_global)
 
     if comm_rank == 0:
         # Forward block-Cholesky, performed by a "top" process
@@ -128,63 +128,57 @@ def _d_pobtaf(
             )
 
             # Compute lower factors
-            L_inv_temp[:, :] = la.solve_triangular(
-                L_diagonal_blocks_local[i, :, :],
-                xp.eye(diag_blocksize),
-                lower=True,
+            L_inv_temp[:, :] = (
+                la.solve_triangular(
+                    L_diagonal_blocks_local[i, :, :],
+                    xp.eye(diag_blocksize),
+                    lower=True,
+                )
+                .conj()
+                .T
             )
 
             # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
             L_lower_diagonal_blocks_local[i, :, :] = (
-                A_lower_diagonal_blocks_local[i, :, :] @ L_inv_temp[:, :].T
+                A_lower_diagonal_blocks_local[i, :, :] @ L_inv_temp[:, :]
             )
 
             # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
             L_arrow_bottom_blocks_local[i, :, :] = (
-                A_arrow_bottom_blocks_local[i, :, :] @ L_inv_temp[:, :].T
+                A_arrow_bottom_blocks_local[i, :, :] @ L_inv_temp[:, :]
             )
 
             # Update next diagonal block
-            # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.T
+            # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_local[i + 1, :, :] = (
                 A_diagonal_blocks_local[i + 1, :, :]
                 - L_lower_diagonal_blocks_local[i, :, :]
-                @ L_lower_diagonal_blocks_local[i, :, :].T
+                @ L_lower_diagonal_blocks_local[i, :, :].conj().T
             )
 
-            # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.T
+            # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
             A_arrow_bottom_blocks_local[i + 1, :, :] = (
                 A_arrow_bottom_blocks_local[i + 1, :, :]
                 - L_arrow_bottom_blocks_local[i, :, :]
-                @ L_lower_diagonal_blocks_local[i, :, :].T
+                @ L_lower_diagonal_blocks_local[i, :, :].conj().T
             )
 
-            # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.T
-            Update_arrow_tip_block_local[:, :] = (
-                Update_arrow_tip_block_local[:, :]
+            # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
+            Update_arrow_tip_block[:, :] = (
+                Update_arrow_tip_block[:, :]
                 - L_arrow_bottom_blocks_local[i, :, :]
-                @ L_arrow_bottom_blocks_local[i, :, :].T
+                @ L_arrow_bottom_blocks_local[i, :, :].conj().T
             )
-
-        """ Here to check weather we perform this cholesky now or later
-        as we want the updated A matrix for the reduced system... 
-        # L_{ndb, ndb} = chol(A_{ndb, ndb})
-        L_diagonal_blocks_local[-1, :, :] = xp.linalg.cholesky(
-            A_diagonal_blocks_local[-1, :, :]
-        )
-
-        # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
-        L_arrow_bottom_blocks_local[-1, :, :] = A_arrow_bottom_blocks_local[
-            -1, :, :
-        ] @ la.solve_triangular(
-            L_diagonal_blocks_local[-1, :, :],
-            xp.eye(diag_blocksize),
-            lower=True,
-        ) """
-
     else:
         A_upper_nested_dissection_buffer_local = xp.zeros_like(A_diagonal_blocks_local)
         L_upper_nested_dissection_buffer_local = A_upper_nested_dissection_buffer_local
+
+        A_upper_nested_dissection_buffer_local[0, :, :] = A_diagonal_blocks_local[
+            0, :, :
+        ]
+        A_upper_nested_dissection_buffer_local[1, :, :] = (
+            A_lower_diagonal_blocks_local[0, :, :].conj().T
+        )
 
         # Forward block-Cholesky, performed by a "middle" process
         for i in range(1, n_diag_blocks - 1):
@@ -194,80 +188,95 @@ def _d_pobtaf(
             )
 
             # Compute lower factors
-            L_inv_temp[:, :] = la.solve_triangular(
-                L_diagonal_blocks_local[i, :, :],
-                xp.eye(diag_blocksize),
-                lower=True,
+            L_inv_temp[:, :] = (
+                la.solve_triangular(
+                    L_diagonal_blocks_local[i, :, :],
+                    xp.eye(diag_blocksize),
+                    lower=True,
+                )
+                .conj()
+                .T
             )
 
             # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
             L_lower_diagonal_blocks_local[i, :, :] = (
-                A_lower_diagonal_blocks_local[i, :, :] @ L_inv_temp[:, :].T
+                A_lower_diagonal_blocks_local[i, :, :] @ L_inv_temp[:, :]
             )
 
             # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
             L_upper_nested_dissection_buffer_local[i, :, :] = (
-                A_upper_nested_dissection_buffer_local[i, :, :] @ L_inv_temp[:, :].T
+                A_upper_nested_dissection_buffer_local[i, :, :] @ L_inv_temp[:, :]
             )
 
             # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
             L_arrow_bottom_blocks_local[i, :, :] = (
-                A_arrow_bottom_blocks_local[i, :, :] @ L_inv_temp[:, :].T
+                A_arrow_bottom_blocks_local[i, :, :] @ L_inv_temp[:, :]
             )
 
             # Update next diagonal block
-            # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.T
+            # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_local[i + 1, :, :] = (
                 A_diagonal_blocks_local[i + 1, :, :]
                 - L_lower_diagonal_blocks_local[i, :, :]
-                @ L_lower_diagonal_blocks_local[i, :, :].T
+                @ L_lower_diagonal_blocks_local[i, :, :].conj().T
             )
 
-            # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.T
+            # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
             A_arrow_bottom_blocks_local[i + 1, :, :] = (
                 A_arrow_bottom_blocks_local[i + 1, :, :]
                 - L_arrow_bottom_blocks_local[i, :, :]
-                @ L_lower_diagonal_blocks_local[i, :, :].T
+                @ L_lower_diagonal_blocks_local[i, :, :].conj().T
             )
 
             # Update the block at the tip of the arrowhead
-            # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.T
-            Update_arrow_tip_block_local[:, :] = (
-                Update_arrow_tip_block_local[:, :]
+            # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
+            Update_arrow_tip_block[:, :] = (
+                Update_arrow_tip_block[:, :]
                 - L_arrow_bottom_blocks_local[i, :, :]
-                @ L_arrow_bottom_blocks_local[i, :, :].T
+                @ L_arrow_bottom_blocks_local[i, :, :].conj().T
             )
 
             # Update top and next upper/lower blocks of 2-sided factorization pattern
-            # A_{top, top} = A_{top, top} - L_{top, i} @ L_{top, i}.T
+            # A_{top, top} = A_{top, top} - L_{top, i} @ L_{top, i}.conj().T
             A_diagonal_blocks_local[0, :, :] = (
                 A_diagonal_blocks_local[0, :, :]
                 - L_upper_nested_dissection_buffer_local[i, :, :]
-                @ L_upper_nested_dissection_buffer_local[i, :, :].T
+                @ L_upper_nested_dissection_buffer_local[i, :, :].conj().T
             )
 
-            # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.T
+            # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
             A_upper_nested_dissection_buffer_local[i + 1, :, :] = (
                 -L_upper_nested_dissection_buffer_local[i, :, :]
-                @ L_lower_diagonal_blocks_local[i, :, :].T
+                @ L_lower_diagonal_blocks_local[i, :, :].conj().T
             )
 
             # Update the top (first blocks) of the arrowhead
-            # A_{ndb+1, top} = A_{ndb+1, top} - L_{ndb+1, i} @ L_{top, i}.T
+            # A_{ndb+1, top} = A_{ndb+1, top} - L_{ndb+1, i} @ L_{top, i}.conj().T
             A_arrow_bottom_blocks_local[0, :, :] = (
                 A_arrow_bottom_blocks_local[0, :, :]
                 - L_arrow_bottom_blocks_local[i, :, :]
-                @ L_upper_nested_dissection_buffer_local[i, :, :].T
+                @ L_upper_nested_dissection_buffer_local[i, :, :].conj().T
             )
+
+    # Check if operations are happening on the device, in this case we need to get
+    # back the tip blocks on the host to perform the accumulation through MPI.
+    if CUPY_AVAIL and xp == cp:
+        Update_arrow_tip_block_host = cpx.zeros_like_pinned(Update_arrow_tip_block)
+        Update_arrow_tip_block.get(out=Update_arrow_tip_block_host)
+    else:
+        Update_arrow_tip_block_host = Update_arrow_tip_block
 
     # Accumulate the distributed update of the arrow tip block
     MPI.COMM_WORLD.Allreduce(
-        [Update_arrow_tip_block_local, MPI.DOUBLE],
-        [Update_arrow_tip_block_global, MPI.DOUBLE],
+        MPI.IN_PLACE,
+        Update_arrow_tip_block_host,
         op=MPI.SUM,
     )
 
-    A_arrow_tip_block_global[:, :] += Update_arrow_tip_block_global[:, :]
+    if CUPY_AVAIL and xp == cp:
+        Update_arrow_tip_block.set(arr=Update_arrow_tip_block_host)
+
+    A_arrow_tip_block_global[:, :] += Update_arrow_tip_block[:, :]
     L_arrow_tip_block_global = A_arrow_tip_block_global
 
     return (
