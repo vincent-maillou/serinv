@@ -17,6 +17,7 @@ import pytest
 from serinv.algs import ddbtaf, ddbtasi
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
