@@ -6,7 +6,7 @@ try:
 
     CUPY_AVAIL = True
 
-except:
+except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
