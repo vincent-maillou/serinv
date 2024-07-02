@@ -15,6 +15,7 @@ import pytest
 from serinv.utils.check_dd import check_block_dd, check_ddbta
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
@@ -48,6 +49,7 @@ def test_check_block_dd(
     assert xp.all(block_dd)
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
