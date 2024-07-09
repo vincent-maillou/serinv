@@ -38,7 +38,8 @@ def d_pobtaf(
     Note:
     -----
     - The matrix, A, is assumed to be symmetric positive definite.
-    - Will overwrite the inputs and store the results in them (in-place).
+    - Will overwrite the inputs and store the results in them (in-place). Returns
+        are aliases on the inputs.
     - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
@@ -57,15 +58,16 @@ def d_pobtaf(
     Returns
     -------
     L_diagonal_blocks_local : ArrayLike
-        Local slice of the diagonal blocks of L.
+        Local slice of the diagonal blocks of L, alias on A_diagonal_blocks_local.
     L_lower_diagonal_blocks_local : ArrayLike
-        Local slice of the lower diagonal blocks of L.
+        Local slice of the lower diagonal blocks of L, alias on A_lower_diagonal_blocks_local.
     L_arrow_bottom_blocks_local : ArrayLike
-        Local slice of the arrow bottom blocks of L.
+        Local slice of the arrow bottom blocks of L, alias on A_arrow_bottom_blocks_local.
     L_arrow_tip_block_global : ArrayLike
-        Arrow tip block of L.
+        Arrow tip block of L, alias on A_arrow_tip_block_global.
     L_upper_nested_dissection_buffer_local : ArrayLike, optional
-        Local upper buffer used in the nested dissection factorization.
+        Local upper buffer used in the nested dissection factorization. None for
+        uppermost process.
     """
 
     if (
@@ -94,6 +96,7 @@ def _d_pobtaf(
     A_arrow_bottom_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
 ) -> tuple[
+    ArrayLike,
     ArrayLike,
     ArrayLike,
     ArrayLike,
@@ -294,6 +297,7 @@ def _streaming_d_pobtaf(
     A_arrow_bottom_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
 ) -> tuple[
+    ArrayLike,
     ArrayLike,
     ArrayLike,
     ArrayLike,

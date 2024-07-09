@@ -10,6 +10,9 @@ except ImportError:
     CUPY_AVAIL = False
 
 from os import environ
+
+environ["OMP_NUM_THREADS"] = "1"
+
 import numpy as np
 import pytest
 from mpi4py import MPI
