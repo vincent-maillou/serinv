@@ -111,7 +111,7 @@ def _d_pobtaf(
         xp = np
 
     diag_blocksize = A_diagonal_blocks_local.shape[1]
-    n_diag_blocks = A_diagonal_blocks_local.shape[0]
+    n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
 
     L_diagonal_blocks_local = A_diagonal_blocks_local
     L_lower_diagonal_blocks_local = A_lower_diagonal_blocks_local
@@ -124,7 +124,7 @@ def _d_pobtaf(
 
     if comm_rank == 0:
         # Forward block-Cholesky, performed by a "top" process
-        for i in range(0, n_diag_blocks - 1):
+        for i in range(0, n_diag_blocks_local - 1):
             # L_{i, i} = chol(A_{i, i})
             L_diagonal_blocks_local[i, :, :] = xp.linalg.cholesky(
                 A_diagonal_blocks_local[i, :, :],
@@ -184,7 +184,7 @@ def _d_pobtaf(
         )
 
         # Forward block-Cholesky, performed by a "middle" process
-        for i in range(1, n_diag_blocks - 1):
+        for i in range(1, n_diag_blocks_local - 1):
             # L_{i, i} = chol(A_{i, i})
             L_diagonal_blocks_local[i, :, :] = xp.linalg.cholesky(
                 A_diagonal_blocks_local[i, :, :]
