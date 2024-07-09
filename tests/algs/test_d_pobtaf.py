@@ -293,3 +293,24 @@ def test_d_pobtaf(
         )
 
         assert xp.allclose(X_rs_arrow_tip_block, X_ref_arrow_tip_block_global)
+
+    if device_array:
+        assert L_diagonal_blocks_local.data == A_diagonal_blocks_local.data
+        assert L_lower_diagonal_blocks_local.data == A_lower_diagonal_blocks_local.data
+        assert L_arrow_bottom_blocks_local.data == A_arrow_bottom_blocks_local.data
+        assert L_arrow_tip_block_global.data == A_arrow_tip_block_global.data
+    else:
+        assert (
+            L_diagonal_blocks_local.ctypes.data == A_diagonal_blocks_local.ctypes.data
+        )
+        assert (
+            L_lower_diagonal_blocks_local.ctypes.data
+            == A_lower_diagonal_blocks_local.ctypes.data
+        )
+        assert (
+            L_arrow_bottom_blocks_local.ctypes.data
+            == A_arrow_bottom_blocks_local.ctypes.data
+        )
+        assert (
+            L_arrow_tip_block_global.ctypes.data == A_arrow_tip_block_global.ctypes.data
+        )

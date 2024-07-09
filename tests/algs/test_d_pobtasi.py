@@ -161,13 +161,34 @@ def test_d_pobtasi(
         L_upper_nested_dissection_buffer_local,
     )
 
-    # assert xp.allclose(X_diagonal_blocks_local, X_ref_diagonal_blocks_local)
-    # assert xp.allclose(
-    #     X_lower_diagonal_blocks_local,
-    #     X_ref_lower_diagonal_blocks_local,
-    # )
-    # assert xp.allclose(
-    #     X_arrow_bottom_blocks_local,
-    #     X_ref_arrow_bottom_blocks_local,
-    # )
-    # assert xp.allclose(X_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+    assert xp.allclose(X_diagonal_blocks_local, X_ref_diagonal_blocks_local)
+    assert xp.allclose(
+        X_lower_diagonal_blocks_local,
+        X_ref_lower_diagonal_blocks_local,
+    )
+    assert xp.allclose(
+        X_arrow_bottom_blocks_local,
+        X_ref_arrow_bottom_blocks_local,
+    )
+    assert xp.allclose(X_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+
+    if device_array:
+        assert X_diagonal_blocks_local.data == A_diagonal_blocks_local.data
+        assert X_lower_diagonal_blocks_local.data == A_lower_diagonal_blocks_local.data
+        assert X_arrow_bottom_blocks_local.data == A_arrow_bottom_blocks_local.data
+        assert X_arrow_tip_block_global.data == A_arrow_tip_block_global.data
+    else:
+        assert (
+            X_diagonal_blocks_local.ctypes.data == A_diagonal_blocks_local.ctypes.data
+        )
+        assert (
+            X_lower_diagonal_blocks_local.ctypes.data
+            == A_lower_diagonal_blocks_local.ctypes.data
+        )
+        assert (
+            X_arrow_bottom_blocks_local.ctypes.data
+            == A_arrow_bottom_blocks_local.ctypes.data
+        )
+        assert (
+            X_arrow_tip_block_global.ctypes.data == A_arrow_tip_block_global.ctypes.data
+        )
