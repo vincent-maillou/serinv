@@ -193,7 +193,7 @@ def _streaming_pobtaf(
     cp.cuda.nvtx.RangePush("_streaming_pobtaf:mem_init")
     diag_blocksize = A_diagonal_blocks.shape[1]
 
-    # X hosts arrays pointers
+    # A/L hosts arrays pointers
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
     L_arrow_bottom_blocks = A_arrow_bottom_blocks
@@ -254,11 +254,13 @@ def _streaming_pobtaf(
         )
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L_lower_diagonal_blocks_d[:, :] = A_lower_diagonal_blocks_d[:, :] @ L_inv_temp_d
+        L_lower_diagonal_blocks_d[:, :] = (
+            A_lower_diagonal_blocks_d[:, :] @ L_inv_temp_d[:, :]
+        )
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         L_arrow_bottom_blocks_d[i % 2, :, :] = (
-            A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d
+            A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d[:, :]
         )
 
         # Update next diagonal block
@@ -314,6 +316,7 @@ def _streaming_pobtaf(
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
     L_arrow_tip_block_d[:, :] = cp.linalg.cholesky(A_arrow_tip_block_d[:, :])
 
+    # --- Device 2 Host transfers ---
     L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
         out=L_diagonal_blocks[-1, :, :]
     )
