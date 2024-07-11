@@ -10,7 +10,7 @@ except:
 print("CUPY_AVAIL: ", CUPY_AVAIL)
 
 from serinv.algs import pobtaf, pobtasi
-from load_datmat import csc_to_dense_bta, csc_to_sparse_bta, read_sym_CSC
+from load_datmat import csc_to_dense_bta, read_sym_CSC
 from utility_functions import bta_arrays_to_dense, bta_dense_to_arrays
 import numpy as np
 import time
@@ -136,8 +136,7 @@ if __name__ == "__main__":
         end_time = time.time()
         elapsed_time_selinv = end_time - start_time
         t_list_selInv[i] = elapsed_time_selinv
-        print("Iter: ", i, " Time Chol: " , elapsed_time_chol, " sec. Time selInv: " , elapsed_time_selinv, " sec")
-
+        print(f"Iter: {i} Time Chol: {elapsed_time_chol:.5f} sec. Time selInv: {elapsed_time_selinv:.5f} sec")
 
         if DEBUG:    
             X_ref = np.linalg.inv(A_symmetric)
@@ -157,14 +156,13 @@ if __name__ == "__main__":
             print("norm(X_lower_diagonal_blocks - X_lower_diagonal_blocks_ref): ", np.linalg.norm(X_lower_diagonal_blocks - X_lower_diagonal_blocks_ref))
             print("norm(X_arrow_bottom_blocks - X_arrow_bottom_blocks_ref):     ", np.linalg.norm(X_arrow_bottom_blocks - X_arrow_bottom_blocks_ref))
             print("norm(X_arrow_tip_block - X_arrow_tip_block_ref):             ", np.linalg.norm(X_arrow_tip_block - X_arrow_tip_block_ref))
-
-
+        
     if n_iterations > 3:
         t_mean_chol = np.mean(t_list_chol[3:])
-        print("\nAverage time chol:   ", t_mean_chol)
+        print(f"\nAverage time chol:   {t_mean_chol:.5f}")
         
         t_mean_selInv = np.mean(t_list_selInv[3:])
-        print("Average time selInv: ", t_mean_selInv)
+        print(f"Average time selInv: {t_mean_selInv:.5f}")
 
  
       
