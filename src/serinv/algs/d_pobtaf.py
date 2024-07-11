@@ -176,9 +176,6 @@ def _d_pobtaf(
         A_upper_nested_dissection_buffer_local = xp.zeros_like(A_diagonal_blocks_local)
         L_upper_nested_dissection_buffer_local = A_upper_nested_dissection_buffer_local
 
-        A_upper_nested_dissection_buffer_local[0, :, :] = A_diagonal_blocks_local[
-            0, :, :
-        ]
         A_upper_nested_dissection_buffer_local[1, :, :] = (
             A_lower_diagonal_blocks_local[0, :, :].conj().T
         )
@@ -303,4 +300,283 @@ def _streaming_d_pobtaf(
     ArrayLike,
     ArrayLike,
 ]:
-    raise NotImplementedError
+
+    diag_blocksize = A_diagonal_blocks_local.shape[1]
+    n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
+
+    # Host aliases & buffers
+    L_diagonal_blocks_local = A_diagonal_blocks_local
+    L_lower_diagonal_blocks_local = A_lower_diagonal_blocks_local
+    L_arrow_bottom_blocks_local = A_arrow_bottom_blocks_local
+    Update_arrow_tip_block_host = cpx.zeros_like_pinned(A_arrow_tip_block_global)
+
+    # Device aliases & buffers
+    A_diagonal_blocks_d = cp.zeros(
+        (2, *A_diagonal_blocks_local.shape[1:]), dtype=A_diagonal_blocks_local.dtype
+    )
+    A_lower_diagonal_blocks_d = cp.zeros_like(A_lower_diagonal_blocks_local[0])
+    A_arrow_bottom_blocks_d = cp.zeros(
+        (2, *A_arrow_bottom_blocks_local.shape[1:]),
+        dtype=A_arrow_bottom_blocks_local.dtype,
+    )
+    Update_arrow_tip_block_d = cp.zeros_like(A_arrow_tip_block_global)
+    L_inv_temp_d = cp.zeros_like(A_diagonal_blocks_local[0])
+
+    L_diagonal_blocks_d = A_diagonal_blocks_d
+    L_lower_diagonal_blocks_d = A_lower_diagonal_blocks_d
+    L_arrow_bottom_blocks_d = A_arrow_bottom_blocks_d
+
+    if comm_rank == 0:
+        # Host aliases & buffers specific to the top process
+        L_upper_nested_dissection_buffer_local = None
+
+        cp.cuda.nvtx.RangePop()
+
+        # Forward block-Cholesky, performed by a "top" process
+        cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:fwd_cholesky")
+
+        # --- Host 2 Device transfers ---
+        A_diagonal_blocks_d[0, :, :].set(arr=A_diagonal_blocks_local[0, :, :])
+        A_arrow_bottom_blocks_d[0, :, :].set(arr=A_arrow_bottom_blocks_local[0, :, :])
+
+        for i in range(0, n_diag_blocks_local - 1):
+            # --- Host 2 Device transfers ---
+            A_diagonal_blocks_d[(i + 1) % 2, :, :].set(
+                arr=A_diagonal_blocks_local[i + 1, :, :]
+            )
+            A_lower_diagonal_blocks_d[:, :].set(
+                arr=A_lower_diagonal_blocks_local[i, :, :]
+            )
+            A_arrow_bottom_blocks_d[(i + 1) % 2, :, :].set(
+                arr=A_arrow_bottom_blocks_local[i + 1, :, :]
+            )
+
+            # --- Computations ---
+            # L_{i, i} = chol(A_{i, i})
+            L_diagonal_blocks_d[i % 2, :, :] = cp.linalg.cholesky(
+                A_diagonal_blocks_d[i % 2, :, :],
+            )
+
+            # Compute lower factors
+            L_inv_temp_d[:, :] = (
+                cu_la.solve_triangular(
+                    L_diagonal_blocks_d[i % 2, :, :],
+                    cp.eye(diag_blocksize),
+                    lower=True,
+                )
+                .conj()
+                .T
+            )
+
+            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+            L_lower_diagonal_blocks_d[:, :] = (
+                A_lower_diagonal_blocks_d[:, :] @ L_inv_temp_d[:, :]
+            )
+
+            # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
+            L_arrow_bottom_blocks_d[i % 2, :, :] = (
+                A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d[:, :]
+            )
+
+            # Update next diagonal block
+            # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
+            A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
+                A_diagonal_blocks_d[(i + 1) % 2, :, :]
+                - L_lower_diagonal_blocks_d[:, :]
+                @ L_lower_diagonal_blocks_d[:, :].conj().T
+            )
+
+            # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
+            A_arrow_bottom_blocks_d[(i + 1) % 2, :, :] = (
+                A_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
+                - L_arrow_bottom_blocks_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[:, :].conj().T
+            )
+
+            # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
+            Update_arrow_tip_block_d[:, :] = (
+                Update_arrow_tip_block_d[:, :]
+                - L_arrow_bottom_blocks_d[i % 2, :, :]
+                @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
+            )
+
+            # --- Device 2 Host transfers ---
+            L_diagonal_blocks_d[i % 2, :, :].get(out=L_diagonal_blocks_local[i, :, :])
+            L_lower_diagonal_blocks_d[:, :].get(
+                out=L_lower_diagonal_blocks_local[i, :, :]
+            )
+            L_arrow_bottom_blocks_d[i % 2, :, :].get(
+                out=L_arrow_bottom_blocks_local[i, :, :]
+            )
+
+        # --- Device 2 Host transfers ---
+        A_diagonal_blocks_d[(n_diag_blocks_local - 1) % 2, :, :].get(
+            out=A_diagonal_blocks_local[-1, :, :]
+        )
+        A_arrow_bottom_blocks_d[(n_diag_blocks_local - 1) % 2, :, :].get(
+            out=A_arrow_bottom_blocks_local[-1, :, :]
+        )
+    else:
+        # Host aliases & buffers specific to the middle process
+        A_upper_nested_dissection_buffer_local = cpx.zeros_like_pinned(
+            A_diagonal_blocks_local
+        )
+        L_upper_nested_dissection_buffer_local = A_upper_nested_dissection_buffer_local
+
+        # Device aliases & buffers specific to the middle process
+        A_diagonal_top_block_d = cp.zeros_like(A_diagonal_blocks_local[0])
+        A_arrow_bottom_top_block_d = cp.zeros_like(A_arrow_bottom_blocks_local[0])
+        A_upper_nested_dissection_buffer_d = cp.zeros(
+            (2, *A_upper_nested_dissection_buffer_local.shape[1:]),
+            dtype=A_upper_nested_dissection_buffer_local.dtype,
+        )
+
+        L_upper_nested_dissection_buffer_d = A_upper_nested_dissection_buffer_d
+        cp.cuda.nvtx.RangePop()
+
+        # Forward block-Cholesky, performed by a "middle" process
+        cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:fwd_cholesky")
+
+        # --- Host 2 Device transfers ---
+        A_diagonal_blocks_d[1, :, :].set(arr=A_diagonal_blocks_local[1, :, :])
+        A_arrow_bottom_blocks_d[1, :, :].set(arr=A_arrow_bottom_blocks_local[1, :, :])
+
+        A_diagonal_top_block_d[:, :].set(arr=A_diagonal_blocks_local[0, :, :])
+        A_arrow_bottom_top_block_d[:, :].set(arr=A_arrow_bottom_blocks_local[0, :, :])
+        A_upper_nested_dissection_buffer_d[1, :, :].set(
+            arr=A_lower_diagonal_blocks_local[0, :, :].conj().T
+        )
+
+        for i in range(1, n_diag_blocks_local - 1):
+            # --- Host 2 Device transfers ---
+            A_diagonal_blocks_d[(i + 1) % 2, :, :].set(
+                arr=A_diagonal_blocks_local[i + 1, :, :]
+            )
+            A_lower_diagonal_blocks_d[:, :].set(
+                arr=A_lower_diagonal_blocks_local[i, :, :]
+            )
+            A_arrow_bottom_blocks_d[(i + 1) % 2, :, :].set(
+                arr=A_arrow_bottom_blocks_local[i + 1, :, :]
+            )
+
+            # --- Computations ---
+            # L_{i, i} = chol(A_{i, i})
+            L_diagonal_blocks_d[i % 2, :, :] = cp.linalg.cholesky(
+                A_diagonal_blocks_d[i % 2, :, :]
+            )
+
+            # Compute lower factors
+            L_inv_temp_d[:, :] = (
+                cu_la.solve_triangular(
+                    L_diagonal_blocks_d[i % 2, :, :],
+                    cp.eye(diag_blocksize),
+                    lower=True,
+                )
+                .conj()
+                .T
+            )
+
+            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+            L_lower_diagonal_blocks_d[:, :] = (
+                A_lower_diagonal_blocks_d[:, :] @ L_inv_temp_d[:, :]
+            )
+
+            # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
+            L_upper_nested_dissection_buffer_d[i % 2, :, :] = (
+                A_upper_nested_dissection_buffer_d[i % 2, :, :] @ L_inv_temp_d[:, :]
+            )
+
+            # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
+            L_arrow_bottom_blocks_d[i % 2, :, :] = (
+                A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d[:, :]
+            )
+
+            # Update next diagonal block
+            # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
+            A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
+                A_diagonal_blocks_d[(i + 1) % 2, :, :]
+                - L_lower_diagonal_blocks_d[:, :]
+                @ L_lower_diagonal_blocks_d[:, :].conj().T
+            )
+
+            # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
+            A_arrow_bottom_blocks_d[(i + 1) % 2, :, :] = (
+                A_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
+                - L_arrow_bottom_blocks_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[:, :].conj().T
+            )
+
+            # Update the block at the tip of the arrowhead
+            # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
+            Update_arrow_tip_block_d[:, :] = (
+                Update_arrow_tip_block_d[:, :]
+                - L_arrow_bottom_blocks_d[i % 2, :, :]
+                @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
+            )
+
+            # Update top and next upper/lower blocks of 2-sided factorization pattern
+            # A_{top, top} = A_{top, top} - L_{top, i} @ L_{top, i}.conj().T
+            A_diagonal_top_block_d[:, :] = (
+                A_diagonal_top_block_d[:, :]
+                - L_upper_nested_dissection_buffer_d[i % 2, :, :]
+                @ L_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
+            )
+
+            # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
+            A_upper_nested_dissection_buffer_d[(i + 1) % 2, :, :] = (
+                -L_upper_nested_dissection_buffer_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[:, :].conj().T
+            )
+
+            # Update the top (first blocks) of the arrowhead
+            # A_{ndb+1, top} = A_{ndb+1, top} - L_{ndb+1, i} @ L_{top, i}.conj().T
+            A_arrow_bottom_top_block_d[:, :] = (
+                A_arrow_bottom_top_block_d[:, :]
+                - L_arrow_bottom_blocks_d[i % 2, :, :]
+                @ L_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
+            )
+
+            # --- Device 2 Host transfers ---
+            L_diagonal_blocks_d[i % 2, :, :].get(out=L_diagonal_blocks_local[i, :, :])
+            L_lower_diagonal_blocks_d[:, :].get(
+                out=L_lower_diagonal_blocks_local[i, :, :]
+            )
+            L_arrow_bottom_blocks_d[i % 2, :, :].get(
+                out=L_arrow_bottom_blocks_local[i, :, :]
+            )
+            L_upper_nested_dissection_buffer_d[i % 2, :, :].get(
+                out=L_upper_nested_dissection_buffer_local[i, :, :]
+            )
+
+        # --- Device 2 Host transfers ---
+        A_diagonal_blocks_d[(n_diag_blocks_local - 1) % 2, :, :].get(
+            out=A_diagonal_blocks_local[-1, :, :]
+        )
+        A_arrow_bottom_blocks_d[(n_diag_blocks_local - 1) % 2, :, :].get(
+            out=A_arrow_bottom_blocks_local[-1, :, :]
+        )
+        A_diagonal_top_block_d.get(out=A_diagonal_blocks_local[0, :, :])
+        A_arrow_bottom_top_block_d.get(out=A_arrow_bottom_blocks_local[0, :, :])
+
+    Update_arrow_tip_block_d.get(out=Update_arrow_tip_block_host)
+
+    cp.cuda.Device().synchronize()
+    cp.cuda.nvtx.RangePop()
+
+    # Accumulate the distributed update of the arrow tip block
+    MPI.COMM_WORLD.Allreduce(
+        MPI.IN_PLACE,
+        Update_arrow_tip_block_host,
+        op=MPI.SUM,
+    )
+
+    A_arrow_tip_block_global[:, :] += Update_arrow_tip_block_host[:, :]
+    L_arrow_tip_block_global = A_arrow_tip_block_global
+
+    return (
+        L_diagonal_blocks_local,
+        L_lower_diagonal_blocks_local,
+        L_arrow_bottom_blocks_local,
+        L_arrow_tip_block_global,
+        L_upper_nested_dissection_buffer_local,
+    )

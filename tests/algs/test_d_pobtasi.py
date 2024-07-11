@@ -20,7 +20,7 @@ from mpi4py import MPI
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
 
-from serinv.algs import d_pobtaf, d_pobtasi, pobtasinv
+from serinv.algs import d_pobtaf, d_pobtasi
 
 
 @pytest.mark.mpi(min_size=2)
