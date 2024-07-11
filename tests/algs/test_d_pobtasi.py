@@ -26,7 +26,7 @@ from serinv.algs import d_pobtaf, d_pobtasi
 @pytest.mark.mpi(min_size=2)
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
-@pytest.mark.parametrize("n_diag_blocks", [comm_size * 3, comm_size * 4])
+@pytest.mark.parametrize("n_diag_blocks", [comm_size * 3, comm_size * 4, comm_size * 5])
 @pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 def test_d_pobtasi(

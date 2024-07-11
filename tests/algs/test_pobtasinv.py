@@ -19,7 +19,7 @@ from serinv.algs import pobtasinv
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
-@pytest.mark.parametrize("n_diag_blocks", [1, 2, 3])
+@pytest.mark.parametrize("n_diag_blocks", [1, 2, 3, 4])
 @pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 @pytest.mark.parametrize("device_streaming", [False, True])

@@ -269,7 +269,7 @@ def _streaming_pobtasi(
         L_arrow_bottom_blocks_d[i % 2, :, :].set(arr=L_arrow_bottom_blocks[i, :, :])
 
         L_lower_diagonal_blocks_d_i[:, :] = L_lower_diagonal_blocks_d[:, :]
-        L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[i, :, :]
+        L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[i % 2, :, :]
 
         # --- Computations ---
         L_blk_inv_d = cu_la.solve_triangular(
