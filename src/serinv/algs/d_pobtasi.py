@@ -18,7 +18,7 @@ from mpi4py import MPI
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
 
-from serinv.algs import pobtasinv
+from serinv.algs import pobtaf, pobtasi
 
 
 def d_pobtasi(
@@ -221,15 +221,29 @@ def _d_pobtasi(
 
     # Perform the inversion of the reduced system.
     (
-        X_reduced_system_diagonal_blocks,
-        X_reduced_system_lower_diagonal_blocks,
-        X_reduced_system_arrow_bottom_blocks,
-        X_reduced_system_arrow_tip_block,
-    ) = pobtasinv(
+        L_reduced_system_diagonal_blocks,
+        L_reduced_system_lower_diagonal_blocks,
+        L_reduced_system_arrow_bottom_blocks,
+        L_reduced_system_arrow_tip_block,
+    ) = pobtaf(
         A_reduced_system_diagonal_blocks,
         A_reduced_system_lower_diagonal_blocks,
         A_reduced_system_arrow_bottom_blocks,
         A_reduced_system_arrow_tip_block,
+        device_streaming=True if CUPY_AVAIL and xp == cp else False,
+    )
+
+    (
+        X_reduced_system_diagonal_blocks,
+        X_reduced_system_lower_diagonal_blocks,
+        X_reduced_system_arrow_bottom_blocks,
+        X_reduced_system_arrow_tip_block,
+    ) = pobtasi(
+        L_reduced_system_diagonal_blocks,
+        L_reduced_system_lower_diagonal_blocks,
+        L_reduced_system_arrow_bottom_blocks,
+        L_reduced_system_arrow_tip_block,
+        device_streaming=True if CUPY_AVAIL and xp == cp else False,
     )
 
     X_arrow_tip_block_global = X_reduced_system_arrow_tip_block
