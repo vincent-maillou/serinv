@@ -308,8 +308,6 @@ def _streaming_d_pobtaf(
     ArrayLike,
     ArrayLike,
 ]:
-
-    diag_blocksize = A_diagonal_blocks_local.shape[1]
     n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
 
     # Host aliases & buffers
