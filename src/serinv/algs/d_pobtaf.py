@@ -110,7 +110,6 @@ def _d_pobtaf(
     else:
         xp = np
 
-    diag_blocksize = A_diagonal_blocks_local.shape[1]
     n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
 
     L_diagonal_blocks_local = A_diagonal_blocks_local
@@ -118,7 +117,6 @@ def _d_pobtaf(
     L_arrow_bottom_blocks_local = A_arrow_bottom_blocks_local
 
     L_upper_nested_dissection_buffer_local = None
-    L_inv_temp = xp.zeros_like(A_diagonal_blocks_local[0])
 
     Update_arrow_tip_block = xp.zeros_like(A_arrow_tip_block_global)
 
@@ -131,24 +129,26 @@ def _d_pobtaf(
             )
 
             # Compute lower factors
-            L_inv_temp[:, :] = (
+            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+            L_lower_diagonal_blocks_local[i, :, :] = (
                 la.solve_triangular(
                     L_diagonal_blocks_local[i, :, :],
-                    xp.eye(diag_blocksize),
+                    A_lower_diagonal_blocks_local[i, :, :].conj().T,
                     lower=True,
                 )
                 .conj()
                 .T
             )
 
-            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-            L_lower_diagonal_blocks_local[i, :, :] = (
-                A_lower_diagonal_blocks_local[i, :, :] @ L_inv_temp[:, :]
-            )
-
             # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
             L_arrow_bottom_blocks_local[i, :, :] = (
-                A_arrow_bottom_blocks_local[i, :, :] @ L_inv_temp[:, :]
+                la.solve_triangular(
+                    L_diagonal_blocks_local[i, :, :],
+                    A_arrow_bottom_blocks_local[i, :, :].conj().T,
+                    lower=True,
+                )
+                .conj()
+                .T
             )
 
             # Update next diagonal block
@@ -188,29 +188,37 @@ def _d_pobtaf(
             )
 
             # Compute lower factors
-            L_inv_temp[:, :] = (
+            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+            L_lower_diagonal_blocks_local[i, :, :] = (
                 la.solve_triangular(
                     L_diagonal_blocks_local[i, :, :],
-                    xp.eye(diag_blocksize),
+                    A_lower_diagonal_blocks_local[i, :, :].conj().T,
                     lower=True,
                 )
                 .conj()
                 .T
             )
 
-            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-            L_lower_diagonal_blocks_local[i, :, :] = (
-                A_lower_diagonal_blocks_local[i, :, :] @ L_inv_temp[:, :]
-            )
-
             # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
             L_upper_nested_dissection_buffer_local[i, :, :] = (
-                A_upper_nested_dissection_buffer_local[i, :, :] @ L_inv_temp[:, :]
+                la.solve_triangular(
+                    L_diagonal_blocks_local[i, :, :],
+                    A_upper_nested_dissection_buffer_local[i, :, :].conj().T,
+                    lower=True,
+                )
+                .conj()
+                .T
             )
 
             # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
             L_arrow_bottom_blocks_local[i, :, :] = (
-                A_arrow_bottom_blocks_local[i, :, :] @ L_inv_temp[:, :]
+                la.solve_triangular(
+                    L_diagonal_blocks_local[i, :, :],
+                    A_arrow_bottom_blocks_local[i, :, :].conj().T,
+                    lower=True,
+                )
+                .conj()
+                .T
             )
 
             # Update next diagonal block

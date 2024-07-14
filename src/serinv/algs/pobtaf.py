@@ -103,29 +103,32 @@ def _pobtaf(
     L_arrow_bottom_blocks = A_arrow_bottom_blocks
     L_arrow_tip_block = A_arrow_tip_block
 
-    L_inv_temp = xp.zeros_like(A_diagonal_blocks[0])
-
     # Forward block-Cholesky
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
         L_diagonal_blocks[i, :, :] = xp.linalg.cholesky(A_diagonal_blocks[i, :, :])
 
-        # Temporary storage of used twice lower triangular solving
-        L_inv_temp[:, :] = (
+        # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+        L_lower_diagonal_blocks[i, :, :] = (
             la.solve_triangular(
                 L_diagonal_blocks[i, :, :],
-                xp.eye(diag_blocksize),
+                A_lower_diagonal_blocks[i, :, :].conj().T,
                 lower=True,
             )
             .conj()
             .T
         )
 
-        # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L_lower_diagonal_blocks[i, :, :] = A_lower_diagonal_blocks[i, :, :] @ L_inv_temp
-
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
-        L_arrow_bottom_blocks[i, :, :] = A_arrow_bottom_blocks[i, :, :] @ L_inv_temp
+        L_arrow_bottom_blocks[i, :, :] = (
+            la.solve_triangular(
+                L_diagonal_blocks[i, :, :],
+                A_arrow_bottom_blocks[i, :, :].conj().T,
+                lower=True,
+            )
+            .conj()
+            .T
+        )
 
         # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
@@ -152,10 +155,9 @@ def _pobtaf(
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
     L_arrow_bottom_blocks[-1, :, :] = (
-        A_arrow_bottom_blocks[-1, :, :]
-        @ la.solve_triangular(
+        la.solve_triangular(
             L_diagonal_blocks[-1, :, :],
-            xp.eye(diag_blocksize),
+            A_arrow_bottom_blocks[-1, :, :].conj().T,
             lower=True,
         )
         .conj()
@@ -192,6 +194,7 @@ def _streaming_pobtaf(
 ]:
     cp.cuda.nvtx.RangePush("_streaming_pobtaf:mem_init")
     diag_blocksize = A_diagonal_blocks.shape[1]
+    n_diag_blocks = A_diagonal_blocks.shape[0]
 
     # A/L hosts arrays pointers
     L_diagonal_blocks = A_diagonal_blocks
@@ -216,7 +219,6 @@ def _streaming_pobtaf(
     L_arrow_tip_block_d = A_arrow_tip_block_d
 
     # Buffers for the intermediate results of the forward cholesky
-    L_inv_temp_d = cp.zeros_like(A_diagonal_blocks[0])
     cp.cuda.nvtx.RangePop()
 
     # Forward pass
@@ -227,7 +229,6 @@ def _streaming_pobtaf(
     A_arrow_bottom_blocks_d[0, :, :].set(arr=A_arrow_bottom_blocks[0, :, :])
     A_arrow_tip_block_d.set(arr=A_arrow_tip_block)
 
-    n_diag_blocks = A_diagonal_blocks.shape[0]
     for i in range(0, n_diag_blocks - 1):
         # --- Host 2 Device transfers ---
         A_diagonal_blocks_d[(i + 1) % 2, :, :].set(arr=A_diagonal_blocks[i + 1, :, :])
@@ -238,32 +239,41 @@ def _streaming_pobtaf(
 
         # --- Computations ---
         # L_{i, i} = chol(A_{i, i})
+        cp.cuda.nvtx.RangePush("_streaming_pobtaf:cholesky")
         L_diagonal_blocks_d[i % 2, :, :] = cp.linalg.cholesky(
             A_diagonal_blocks_d[i % 2, :, :]
         )
+        cp.cuda.nvtx.RangePop()
 
-        # Temporary storage of used twice lower triangular solving
-        L_inv_temp_d[:, :] = (
+        cp.cuda.nvtx.RangePush("_streaming_pobtaf:solve_triangular")
+        # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+        L_lower_diagonal_blocks_d[:, :] = (
             cu_la.solve_triangular(
                 L_diagonal_blocks_d[i % 2, :, :],
-                cp.eye(diag_blocksize),
+                A_lower_diagonal_blocks_d[:, :].conj().T,
                 lower=True,
             )
             .conj()
             .T
         )
 
-        # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L_lower_diagonal_blocks_d[:, :] = (
-            A_lower_diagonal_blocks_d[:, :] @ L_inv_temp_d[:, :]
-        )
-
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
+        # L_arrow_bottom_blocks_d[i % 2, :, :] = (
+        #     A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d[:, :]
+        # )
         L_arrow_bottom_blocks_d[i % 2, :, :] = (
-            A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d[:, :]
+            cu_la.solve_triangular(
+                L_diagonal_blocks_d[i % 2, :, :],
+                A_arrow_bottom_blocks_d[i % 2, :, :].conj().T,
+                lower=True,
+            )
+            .conj()
+            .T
         )
+        cp.cuda.nvtx.RangePop()
 
         # Update next diagonal block
+        cp.cuda.nvtx.RangePush("_streaming_pobtaf:A_update")
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
         A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
             A_diagonal_blocks_d[(i + 1) % 2, :, :]
@@ -283,6 +293,7 @@ def _streaming_pobtaf(
             - L_arrow_bottom_blocks_d[i % 2, :, :]
             @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
         )
+        cp.cuda.nvtx.RangePop()
 
         # --- Device 2 Host transfers ---
         L_diagonal_blocks_d[i % 2, :, :].get(out=L_diagonal_blocks[i, :, :])
@@ -296,10 +307,9 @@ def _streaming_pobtaf(
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
     L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
-        A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-        @ cu_la.solve_triangular(
+        cu_la.solve_triangular(
             L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
-            cp.eye(diag_blocksize),
+            A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T,
             lower=True,
         )
         .conj()

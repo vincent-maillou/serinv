@@ -93,13 +93,6 @@ def ddbtaf(
     U_arrow_right_blocks = xp.empty_like(A_arrow_right_blocks)
     U_arrow_tip_block = xp.empty_like(A_arrow_tip_block)
 
-    L_inv_temp = xp.empty(
-        (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
-    )
-    U_inv_temp = xp.empty(
-        (diag_blocksize, diag_blocksize), dtype=A_diagonal_blocks.dtype
-    )
-
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i}, U_{i, i} = lu_dcmp(A_{i, i})
         (
@@ -111,30 +104,44 @@ def ddbtaf(
         )
 
         # Compute lower factors
-        U_inv_temp = la.solve_triangular(
-            U_diagonal_blocks[i, :, :],
-            xp.eye(diag_blocksize),
-            lower=False,
+        # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
+        L_lower_diagonal_blocks[i, :, :] = (
+            la.solve_triangular(
+                U_diagonal_blocks[i, :, :],
+                A_lower_diagonal_blocks[i, :, :].conj().T,
+                lower=False,
+                trans="T" if L_diagonal_blocks.dtype.char == "f" else "C",
+            )
+            .conj()
+            .T
         )
 
-        # L_{i+1, i} = A_{i+1, i} @ U{i, i}^{-1}
-        L_lower_diagonal_blocks[i, :, :] = A_lower_diagonal_blocks[i, :, :] @ U_inv_temp
-
         # L_{ndb+1, i} = A_{ndb+1, i} @ U{i, i}^{-1}
-        L_arrow_bottom_blocks[i, :, :] = A_arrow_bottom_blocks[i, :, :] @ U_inv_temp
+        L_arrow_bottom_blocks[i, :, :] = (
+            la.solve_triangular(
+                U_diagonal_blocks[i, :, :],
+                A_arrow_bottom_blocks[i, :, :].conj().T,
+                lower=False,
+                trans="T" if L_diagonal_blocks.dtype.char == "f" else "C",
+            )
+            .conj()
+            .T
+        )
 
         # Compute upper factors
-        L_inv_temp = la.solve_triangular(
+        # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
+        U_upper_diagonal_blocks[i, :, :] = la.solve_triangular(
             L_diagonal_blocks[i, :, :],
-            xp.eye(diag_blocksize),
+            A_upper_diagonal_blocks[i, :, :],
             lower=True,
         )
 
-        # U_{i, i+1} = L{i, i}^{-1} @ A_{i, i+1}
-        U_upper_diagonal_blocks[i, :, :] = L_inv_temp @ A_upper_diagonal_blocks[i, :, :]
-
         # U_{i, ndb+1} = L{i, i}^{-1} @ A_{i, ndb+1}
-        U_arrow_right_blocks[i, :, :] = L_inv_temp @ A_arrow_right_blocks[i, :, :]
+        U_arrow_right_blocks[i, :, :] = la.solve_triangular(
+            L_diagonal_blocks[i, :, :],
+            A_arrow_right_blocks[i, :, :],
+            lower=True,
+        )
 
         # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ U_{i, i+1}
@@ -173,22 +180,22 @@ def ddbtaf(
     )
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ U_{ndb, ndb}^{-1}
-    L_arrow_bottom_blocks[-1, :, :] = A_arrow_bottom_blocks[
-        -1, :, :
-    ] @ la.solve_triangular(
-        U_diagonal_blocks[-1, :, :],
-        xp.eye(diag_blocksize),
-        lower=False,
+    L_arrow_bottom_blocks[-1, :, :] = (
+        la.solve_triangular(
+            U_diagonal_blocks[-1, :, :],
+            A_arrow_bottom_blocks[-1, :, :].conj().T,
+            lower=False,
+            trans="T" if L_diagonal_blocks.dtype.char == "f" else "C",
+        )
+        .conj()
+        .T
     )
 
     # U_{ndb, ndb+1} = L_{ndb, ndb}^{-1} @ A_{ndb, ndb+1}
-    U_arrow_right_blocks[-1, :, :] = (
-        la.solve_triangular(
-            L_diagonal_blocks[-1, :, :],
-            xp.eye(diag_blocksize),
-            lower=True,
-        )
-        @ A_arrow_right_blocks[-1, :, :]
+    U_arrow_right_blocks[-1, :, :] = la.solve_triangular(
+        L_diagonal_blocks[-1, :, :],
+        A_arrow_right_blocks[-1, :, :],
+        lower=True,
     )
 
     # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ U_{ndb, ndb+1}
