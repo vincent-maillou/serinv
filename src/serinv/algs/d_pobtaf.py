@@ -328,7 +328,6 @@ def _streaming_d_pobtaf(
         dtype=A_arrow_bottom_blocks_local.dtype,
     )
     Update_arrow_tip_block_d = cp.zeros_like(A_arrow_tip_block_global)
-    L_inv_temp_d = cp.zeros_like(A_diagonal_blocks_local[0])
 
     L_diagonal_blocks_d = A_diagonal_blocks_d
     L_lower_diagonal_blocks_d = A_lower_diagonal_blocks_d
@@ -366,24 +365,26 @@ def _streaming_d_pobtaf(
             )
 
             # Compute lower factors
-            L_inv_temp_d[:, :] = (
+            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+            L_lower_diagonal_blocks_d[:, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    cp.eye(diag_blocksize),
+                    A_lower_diagonal_blocks_d[:, :].conj().T,
                     lower=True,
                 )
                 .conj()
                 .T
             )
 
-            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-            L_lower_diagonal_blocks_d[:, :] = (
-                A_lower_diagonal_blocks_d[:, :] @ L_inv_temp_d[:, :]
-            )
-
             # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
             L_arrow_bottom_blocks_d[i % 2, :, :] = (
-                A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d[:, :]
+                cu_la.solve_triangular(
+                    L_diagonal_blocks_d[i % 2, :, :],
+                    A_arrow_bottom_blocks_d[i % 2, :, :].conj().T,
+                    lower=True,
+                )
+                .conj()
+                .T
             )
 
             # Update next diagonal block
@@ -474,29 +475,37 @@ def _streaming_d_pobtaf(
             )
 
             # Compute lower factors
-            L_inv_temp_d[:, :] = (
+            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+            L_lower_diagonal_blocks_d[:, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    cp.eye(diag_blocksize),
+                    A_lower_diagonal_blocks_d[:, :].conj().T,
                     lower=True,
                 )
                 .conj()
                 .T
             )
 
-            # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-            L_lower_diagonal_blocks_d[:, :] = (
-                A_lower_diagonal_blocks_d[:, :] @ L_inv_temp_d[:, :]
-            )
-
             # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
             L_upper_nested_dissection_buffer_d[i % 2, :, :] = (
-                A_upper_nested_dissection_buffer_d[i % 2, :, :] @ L_inv_temp_d[:, :]
+                cu_la.solve_triangular(
+                    L_diagonal_blocks_d[i % 2, :, :],
+                    A_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T,
+                    lower=True,
+                )
+                .conj()
+                .T
             )
 
             # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
             L_arrow_bottom_blocks_d[i % 2, :, :] = (
-                A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d[:, :]
+                cu_la.solve_triangular(
+                    L_diagonal_blocks_d[i % 2, :, :],
+                    A_arrow_bottom_blocks_d[i % 2, :, :].conj().T,
+                    lower=True,
+                )
+                .conj()
+                .T
             )
 
             # Update next diagonal block
@@ -562,6 +571,9 @@ def _streaming_d_pobtaf(
         )
         A_arrow_bottom_blocks_d[(n_diag_blocks_local - 1) % 2, :, :].get(
             out=A_arrow_bottom_blocks_local[-1, :, :]
+        )
+        A_upper_nested_dissection_buffer_d[(n_diag_blocks_local - 1) % 2, :, :].get(
+            out=A_upper_nested_dissection_buffer_local[-1, :, :]
         )
         A_diagonal_top_block_d.get(out=A_diagonal_blocks_local[0, :, :])
         A_arrow_bottom_top_block_d.get(out=A_arrow_bottom_blocks_local[0, :, :])
