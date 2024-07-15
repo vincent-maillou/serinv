@@ -95,10 +95,6 @@ def check_ddbta(
     arrowhead_blocksize = A_arrow_bottom_blocks.shape[1]
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
-    print("n_diag_blocks", n_diag_blocks, flush=True)
-    print("diagonal_blocksize", diagonal_blocksize, flush=True)
-    print("arrowhead_blocksize", arrowhead_blocksize, flush=True)
-
     matrix_size = n_diag_blocks * diagonal_blocksize + arrowhead_blocksize
 
     ddbta = xp.zeros(matrix_size, dtype=bool)

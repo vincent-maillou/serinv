@@ -83,42 +83,31 @@ if __name__ == "__main__":
 
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
 
+    device_streaming = True
+    device_array = False
+
     # if True: compare to reference solution
     DEBUG = False
 
     # read in file
     file = (
-        "Qxy_ns"
-        + str(diagonal_blocksize)
-        + "_nt"
-        + str(n_diag_blocks)
-        + "_nss0_nb"
-        + str(arrowhead_blocksize)
-        + "_n"
-        + str(n)
-        + ".dat"
+        f"pobta_nb{n_diag_blocks}_ds{diagonal_blocksize}_as{arrowhead_blocksize}.npz"
     )
     
     filename = file_path + file
 
-    ## CAREFUL output matrix is only lower triangular part
-    A = read_sym_CSC(filename)
+    data = np.load(filename)
 
-    device_streaming = True
-    device_array = False
+    A_diagonal_blocks = data["A_diagonal_blocks"]
+    A_lower_diagonal_blocks = data["A_lower_diagonal_blocks"]
+    A_arrow_bottom_blocks = data["A_arrow_bottom_blocks"]
+    A_arrow_tip_block = data["A_arrow_tip_block"]
 
     # timings
     t_pobtaf = np.zeros(n_iterations)
     t_pobtasi = np.zeros(n_iterations)
 
     for i in range(warmups + n_iterations):
-
-        (
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_tip_block,
-        ) = csc_to_dense_bta(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
         if CUPY_AVAIL and device_streaming and not device_array:
             if i == 0:
@@ -134,11 +123,6 @@ if __name__ == "__main__":
             A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block)
             A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block[:, :]
 
-            A_diagonal_blocks = A_diagonal_blocks_pinned
-            A_lower_diagonal_blocks = A_lower_diagonal_blocks_pinned
-            A_arrow_bottom_blocks = A_arrow_bottom_blocks_pinned
-            A_arrow_tip_block = A_arrow_tip_block_pinned
-
         start_time = time.perf_counter()
 
         (
@@ -147,10 +131,10 @@ if __name__ == "__main__":
             L_arrow_bottom_blocks,
             L_arrow_tip_block,
         ) = pobtaf(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_tip_block,
+            A_diagonal_blocks_pinned,
+            A_lower_diagonal_blocks_pinned,
+            A_arrow_bottom_blocks_pinned,
+            A_arrow_tip_block_pinned,
             device_streaming,
         )
         end_time = time.perf_counter()
@@ -158,27 +142,6 @@ if __name__ == "__main__":
 
         if i >= warmups:
             t_pobtaf[i - warmups] = elapsed_time_pobtaf
-
-        if DEBUG:
-            L = bta_arrays_to_dense(
-                L_diagonal_blocks,
-                L_lower_diagonal_blocks,
-                np.zeros(
-                    (n_diag_blocks - 1, diagonal_blocksize, diagonal_blocksize),
-                    dtype=A.dtype,
-                ),
-                L_arrow_bottom_blocks,
-                np.zeros(
-                    (n_diag_blocks, diagonal_blocksize, arrowhead_blocksize),
-                    dtype=A.dtype,
-                ),
-                L_arrow_tip_block,
-            )
-
-            A_dense = A.todense()
-            A_symmetric = A_dense + np.tril(A_dense, -1).T
-            L_ref = np.linalg.cholesky(A_symmetric)
-            print("norm(L - L_ref):", np.linalg.norm(L - L_ref))
 
         start_time = time.perf_counter()
         (
@@ -207,37 +170,6 @@ if __name__ == "__main__":
         else:
             print(
                 f"Bench iteration: {i+1-warmups}/{n_iterations} Time Chol: {elapsed_time_pobtaf:.5f} sec. Time selInv: {elapsed_time_selinv:.5f} sec"
-            )
-
-        if DEBUG:
-            X_ref = np.linalg.inv(A_symmetric)
-
-            (
-                X_diagonal_blocks_ref,
-                X_lower_diagonal_blocks_ref,
-                _,
-                X_arrow_bottom_blocks_ref,
-                _,
-                X_arrow_tip_block_ref,
-            ) = bta_dense_to_arrays(
-                X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
-            )
-
-            print(
-                "norm(X_diagonal_blocks - X_diagonal_blocks_ref):             ",
-                np.linalg.norm(X_diagonal_blocks - X_diagonal_blocks_ref),
-            )
-            print(
-                "norm(X_lower_diagonal_blocks - X_lower_diagonal_blocks_ref): ",
-                np.linalg.norm(X_lower_diagonal_blocks - X_lower_diagonal_blocks_ref),
-            )
-            print(
-                "norm(X_arrow_bottom_blocks - X_arrow_bottom_blocks_ref):     ",
-                np.linalg.norm(X_arrow_bottom_blocks - X_arrow_bottom_blocks_ref),
-            )
-            print(
-                "norm(X_arrow_tip_block - X_arrow_tip_block_ref):             ",
-                np.linalg.norm(X_arrow_tip_block - X_arrow_tip_block_ref),
             )
 
     # Save the raw data
