@@ -14,7 +14,6 @@ except ImportError:
 import numpy as np
 
 np.random.seed(SEED)
-import pytest
 
 
 def bta_dense_to_arrays(
@@ -91,15 +90,14 @@ def bta_dense_to_arrays(
     )
 
 
-
 def bta_arrays_to_dense(
-        A_diagonal_blocks: np.ndarray | cp.ndarray,
-        A_lower_diagonal_blocks: np.ndarray | cp.ndarray,
-        A_upper_diagonal_blocks: np.ndarray | cp.ndarray,
-        A_arrow_bottom_blocks: np.ndarray | cp.ndarray,
-        A_arrow_right_blocks: np.ndarray | cp.ndarray,
-        A_arrow_tip_block: np.ndarray | cp.ndarray,
-    ):
+    A_diagonal_blocks: np.ndarray | cp.ndarray,
+    A_lower_diagonal_blocks: np.ndarray | cp.ndarray,
+    A_upper_diagonal_blocks: np.ndarray | cp.ndarray,
+    A_arrow_bottom_blocks: np.ndarray | cp.ndarray,
+    A_arrow_right_blocks: np.ndarray | cp.ndarray,
+    A_arrow_tip_block: np.ndarray | cp.ndarray,
+):
     """Converts arrays of blocks to a block tridiagonal arrowhead matrix in a dense representation."""
     if CUPY_AVAIL:
         xp = cp.get_array_module(A_diagonal_blocks)
@@ -149,15 +147,12 @@ def bta_arrays_to_dense(
     return bta
 
 
-def bta_symmetrize():
-    def _bta_symmetrize(
-        bta: np.ndarray | cp.ndarray,
-    ):
-        """Symmetrizes a block tridiagonal arrowhead matrix."""
+def bta_symmetrize(
+    bta: np.ndarray | cp.ndarray,
+):
+    """Symmetrizes a block tridiagonal arrowhead matrix."""
 
-        return (bta + bta.conj().T) / 2
-
-    return _bta_symmetrize
+    return (bta + bta.conj().T) / 2
 
 
 def dd_bta(
