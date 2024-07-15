@@ -95,7 +95,6 @@ def _pobtaf(
     else:
         xp = np
 
-    diag_blocksize = A_diagonal_blocks.shape[1]
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
     L_diagonal_blocks = A_diagonal_blocks
@@ -193,7 +192,6 @@ def _streaming_pobtaf(
     ArrayLike,
 ]:
     cp.cuda.nvtx.RangePush("_streaming_pobtaf:mem_init")
-    diag_blocksize = A_diagonal_blocks.shape[1]
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
     # A/L hosts arrays pointers
@@ -203,14 +201,14 @@ def _streaming_pobtaf(
     L_arrow_tip_block = A_arrow_tip_block
 
     # Device buffers
-    A_diagonal_blocks_d = cp.zeros(
+    A_diagonal_blocks_d = cp.empty(
         (2, *A_diagonal_blocks.shape[1:]), dtype=A_diagonal_blocks.dtype
     )
-    A_lower_diagonal_blocks_d = cp.zeros_like(A_diagonal_blocks[0])
-    A_arrow_bottom_blocks_d = cp.zeros(
+    A_lower_diagonal_blocks_d = cp.empty_like(A_diagonal_blocks[0])
+    A_arrow_bottom_blocks_d = cp.empty(
         (2, *A_arrow_bottom_blocks.shape[1:]), dtype=A_arrow_bottom_blocks.dtype
     )
-    A_arrow_tip_block_d = cp.zeros_like(A_arrow_tip_block)
+    A_arrow_tip_block_d = cp.empty_like(A_arrow_tip_block)
 
     # X Device buffers arrays pointers
     L_diagonal_blocks_d = A_diagonal_blocks_d

@@ -170,13 +170,13 @@ def _d_pobtasi(
         )
 
     if CUPY_AVAIL and xp == cp:
-        A_reduced_system_diagonal_blocks_host = cpx.zeros_like_pinned(
+        A_reduced_system_diagonal_blocks_host = cpx.empty_like_pinned(
             A_reduced_system_diagonal_blocks
         )
-        A_reduced_system_lower_diagonal_blocks_host = cpx.zeros_like_pinned(
+        A_reduced_system_lower_diagonal_blocks_host = cpx.empty_like_pinned(
             A_reduced_system_lower_diagonal_blocks
         )
-        A_reduced_system_arrow_bottom_blocks_host = cpx.zeros_like_pinned(
+        A_reduced_system_arrow_bottom_blocks_host = cpx.empty_like_pinned(
             A_reduced_system_arrow_bottom_blocks
         )
 
@@ -282,9 +282,9 @@ def _d_pobtasi(
         ]
 
     # Backward selected-inversion
-    L_inv_temp = xp.zeros_like(L_diagonal_blocks_local[0])
-    L_lower_diagonal_blocks_temp = xp.zeros_like(L_lower_diagonal_blocks_local[0])
-    L_arrow_bottom_blocks_temp = xp.zeros_like(L_arrow_bottom_blocks_local[0])
+    L_inv_temp = xp.empty_like(L_diagonal_blocks_local[0])
+    L_lower_diagonal_blocks_temp = xp.empty_like(L_lower_diagonal_blocks_local[0])
+    L_arrow_bottom_blocks_temp = xp.empty_like(L_arrow_bottom_blocks_local[0])
 
     if comm_rank == 0:
         for i in range(n_diag_blocks_local - 2, -1, -1):
@@ -324,7 +324,7 @@ def _d_pobtasi(
                 @ L_arrow_bottom_blocks_temp[:, :]
             ) @ L_inv_temp[:, :]
     else:
-        L_upper_nested_dissection_buffer_temp = xp.zeros_like(
+        L_upper_nested_dissection_buffer_temp = xp.empty_like(
             L_upper_nested_dissection_buffer_local[0, :, :]
         )
 
@@ -544,15 +544,15 @@ def _streaming_d_pobtasi(
 
     # Backward selected-inversion
     # Device buffers
-    L_diagonal_blocks_d = cp.zeros(
+    L_diagonal_blocks_d = cp.empty(
         (2, *L_diagonal_blocks_local.shape[1:]), dtype=L_diagonal_blocks_local.dtype
     )
-    L_lower_diagonal_blocks_d = cp.zeros_like(L_diagonal_blocks_local[0])
-    L_arrow_bottom_blocks_d = cp.zeros(
+    L_lower_diagonal_blocks_d = cp.empty_like(L_diagonal_blocks_local[0])
+    L_arrow_bottom_blocks_d = cp.empty(
         (2, *L_arrow_bottom_blocks_local.shape[1:]),
         dtype=L_arrow_bottom_blocks_local.dtype,
     )
-    X_arrow_tip_block_d = cp.zeros_like(X_arrow_tip_block_global)
+    X_arrow_tip_block_d = cp.empty_like(X_arrow_tip_block_global)
 
     # X Device buffers arrays pointers
     X_diagonal_blocks_d = L_diagonal_blocks_d
@@ -560,9 +560,9 @@ def _streaming_d_pobtasi(
     X_arrow_bottom_blocks_d = L_arrow_bottom_blocks_d
 
     # Buffers for the intermediate results of the backward block-selected inversion
-    L_inv_temp_d = cp.zeros_like(L_diagonal_blocks_local[0])
-    L_lower_diagonal_blocks_d_i = cp.zeros_like(L_lower_diagonal_blocks_local[0])
-    L_arrow_bottom_blocks_d_i = cp.zeros_like(L_arrow_bottom_blocks_local[0])
+    L_inv_temp_d = cp.empty_like(L_diagonal_blocks_local[0])
+    L_lower_diagonal_blocks_d_i = cp.empty_like(L_lower_diagonal_blocks_local[0])
+    L_arrow_bottom_blocks_d_i = cp.empty_like(L_arrow_bottom_blocks_local[0])
 
     if comm_rank == 0:
         # --- Host 2 Device transfers ---
@@ -631,16 +631,16 @@ def _streaming_d_pobtasi(
             )
     else:
         # Device aliases & buffers specific to the middle process
-        X_diagonal_top_block_d = cp.zeros_like(X_diagonal_blocks_local[0])
-        X_arrow_bottom_top_block_d = cp.zeros_like(X_arrow_bottom_blocks_local[0])
-        L_upper_nested_dissection_buffer_d = cp.zeros(
+        X_diagonal_top_block_d = cp.empty_like(X_diagonal_blocks_local[0])
+        X_arrow_bottom_top_block_d = cp.empty_like(X_arrow_bottom_blocks_local[0])
+        L_upper_nested_dissection_buffer_d = cp.empty(
             (2, *L_upper_nested_dissection_buffer_local.shape[1:]),
             dtype=L_upper_nested_dissection_buffer_local.dtype,
         )
 
         X_upper_nested_dissection_buffer_d = L_upper_nested_dissection_buffer_d
 
-        L_upper_nested_dissection_buffer_d_i = cp.zeros_like(
+        L_upper_nested_dissection_buffer_d_i = cp.empty_like(
             L_upper_nested_dissection_buffer_local[0, :, :]
         )
 
@@ -743,6 +743,9 @@ def _streaming_d_pobtasi(
         X_lower_diagonal_blocks_local[0, :, :] = (
             X_upper_nested_dissection_buffer_local[1, :, :].conj().T
         )
+
+    cp.cuda.Device().synchronize()
+    cp.cuda.nvtx.RangePop()
 
     return (
         X_diagonal_blocks_local,

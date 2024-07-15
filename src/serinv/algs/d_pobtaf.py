@@ -173,7 +173,7 @@ def _d_pobtaf(
                 @ L_arrow_bottom_blocks_local[i, :, :].conj().T
             )
     else:
-        A_upper_nested_dissection_buffer_local = xp.zeros_like(A_diagonal_blocks_local)
+        A_upper_nested_dissection_buffer_local = xp.empty_like(A_diagonal_blocks_local)
         L_upper_nested_dissection_buffer_local = A_upper_nested_dissection_buffer_local
 
         A_upper_nested_dissection_buffer_local[1, :, :] = (
@@ -269,7 +269,7 @@ def _d_pobtaf(
     # Check if operations are happening on the device, in this case we need to get
     # back the tip blocks on the host to perform the accumulation through MPI.
     if CUPY_AVAIL and xp == cp:
-        Update_arrow_tip_block_host = cpx.zeros_like_pinned(Update_arrow_tip_block)
+        Update_arrow_tip_block_host = cpx.empty_like_pinned(Update_arrow_tip_block)
         Update_arrow_tip_block.get(out=Update_arrow_tip_block_host)
     else:
         Update_arrow_tip_block_host = Update_arrow_tip_block
@@ -308,6 +308,7 @@ def _streaming_d_pobtaf(
     ArrayLike,
     ArrayLike,
 ]:
+    cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:mem_init")
     n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
 
     # Host aliases & buffers
@@ -317,11 +318,11 @@ def _streaming_d_pobtaf(
     Update_arrow_tip_block_host = cpx.zeros_like_pinned(A_arrow_tip_block_global)
 
     # Device aliases & buffers
-    A_diagonal_blocks_d = cp.zeros(
+    A_diagonal_blocks_d = cp.empty(
         (2, *A_diagonal_blocks_local.shape[1:]), dtype=A_diagonal_blocks_local.dtype
     )
-    A_lower_diagonal_blocks_d = cp.zeros_like(A_lower_diagonal_blocks_local[0])
-    A_arrow_bottom_blocks_d = cp.zeros(
+    A_lower_diagonal_blocks_d = cp.empty_like(A_lower_diagonal_blocks_local[0])
+    A_arrow_bottom_blocks_d = cp.empty(
         (2, *A_arrow_bottom_blocks_local.shape[1:]),
         dtype=A_arrow_bottom_blocks_local.dtype,
     )
@@ -338,7 +339,7 @@ def _streaming_d_pobtaf(
         cp.cuda.nvtx.RangePop()
 
         # Forward block-Cholesky, performed by a "top" process
-        cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:fwd_cholesky")
+        cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:fwd_cholesky_topprocess")
 
         # --- Host 2 Device transfers ---
         A_diagonal_blocks_d[0, :, :].set(arr=A_diagonal_blocks_local[0, :, :])
@@ -425,15 +426,15 @@ def _streaming_d_pobtaf(
         )
     else:
         # Host aliases & buffers specific to the middle process
-        A_upper_nested_dissection_buffer_local = cpx.zeros_like_pinned(
+        A_upper_nested_dissection_buffer_local = cpx.empty_like_pinned(
             A_diagonal_blocks_local
         )
         L_upper_nested_dissection_buffer_local = A_upper_nested_dissection_buffer_local
 
         # Device aliases & buffers specific to the middle process
-        A_diagonal_top_block_d = cp.zeros_like(A_diagonal_blocks_local[0])
-        A_arrow_bottom_top_block_d = cp.zeros_like(A_arrow_bottom_blocks_local[0])
-        A_upper_nested_dissection_buffer_d = cp.zeros(
+        A_diagonal_top_block_d = cp.empty_like(A_diagonal_blocks_local[0])
+        A_arrow_bottom_top_block_d = cp.empty_like(A_arrow_bottom_blocks_local[0])
+        A_upper_nested_dissection_buffer_d = cp.empty(
             (2, *A_upper_nested_dissection_buffer_local.shape[1:]),
             dtype=A_upper_nested_dissection_buffer_local.dtype,
         )
@@ -442,7 +443,7 @@ def _streaming_d_pobtaf(
         cp.cuda.nvtx.RangePop()
 
         # Forward block-Cholesky, performed by a "middle" process
-        cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:fwd_cholesky")
+        cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:fwd_cholesky_middleprocess")
 
         # --- Host 2 Device transfers ---
         A_diagonal_blocks_d[1, :, :].set(arr=A_diagonal_blocks_local[1, :, :])

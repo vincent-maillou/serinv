@@ -92,10 +92,10 @@ def _pobtasi(
     X_arrow_tip_block = L_arrow_tip_block
     L_last_blk_inv = L_arrow_tip_block
 
-    L_lower_diagonal_blocks_i = xp.zeros_like(L_diagonal_blocks[0, :, :])
-    L_arrow_bottom_blocks_i = xp.zeros_like(L_arrow_bottom_blocks[0, :, :])
+    L_lower_diagonal_blocks_i = xp.empty_like(L_diagonal_blocks[0, :, :])
+    L_arrow_bottom_blocks_i = xp.empty_like(L_arrow_bottom_blocks[0, :, :])
 
-    L_blk_inv = xp.zeros_like(L_diagonal_blocks[0, :, :])
+    L_blk_inv = xp.empty_like(L_diagonal_blocks[0, :, :])
 
     L_last_blk_inv = la.solve_triangular(
         L_arrow_tip_block[:, :], xp.eye(arrow_blocksize), lower=True
@@ -189,14 +189,14 @@ def _streaming_pobtasi(
     X_arrow_tip_block = L_arrow_tip_block
 
     # Device buffers
-    L_diagonal_blocks_d = cp.zeros(
+    L_diagonal_blocks_d = cp.empty(
         (2, *L_diagonal_blocks.shape[1:]), dtype=L_diagonal_blocks.dtype
     )
-    L_lower_diagonal_blocks_d = cp.zeros_like(L_diagonal_blocks[0])
-    L_arrow_bottom_blocks_d = cp.zeros(
+    L_lower_diagonal_blocks_d = cp.empty_like(L_diagonal_blocks[0])
+    L_arrow_bottom_blocks_d = cp.empty(
         (2, *L_arrow_bottom_blocks.shape[1:]), dtype=L_arrow_bottom_blocks.dtype
     )
-    L_arrow_tip_block_d = cp.zeros_like(L_arrow_tip_block)
+    L_arrow_tip_block_d = cp.empty_like(L_arrow_tip_block)
 
     # X Device buffers arrays pointers
     X_diagonal_blocks_d = L_diagonal_blocks_d
@@ -205,11 +205,11 @@ def _streaming_pobtasi(
     X_arrow_tip_block_d = L_arrow_tip_block_d
 
     # Buffers for the intermediate results of the backward block-selected inversion
-    L_blk_inv_d = cp.zeros_like(L_diagonal_blocks[0, :, :])
-    L_last_blk_inv_d = cp.zeros_like(L_arrow_tip_block)
+    L_blk_inv_d = cp.empty_like(L_diagonal_blocks[0, :, :])
+    L_last_blk_inv_d = cp.empty_like(L_arrow_tip_block)
 
-    L_lower_diagonal_blocks_d_i = cp.zeros_like(L_diagonal_blocks[0, :, :])
-    L_arrow_bottom_blocks_d_i = cp.zeros_like(L_arrow_bottom_blocks[0, :, :])
+    L_lower_diagonal_blocks_d_i = cp.empty_like(L_diagonal_blocks[0, :, :])
+    L_arrow_bottom_blocks_d_i = cp.empty_like(L_arrow_bottom_blocks[0, :, :])
     cp.cuda.nvtx.RangePop()
 
     # Backward block-selected inversion
