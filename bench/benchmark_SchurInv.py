@@ -89,57 +89,29 @@ if __name__ == "__main__":
             A_arrow_tip_block = A_arrow_tip_block_pinned
             
         start_time = time.time()
-                
+        
         (
-            L_diagonal_blocks,
-            L_lower_diagonal_blocks,
-            L_arrow_bottom_blocks,
-            L_arrow_tip_block,
-        ) = pobtaf(
+            X_diagonal_blocks,
+            X_lower_diagonal_blocks,
+            X_arrow_bottom_blocks,
+            X_arrow_tip_block,
+        ) = pobtasinv (
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
             A_arrow_bottom_blocks,
             A_arrow_tip_block,
             device_streaming,
         )
-        end_time = time.time()
-        elapsed_time_chol = end_time - start_time        
-        t_list_chol[i] = elapsed_time_chol
-        
-        if DEBUG:
-            L = bta_arrays_to_dense(
-                                L_diagonal_blocks, 
-                                L_lower_diagonal_blocks, 
-                                np.zeros((n_diag_blocks-1, diagonal_blocksize, diagonal_blocksize), dtype=A.dtype), 
-                                L_arrow_bottom_blocks, 
-                                np.zeros((n_diag_blocks, diagonal_blocksize, arrowhead_blocksize), dtype=A.dtype),
-                                L_arrow_tip_block)
-        
-            A_dense = A.todense()
-            A_symmetric = A_dense +  np.tril(A_dense, -1).T
-            L_ref = np.linalg.cholesky(A_symmetric)
-            print("norm(L - L_ref):", np.linalg.norm(L - L_ref))
-        
-        start_time = time.time()
-        (
-            X_diagonal_blocks,
-            X_lower_diagonal_blocks,
-            X_arrow_bottom_blocks,
-            X_arrow_tip_block,
-        ) = pobtasi(
-            L_diagonal_blocks,
-            L_lower_diagonal_blocks,
-            L_arrow_bottom_blocks,
-            L_arrow_tip_block,
-            device_streaming,
-        )
         
         end_time = time.time()
         elapsed_time_selinv = end_time - start_time
         t_list_selInv[i] = elapsed_time_selinv
-        print(f"Iter: {i} Time Chol: {elapsed_time_chol:.5f} sec. Time selInv: {elapsed_time_selinv:.5f} sec")
+        print(f"Iter: {i} Time direct selInv: {elapsed_time_selinv:.5f} sec")
+        #print(f"Iter: {i} Time Chol: {elapsed_time_chol:.5f} sec. Time selInv: {elapsed_time_selinv:.5f} sec")
 
-        if DEBUG:    
+        if DEBUG:   
+            A_dense = A.todense()
+            A_symmetric = A_dense +  np.tril(A_dense, -1).T 
             X_ref = np.linalg.inv(A_symmetric)
             
             (

@@ -6,7 +6,7 @@ try:
     import cupy as cp
 
     CUPY_AVAIL = True
-    cp.random.seed(SEED)
+    cp.random.seed(cp.uint64(SEED))
 
 except ImportError:
     CUPY_AVAIL = False
