@@ -169,7 +169,7 @@ if __name__ == "__main__":
             )
         else:
             print(
-                f"Bench iteration: {i+1-warmups}/{n_iterations} Time Chol: {elapsed_time_pobtaf:.5f} sec. Time selInv: {elapsed_time_selinv:.5f} sec"
+                f"Bench iteration: {i+1-warmups}/{n_iterations} Time pobtaf: {elapsed_time_pobtaf:.5f} sec. Time pobtasi: {elapsed_time_selinv:.5f} sec"
             )
 
     # Save the raw data
