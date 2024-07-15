@@ -3,6 +3,7 @@
 try:
     import cupy as cp
     import cupyx.scipy.linalg as cu_la
+    from serinv.cupyfix.cholesky_lowerfill import cholesky_lowerfill
 
     CUPY_AVAIL = True
 
@@ -92,8 +93,12 @@ def _pobtaf(
         xp = cp.get_array_module(A_diagonal_blocks)
         if xp == cp:
             la = cu_la
+            cholesky = cholesky_lowerfill
+        else:
+            cholesky = np.linalg.cholesky
     else:
         xp = np
+        cholesky = np.linalg.cholesky
 
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
@@ -105,7 +110,7 @@ def _pobtaf(
     # Forward block-Cholesky
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L_diagonal_blocks[i, :, :] = xp.linalg.cholesky(A_diagonal_blocks[i, :, :])
+        L_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :])
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L_lower_diagonal_blocks[i, :, :] = (
@@ -150,7 +155,7 @@ def _pobtaf(
         )
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
-    L_diagonal_blocks[-1, :, :] = xp.linalg.cholesky(A_diagonal_blocks[-1, :, :])
+    L_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :])
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
     L_arrow_bottom_blocks[-1, :, :] = (
@@ -170,7 +175,7 @@ def _pobtaf(
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-    L_arrow_tip_block[:, :] = xp.linalg.cholesky(A_arrow_tip_block[:, :])
+    L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
 
     return (
         L_diagonal_blocks,
@@ -238,7 +243,7 @@ def _streaming_pobtaf(
         # --- Computations ---
         # L_{i, i} = chol(A_{i, i})
         cp.cuda.nvtx.RangePush("_streaming_pobtaf:cholesky")
-        L_diagonal_blocks_d[i % 2, :, :] = cp.linalg.cholesky(
+        L_diagonal_blocks_d[i % 2, :, :] = cholesky_lowerfill(
             A_diagonal_blocks_d[i % 2, :, :]
         )
         cp.cuda.nvtx.RangePop()
@@ -299,7 +304,7 @@ def _streaming_pobtaf(
         L_arrow_bottom_blocks_d[i % 2, :, :].get(out=L_arrow_bottom_blocks[i, :, :])
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
-    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cp.linalg.cholesky(
+    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cholesky_lowerfill(
         A_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
     )
 
@@ -322,7 +327,7 @@ def _streaming_pobtaf(
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-    L_arrow_tip_block_d[:, :] = cp.linalg.cholesky(A_arrow_tip_block_d[:, :])
+    L_arrow_tip_block_d[:, :] = cholesky_lowerfill(A_arrow_tip_block_d[:, :])
 
     # --- Device 2 Host transfers ---
     L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(

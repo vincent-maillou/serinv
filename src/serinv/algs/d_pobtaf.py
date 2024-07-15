@@ -4,6 +4,7 @@ try:
     import cupy as cp
     import cupyx as cpx
     import cupyx.scipy.linalg as cu_la
+    from serinv.cupyfix.cholesky_lowerfill import cholesky_lowerfill
 
     CUPY_AVAIL = True
 
@@ -107,8 +108,12 @@ def _d_pobtaf(
         xp = cp.get_array_module(A_diagonal_blocks_local)
         if xp == cp:
             la = cu_la
+            cholesky = cholesky_lowerfill
+        else:
+            cholesky = np.linalg.cholesky
     else:
         xp = np
+        cholesky = np.linalg.cholesky
 
     n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
 
@@ -124,7 +129,7 @@ def _d_pobtaf(
         # Forward block-Cholesky, performed by a "top" process
         for i in range(0, n_diag_blocks_local - 1):
             # L_{i, i} = chol(A_{i, i})
-            L_diagonal_blocks_local[i, :, :] = xp.linalg.cholesky(
+            L_diagonal_blocks_local[i, :, :] = cholesky(
                 A_diagonal_blocks_local[i, :, :],
             )
 
@@ -183,7 +188,7 @@ def _d_pobtaf(
         # Forward block-Cholesky, performed by a "middle" process
         for i in range(1, n_diag_blocks_local - 1):
             # L_{i, i} = chol(A_{i, i})
-            L_diagonal_blocks_local[i, :, :] = xp.linalg.cholesky(
+            L_diagonal_blocks_local[i, :, :] = cholesky(
                 A_diagonal_blocks_local[i, :, :]
             )
 
@@ -359,7 +364,7 @@ def _streaming_d_pobtaf(
 
             # --- Computations ---
             # L_{i, i} = chol(A_{i, i})
-            L_diagonal_blocks_d[i % 2, :, :] = cp.linalg.cholesky(
+            L_diagonal_blocks_d[i % 2, :, :] = cholesky_lowerfill(
                 A_diagonal_blocks_d[i % 2, :, :],
             )
 
@@ -469,7 +474,7 @@ def _streaming_d_pobtaf(
 
             # --- Computations ---
             # L_{i, i} = chol(A_{i, i})
-            L_diagonal_blocks_d[i % 2, :, :] = cp.linalg.cholesky(
+            L_diagonal_blocks_d[i % 2, :, :] = cholesky_lowerfill(
                 A_diagonal_blocks_d[i % 2, :, :]
             )
 
