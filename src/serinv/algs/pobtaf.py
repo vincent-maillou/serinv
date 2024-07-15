@@ -3,10 +3,11 @@
 try:
     import cupy as cp
     import cupyx.scipy.linalg as cu_la
+    from serinv.cupyfix.cholesky_lowerfill import cholesky_lowerfill
 
     CUPY_AVAIL = True
 
-except:
+except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
@@ -26,34 +27,38 @@ def pobtaf(
     ArrayLike,
     ArrayLike,
 ]:
-    """Perform the Cholesky factorization of a block tridiagonal arrowhead matrix using
-    a sequential block algorithm.
+    """Perform the Cholesky factorization of a block tridiagonal with arrowhead
+    matrix using a sequential block algorithm.
 
     Note:
     -----
-    - The matrix is assumed to be symmetric positive definite.
+    - The matrix, A, is assumed to be symmetric positive definite.
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
     ----------
     A_diagonal_blocks : ArrayLike
-        Diagonal blocks of the matrix.
+        Diagonal blocks of A.
     A_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of the matrix.
+        Lower diagonal blocks of A.
     A_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of the matrix.
+        Arrow bottom blocks of A.
     A_arrow_tip_block : ArrayLike
-        Arrow tip block of the matrix.
+        Arrow tip block of A.
     device_streaming : bool
         Whether to use streamed GPU computation.
 
     Returns
     -------
     L_diagonal_blocks : ArrayLike
+        Diagonal blocks of L.
     L_lower_diagonal_blocks : ArrayLike
+        Lower diagonal blocks of L.
     L_arrow_bottom_blocks : ArrayLike
+        Arrow bottom blocks of L.
     L_arrow_tip_block : ArrayLike
+        Arrow tip block of L.
     """
 
     if CUPY_AVAIL and cp.get_array_module(A_diagonal_blocks) == np and device_streaming:
@@ -88,40 +93,46 @@ def _pobtaf(
         xp = cp.get_array_module(A_diagonal_blocks)
         if xp == cp:
             la = cu_la
+            cholesky = cholesky_lowerfill
+        else:
+            cholesky = np.linalg.cholesky
     else:
         xp = np
+        cholesky = np.linalg.cholesky
 
-    diag_blocksize = A_diagonal_blocks.shape[1]
+    n_diag_blocks = A_diagonal_blocks.shape[0]
 
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
     L_arrow_bottom_blocks = A_arrow_bottom_blocks
     L_arrow_tip_block = A_arrow_tip_block
 
-    L_inv_temp = xp.zeros_like(A_diagonal_blocks[0])
-
     # Forward block-Cholesky
-    n_diag_blocks = A_diagonal_blocks.shape[0]
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L_diagonal_blocks[i, :, :] = xp.linalg.cholesky(A_diagonal_blocks[i, :, :])
+        L_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :])
 
-        # Temporary storage of used twice lower triangular solving
-        L_inv_temp[:, :] = (
+        # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+        L_lower_diagonal_blocks[i, :, :] = (
             la.solve_triangular(
                 L_diagonal_blocks[i, :, :],
-                xp.eye(diag_blocksize),
+                A_lower_diagonal_blocks[i, :, :].conj().T,
                 lower=True,
             )
             .conj()
             .T
         )
 
-        # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L_lower_diagonal_blocks[i, :, :] = A_lower_diagonal_blocks[i, :, :] @ L_inv_temp
-
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
-        L_arrow_bottom_blocks[i, :, :] = A_arrow_bottom_blocks[i, :, :] @ L_inv_temp
+        L_arrow_bottom_blocks[i, :, :] = (
+            la.solve_triangular(
+                L_diagonal_blocks[i, :, :],
+                A_arrow_bottom_blocks[i, :, :].conj().T,
+                lower=True,
+            )
+            .conj()
+            .T
+        )
 
         # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
@@ -144,14 +155,13 @@ def _pobtaf(
         )
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
-    L_diagonal_blocks[-1, :, :] = xp.linalg.cholesky(A_diagonal_blocks[-1, :, :])
+    L_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :])
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
     L_arrow_bottom_blocks[-1, :, :] = (
-        A_arrow_bottom_blocks[-1, :, :]
-        @ la.solve_triangular(
+        la.solve_triangular(
             L_diagonal_blocks[-1, :, :],
-            xp.eye(diag_blocksize),
+            A_arrow_bottom_blocks[-1, :, :].conj().T,
             lower=True,
         )
         .conj()
@@ -165,7 +175,7 @@ def _pobtaf(
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-    L_arrow_tip_block[:, :] = xp.linalg.cholesky(A_arrow_tip_block[:, :])
+    L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
 
     return (
         L_diagonal_blocks,
@@ -187,23 +197,23 @@ def _streaming_pobtaf(
     ArrayLike,
 ]:
     cp.cuda.nvtx.RangePush("_streaming_pobtaf:mem_init")
-    diag_blocksize = A_diagonal_blocks.shape[1]
+    n_diag_blocks = A_diagonal_blocks.shape[0]
 
-    # X hosts arrays pointers
+    # A/L hosts arrays pointers
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
     L_arrow_bottom_blocks = A_arrow_bottom_blocks
     L_arrow_tip_block = A_arrow_tip_block
 
     # Device buffers
-    A_diagonal_blocks_d = cp.zeros(
+    A_diagonal_blocks_d = cp.empty(
         (2, *A_diagonal_blocks.shape[1:]), dtype=A_diagonal_blocks.dtype
     )
-    A_lower_diagonal_blocks_d = cp.zeros_like(A_diagonal_blocks[0])
-    A_arrow_bottom_blocks_d = cp.zeros(
+    A_lower_diagonal_blocks_d = cp.empty_like(A_diagonal_blocks[0])
+    A_arrow_bottom_blocks_d = cp.empty(
         (2, *A_arrow_bottom_blocks.shape[1:]), dtype=A_arrow_bottom_blocks.dtype
     )
-    A_arrow_tip_block_d = cp.zeros_like(A_arrow_tip_block)
+    A_arrow_tip_block_d = cp.empty_like(A_arrow_tip_block)
 
     # X Device buffers arrays pointers
     L_diagonal_blocks_d = A_diagonal_blocks_d
@@ -212,7 +222,6 @@ def _streaming_pobtaf(
     L_arrow_tip_block_d = A_arrow_tip_block_d
 
     # Buffers for the intermediate results of the forward cholesky
-    L_inv_temp_d = cp.zeros_like(A_diagonal_blocks[0])
     cp.cuda.nvtx.RangePop()
 
     # Forward pass
@@ -223,7 +232,6 @@ def _streaming_pobtaf(
     A_arrow_bottom_blocks_d[0, :, :].set(arr=A_arrow_bottom_blocks[0, :, :])
     A_arrow_tip_block_d.set(arr=A_arrow_tip_block)
 
-    n_diag_blocks = A_diagonal_blocks.shape[0]
     for i in range(0, n_diag_blocks - 1):
         # --- Host 2 Device transfers ---
         A_diagonal_blocks_d[(i + 1) % 2, :, :].set(arr=A_diagonal_blocks[i + 1, :, :])
@@ -234,30 +242,41 @@ def _streaming_pobtaf(
 
         # --- Computations ---
         # L_{i, i} = chol(A_{i, i})
-        L_diagonal_blocks_d[i % 2, :, :] = cp.linalg.cholesky(
+        cp.cuda.nvtx.RangePush("_streaming_pobtaf:cholesky")
+        L_diagonal_blocks_d[i % 2, :, :] = cholesky_lowerfill(
             A_diagonal_blocks_d[i % 2, :, :]
         )
+        cp.cuda.nvtx.RangePop()
 
-        # Temporary storage of used twice lower triangular solving
-        L_inv_temp_d[:, :] = (
+        cp.cuda.nvtx.RangePush("_streaming_pobtaf:solve_triangular")
+        # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
+        L_lower_diagonal_blocks_d[:, :] = (
             cu_la.solve_triangular(
                 L_diagonal_blocks_d[i % 2, :, :],
-                cp.eye(diag_blocksize),
+                A_lower_diagonal_blocks_d[:, :].conj().T,
                 lower=True,
             )
             .conj()
             .T
         )
 
-        # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L_lower_diagonal_blocks_d[:, :] = A_lower_diagonal_blocks_d[:, :] @ L_inv_temp_d
-
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
+        # L_arrow_bottom_blocks_d[i % 2, :, :] = (
+        #     A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d[:, :]
+        # )
         L_arrow_bottom_blocks_d[i % 2, :, :] = (
-            A_arrow_bottom_blocks_d[i % 2, :, :] @ L_inv_temp_d
+            cu_la.solve_triangular(
+                L_diagonal_blocks_d[i % 2, :, :],
+                A_arrow_bottom_blocks_d[i % 2, :, :].conj().T,
+                lower=True,
+            )
+            .conj()
+            .T
         )
+        cp.cuda.nvtx.RangePop()
 
         # Update next diagonal block
+        cp.cuda.nvtx.RangePush("_streaming_pobtaf:A_update")
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
         A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
             A_diagonal_blocks_d[(i + 1) % 2, :, :]
@@ -277,6 +296,7 @@ def _streaming_pobtaf(
             - L_arrow_bottom_blocks_d[i % 2, :, :]
             @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
         )
+        cp.cuda.nvtx.RangePop()
 
         # --- Device 2 Host transfers ---
         L_diagonal_blocks_d[i % 2, :, :].get(out=L_diagonal_blocks[i, :, :])
@@ -284,16 +304,15 @@ def _streaming_pobtaf(
         L_arrow_bottom_blocks_d[i % 2, :, :].get(out=L_arrow_bottom_blocks[i, :, :])
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
-    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cp.linalg.cholesky(
+    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cholesky_lowerfill(
         A_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
     )
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
     L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
-        A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-        @ cu_la.solve_triangular(
+        cu_la.solve_triangular(
             L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
-            cp.eye(diag_blocksize),
+            A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T,
             lower=True,
         )
         .conj()
@@ -308,8 +327,9 @@ def _streaming_pobtaf(
     )
 
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-    L_arrow_tip_block_d[:, :] = cp.linalg.cholesky(A_arrow_tip_block_d[:, :])
+    L_arrow_tip_block_d[:, :] = cholesky_lowerfill(A_arrow_tip_block_d[:, :])
 
+    # --- Device 2 Host transfers ---
     L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
         out=L_diagonal_blocks[-1, :, :]
     )

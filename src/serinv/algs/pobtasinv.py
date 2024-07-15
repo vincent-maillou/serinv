@@ -29,33 +29,33 @@ def pobtasinv(
 
     Note:
     -----
-    - By convention takes and produce lower triangular parts of the matrix.
+    - By convention A is assumed to be lower triangular. X will be lower triangular.
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
 
     Parameters
     ----------
     A_diagonal_blocks : ArrayLike
-        The blocks on the diagonal of the matrix.
+        Diagonal blocks of A.
     A_lower_diagonal_blocks : ArrayLike
-        The blocks on the lower diagonal of the matrix.
+        Lower diagonal blocks of A.
     A_arrow_bottom_blocks : ArrayLike
-        The blocks on the bottom arrow of the matrix.
+        Arrow bottom blocks of A.
     A_arrow_tip_block : ArrayLike
-        The block at the tip of the arrowhead.
+        Arrow tip block of A.
     device_streaming : bool
         Whether to use streamed GPU computation.
 
     Returns
     -------
     X_diagonal_blocks : ArrayLike
-        Diagonal blocks of the selected inversion of the matrix.
+        Diagonal blocks of X.
     X_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of the selected inversion of the matrix.
+        Lower diagonal blocks of X.
     X_arrow_bottom_blocks : ArrayLike
-        Bottom arrow blocks of the selected inversion of the matrix.
+        Arrow bottom blocks of X.
     X_arrow_tip_block : ArrayLike
-        Tip arrow block of the selected inversion of the matrix.
+        Arrow tip block of X.
     """
 
     if CUPY_AVAIL and cp.get_array_module(A_diagonal_blocks) == np and device_streaming:

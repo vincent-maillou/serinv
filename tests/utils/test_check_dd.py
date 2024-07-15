@@ -5,7 +5,7 @@ try:
 
     CUPY_AVAIL = True
 
-except:
+except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
@@ -15,10 +15,11 @@ import pytest
 from serinv.utils.check_dd import check_block_dd, check_ddbta
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3, 4])
-@pytest.mark.parametrize("device_array", [False, True])
+@pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 def test_check_block_dd(
     dd_bta,
@@ -48,10 +49,11 @@ def test_check_block_dd(
     assert xp.all(block_dd)
 
 
+@pytest.mark.mpi_skip()
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3, 4])
-@pytest.mark.parametrize("device_array", [False, True])
+@pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 def test_check_ddbta(
     dd_bta,

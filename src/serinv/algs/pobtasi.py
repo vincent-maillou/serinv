@@ -6,7 +6,7 @@ try:
 
     CUPY_AVAIL = True
 
-except:
+except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
@@ -21,8 +21,8 @@ def pobtasi(
     L_arrow_tip_block: ArrayLike,
     device_streaming: bool = False,
 ) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike]:
-    """Perform a selected inversion of a block tridiagonal arrowhead matrix using a
-    sequential block algorithm.
+    """Perform a selected inversion of a block tridiagonal with arrowhead matrix
+    using a sequential block algorithm.
 
     Note:
     -----
@@ -32,26 +32,26 @@ def pobtasi(
     Parameters
     ----------
     L_diagonal_blocks : ArrayLike
-        Diagonal blocks of the cholesky factorization.
+        Diagonal blocks of L.
     L_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of the cholesky factorization.
+        Lower diagonal blocks of L.
     L_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of the cholesky factorization.
+        Arrow bottom blocks of L.
     L_arrow_tip_block : ArrayLike
-        Arrow tip block of the cholesky factorization.
+        Arrow tip block of L.
     device_streaming : bool
         Whether to use streamed GPU computation.
 
     Returns
     -------
     X_diagonal_blocks : ArrayLike
-        Diagonal blocks of the selected inverse.
+        Diagonal blocks of X.
     X_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of the selected inverse.
+        Lower diagonal blocks of X.
     X_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of the selected inverse.
+        Arrow bottom blocks of X.
     X_arrow_tip_block : ArrayLike
-        Arrow tip block of the selected inverse.
+        Arrow tip block of X.
     """
     if CUPY_AVAIL and cp.get_array_module(L_diagonal_blocks) == np and device_streaming:
         return _streaming_pobtasi(
@@ -92,10 +92,10 @@ def _pobtasi(
     X_arrow_tip_block = L_arrow_tip_block
     L_last_blk_inv = L_arrow_tip_block
 
-    L_lower_diagonal_blocks_i = xp.zeros_like(L_diagonal_blocks[0, :, :])
-    L_arrow_bottom_blocks_i = xp.zeros_like(L_arrow_bottom_blocks[0, :, :])
+    L_lower_diagonal_blocks_i = xp.empty_like(L_diagonal_blocks[0, :, :])
+    L_arrow_bottom_blocks_i = xp.empty_like(L_arrow_bottom_blocks[0, :, :])
 
-    L_blk_inv = xp.zeros_like(L_diagonal_blocks[0, :, :])
+    L_blk_inv = xp.empty_like(L_diagonal_blocks[0, :, :])
 
     L_last_blk_inv = la.solve_triangular(
         L_arrow_tip_block[:, :], xp.eye(arrow_blocksize), lower=True
@@ -189,14 +189,14 @@ def _streaming_pobtasi(
     X_arrow_tip_block = L_arrow_tip_block
 
     # Device buffers
-    L_diagonal_blocks_d = cp.zeros(
+    L_diagonal_blocks_d = cp.empty(
         (2, *L_diagonal_blocks.shape[1:]), dtype=L_diagonal_blocks.dtype
     )
-    L_lower_diagonal_blocks_d = cp.zeros_like(L_diagonal_blocks[0])
-    L_arrow_bottom_blocks_d = cp.zeros(
+    L_lower_diagonal_blocks_d = cp.empty_like(L_diagonal_blocks[0])
+    L_arrow_bottom_blocks_d = cp.empty(
         (2, *L_arrow_bottom_blocks.shape[1:]), dtype=L_arrow_bottom_blocks.dtype
     )
-    L_arrow_tip_block_d = cp.zeros_like(L_arrow_tip_block)
+    L_arrow_tip_block_d = cp.empty_like(L_arrow_tip_block)
 
     # X Device buffers arrays pointers
     X_diagonal_blocks_d = L_diagonal_blocks_d
@@ -205,11 +205,11 @@ def _streaming_pobtasi(
     X_arrow_tip_block_d = L_arrow_tip_block_d
 
     # Buffers for the intermediate results of the backward block-selected inversion
-    L_blk_inv_d = cp.zeros_like(L_diagonal_blocks[0, :, :])
-    L_last_blk_inv_d = cp.zeros_like(L_arrow_tip_block)
+    L_blk_inv_d = cp.empty_like(L_diagonal_blocks[0, :, :])
+    L_last_blk_inv_d = cp.empty_like(L_arrow_tip_block)
 
-    L_lower_diagonal_blocks_d_i = cp.zeros_like(L_diagonal_blocks[0, :, :])
-    L_arrow_bottom_blocks_d_i = cp.zeros_like(L_arrow_bottom_blocks[0, :, :])
+    L_lower_diagonal_blocks_d_i = cp.empty_like(L_diagonal_blocks[0, :, :])
+    L_arrow_bottom_blocks_d_i = cp.empty_like(L_arrow_bottom_blocks[0, :, :])
     cp.cuda.nvtx.RangePop()
 
     # Backward block-selected inversion

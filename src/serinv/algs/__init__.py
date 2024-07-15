@@ -10,6 +10,9 @@ from serinv.algs.pobtasi import pobtasi
 from serinv.algs.pobtas import pobtas
 from serinv.algs.pobtasinv import pobtasinv
 
+from serinv.algs.d_pobtaf import d_pobtaf
+from serinv.algs.d_pobtasi import d_pobtasi
+
 __all__ = [
     "ddbtaf",
     "ddbtasi",
@@ -19,4 +22,6 @@ __all__ = [
     "pobtasi",
     "pobtas",
     "pobtasinv",
+    "d_pobtaf",
+    "d_pobtasi",
 ]
