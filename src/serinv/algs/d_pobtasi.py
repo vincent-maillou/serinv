@@ -288,15 +288,15 @@ def _d_pobtasi(
 
     if comm_rank == 0:
         for i in range(n_diag_blocks_local - 2, -1, -1):
+            L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
+            L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
+
             # Compute lower factors
             L_inv_temp[:, :] = la.solve_triangular(
                 L_diagonal_blocks_local[i, :, :],
                 xp.eye(diag_blocksize),
                 lower=True,
             )
-
-            L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
-            L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
 
             # --- Lower-diagonal blocks ---
             # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
@@ -329,16 +329,16 @@ def _d_pobtasi(
         )
 
         for i in range(n_diag_blocks_local - 2, 0, -1):
-            L_inv_temp[:, :] = la.solve_triangular(
-                L_diagonal_blocks_local[i, :, :],
-                xp.eye(diag_blocksize),
-                lower=True,
-            )
-
             L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
             L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
             L_upper_nested_dissection_buffer_temp[:, :] = (
                 L_upper_nested_dissection_buffer_local[i, :, :]
+            )
+
+            L_inv_temp[:, :] = la.solve_triangular(
+                L_diagonal_blocks_local[i, :, :],
+                xp.eye(diag_blocksize),
+                lower=True,
             )
 
             # X_{i+1, i} = (- X_{top, i+1}.T L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}.T L_{ndb+1, i}) L_{i, i}^{-1}
@@ -408,4 +408,345 @@ def _streaming_d_pobtasi(
     ArrayLike,
     ArrayLike,
 ]:
-    raise NotImplementedError
+    diag_blocksize = L_diagonal_blocks_local.shape[1]
+    n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
+
+    X_diagonal_blocks_local = L_diagonal_blocks_local
+    X_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local
+    X_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local
+    X_upper_nested_dissection_buffer_local = L_upper_nested_dissection_buffer_local
+
+    A_reduced_system_diagonal_blocks = cpx.zeros_pinned(
+        (2 * comm_size - 1, *L_diagonal_blocks_local.shape[1:]),
+        dtype=L_diagonal_blocks_local.dtype,
+    )
+    A_reduced_system_lower_diagonal_blocks = cpx.zeros_pinned(
+        (2 * comm_size - 2, *L_lower_diagonal_blocks_local.shape[1:]),
+        dtype=L_lower_diagonal_blocks_local.dtype,
+    )
+    A_reduced_system_arrow_bottom_blocks = cpx.zeros_pinned(
+        (2 * comm_size - 1, *L_arrow_bottom_blocks_local.shape[1:]),
+        dtype=L_arrow_bottom_blocks_local.dtype,
+    )
+    # Alias on the tip block for the reduced system
+    A_reduced_system_arrow_tip_block = L_arrow_tip_block_global
+
+    # Construct the reduced system from the factorized blocks distributed over the
+    # processes.
+    if comm_rank == 0:
+        A_reduced_system_diagonal_blocks[0, :, :] = L_diagonal_blocks_local[-1, :, :]
+        A_reduced_system_lower_diagonal_blocks[0, :, :] = L_lower_diagonal_blocks_local[
+            -1, :, :
+        ]
+        A_reduced_system_arrow_bottom_blocks[0, :, :] = L_arrow_bottom_blocks_local[
+            -1, :, :
+        ]
+    else:
+        A_reduced_system_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+            L_diagonal_blocks_local[0, :, :]
+        )
+        A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
+            -1, :, :
+        ]
+
+        A_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+            L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
+        )
+        if comm_rank < comm_size - 1:
+            A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
+                L_lower_diagonal_blocks_local[-1, :, :]
+            )
+
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank - 1, :, :] = (
+            L_arrow_bottom_blocks_local[0, :, :]
+        )
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
+            L_arrow_bottom_blocks_local[-1, :, :]
+        )
+
+    MPI.COMM_WORLD.Allreduce(
+        MPI.IN_PLACE,
+        A_reduced_system_diagonal_blocks,
+        op=MPI.SUM,
+    )
+    MPI.COMM_WORLD.Allreduce(
+        MPI.IN_PLACE,
+        A_reduced_system_lower_diagonal_blocks,
+        op=MPI.SUM,
+    )
+    MPI.COMM_WORLD.Allreduce(
+        MPI.IN_PLACE,
+        A_reduced_system_arrow_bottom_blocks,
+        op=MPI.SUM,
+    )
+
+    # Perform the inversion of the reduced system.
+    (
+        L_reduced_system_diagonal_blocks,
+        L_reduced_system_lower_diagonal_blocks,
+        L_reduced_system_arrow_bottom_blocks,
+        L_reduced_system_arrow_tip_block,
+    ) = pobtaf(
+        A_reduced_system_diagonal_blocks,
+        A_reduced_system_lower_diagonal_blocks,
+        A_reduced_system_arrow_bottom_blocks,
+        A_reduced_system_arrow_tip_block,
+        device_streaming=True,
+    )
+
+    (
+        X_reduced_system_diagonal_blocks,
+        X_reduced_system_lower_diagonal_blocks,
+        X_reduced_system_arrow_bottom_blocks,
+        X_reduced_system_arrow_tip_block,
+    ) = pobtasi(
+        L_reduced_system_diagonal_blocks,
+        L_reduced_system_lower_diagonal_blocks,
+        L_reduced_system_arrow_bottom_blocks,
+        L_reduced_system_arrow_tip_block,
+        device_streaming=True,
+    )
+
+    X_arrow_tip_block_global = X_reduced_system_arrow_tip_block
+
+    # Update of the local slices by there corresponding blocks in the inverted
+    # reduced system.
+    if comm_rank == 0:
+        X_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
+        X_lower_diagonal_blocks_local[-1, :, :] = (
+            X_reduced_system_lower_diagonal_blocks[0, :, :]
+        )
+        X_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
+            0, :, :
+        ]
+    else:
+        X_diagonal_blocks_local[0, :, :] = X_reduced_system_diagonal_blocks[
+            2 * comm_rank - 1, :, :
+        ]
+        X_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[
+            2 * comm_rank, :, :
+        ]
+
+        X_upper_nested_dissection_buffer_local[-1, :, :] = (
+            X_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :].conj().T
+        )
+        if comm_rank < comm_size - 1:
+            X_lower_diagonal_blocks_local[-1, :, :] = (
+                X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
+            )
+
+        X_arrow_bottom_blocks_local[0, :, :] = X_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank - 1, :, :
+        ]
+        X_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank, :, :
+        ]
+
+    # Backward selected-inversion
+    # Device buffers
+    L_diagonal_blocks_d = cp.zeros(
+        (2, *L_diagonal_blocks_local.shape[1:]), dtype=L_diagonal_blocks_local.dtype
+    )
+    L_lower_diagonal_blocks_d = cp.zeros_like(L_diagonal_blocks_local[0])
+    L_arrow_bottom_blocks_d = cp.zeros(
+        (2, *L_arrow_bottom_blocks_local.shape[1:]),
+        dtype=L_arrow_bottom_blocks_local.dtype,
+    )
+    X_arrow_tip_block_d = cp.zeros_like(X_arrow_tip_block_global)
+
+    # X Device buffers arrays pointers
+    X_diagonal_blocks_d = L_diagonal_blocks_d
+    X_lower_diagonal_blocks_d = L_lower_diagonal_blocks_d
+    X_arrow_bottom_blocks_d = L_arrow_bottom_blocks_d
+
+    # Buffers for the intermediate results of the backward block-selected inversion
+    L_inv_temp_d = cp.zeros_like(L_diagonal_blocks_local[0])
+    L_lower_diagonal_blocks_d_i = cp.zeros_like(L_lower_diagonal_blocks_local[0])
+    L_arrow_bottom_blocks_d_i = cp.zeros_like(L_arrow_bottom_blocks_local[0])
+
+    if comm_rank == 0:
+        # --- Host 2 Device transfers ---
+        X_diagonal_blocks_d[(n_diag_blocks_local - 1) % 2, :, :].set(
+            arr=L_diagonal_blocks_local[-1, :, :]
+        )
+        X_arrow_bottom_blocks_d[(n_diag_blocks_local - 1) % 2, :, :].set(
+            arr=L_arrow_bottom_blocks_local[-1, :, :]
+        )
+        X_arrow_tip_block_d.set(arr=X_arrow_tip_block_global)
+
+        for i in range(n_diag_blocks_local - 2, -1, -1):
+            # --- Host 2 Device transfers ---
+            L_diagonal_blocks_d[i % 2, :, :].set(arr=L_diagonal_blocks_local[i, :, :])
+            L_lower_diagonal_blocks_d[:, :].set(
+                arr=L_lower_diagonal_blocks_local[i, :, :]
+            )
+            L_arrow_bottom_blocks_d[i % 2, :, :].set(
+                arr=L_arrow_bottom_blocks_local[i, :, :]
+            )
+
+            L_lower_diagonal_blocks_d_i[:, :] = L_lower_diagonal_blocks_d[:, :]
+            L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[i % 2, :, :]
+
+            # --- Computations ---
+            L_inv_temp_d[:, :] = cu_la.solve_triangular(
+                L_diagonal_blocks_d[i % 2, :, :],
+                cp.eye(diag_blocksize),
+                lower=True,
+            )
+
+            # --- Off-diagonal block part ---
+            # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+            X_lower_diagonal_blocks_d[:, :] = (
+                -X_diagonal_blocks_d[(i + 1) % 2, :, :]
+                @ L_lower_diagonal_blocks_d_i[:, :]
+                - X_arrow_bottom_blocks_d[(i + 1) % 2, :, :].conj().T
+                @ L_arrow_bottom_blocks_d_i[:, :]
+            ) @ L_inv_temp_d[:, :]
+
+            # --- Arrowhead part ---
+            # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+            X_arrow_bottom_blocks_d[i % 2, :, :] = (
+                -X_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
+                @ L_lower_diagonal_blocks_d_i[:, :]
+                - X_arrow_tip_block_d[:, :] @ L_arrow_bottom_blocks_d_i[:, :]
+            ) @ L_inv_temp_d[:, :]
+
+            # --- Diagonal block part ---
+            # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}^{T} L_{i+1, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_diagonal_blocks_d[i % 2, :, :] = (
+                L_inv_temp_d[:, :].conj().T
+                - X_lower_diagonal_blocks_d[:, :].conj().T
+                @ L_lower_diagonal_blocks_d_i[:, :]
+                - X_arrow_bottom_blocks_d[i % 2, :, :].conj().T
+                @ L_arrow_bottom_blocks_d_i[:, :]
+            ) @ L_inv_temp_d[:, :]
+
+            # --- Device 2 Host transfers ---
+            X_diagonal_blocks_d[i % 2, :, :].get(out=X_diagonal_blocks_local[i, :, :])
+            X_lower_diagonal_blocks_d[:, :].get(
+                out=X_lower_diagonal_blocks_local[i, :, :]
+            )
+            X_arrow_bottom_blocks_d[i % 2, :, :].get(
+                out=X_arrow_bottom_blocks_local[i, :, :]
+            )
+    else:
+        # Device aliases & buffers specific to the middle process
+        X_diagonal_top_block_d = cp.zeros_like(X_diagonal_blocks_local[0])
+        X_arrow_bottom_top_block_d = cp.zeros_like(X_arrow_bottom_blocks_local[0])
+        L_upper_nested_dissection_buffer_d = cp.zeros(
+            (2, *L_upper_nested_dissection_buffer_local.shape[1:]),
+            dtype=L_upper_nested_dissection_buffer_local.dtype,
+        )
+
+        X_upper_nested_dissection_buffer_d = L_upper_nested_dissection_buffer_d
+
+        L_upper_nested_dissection_buffer_d_i = cp.zeros_like(
+            L_upper_nested_dissection_buffer_local[0, :, :]
+        )
+
+        # --- Host 2 Device transfers ---
+        X_diagonal_blocks_d[(n_diag_blocks_local - 1) % 2, :, :].set(
+            arr=L_diagonal_blocks_local[-1, :, :]
+        )
+        X_arrow_bottom_blocks_d[(n_diag_blocks_local - 1) % 2, :, :].set(
+            arr=L_arrow_bottom_blocks_local[-1, :, :]
+        )
+        X_arrow_tip_block_d.set(arr=X_arrow_tip_block_global)
+
+        X_diagonal_top_block_d.set(arr=X_diagonal_blocks_local[0, :, :])
+        X_arrow_bottom_top_block_d.set(arr=X_arrow_bottom_blocks_local[0, :, :])
+        L_upper_nested_dissection_buffer_d[(n_diag_blocks_local - 1) % 2, :, :].set(
+            arr=L_upper_nested_dissection_buffer_local[-1, :, :]
+        )
+
+        for i in range(n_diag_blocks_local - 2, 0, -1):
+            # --- Host 2 Device transfers ---
+            L_diagonal_blocks_d[i % 2, :, :].set(arr=L_diagonal_blocks_local[i, :, :])
+            L_lower_diagonal_blocks_d[:, :].set(
+                arr=L_lower_diagonal_blocks_local[i, :, :]
+            )
+            L_arrow_bottom_blocks_d[i % 2, :, :].set(
+                arr=L_arrow_bottom_blocks_local[i, :, :]
+            )
+            L_upper_nested_dissection_buffer_d[i % 2, :, :].set(
+                arr=L_upper_nested_dissection_buffer_local[i, :, :]
+            )
+
+            L_lower_diagonal_blocks_d_i[:, :] = L_lower_diagonal_blocks_d[:, :]
+            L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[i % 2, :, :]
+            L_upper_nested_dissection_buffer_d_i[:, :] = (
+                L_upper_nested_dissection_buffer_d[i % 2, :, :]
+            )
+
+            # --- Computations ---
+            L_inv_temp_d[:, :] = cu_la.solve_triangular(
+                L_diagonal_blocks_d[i % 2, :, :],
+                cp.eye(diag_blocksize),
+                lower=True,
+            )
+
+            # X_{i+1, i} = (- X_{top, i+1}.T L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_lower_diagonal_blocks_d[:, :] = (
+                -X_upper_nested_dissection_buffer_d[(i + 1) % 2, :, :].conj().T
+                @ L_upper_nested_dissection_buffer_d_i[:, :]
+                - X_diagonal_blocks_d[(i + 1) % 2, :, :]
+                @ L_lower_diagonal_blocks_d_i[:, :]
+                - X_arrow_bottom_blocks_d[(i + 1) % 2, :, :].conj().T
+                @ L_arrow_bottom_blocks_d_i[:, :]
+            ) @ L_inv_temp_d[:, :]
+
+            # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{ndb+1, top}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_upper_nested_dissection_buffer_d[i % 2, :, :] = (
+                -X_upper_nested_dissection_buffer_d[(i + 1) % 2, :, :]
+                @ L_lower_diagonal_blocks_d_i[:, :]
+                - X_diagonal_top_block_d[:, :]
+                @ L_upper_nested_dissection_buffer_d_i[:, :]
+                - X_arrow_bottom_top_block_d[:, :].conj().T
+                @ L_arrow_bottom_blocks_d_i[:, :]
+            ) @ L_inv_temp_d[:, :]
+
+            # Arrowhead
+            # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, top} L_{top, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+            X_arrow_bottom_blocks_d[i % 2, :, :] = (
+                -X_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
+                @ L_lower_diagonal_blocks_d_i[:, :]
+                - X_arrow_bottom_top_block_d[:, :]
+                @ L_upper_nested_dissection_buffer_d_i[:, :]
+                - X_arrow_tip_block_d[:, :] @ L_arrow_bottom_blocks_d_i[:, :]
+            ) @ L_inv_temp_d[:, :]
+
+            # X_{i, i} = (U_{i, i}^{-1} - X_{i+1, i}.T L_{i+1, i} - X_{top, i}.T L_{top, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_diagonal_blocks_d[i % 2, :, :] = (
+                L_inv_temp_d[:, :].conj().T
+                - X_lower_diagonal_blocks_d[:, :].conj().T
+                @ L_lower_diagonal_blocks_d_i[:, :]
+                - X_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
+                @ L_upper_nested_dissection_buffer_d_i[:, :]
+                - X_arrow_bottom_blocks_d[i % 2, :, :].conj().T
+                @ L_arrow_bottom_blocks_d_i[:, :]
+            ) @ L_inv_temp_d[:, :]
+
+            # --- Device 2 Host transfers ---
+            X_diagonal_blocks_d[i % 2, :, :].get(out=X_diagonal_blocks_local[i, :, :])
+            X_lower_diagonal_blocks_d[:, :].get(
+                out=X_lower_diagonal_blocks_local[i, :, :]
+            )
+            X_arrow_bottom_blocks_d[i % 2, :, :].get(
+                out=X_arrow_bottom_blocks_local[i, :, :]
+            )
+            X_upper_nested_dissection_buffer_d[i % 2, :, :].get(
+                out=X_upper_nested_dissection_buffer_local[i, :, :]
+            )
+
+        # Copy back the 2 first blocks that have been produced in the 2-sided pattern
+        # to the tridiagonal storage.
+        X_lower_diagonal_blocks_local[0, :, :] = (
+            X_upper_nested_dissection_buffer_local[1, :, :].conj().T
+        )
+
+    return (
+        X_diagonal_blocks_local,
+        X_lower_diagonal_blocks_local,
+        X_arrow_bottom_blocks_local,
+        X_arrow_tip_block_global,
+    )

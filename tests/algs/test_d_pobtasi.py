@@ -29,6 +29,7 @@ from serinv.algs import d_pobtaf, d_pobtasi
 @pytest.mark.parametrize("n_diag_blocks", [comm_size * 3, comm_size * 4, comm_size * 5])
 @pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
+@pytest.mark.parametrize("device_streaming", [False, True])
 def test_d_pobtasi(
     dd_bta,
     bta_dense_to_arrays,
@@ -37,6 +38,7 @@ def test_d_pobtasi(
     arrowhead_blocksize,
     n_diag_blocks,
     device_array,
+    device_streaming,
 ):
     if CUPY_AVAIL:
         xp = cp.get_array_module(dd_bta)
@@ -87,6 +89,31 @@ def test_d_pobtasi(
         :,
         :,
     ]
+
+    if CUPY_AVAIL and device_streaming and not device_array:
+        A_diagonal_blocks_local_pinned = cpx.zeros_like_pinned(A_diagonal_blocks_local)
+        A_diagonal_blocks_local_pinned[:, :, :] = A_diagonal_blocks_local[:, :, :]
+        A_lower_diagonal_blocks_local_pinned = cpx.zeros_like_pinned(
+            A_lower_diagonal_blocks_local
+        )
+        A_lower_diagonal_blocks_local_pinned[:, :, :] = A_lower_diagonal_blocks_local[
+            :, :, :
+        ]
+        A_arrow_bottom_blocks_local_pinned = cpx.zeros_like_pinned(
+            A_arrow_bottom_blocks_local
+        )
+        A_arrow_bottom_blocks_local_pinned[:, :, :] = A_arrow_bottom_blocks_local[
+            :, :, :
+        ]
+        A_arrow_tip_block_global_pinned = cpx.zeros_like_pinned(
+            A_arrow_tip_block_global
+        )
+        A_arrow_tip_block_global_pinned[:, :] = A_arrow_tip_block_global[:, :]
+
+        A_diagonal_blocks_local = A_diagonal_blocks_local_pinned
+        A_lower_diagonal_blocks_local = A_lower_diagonal_blocks_local_pinned
+        A_arrow_bottom_blocks_local = A_arrow_bottom_blocks_local_pinned
+        A_arrow_tip_block_global = A_arrow_tip_block_global_pinned
 
     # Reference solution
     X_ref = xp.linalg.inv(A)
@@ -145,6 +172,7 @@ def test_d_pobtasi(
         A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
+        device_streaming,
     )
 
     # Distributed selected-inversion
@@ -159,6 +187,7 @@ def test_d_pobtasi(
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
         L_upper_nested_dissection_buffer_local,
+        device_streaming,
     )
 
     assert xp.allclose(X_diagonal_blocks_local, X_ref_diagonal_blocks_local)
