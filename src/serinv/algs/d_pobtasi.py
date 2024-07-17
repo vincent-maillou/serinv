@@ -13,10 +13,14 @@ except ImportError:
 import numpy as np
 import scipy.linalg as np_la
 from numpy.typing import ArrayLike
-from mpi4py import MPI
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
+try:
+    from mpi4py import MPI
+
+    comm_rank = MPI.COMM_WORLD.Get_rank()
+    comm_size = MPI.COMM_WORLD.Get_size()
+except ImportError:
+    pass
 
 from serinv.algs import pobtaf, pobtasi
 
