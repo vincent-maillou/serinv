@@ -201,14 +201,17 @@ def _streaming_pobtaf(
     h2d_stream = cp.cuda.Stream(non_blocking=True)
     d2h_stream = cp.cuda.Stream(non_blocking=True)
 
-    h2d_events = [cp.cuda.Event(), cp.cuda.Event(), cp.cuda.Event()]
-    d2h_events = [cp.cuda.Event(), cp.cuda.Event(), cp.cuda.Event()]
-    compute_events = [
-        cp.cuda.Event(),
-        cp.cuda.Event(),
-        cp.cuda.Event(),
-        cp.cuda.Event(),
-    ]
+    h2d_diagonal_events = [cp.cuda.Event(), cp.cuda.Event()]
+    h2d_lower_events = [cp.cuda.Event(), cp.cuda.Event()]
+    h2d_arrow_events = [cp.cuda.Event(), cp.cuda.Event()]
+
+    d2h_diagonal_events = [cp.cuda.Event(), cp.cuda.Event()]
+
+    compute_diagonal_events = [cp.cuda.Event(), cp.cuda.Event()]
+    compute_lower_events = [cp.cuda.Event(), cp.cuda.Event()]
+    compute_lower_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
+    compute_arrow_events = [cp.cuda.Event(), cp.cuda.Event()]
+    compute_arrow_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
 
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
@@ -222,7 +225,9 @@ def _streaming_pobtaf(
     A_diagonal_blocks_d = cp.empty(
         (2, *A_diagonal_blocks.shape[1:]), dtype=A_diagonal_blocks.dtype
     )
-    A_lower_diagonal_blocks_d = cp.empty_like(A_diagonal_blocks[0])
+    A_lower_diagonal_blocks_d = cp.empty(
+        (2, *A_diagonal_blocks.shape[1:]), dtype=A_diagonal_blocks.dtype
+    )
     A_arrow_bottom_blocks_d = cp.empty(
         (2, *A_arrow_bottom_blocks.shape[1:]), dtype=A_arrow_bottom_blocks.dtype
     )
@@ -237,76 +242,92 @@ def _streaming_pobtaf(
     # Forward pass
     # --- Host 2 Device transfers ---
     with compute_stream:
-        compute_events[3].record(stream=compute_stream)
-        A_diagonal_blocks_d[0, :, :].set(
-            arr=A_diagonal_blocks[0, :, :], stream=compute_stream
-        )
-        A_arrow_bottom_blocks_d[0, :, :].set(
-            arr=A_arrow_bottom_blocks[0, :, :], stream=compute_stream
-        )
+        compute_lower_h2d_events[1].record(stream=compute_stream)
+        compute_arrow_h2d_events[1].record(stream=compute_stream)
         A_arrow_tip_block_d.set(arr=A_arrow_tip_block[:, :], stream=compute_stream)
 
-    for i in range(0, n_diag_blocks - 1):
+    with h2d_stream:
+        A_diagonal_blocks_d[0, :, :].set(
+            arr=A_diagonal_blocks[0, :, :], stream=h2d_stream
+        )
+        h2d_diagonal_events[0].record(stream=h2d_stream)
+        A_arrow_bottom_blocks_d[0, :, :].set(
+            arr=A_arrow_bottom_blocks[0, :, :], stream=h2d_stream
+        )
+        h2d_arrow_events[0].record(stream=h2d_stream)
 
+        if n_diag_blocks > 1:
+            A_lower_diagonal_blocks_d[0, :, :].set(
+                arr=A_lower_diagonal_blocks[0, :, :], stream=h2d_stream
+            )
+            h2d_lower_events[0].record(stream=h2d_stream)
+
+    with d2h_stream:
+        d2h_diagonal_events[1].record(stream=d2h_stream)
+
+    for i in range(0, n_diag_blocks - 1):
         # --- Computations ---
         # L_{i, i} = chol(A_{i, i})
         with compute_stream:
             compute_stream.launch_host_func(
                 cp.cuda.nvtx.RangePush, "_streaming_pobtaf:cholesky"
             )
+            compute_stream.wait_event(h2d_diagonal_events[i % 2])
             L_diagonal_blocks_d[i % 2, :, :] = cholesky_lowerfill(
                 A_diagonal_blocks_d[i % 2, :, :]
             )
-            compute_events[0].record(stream=compute_stream)
+            compute_diagonal_events[i % 2].record(stream=compute_stream)
             compute_stream.launch_host_func(cp.cuda.nvtx.RangePop, None)
 
-        d2h_stream.wait_event(compute_events[0])
+        d2h_stream.wait_event(compute_diagonal_events[i % 2])
         L_diagonal_blocks_d[i % 2, :, :].get(
             out=L_diagonal_blocks[i, :, :],
             stream=d2h_stream,
             blocking=False,
         )
-        d2h_events[0].record(stream=d2h_stream)
+        d2h_diagonal_events[i % 2].record(stream=d2h_stream)
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        h2d_stream.wait_event(compute_events[3])
-        A_lower_diagonal_blocks_d[:, :].set(
-            arr=A_lower_diagonal_blocks[i, :, :], stream=h2d_stream
-        )
-        h2d_events[0].record(stream=h2d_stream)
+        with h2d_stream:
+            if i + 1 < n_diag_blocks - 1:
+                h2d_stream.wait_event(compute_lower_h2d_events[(i + 1) % 2])
+                A_lower_diagonal_blocks_d[(i + 1) % 2, :, :].set(
+                    arr=A_lower_diagonal_blocks[i + 1, :, :], stream=h2d_stream
+                )
+                h2d_lower_events[(i + 1) % 2].record(stream=h2d_stream)
 
         with compute_stream:
             compute_stream.launch_host_func(
                 cp.cuda.nvtx.RangePush, "_streaming_pobtaf:solve_triangular"
             )
-            compute_stream.wait_event(h2d_events[0])
-            L_lower_diagonal_blocks_d[:, :] = (
+            compute_stream.wait_event(h2d_lower_events[i % 2])
+            L_lower_diagonal_blocks_d[i % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    A_lower_diagonal_blocks_d[:, :].conj().T,
+                    A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
                 )
                 .conj()
                 .T
             )
-            compute_events[1].record(stream=compute_stream)
+            compute_lower_events[i % 2].record(stream=compute_stream)
 
-        d2h_stream.wait_event(compute_events[1])
-        L_lower_diagonal_blocks_d[:, :].get(
+        d2h_stream.wait_event(compute_lower_events[i % 2])
+        L_lower_diagonal_blocks_d[i % 2, :, :].get(
             out=L_lower_diagonal_blocks[i, :, :],
             stream=d2h_stream,
             blocking=False,
         )
-        d2h_events[1].record(stream=d2h_stream)
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
+        h2d_stream.wait_event(compute_arrow_h2d_events[(i + 1) % 2])
         A_arrow_bottom_blocks_d[(i + 1) % 2, :, :].set(
             arr=A_arrow_bottom_blocks[i + 1, :, :], stream=h2d_stream
         )
-        h2d_events[1].record(stream=h2d_stream)
+        h2d_arrow_events[(i + 1) % 2].record(stream=h2d_stream)
 
         with compute_stream:
-            compute_stream.wait_event(h2d_events[1])
+            compute_stream.wait_event(h2d_arrow_events[i % 2])
             L_arrow_bottom_blocks_d[i % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
@@ -316,41 +337,42 @@ def _streaming_pobtaf(
                 .conj()
                 .T
             )
-            compute_events[2].record(stream=compute_stream)
+            compute_arrow_events[i % 2].record(stream=compute_stream)
             compute_stream.launch_host_func(cp.cuda.nvtx.RangePop, None)
 
-        d2h_stream.wait_event(compute_events[2])
+        d2h_stream.wait_event(compute_arrow_events[i % 2])
         L_arrow_bottom_blocks_d[i % 2, :, :].get(
             out=L_arrow_bottom_blocks[i, :, :],
             stream=d2h_stream,
             blocking=False,
         )
-        d2h_events[2].record(stream=d2h_stream)
 
         # Update next diagonal block
+        h2d_stream.wait_event(d2h_diagonal_events[(i + 1) % 2])
         A_diagonal_blocks_d[(i + 1) % 2, :, :].set(
             arr=A_diagonal_blocks[i + 1, :, :], stream=h2d_stream
         )
-        h2d_events[2].record(stream=h2d_stream)
+        h2d_diagonal_events[(i + 1) % 2].record(stream=h2d_stream)
 
         with compute_stream:
             compute_stream.launch_host_func(
                 cp.cuda.nvtx.RangePush, "_streaming_pobtaf:A_update_gemm"
             )
-            compute_stream.wait_event(h2d_events[2])
+            compute_stream.wait_event(h2d_diagonal_events[(i + 1) % 2])
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
                 A_diagonal_blocks_d[(i + 1) % 2, :, :]
-                - L_lower_diagonal_blocks_d[:, :]
-                @ L_lower_diagonal_blocks_d[:, :].conj().T
+                - L_lower_diagonal_blocks_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
             A_arrow_bottom_blocks_d[(i + 1) % 2, :, :] = (
                 A_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
                 - L_arrow_bottom_blocks_d[i % 2, :, :]
-                @ L_lower_diagonal_blocks_d[:, :].conj().T
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
+            compute_lower_h2d_events[i % 2].record(stream=compute_stream)
 
             # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
             A_arrow_tip_block_d[:, :] = (
@@ -358,7 +380,7 @@ def _streaming_pobtaf(
                 - L_arrow_bottom_blocks_d[i % 2, :, :]
                 @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
             )
-            compute_events[3].record(stream=compute_stream)
+            compute_arrow_h2d_events[i % 2].record(stream=compute_stream)
             compute_stream.launch_host_func(cp.cuda.nvtx.RangePop, None)
 
     cp.cuda.Device().synchronize()
