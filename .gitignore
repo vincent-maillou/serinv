@@ -170,3 +170,5 @@ dev/*
 *.out
 *.qdstrm
 *.o*
+*.sqlite
+*.nsys-rep
