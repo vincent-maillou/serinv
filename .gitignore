@@ -168,3 +168,5 @@ dev/*
 *.dat
 *.err
 *.out
+*.qdstrm
+*.o*
