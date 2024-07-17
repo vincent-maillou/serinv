@@ -11,22 +11,23 @@ except ImportError:
 
 import numpy as np
 import scipy.linalg as np_la
+from numpy.typing import ArrayLike
 
 
 def ddbtaf(
-    A_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_lower_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_upper_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_arrow_bottom_blocks: np.ndarray | cp.ndarray,
-    A_arrow_right_blocks: np.ndarray | cp.ndarray,
-    A_arrow_tip_block: np.ndarray | cp.ndarray,
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_upper_diagonal_blocks: ArrayLike,
+    A_arrow_bottom_blocks: ArrayLike,
+    A_arrow_right_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
 ) -> tuple[
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
 ]:
     """Perform the LU factorization of a block tridiagonal arrowhead matrix using
     a sequential block algorithm.
@@ -39,36 +40,36 @@ def ddbtaf(
 
     Parameters
     ----------
-    A_diagonal_blocks : np.ndarray | cp.ndarray
+    A_diagonal_blocks : ArrayLike
         The blocks on the diagonal of the matrix.
-    A_lower_diagonal_blocks : np.ndarray | cp.ndarray
+    A_lower_diagonal_blocks : ArrayLike
         The blocks on the lower diagonal of the matrix.
-    A_upper_diagonal_blocks : np.ndarray | cp.ndarray
+    A_upper_diagonal_blocks : ArrayLike
         The blocks on the upper diagonal of the matrix.
-    A_arrow_bottom_blocks : np.ndarray | cp.ndarray
+    A_arrow_bottom_blocks : ArrayLike
         The blocks on the bottom arrow of the matrix.
-    A_arrow_right_blocks : np.ndarray | cp.ndarray
+    A_arrow_right_blocks : ArrayLike
         The blocks on the right arrow of the matrix.
-    A_arrow_tip_block : np.ndarray | cp.ndarray
+    A_arrow_tip_block : ArrayLike
         The block at the tip of the arrowhead.
 
     Returns
     -------
-    L_diagonal_blocks : np.ndarray | cp.ndarray
+    L_diagonal_blocks : ArrayLike
         Diagonal blocks of the lower factor.
-    L_lower_diagonal_blocks : np.ndarray | cp.ndarray
+    L_lower_diagonal_blocks : ArrayLike
         Lower diagonal blocks of the lower factor.
-    L_arrow_bottom_blocks : np.ndarray | cp.ndarray
+    L_arrow_bottom_blocks : ArrayLike
         Bottom arrow blocks of the lower factor.
-    L_arrow_tip_block : np.ndarray | cp.ndarray
+    L_arrow_tip_block : ArrayLike
         Tip arrow block of the lower factor.
-    U_diagonal_blocks : np.ndarray | cp.ndarray
+    U_diagonal_blocks : ArrayLike
         Diagonal blocks of the upper factor.
-    U_upper_diagonal_blocks : np.ndarray | cp.ndarray
+    U_upper_diagonal_blocks : ArrayLike
         Upper diagonal blocks of the upper factor
-    U_arrow_right_blocks : np.ndarray | cp.ndarray
+    U_arrow_right_blocks : ArrayLike
         Right arrow blocks of the upper factor
-    U_arrow_tip_block : np.ndarray | cp.ndarray
+    U_arrow_tip_block : ArrayLike
         Tip arrow block of the upper factor
     """
 

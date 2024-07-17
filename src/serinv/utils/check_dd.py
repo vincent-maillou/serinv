@@ -9,11 +9,12 @@ except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 
 def check_block_dd(
-    A_diagonal_blocks: np.ndarray | cp.ndarray,
-) -> np.ndarray | cp.ndarray:
+    A_diagonal_blocks: ArrayLike,
+) -> ArrayLike:
     """Check if the diagonal blocks of a block tridiagonal arrowhead matrix are diagonally dominant.
 
     Note:
@@ -22,12 +23,12 @@ def check_block_dd(
 
     Parameters
     ----------
-    A_diagonal_blocks : np.ndarray | cp.ndarray
+    A_diagonal_blocks : ArrayLike
         The blocks on the diagonal of the matrix.
 
     Returns
     -------
-    np.ndarray | cp.ndarray
+    ArrayLike
         Array of booleans indicating if the diagonal blocks are diagonally dominant.
     """
     if CUPY_AVAIL:
@@ -53,13 +54,13 @@ def check_block_dd(
 
 
 def check_ddbta(
-    A_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_lower_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_upper_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_arrow_bottom_blocks: np.ndarray | cp.ndarray,
-    A_arrow_right_blocks: np.ndarray | cp.ndarray,
-    A_arrow_tip_block: np.ndarray | cp.ndarray,
-) -> np.ndarray | cp.ndarray:
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_upper_diagonal_blocks: ArrayLike,
+    A_arrow_bottom_blocks: ArrayLike,
+    A_arrow_right_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+) -> ArrayLike:
     """Check if the given block tridiagonal arrowhead matrix is diagonally dominant.
 
     Note:
@@ -68,22 +69,22 @@ def check_ddbta(
 
     Parameters
     ----------
-    A_diagonal_blocks : np.ndarray | cp.ndarray
+    A_diagonal_blocks : ArrayLike
         The blocks on the diagonal of the matrix.
-    A_lower_diagonal_blocks : np.ndarray | cp.ndarray
+    A_lower_diagonal_blocks : ArrayLike
         The blocks on the lower diagonal of the matrix.
-    A_upper_diagonal_blocks : np.ndarray | cp.ndarray
+    A_upper_diagonal_blocks : ArrayLike
         The blocks on the upper diagonal of the matrix.
-    A_arrow_bottom_blocks : np.ndarray | cp.ndarray
+    A_arrow_bottom_blocks : ArrayLike
         The blocks on the bottom arrow of the matrix.
-    A_arrow_right_blocks : np.ndarray | cp.ndarray
+    A_arrow_right_blocks : ArrayLike
         The blocks on the right arrow of the matrix.
-    A_arrow_tip_block : np.ndarray | cp.ndarray
+    A_arrow_tip_block : ArrayLike
         The block at the tip of the arrowhead.
 
     Returns
     -------
-    np.ndarray | cp.ndarray
+    ArrayLike
         Array of booleans indicating if the corresponding row is diagonally dominant.
     """
     if CUPY_AVAIL:

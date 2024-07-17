@@ -11,15 +11,16 @@ except ImportError:
 
 import numpy as np
 import scipy.linalg as np_la
+from numpy.typing import ArrayLike
 
 
 def pobtas(
-    L_diagonal_blocks: np.ndarray | cp.ndarray,
-    L_lower_diagonal_blocks: np.ndarray | cp.ndarray,
-    L_arrow_bottom_blocks: np.ndarray | cp.ndarray,
-    L_arrow_tip_block: np.ndarray | cp.ndarray,
-    B: np.ndarray | cp.ndarray,
-) -> np.ndarray | cp.ndarray:
+    L_diagonal_blocks: ArrayLike,
+    L_lower_diagonal_blocks: ArrayLike,
+    L_arrow_bottom_blocks: ArrayLike,
+    L_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
+) -> ArrayLike:
     """Solve a block tridiagonal arrowhead linear system given its Cholesky factorization
     using a sequential block algorithm.
 
@@ -29,20 +30,20 @@ def pobtas(
 
     Parameters
     ----------
-    L_diagonal_blocks : np.ndarray | cp.ndarray
+    L_diagonal_blocks : ArrayLike
         Diagonal blocks of the cholesky factorization.
-    L_lower_diagonal_blocks : np.ndarray | cp.ndarray
+    L_lower_diagonal_blocks : ArrayLike
         Lower diagonal blocks of the cholesky factorization.
-    L_arrow_bottom_blocks : np.ndarray | cp.ndarray
+    L_arrow_bottom_blocks : ArrayLike
         Arrow bottom blocks of the cholesky factorization.
-    L_arrow_tip_block : np.ndarray | cp.ndarray
+    L_arrow_tip_block : ArrayLike
         Arrow tip block of the cholesky factorization.
-    B : np.ndarray | cp.ndarray
+    B : ArrayLike
         Right-hand side of the linear system.
 
     Returns
     -------
-    X : np.ndarray | cp.ndarray
+    X : ArrayLike
         The solution of the system.
     """
 

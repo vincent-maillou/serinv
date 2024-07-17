@@ -166,9 +166,9 @@ cython_debug/
 
 dev/*
 *.dat
+*.nsys-rep
+*.sqlite
+*.qdstrm
 *.err
 *.out
-*.qdstrm
 *.o*
-*.sqlite
-*.nsys-rep

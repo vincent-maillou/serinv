@@ -11,24 +11,25 @@ except ImportError:
 
 import numpy as np
 import scipy.linalg as np_la
+from numpy.typing import ArrayLike
 
 
 def ddbtasi(
-    L_diagonal_blocks: np.ndarray | cp.ndarray,
-    L_lower_diagonal_blocks: np.ndarray | cp.ndarray,
-    L_arrow_bottom_blocks: np.ndarray | cp.ndarray,
-    L_arrow_tip_block: np.ndarray | cp.ndarray,
-    U_diagonal_blocks: np.ndarray | cp.ndarray,
-    U_upper_diagonal_blocks: np.ndarray | cp.ndarray,
-    U_arrow_right_blocks: np.ndarray | cp.ndarray,
-    U_arrow_tip_block: np.ndarray | cp.ndarray,
+    L_diagonal_blocks: ArrayLike,
+    L_lower_diagonal_blocks: ArrayLike,
+    L_arrow_bottom_blocks: ArrayLike,
+    L_arrow_tip_block: ArrayLike,
+    U_diagonal_blocks: ArrayLike,
+    U_upper_diagonal_blocks: ArrayLike,
+    U_arrow_right_blocks: ArrayLike,
+    U_arrow_tip_block: ArrayLike,
 ) -> tuple[
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
 ]:
     """Perform a selected inversion from a lu factorized matrix using
     a sequential block algorithm.
@@ -39,36 +40,36 @@ def ddbtasi(
 
     Parameters
     ----------
-    L_diagonal_blocks : np.ndarray | cp.ndarray
+    L_diagonal_blocks : ArrayLike
         Diagonal blocks of the lower factor of the lu factorization of the matrix.
-    L_lower_diagonal_blocks : np.ndarray | cp.ndarray
+    L_lower_diagonal_blocks : ArrayLike
         Lower diagonal blocks of the lower factor of the lu factorization of the matrix.
-    L_arrow_bottom_blocks : np.ndarray | cp.ndarray
+    L_arrow_bottom_blocks : ArrayLike
         Bottom arrow blocks of the lower factor of the lu factorization of the matrix.
-    L_arrow_tip_block : np.ndarray | cp.ndarray
+    L_arrow_tip_block : ArrayLike
         Tip arrow block of the lower factor of the lu factorization of the matrix.
-    U_diagonal_blocks : np.ndarray | cp.ndarray
+    U_diagonal_blocks : ArrayLike
         Diagonal blocks of the upper factor of the lu factorization of the matrix.
-    U_upper_diagonal_blocks : np.ndarray | cp.ndarray
+    U_upper_diagonal_blocks : ArrayLike
         Upper diagonal blocks of the upper factor of the lu factorization of the matrix.
-    U_arrow_right_blocks : np.ndarray | cp.ndarray
+    U_arrow_right_blocks : ArrayLike
         Right arrow blocks of the upper factor of the lu factorization of the matrix.
-    U_arrow_tip_block : np.ndarray | cp.ndarray
+    U_arrow_tip_block : ArrayLike
         Tip arrow block of the upper factor of the lu factorization of the matrix.
 
     Returns
     -------
-    X_diagonal_blocks : np.ndarray | cp.ndarray
+    X_diagonal_blocks : ArrayLike
         Diagonal blocks of the selected inversion of the matrix.
-    X_lower_diagonal_blocks : np.ndarray | cp.ndarray
+    X_lower_diagonal_blocks : ArrayLike
         Lower diagonal blocks of the selected inversion of the matrix.
-    X_upper_diagonal_blocks : np.ndarray | cp.ndarray
+    X_upper_diagonal_blocks : ArrayLike
         Upper diagonal blocks of the selected inversion of the matrix.
-    X_arrow_bottom_blocks : np.ndarray | cp.ndarray
+    X_arrow_bottom_blocks : ArrayLike
         Bottom arrow blocks of the selected inversion of the matrix.
-    X_arrow_right_blocks : np.ndarray | cp.ndarray
+    X_arrow_right_blocks : ArrayLike
         Right arrow blocks of the selected inversion of the matrix.
-    X_arrow_tip_block : np.ndarray | cp.ndarray
+    X_arrow_tip_block : ArrayLike
         Tip arrow block of the selected inversion of the matrix.
     """
 
