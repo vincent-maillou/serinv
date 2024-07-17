@@ -46,7 +46,7 @@ def cholesky_lowerfill(a: cupy.ndarray) -> cupy.ndarray:
     if a.size == 0:
         return cupy.empty(a.shape, out_dtype)
 
-    x = a.astype(dtype, order="C", copy=True)
+    x = a.astype(dtype, order="C", copy=False)
     n = len(a)
     handle = device.get_cusolver_handle()
     dev_info = cupy.empty(1, dtype=numpy.int32)
@@ -83,4 +83,5 @@ def cholesky_lowerfill(a: cupy.ndarray) -> cupy.ndarray:
     )
 
     _util._triu(x, k=0)
-    return x.astype(out_dtype, copy=False).conj().T
+    cupy.conjugate(x, out=x)
+    return x.astype(out_dtype, copy=False).T
