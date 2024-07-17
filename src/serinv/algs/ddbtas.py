@@ -11,19 +11,20 @@ except ImportError:
 
 import numpy as np
 import scipy.linalg as np_la
+from numpy.typing import ArrayLike
 
 
 def ddbtas(
-    L_diagonal_blocks: np.ndarray | cp.ndarray,
-    L_lower_diagonal_blocks: np.ndarray | cp.ndarray,
-    L_arrow_bottom_blocks: np.ndarray | cp.ndarray,
-    L_arrow_tip_block: np.ndarray | cp.ndarray,
-    U_diagonal_blocks: np.ndarray | cp.ndarray,
-    U_upper_diagonal_blocks: np.ndarray | cp.ndarray,
-    U_arrow_right_blocks: np.ndarray | cp.ndarray,
-    U_arrow_tip_block: np.ndarray | cp.ndarray,
-    B: np.ndarray | cp.ndarray,
-) -> np.ndarray | cp.ndarray:
+    L_diagonal_blocks: ArrayLike,
+    L_lower_diagonal_blocks: ArrayLike,
+    L_arrow_bottom_blocks: ArrayLike,
+    L_arrow_tip_block: ArrayLike,
+    U_diagonal_blocks: ArrayLike,
+    U_upper_diagonal_blocks: ArrayLike,
+    U_arrow_right_blocks: ArrayLike,
+    U_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
+) -> ArrayLike:
     """Solve a block tridiagonal arrowhead linear system given its LU factorization
     using a sequential block algorithm.
 
@@ -33,28 +34,28 @@ def ddbtas(
 
     Parameters
     ----------
-    L_diagonal_blocks : np.ndarray | cp.ndarray
+    L_diagonal_blocks : ArrayLike
         Diagonal blocks of the lower factor.
-    L_lower_diagonal_blocks : np.ndarray | cp.ndarray
+    L_lower_diagonal_blocks : ArrayLike
         Lower diagonal blocks of the lower factor.
-    L_arrow_bottom_blocks : np.ndarray | cp.ndarray
+    L_arrow_bottom_blocks : ArrayLike
         Bottom arrow blocks of the lower factor.
-    L_arrow_tip_block : np.ndarray | cp.ndarray
+    L_arrow_tip_block : ArrayLike
         Tip arrow block of the lower factor.
-    U_diagonal_blocks : np.ndarray | cp.ndarray
+    U_diagonal_blocks : ArrayLike
         Diagonal blocks of the upper factor.
-    U_upper_diagonal_blocks : np.ndarray | cp.ndarray
+    U_upper_diagonal_blocks : ArrayLike
         Upper diagonal blocks of the upper factor.
-    U_arrow_right_blocks : np.ndarray | cp.ndarray
+    U_arrow_right_blocks : ArrayLike
         Right arrow blocks of the upper factor.
-    U_arrow_tip_block : np.ndarray | cp.ndarray
+    U_arrow_tip_block : ArrayLike
         Tip arrow block of the upper factor.
-    B : np.ndarray | cp.ndarray
+    B : ArrayLike
         The right hand side.
 
     Returns
     -------
-    X : np.ndarray | cp.ndarray
+    X : ArrayLike
         The solution of the system.
     """
 

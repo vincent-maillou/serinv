@@ -9,22 +9,23 @@ except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 
 def ddbtasinv(
-    A_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_lower_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_upper_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_arrow_bottom_blocks: np.ndarray | cp.ndarray,
-    A_arrow_right_blocks: np.ndarray | cp.ndarray,
-    A_arrow_tip_block: np.ndarray | cp.ndarray,
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_upper_diagonal_blocks: ArrayLike,
+    A_arrow_bottom_blocks: ArrayLike,
+    A_arrow_right_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
 ) -> tuple[
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
-    np.ndarray | cp.ndarray,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
 ]:
     """Perform the selected inversion of a block tridiagonal arrowhead matrix. Do
     not explicitly factorize the matrix, but rather compute the selected inverse
@@ -42,32 +43,32 @@ def ddbtasinv(
 
     Parameters
     ----------
-    A_diagonal_blocks : np.ndarray | cp.ndarray
+    A_diagonal_blocks : ArrayLike
         The blocks on the diagonal of the matrix.
-    A_lower_diagonal_blocks : np.ndarray | cp.ndarray
+    A_lower_diagonal_blocks : ArrayLike
         The blocks on the lower diagonal of the matrix.
-    A_upper_diagonal_blocks : np.ndarray | cp.ndarray
+    A_upper_diagonal_blocks : ArrayLike
         The blocks on the upper diagonal of the matrix.
-    A_arrow_bottom_blocks : np.ndarray | cp.ndarray
+    A_arrow_bottom_blocks : ArrayLike
         The blocks on the bottom arrow of the matrix.
-    A_arrow_right_blocks : np.ndarray | cp.ndarray
+    A_arrow_right_blocks : ArrayLike
         The blocks on the right arrow of the matrix.
-    A_arrow_tip_block : np.ndarray | cp.ndarray
+    A_arrow_tip_block : ArrayLike
         The block at the tip of the arrowhead.
 
     Returns
     -------
-    X_diagonal_blocks : np.ndarray | cp.ndarray
+    X_diagonal_blocks : ArrayLike
         Diagonal blocks of the selected inversion of the matrix.
-    X_lower_diagonal_blocks : np.ndarray | cp.ndarray
+    X_lower_diagonal_blocks : ArrayLike
         Lower diagonal blocks of the selected inversion of the matrix.
-    X_upper_diagonal_blocks : np.ndarray | cp.ndarray
+    X_upper_diagonal_blocks : ArrayLike
         Upper diagonal blocks of the selected inversion of the matrix.
-    X_arrow_bottom_blocks : np.ndarray | cp.ndarray
+    X_arrow_bottom_blocks : ArrayLike
         Bottom arrow blocks of the selected inversion of the matrix.
-    X_arrow_right_blocks : np.ndarray | cp.ndarray
+    X_arrow_right_blocks : ArrayLike
         Right arrow blocks of the selected inversion of the matrix.
-    X_arrow_tip_block : np.ndarray | cp.ndarray
+    X_arrow_tip_block : ArrayLike
         Tip arrow block of the selected inversion of the matrix.
     """
 
