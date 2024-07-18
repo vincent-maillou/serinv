@@ -294,7 +294,6 @@ def _streaming_pobtaf(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
-                    overwrite_b=True,
                 )
                 .conj()
                 .T
@@ -322,7 +321,6 @@ def _streaming_pobtaf(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_arrow_bottom_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
-                    overwrite_b=True,
                 )
                 .conj()
                 .T
