@@ -8,7 +8,6 @@
 #####SBATCH --constraint=a100_80
 #####SBATCH --exclusive
 
-# do your work - you may need to set CUDA_MPS_PIPE_DIRECTORY correctly per process!!
 srun -n 4 python testalloc.py
 
 
