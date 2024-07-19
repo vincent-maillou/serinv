@@ -294,7 +294,6 @@ def _streaming_pobtaf(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
-                    overwrite_b=True,
                 )
                 .conj()
                 .T
@@ -322,7 +321,6 @@ def _streaming_pobtaf(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_arrow_bottom_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
-                    overwrite_b=True,
                 )
                 .conj()
                 .T
@@ -367,6 +365,9 @@ def _streaming_pobtaf(
                 @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
             )
             compute_arrow_h2d_events[i % 2].record(stream=compute_stream)
+            compute_stream.launch_host_func(cp.cuda.nvtx.RangePop, None)
+
+    cp.cuda.Device().synchronize()
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
     with compute_stream:

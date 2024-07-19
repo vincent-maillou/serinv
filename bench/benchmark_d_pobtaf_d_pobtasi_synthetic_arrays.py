@@ -4,6 +4,8 @@ import numpy as np
 import scipy.stats
 import time
 import argparse
+from ctypes import *
+
 
 from mpi4py import MPI
 
@@ -11,7 +13,6 @@ comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
 
 from serinv.algs import d_pobtaf, d_pobtasi
-
 
 def mean_confidence_interval(data, confidence=0.95):
     a = 1.0 * np.array(data)
@@ -40,8 +41,10 @@ def set_device(
     """
     device_id = rank_id % n_gpus_per_node
     cp.cuda.Device(device_id).use()
+
     if debug:
-        print(f"Rank {rank_id} of {comm_size} is using the GPU {device_id}", flush=True)
+        libc = CDLL("libc.so.6")
+        print(f"Process {rank_id} of {comm_size} is using the GPU {device_id} from the CPU {libc.sched_getcpu()}", flush=True)
 
     return device_id
 
