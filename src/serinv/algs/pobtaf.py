@@ -365,43 +365,60 @@ def _streaming_pobtaf(
                 @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
             )
             compute_arrow_h2d_events[i % 2].record(stream=compute_stream)
+            compute_stream.launch_host_func(cp.cuda.nvtx.RangePop, None)
 
     cp.cuda.Device().synchronize()
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
-    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cholesky_lowerfill(
-        A_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
+    with compute_stream:
+        compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
+        L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cholesky_lowerfill(
+            A_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
+        )
+        compute_diagonal_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
+
+    d2h_stream.wait_event(compute_diagonal_events[(n_diag_blocks - 1) % 2])
+    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
+        out=L_diagonal_blocks[-1, :, :],
+        stream=d2h_stream,
+        blocking=False,
     )
 
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
-    L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
-        cu_la.solve_triangular(
-            L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
-            A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T,
-            lower=True,
+    with compute_stream:
+        compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
+        L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
+            cu_la.solve_triangular(
+                L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
+                A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T,
+                lower=True,
+            )
+            .conj()
+            .T
         )
-        .conj()
-        .T
-    )
+        compute_arrow_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
-    # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
-    A_arrow_tip_block_d[:, :] = (
-        A_arrow_tip_block_d[:, :]
-        - L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-        @ L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
-    )
-
-    # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-    L_arrow_tip_block_d[:, :] = cholesky_lowerfill(A_arrow_tip_block_d[:, :])
-
-    # --- Device 2 Host transfers ---
-    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-        out=L_diagonal_blocks[-1, :, :]
-    )
+    d2h_stream.wait_event(compute_arrow_events[(n_diag_blocks - 1) % 2])
     L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-        out=L_arrow_bottom_blocks[-1, :, :]
+        out=L_arrow_bottom_blocks[-1, :, :],
+        stream=d2h_stream,
+        blocking=False,
     )
-    L_arrow_tip_block_d[:, :].get(out=L_arrow_tip_block[:, :])
+
+    with compute_stream:
+        # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
+        A_arrow_tip_block_d[:, :] = (
+            A_arrow_tip_block_d[:, :]
+            - L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :]
+            @ L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
+        )
+
+        # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
+        L_arrow_tip_block_d[:, :] = cholesky_lowerfill(A_arrow_tip_block_d[:, :])
+
+        L_arrow_tip_block_d[:, :].get(
+            out=L_arrow_tip_block[:, :], stream=compute_stream
+        )
 
     cp.cuda.Device().synchronize()
 
