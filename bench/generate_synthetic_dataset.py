@@ -7,6 +7,7 @@ import numpy as np
 np.random.seed(SEED)
 
 from serinv.utils.check_dd import check_ddbta
+import argparse
 
 def generate_synthetic_dataset_for_pobta(
         path: str,
@@ -132,20 +133,41 @@ def generate_distributed_synthetic_dataset_for_d_pobta(
 
 
 if __name__ == "__main__":
-
-    n_blocks = 256
-    diagonal_blocksize = 1024
-    arrowhead_blocksize = diagonal_blocksize//4
-
-
-    # PATH = "/home/vault/j101df/j101df10/inla_matrices/synthetic_dataset/sequential/"
-    # generate_synthetic_dataset_for_pobta(
-    #     PATH, n_blocks, diagonal_blocksize, arrowhead_blocksize
-    # )
-    
-    n_processes = 8
-    PATH = "/home/vault/j101df/j101df10/inla_matrices/synthetic_dataset/distributed/"
-    generate_distributed_synthetic_dataset_for_d_pobta(
-        PATH, n_blocks, diagonal_blocksize, arrowhead_blocksize, n_processes
+    parser = argparse.ArgumentParser(description="Process some integers.")
+    parser.add_argument(
+        "--diagonal_blocksize",
+        type=int,
+        default=1024,
+        help="an integer for the diagonal block size",
     )
-    
+    parser.add_argument(
+        "--n_diag_blocks",
+        type=int,
+        default=8,
+        help="an integer for the number of diagonal blocks",
+    )
+    parser.add_argument(
+        "--n_processes",
+        type=int,
+        default=1,
+        help="number of processes for the distributed case",
+    )
+
+    args = parser.parse_args()
+
+    n_blocks = args.n_diag_blocks
+    diagonal_blocksize = args.diagonal_blocksize
+    arrowhead_blocksize = diagonal_blocksize//4
+    n_processes = args.n_processes
+
+    if n_processes == 1:
+        PATH = "/home/vault/j101df/j101df10/inla_matrices/synthetic_dataset/sequential/"
+        generate_synthetic_dataset_for_pobta(
+            PATH, n_blocks, diagonal_blocksize, arrowhead_blocksize
+        )
+    else:
+        PATH = "/home/vault/j101df/j101df10/inla_matrices/synthetic_dataset/distributed/"
+        generate_distributed_synthetic_dataset_for_d_pobta(
+            PATH, n_blocks, diagonal_blocksize, arrowhead_blocksize, n_processes
+        )
+        
