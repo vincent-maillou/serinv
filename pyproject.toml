@@ -25,6 +25,9 @@ dependencies = [
     "pytest-cov",
     "coverage",
 ]
+[project.optional-dependencies]
+cupy = ["cupy==13.2.0"]
+mpi4py = ["mpi4py"]
 
 [project.urls]
 repository = "https://github.com/vincent-maillou/serinv"
