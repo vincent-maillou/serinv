@@ -172,3 +172,5 @@ dev/*
 *.err
 *.out
 *.o*
+*.png
+*.eps
