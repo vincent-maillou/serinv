@@ -3,7 +3,7 @@
 #SBATCH --job-name=serinv_sequential
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:a100:1
-#SBATCH --time=00:15:00
+#SBATCH --time=00:02:00
 #SBATCH --error=output_serinv_sequential.err
 #SBATCH --output=output_serinv_sequential.out
 ####BATCH --exclusive
@@ -23,7 +23,7 @@ N_WARMUPS=1
 
 DIAGONAL_BLOCKSIZE=4096
 ARROWHEAD_BLOCKSIZE=1024
-N_DIAG_BLOCKS=32
+N_DIAG_BLOCKS=8
 
 # DIAGONAL_BLOCKSIZE=1024
 # ARROWHEAD_BLOCKSIZE=256
