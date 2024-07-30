@@ -174,3 +174,5 @@ dev/*
 *.o*
 *.png
 *.eps
+*.txt
+*.xyz
