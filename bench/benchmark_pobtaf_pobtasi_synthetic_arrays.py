@@ -96,7 +96,7 @@ if __name__ == "__main__":
     A_arrow_tip_block = data["A_arrow_tip_block"]
     toc = time.perf_counter()
 
-    print(f"Reading file took: {toc - tic:.5f} sec", flush=True)
+    print(f"Reading matrix took: {toc - tic:.5f} sec", flush=True)
     print(f"    A_diagonal_blocks.shape", A_diagonal_blocks.shape, flush=True)
     print(f"    A_lower_diagonal_blocks.shape", A_lower_diagonal_blocks.shape, flush=True)
     print(f"    A_arrow_bottom_blocks.shape", A_arrow_bottom_blocks.shape, flush=True)
@@ -134,6 +134,7 @@ if __name__ == "__main__":
             L_lower_diagonal_blocks,
             L_arrow_bottom_blocks,
             L_arrow_tip_block,
+            _,
         ) = pobtaf(
             A_diagonal_blocks_pinned,
             A_lower_diagonal_blocks_pinned,
@@ -144,8 +145,6 @@ if __name__ == "__main__":
         end_time = time.perf_counter()
         elapsed_time_pobtaf = end_time - start_time
 
-        print("I went out of pobtaf!!", flush=True)
-
         if i >= n_warmups:
             t_pobtaf[i - n_warmups] = elapsed_time_pobtaf
 
@@ -155,6 +154,7 @@ if __name__ == "__main__":
             X_lower_diagonal_blocks,
             X_arrow_bottom_blocks,
             X_arrow_tip_block,
+            _,
         ) = pobtasi(
             L_diagonal_blocks,
             L_lower_diagonal_blocks,
@@ -162,8 +162,6 @@ if __name__ == "__main__":
             L_arrow_tip_block,
             device_streaming,
         )
-
-        print("I went out of pobtasi!!", flush=True)
 
         end_time = time.perf_counter()
         elapsed_time_selinv = end_time - start_time

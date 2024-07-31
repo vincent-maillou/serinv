@@ -53,19 +53,13 @@ if __name__ == "__main__":
         help="a string for the file path",
     )
     parser.add_argument(
-        "--device_streaming",
-        type=bool,
-        default=True,
-        help="a boolean indicating if device streaming is enabled",
-    )
-    parser.add_argument(
         "--n_iterations",
         type=int,
         default=1,
         help="number of iterations for the benchmarking",
     )
     parser.add_argument(
-        "--warmups",
+        "--n_warmups",
         type=int,
         default=3,
         help="number of warm-ups iterations",
@@ -77,11 +71,13 @@ if __name__ == "__main__":
     arrowhead_blocksize = args.arrowhead_blocksize
     n_diag_blocks = args.n_diag_blocks
     file_path = args.file_path
-    device_streaming = args.device_streaming
     n_iterations = args.n_iterations
-    warmups = args.warmups
+    n_warmups = args.n_warmups
 
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
+
+    device_streaming = True
+    device_array = False
 
     # if True: compare to reference solution
     DEBUG = False
@@ -101,43 +97,58 @@ if __name__ == "__main__":
     
     filename = file_path + file
 
-    ## CAREFUL output matrix is only lower triangular part
+    tic = time.perf_counter()
     A = read_sym_CSC(filename)
 
-    device_streaming = True
-    device_array = False
+    (
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_tip_block,
+    ) = csc_to_dense_bta(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
+    toc = time.perf_counter()
 
-    # timings
+    print(f"Reading matrix took: {toc - tic:.5f} sec", flush=True)
+    print(f"    A_diagonal_blocks.shape", A_diagonal_blocks.shape, flush=True)
+    print(f"    A_lower_diagonal_blocks.shape", A_lower_diagonal_blocks.shape, flush=True)
+    print(f"    A_arrow_bottom_blocks.shape", A_arrow_bottom_blocks.shape, flush=True)
+    print(f"    A_arrow_tip_block.shape", A_arrow_tip_block.shape, flush=True)
+
+    tic = time.perf_counter()
+    A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks)
+    A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)
+    A_arrow_bottom_blocks_pinned = cpx.zeros_like_pinned(A_arrow_bottom_blocks)
+    A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block)
+    toc = time.perf_counter()
+
+    print(f"Allocating pinned memory took: {toc - tic:.5f} sec", flush=True)
+    print(f"Initialization done..", flush=True)
+
     t_pobtaf = np.zeros(n_iterations)
     t_pobtasi = np.zeros(n_iterations)
 
-    for i in range(warmups + n_iterations):
+    dict_timings_pobtaf = {}
+    dict_timings_pobtaf["potrf"] = np.zeros(n_iterations)
+    dict_timings_pobtaf["trsm"] = np.zeros(n_iterations)
+    dict_timings_pobtaf["gemm"] = np.zeros(n_iterations)
+    dict_timings_pobtaf["total"] = np.zeros(n_iterations)
 
-        (
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_tip_block,
-        ) = csc_to_dense_bta(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
+    dict_timings_pobtasi = {}
+    dict_timings_pobtasi["trsm"] = np.zeros(n_iterations)
+    dict_timings_pobtasi["gemm"] = np.zeros(n_iterations)
+    dict_timings_pobtasi["total"] = np.zeros(n_iterations)
 
-        if CUPY_AVAIL and device_streaming and not device_array:
-            if i == 0:
-                print("Using pinned memory", flush=True)
-            A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks)
-            A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :]
-            A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(
-                A_lower_diagonal_blocks
-            )
-            A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks[:, :, :]
-            A_arrow_bottom_blocks_pinned = cpx.zeros_like_pinned(A_arrow_bottom_blocks)
-            A_arrow_bottom_blocks_pinned[:, :, :] = A_arrow_bottom_blocks[:, :, :]
-            A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block)
-            A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block[:, :]
+    for i in range(n_warmups + n_iterations):
+        print(f"Iteration: {i+1}/{n_warmups+n_iterations}", flush=True)
 
-            A_diagonal_blocks = A_diagonal_blocks_pinned
-            A_lower_diagonal_blocks = A_lower_diagonal_blocks_pinned
-            A_arrow_bottom_blocks = A_arrow_bottom_blocks_pinned
-            A_arrow_tip_block = A_arrow_tip_block_pinned
+        tic = time.perf_counter()
+        A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :].copy()
+        A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks[:, :, :].copy()
+        A_arrow_bottom_blocks_pinned[:, :, :] = A_arrow_bottom_blocks[:, :, :].copy()
+        A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block[:, :].copy()
+        toc = time.perf_counter()
+
+        print(f"  Copying data to pinned memory took: {toc - tic:.5f} sec", flush=True)
 
         start_time = time.perf_counter()
 
@@ -146,6 +157,7 @@ if __name__ == "__main__":
             L_lower_diagonal_blocks,
             L_arrow_bottom_blocks,
             L_arrow_tip_block,
+            dict_timings,
         ) = pobtaf(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
@@ -156,8 +168,13 @@ if __name__ == "__main__":
         end_time = time.perf_counter()
         elapsed_time_pobtaf = end_time - start_time
 
-        if i >= warmups:
-            t_pobtaf[i - warmups] = elapsed_time_pobtaf
+        dict_timings_pobtaf["potrf"][i - n_warmups] = dict_timings["potrf"]
+        dict_timings_pobtaf["trsm"][i - n_warmups] = dict_timings["trsm"]
+        dict_timings_pobtaf["gemm"][i - n_warmups] = dict_timings["gemm"]
+        dict_timings_pobtaf["total"][i - n_warmups] = elapsed_time_pobtaf
+
+        if i >= n_warmups:
+            t_pobtaf[i - n_warmups] = elapsed_time_pobtaf
 
         if DEBUG:
             L = bta_arrays_to_dense(
@@ -186,6 +203,7 @@ if __name__ == "__main__":
             X_lower_diagonal_blocks,
             X_arrow_bottom_blocks,
             X_arrow_tip_block,
+            dict_timings,
         ) = pobtasi(
             L_diagonal_blocks,
             L_lower_diagonal_blocks,
@@ -193,25 +211,31 @@ if __name__ == "__main__":
             L_arrow_tip_block,
             device_streaming,
         )
-
         end_time = time.perf_counter()
         elapsed_time_selinv = end_time - start_time
 
-        if i >= warmups:
-            t_pobtasi[i - warmups] = elapsed_time_selinv
+        dict_timings_pobtasi["trsm"][i - n_warmups] = dict_timings["trsm"]
+        dict_timings_pobtasi["gemm"][i - n_warmups] = dict_timings["gemm"]
+        dict_timings_pobtasi["total"][i - n_warmups] = elapsed_time_selinv
 
-        if i < warmups:
+        if i >= n_warmups:
+            t_pobtasi[i - n_warmups] = elapsed_time_selinv
+
+        if i < n_warmups:
             print(
-                f"Warmup iteration: {i+1}/{warmups}, Time pobtaf: {elapsed_time_pobtaf:.5f} sec, Time pobtasi: {elapsed_time_selinv:.5f} sec"
+                f"  Warmup iteration: {i+1}/{n_warmups}, Time pobtaf: {elapsed_time_pobtaf:.5f} sec, Time pobtasi: {elapsed_time_selinv:.5f} sec"
             )
+            print(f"  pobtaf: potrf = {dict_timings_pobtaf['potrf']:.5f} sec, trsm = {dict_timings_pobtaf['trsm']:.5f} sec, gemm = {dict_timings_pobtaf['gemm']:.5f} sec")
+            print(f"  pobtasi: trsm = {dict_timings_pobtaf['trsm']:.5f} sec, gemm = {dict_timings_pobtaf['gemm']:.5f} sec")
         else:
             print(
-                f"Bench iteration: {i+1-warmups}/{n_iterations} Time Chol: {elapsed_time_pobtaf:.5f} sec. Time selInv: {elapsed_time_selinv:.5f} sec"
+                f"  Bench iteration: {i+1-n_warmups}/{n_iterations} Time Chol: {elapsed_time_pobtaf:.5f} sec. Time selInv: {elapsed_time_selinv:.5f} sec"
             )
+            print(f"  pobtaf: potrf = {dict_timings_pobtasi['potrf']:.5f} sec, trsm = {dict_timings_pobtasi['trsm']:.5f} sec, gemm = {dict_timings_pobtasi['gemm']:.5f} sec")
+            print(f"  pobtasi: trsm = {dict_timings_pobtasi['trsm']:.5f} sec, gemm = {dict_timings_pobtasi['gemm']:.5f} sec")
 
         if DEBUG:
             X_ref = np.linalg.inv(A_symmetric)
-
             (
                 X_diagonal_blocks_ref,
                 X_lower_diagonal_blocks_ref,
@@ -240,17 +264,6 @@ if __name__ == "__main__":
                 np.linalg.norm(X_arrow_tip_block - X_arrow_tip_block_ref),
             )
 
-    # Save the raw data
-    np.save(
-        f"timings_pobtaf_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}.npy",
-        t_pobtaf,
-    )
-
-    np.save(
-        f"timings_pobtasi_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}.npy",
-        t_pobtasi,
-    )
-
     mean_pobtaf, lb_mean_pobtaf, ub_mean_pobtaf = mean_confidence_interval(t_pobtaf)
     mean_pobtasi, lb_mean_pobtasi, ub_mean_pobtasi = mean_confidence_interval(t_pobtasi)
 
@@ -261,3 +274,16 @@ if __name__ == "__main__":
     print(
         f"Mean time pobtasi: {mean_pobtasi:.5f} sec, 95% CI: [{lb_mean_pobtasi:.5f}, {ub_mean_pobtasi:.5f}]"
     )
+
+    # Save the raw data
+    np.save(
+        f"dict_timings_inlamat_pobtaf_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}.npy",
+        dict_timings_pobtaf,
+    )
+
+    np.save(
+        f"dict_timings_inlamat_pobtasi_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}.npy",
+        dict_timings_pobtasi,
+    )
+
+    
