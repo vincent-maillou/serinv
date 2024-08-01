@@ -1,12 +1,10 @@
+import time
+
+tic = time.perf_counter()
 try:
     import cupyx as cpx
-
-    CUPY_AVAIL = True
-
 except:
-    CUPY_AVAIL = False
-
-print("CUPY_AVAIL: ", CUPY_AVAIL)
+    pass
 
 from serinv.algs import pobtaf, pobtasi
 from load_datmat import csc_to_dense_bta, read_sym_CSC
@@ -14,7 +12,6 @@ from utility_functions import bta_arrays_to_dense, bta_dense_to_arrays
 import numpy as np
 
 import scipy.stats
-import time
 import argparse
 
 
@@ -66,6 +63,8 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    toc = time.perf_counter()
+    print(f"Import and parsing took: {toc - tic:.5f} sec", flush=True)
 
     diagonal_blocksize = args.diagonal_blocksize
     arrowhead_blocksize = args.arrowhead_blocksize
@@ -77,7 +76,6 @@ if __name__ == "__main__":
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
 
     device_streaming = True
-    device_array = False
 
     # if True: compare to reference solution
     DEBUG = False
@@ -138,6 +136,11 @@ if __name__ == "__main__":
     dict_timings_pobtasi["gemm"] = np.zeros(n_iterations)
     dict_timings_pobtasi["total"] = np.zeros(n_iterations)
 
+    dict_timings = {}
+    dict_timings["potrf"] = 0
+    dict_timings["trsm"] = 0
+    dict_timings["gemm"] = 0
+
     for i in range(n_warmups + n_iterations):
         print(f"Iteration: {i+1}/{n_warmups+n_iterations}", flush=True)
 
@@ -150,8 +153,8 @@ if __name__ == "__main__":
 
         print(f"  Copying data to pinned memory took: {toc - tic:.5f} sec", flush=True)
 
-        start_time = time.perf_counter()
 
+        start_time = time.perf_counter()
         (
             L_diagonal_blocks,
             L_lower_diagonal_blocks,
@@ -159,22 +162,22 @@ if __name__ == "__main__":
             L_arrow_tip_block,
             dict_timings,
         ) = pobtaf(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_tip_block,
+            A_diagonal_blocks_pinned,
+            A_lower_diagonal_blocks_pinned,
+            A_arrow_bottom_blocks_pinned,
+            A_arrow_tip_block_pinned,
             device_streaming,
         )
         end_time = time.perf_counter()
         elapsed_time_pobtaf = end_time - start_time
 
-        dict_timings_pobtaf["potrf"][i - n_warmups] = dict_timings["potrf"]
-        dict_timings_pobtaf["trsm"][i - n_warmups] = dict_timings["trsm"]
-        dict_timings_pobtaf["gemm"][i - n_warmups] = dict_timings["gemm"]
-        dict_timings_pobtaf["total"][i - n_warmups] = elapsed_time_pobtaf
-
         if i >= n_warmups:
+            dict_timings_pobtaf["potrf"][i - n_warmups] = dict_timings["potrf"]
+            dict_timings_pobtaf["trsm"][i - n_warmups] = dict_timings["trsm"]
+            dict_timings_pobtaf["gemm"][i - n_warmups] = dict_timings["gemm"]
+            dict_timings_pobtaf["total"][i - n_warmups] = elapsed_time_pobtaf
             t_pobtaf[i - n_warmups] = elapsed_time_pobtaf
+
 
         if DEBUG:
             L = bta_arrays_to_dense(
@@ -197,6 +200,7 @@ if __name__ == "__main__":
             L_ref = np.linalg.cholesky(A_symmetric)
             print("norm(L - L_ref):", np.linalg.norm(L - L_ref))
 
+
         start_time = time.perf_counter()
         (
             X_diagonal_blocks,
@@ -212,27 +216,24 @@ if __name__ == "__main__":
             device_streaming,
         )
         end_time = time.perf_counter()
-        elapsed_time_selinv = end_time - start_time
-
-        dict_timings_pobtasi["trsm"][i - n_warmups] = dict_timings["trsm"]
-        dict_timings_pobtasi["gemm"][i - n_warmups] = dict_timings["gemm"]
-        dict_timings_pobtasi["total"][i - n_warmups] = elapsed_time_selinv
+        elapsed_time_pobtasi = end_time - start_time
 
         if i >= n_warmups:
-            t_pobtasi[i - n_warmups] = elapsed_time_selinv
+            dict_timings_pobtasi["trsm"][i - n_warmups] = dict_timings["trsm"]
+            dict_timings_pobtasi["gemm"][i - n_warmups] = dict_timings["gemm"]
+            dict_timings_pobtasi["total"][i - n_warmups] = elapsed_time_pobtasi
+            t_pobtasi[i - n_warmups] = elapsed_time_pobtasi
 
         if i < n_warmups:
             print(
-                f"  Warmup iteration: {i+1}/{n_warmups}, Time pobtaf: {elapsed_time_pobtaf:.5f} sec, Time pobtasi: {elapsed_time_selinv:.5f} sec"
+                f"  Warmup iteration: {i+1}/{n_warmups}, Time pobtaf: {elapsed_time_pobtaf:.5f} sec, Time pobtasi: {elapsed_time_pobtasi:.5f} sec"
             )
-            print(f"  pobtaf: potrf = {dict_timings_pobtaf['potrf']:.5f} sec, trsm = {dict_timings_pobtaf['trsm']:.5f} sec, gemm = {dict_timings_pobtaf['gemm']:.5f} sec")
-            print(f"  pobtasi: trsm = {dict_timings_pobtaf['trsm']:.5f} sec, gemm = {dict_timings_pobtaf['gemm']:.5f} sec")
         else:
             print(
-                f"  Bench iteration: {i+1-n_warmups}/{n_iterations} Time Chol: {elapsed_time_pobtaf:.5f} sec. Time selInv: {elapsed_time_selinv:.5f} sec"
+                f"  Bench iteration: {i+1-n_warmups}/{n_iterations} Time Chol: {elapsed_time_pobtaf:.5f} sec. Time selInv: {elapsed_time_pobtasi:.5f} sec"
             )
-            print(f"  pobtaf: potrf = {dict_timings_pobtasi['potrf']:.5f} sec, trsm = {dict_timings_pobtasi['trsm']:.5f} sec, gemm = {dict_timings_pobtasi['gemm']:.5f} sec")
-            print(f"  pobtasi: trsm = {dict_timings_pobtasi['trsm']:.5f} sec, gemm = {dict_timings_pobtasi['gemm']:.5f} sec")
+            print(f"  pobtaf: potrf = {dict_timings_pobtaf['potrf'][i-n_warmups]:.5f} sec, trsm = {dict_timings_pobtaf['trsm'][i-n_warmups]:.5f} sec, gemm = {dict_timings_pobtaf['gemm'][i-n_warmups]:.5f} sec")
+            print(f"  pobtasi: trsm = {dict_timings_pobtasi['trsm'][i-n_warmups]:.5f} sec, gemm = {dict_timings_pobtasi['gemm'][i-n_warmups]:.5f} sec")
 
         if DEBUG:
             X_ref = np.linalg.inv(A_symmetric)
@@ -277,12 +278,12 @@ if __name__ == "__main__":
 
     # Save the raw data
     np.save(
-        f"dict_timings_inlamat_pobtaf_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}.npy",
+        f"dict_timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
         dict_timings_pobtaf,
     )
 
     np.save(
-        f"dict_timings_inlamat_pobtasi_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}.npy",
+        f"dict_timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
         dict_timings_pobtasi,
     )
 
