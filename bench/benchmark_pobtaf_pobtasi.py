@@ -58,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_warmups",
         type=int,
-        default=3,
+        default=1,
         help="number of warm-ups iterations",
     )
 
@@ -72,6 +72,9 @@ if __name__ == "__main__":
     file_path = args.file_path
     n_iterations = args.n_iterations
     n_warmups = args.n_warmups
+    timing_sections = True
+
+    print("timing_sections", timing_sections)
 
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
 
@@ -129,12 +132,10 @@ if __name__ == "__main__":
     dict_timings_pobtaf["potrf"] = np.zeros(n_iterations)
     dict_timings_pobtaf["trsm"] = np.zeros(n_iterations)
     dict_timings_pobtaf["gemm"] = np.zeros(n_iterations)
-    dict_timings_pobtaf["total"] = np.zeros(n_iterations)
 
     dict_timings_pobtasi = {}
     dict_timings_pobtasi["trsm"] = np.zeros(n_iterations)
     dict_timings_pobtasi["gemm"] = np.zeros(n_iterations)
-    dict_timings_pobtasi["total"] = np.zeros(n_iterations)
 
     dict_timings = {}
     dict_timings["potrf"] = 0
@@ -167,6 +168,7 @@ if __name__ == "__main__":
             A_arrow_bottom_blocks_pinned,
             A_arrow_tip_block_pinned,
             device_streaming,
+            timing_sections,
         )
         end_time = time.perf_counter()
         elapsed_time_pobtaf = end_time - start_time
@@ -175,7 +177,6 @@ if __name__ == "__main__":
             dict_timings_pobtaf["potrf"][i - n_warmups] = dict_timings["potrf"]
             dict_timings_pobtaf["trsm"][i - n_warmups] = dict_timings["trsm"]
             dict_timings_pobtaf["gemm"][i - n_warmups] = dict_timings["gemm"]
-            dict_timings_pobtaf["total"][i - n_warmups] = elapsed_time_pobtaf
             t_pobtaf[i - n_warmups] = elapsed_time_pobtaf
 
 
@@ -214,6 +215,7 @@ if __name__ == "__main__":
             L_arrow_bottom_blocks,
             L_arrow_tip_block,
             device_streaming,
+            timing_sections,
         )
         end_time = time.perf_counter()
         elapsed_time_pobtasi = end_time - start_time
@@ -221,7 +223,6 @@ if __name__ == "__main__":
         if i >= n_warmups:
             dict_timings_pobtasi["trsm"][i - n_warmups] = dict_timings["trsm"]
             dict_timings_pobtasi["gemm"][i - n_warmups] = dict_timings["gemm"]
-            dict_timings_pobtasi["total"][i - n_warmups] = elapsed_time_pobtasi
             t_pobtasi[i - n_warmups] = elapsed_time_pobtasi
 
         if i < n_warmups:
@@ -276,15 +277,25 @@ if __name__ == "__main__":
         f"Mean time pobtasi: {mean_pobtasi:.5f} sec, 95% CI: [{lb_mean_pobtasi:.5f}, {ub_mean_pobtasi:.5f}]"
     )
 
-    # Save the raw data
-    np.save(
-        f"dict_timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
-        dict_timings_pobtaf,
-    )
+    if timing_sections:
+        # Save the raw data
+        np.save(
+            f"dict_timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+            dict_timings_pobtaf,
+        )
 
-    np.save(
-        f"dict_timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
-        dict_timings_pobtasi,
-    )
+        np.save(
+            f"dict_timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+            dict_timings_pobtasi,
+        )
+    else:
+        np.save(
+            f"timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+            t_pobtaf,
+        )
 
+        np.save(
+            f"timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+            t_pobtasi,
+        )
     

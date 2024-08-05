@@ -141,6 +141,12 @@ if __name__ == "__main__":
         help="an integer for the diagonal block size",
     )
     parser.add_argument(
+        "--arrowhead_blocksize",
+        type=int,
+        default=0,
+        help="an integer for the diagonal block size",
+    )
+    parser.add_argument(
         "--n_diag_blocks",
         type=int,
         default=8,
@@ -157,7 +163,9 @@ if __name__ == "__main__":
 
     n_blocks = args.n_diag_blocks
     diagonal_blocksize = args.diagonal_blocksize
-    arrowhead_blocksize = diagonal_blocksize//4
+    arrowhead_blocksize = args.arrowhead_blocksize
+    if arrowhead_blocksize == 0:
+        arrowhead_blocksize = diagonal_blocksize // 4
     n_processes = args.n_processes
 
     if n_processes == 1:

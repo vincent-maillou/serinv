@@ -1,34 +1,37 @@
 #!/bin/bash
 
-#SBATCH --job-name=serinv_sequential
+#SBATCH --job-name=serinv_seq_synthetic
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:a100:1
-#SBATCH --time=00:02:00
-#SBATCH --error=output_serinv_sequential.err
-#SBATCH --output=output_serinv_sequential.out
+#SBATCH --gres=gpu:a100:1 -C a100_80
+#SBATCH --time=00:15:00
+#SBATCH --output=%x.%j.out
+#SBATCH --error=%x.%j.err
 ####BATCH --exclusive
 #####SBATCH --cpus-per-task=1
 #####SBATCH --constraint=a100_80
 
-N_ITERATIONS=3
+N_ITERATIONS=10
 N_WARMUPS=1
-
-# DIAGONAL_BLOCKSIZE=1024
-# ARROWHEAD_BLOCKSIZE=256
-# N_DIAG_BLOCKS=32
-
-# DIAGONAL_BLOCKSIZE=512
-# ARROWHEAD_BLOCKSIZE=128
-# N_DIAG_BLOCKS=128
 
 DIAGONAL_BLOCKSIZE=4096
 ARROWHEAD_BLOCKSIZE=1024
-N_DIAG_BLOCKS=8
+N_DIAG_BLOCKS=16
+
+# DIAGONAL_BLOCKSIZE=2048
+# ARROWHEAD_BLOCKSIZE=512
+# N_DIAG_BLOCKS=16
 
 # DIAGONAL_BLOCKSIZE=1024
 # ARROWHEAD_BLOCKSIZE=256
-# N_DIAG_BLOCKS=64
+# N_DIAG_BLOCKS=16
 
+# DIAGONAL_BLOCKSIZE=512
+# ARROWHEAD_BLOCKSIZE=128
+# N_DIAG_BLOCKS=16
+
+# DIAGONAL_BLOCKSIZE=256
+# ARROWHEAD_BLOCKSIZE=64
+# N_DIAG_BLOCKS=16
 
 FILE_PATH=/home/vault/j101df/j101df10/inla_matrices/synthetic_dataset/sequential/
 
