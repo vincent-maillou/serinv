@@ -171,3 +171,10 @@ dev/*
 *.qdstrm
 *.err
 *.out
+*.o*
+*.png
+*.eps
+*.txt
+*.xyz
+*.zip
+*.ncu-rep
