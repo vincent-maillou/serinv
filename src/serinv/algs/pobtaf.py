@@ -212,8 +212,6 @@ def _streaming_pobtaf(
     compute_arrow_events = [cp.cuda.Event(), cp.cuda.Event()]
     compute_arrow_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
 
-    n_diag_blocks = A_diagonal_blocks.shape[0]
-
     # A/L hosts arrays pointers
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
@@ -252,6 +250,7 @@ def _streaming_pobtaf(
     )
     h2d_arrow_events[0].record(stream=h2d_stream)
 
+    n_diag_blocks = A_diagonal_blocks.shape[0]
     if n_diag_blocks > 1:
         A_lower_diagonal_blocks_d[0, :, :].set(
             arr=A_lower_diagonal_blocks[0, :, :], stream=h2d_stream
