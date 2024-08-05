@@ -148,12 +148,14 @@ def _pobtasinv(
     # Backward block-selected inversion
     A_arrow_bottom_blocks_i[:, :] = A_arrow_bottom_blocks[-1, :, :]
 
+    # X_{ndb+1,i} = - X_{ndb+1,ndb+1} @ A_{ndb+1,i} @ X_{ii}
     X_arrow_bottom_blocks[-1, :, :] = (
         -X_arrow_tip_block[:, :]
         @ A_arrow_bottom_blocks[-1, :, :]
         @ X_diagonal_blocks[-1, :, :]
     )
 
+    # X_{ndb, ndb} = X_{ndb, ndb} + X_{ndb, ndb} @ A_{ndb, ndb-1}^{\dagger} @ X_{ndb+1, ndb+1} @ A_{ndb, ndb-1} @ X_{ndb, ndb}
     X_diagonal_blocks[-1, :, :] = (
         X_diagonal_blocks[-1, :, :]
         + X_diagonal_blocks[-1, :, :]
@@ -186,6 +188,7 @@ def _pobtasinv(
         # X_{ndb+1,i} = - C2 @ X_{ii}
         X_arrow_bottom_blocks[i, :, :] = -C2[:, :] @ X_diagonal_blocks[i, :, :]
 
+        # X_{i, i} = X_{i, i} + X_{i, i} @ (A_{i, i-1}^{\dagger} @ C1 + A_{ndb+1, i}^{\dagger} @ C2) @ X_{i, i}
         X_diagonal_blocks[i, :, :] = (
             X_diagonal_blocks[i, :, :]
             + X_diagonal_blocks[i, :, :]
