@@ -36,6 +36,28 @@ def pobtaf(
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
 
+    Complexity analysis:
+        Parameters:
+            n : number of diagonal blocks
+            b : diagonal block size
+            a : arrow block size
+
+        FLOPS count:
+            POTRF_b^3 : n * (1/3 * b^3 + 1/2 * b^2 + 1/6 * b)
+            POTRF_a^3 : 1/3 * a^3 + 1/2 * a^2 + 1/6 * a
+            GEMM_b^3 : (n-1) * 2 * b^3
+            GEMM_b^2_a : (n-1) * 2 * b^2 * a
+            GEMM_a^2_b : n * 2 * a^2 * b
+            TRSM_b^3 : (n-1) * b^3
+            TRSM_a_b^2 : n * a * b^2
+
+        Total FLOPS:
+            T_{flops_{POBTAF}} = n * (10/3 * b^3 + (1/2 + 3*a) * b^2 + (1/6 + 2*a^2) * b) - 3 * b^3 - 2*a*b^2 + 1/3 * a^3 + 1/2 * a^2 + 1/6 * a
+
+        Complexity:
+            By making the assumption that b >> a, the complexity of the POBTAF
+            algorithm is O(n * b^3).
+
     Parameters
     ----------
     A_diagonal_blocks : ArrayLike
@@ -212,7 +234,7 @@ def _streaming_pobtaf(
     compute_arrow_events = [cp.cuda.Event(), cp.cuda.Event()]
     compute_arrow_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
 
-    # A/L hosts arrays pointers
+    # L host aliases
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
     L_arrow_bottom_blocks = A_arrow_bottom_blocks
