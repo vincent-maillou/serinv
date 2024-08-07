@@ -31,6 +31,27 @@ def pobtasi(
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
 
+    Complexity analysis:
+        Parameters:
+            n : number of diagonal blocks
+            b : diagonal block size
+            a : arrow block size
+
+        FLOPS count:
+            GEMM_b^3 : (n-1) * 8 * b^3 + 2 * b^3
+            GEMM_b^2_a : (n-1) * 10 * b^2 * a + 4 * b^2 * a
+            GEMM_a^2_b : (n-1) * 2 * a^2 * b + 2 * a^2 * b
+            GEMM_a^3 : 2 * a^3
+            TRSM_b^3 : (n-1) * b^3
+            TRSM_a_b^2 : a * b^2
+
+        Total FLOPS:
+            T_{flops_{POBTASI}} = (n-1) * (9*b^3 + 10*b^2 + 2*a^2*b) + 2*b^3 + 5*a*b^2 + 2*a^2*b + 2*a^3
+
+        Complexity:
+            By making the assumption that b >> a, the complexity of the POBTASI
+            algorithm is O(n * b^3).
+
     Parameters
     ----------
     L_diagonal_blocks : ArrayLike

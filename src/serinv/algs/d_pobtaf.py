@@ -47,6 +47,36 @@ def d_pobtaf(
         are aliases on the inputs.
     - If a device array is given, the algorithm will run on the GPU.
 
+    Complexity analysis:
+        Parameters:
+            n : number of diagonal blocks
+            b : diagonal block size
+            a : arrow block size
+            p : number of processes
+
+        The FLOPS count of the top process is the same as the one of the sequential
+        block Cholesky factorization algorithm (pobtaf). Following the assumption
+        of a load balancing between the first processes and the others ("middle"), the FLOPS
+        count is derived assuming only "middle" processes.
+
+        The factorization process is embarassingly parallel. Only the tip of the arrow
+        is updated through an MPI.Allreduce operation at the end of the factorization.
+
+        FLOPS count:
+            POTRF_b^3 : (n/p-2) * (1/3 * b^3 + 1/2 * b^2 + 1/6 * b)
+            GEMM_b^3 : (n/p-2) * 4 * b^3
+            GEMM_b^2_a : (n/p-2) * 4 * b^2 * a
+            GEMM_a^2_b : (n/p-2) * 4 * a^2 * b
+            TRSM_b^3 : (n/p-2) * 2 * b^3
+            TRSM_a_b^2 : (n/p-2) * a * b^2
+
+        Total FLOPS:
+            T_{flops_{d_pobtaf}} = (n/p-2) * (19/3 * b^3 + (1/2 + 5*a) * b^2 + (1/6 + 4*a^2) * b)
+
+        Complexity:
+            By making the assumption that b >> a, the complexity of the POBTAF
+            algorithm is O(n/p * b^3).
+
     Parameters
     ----------
     A_diagonal_blocks_local : ArrayLike
@@ -317,9 +347,6 @@ def _streaming_d_pobtaf(
     ArrayLike,
     ArrayLike,
 ]:
-    cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:mem_init")
-    n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
-
     # Host aliases & buffers
     L_diagonal_blocks_local = A_diagonal_blocks_local
     L_lower_diagonal_blocks_local = A_lower_diagonal_blocks_local
@@ -330,7 +357,10 @@ def _streaming_d_pobtaf(
     A_diagonal_blocks_d = cp.empty(
         (2, *A_diagonal_blocks_local.shape[1:]), dtype=A_diagonal_blocks_local.dtype
     )
-    A_lower_diagonal_blocks_d = cp.empty_like(A_lower_diagonal_blocks_local[0])
+    A_lower_diagonal_blocks_d = cp.empty(
+        (2, *A_lower_diagonal_blocks_local.shape[1:]),
+        dtype=A_lower_diagonal_blocks_local.dtype,
+    )
     A_arrow_bottom_blocks_d = cp.empty(
         (2, *A_arrow_bottom_blocks_local.shape[1:]),
         dtype=A_arrow_bottom_blocks_local.dtype,
@@ -341,14 +371,12 @@ def _streaming_d_pobtaf(
     L_lower_diagonal_blocks_d = A_lower_diagonal_blocks_d
     L_arrow_bottom_blocks_d = A_arrow_bottom_blocks_d
 
+    n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
     if comm_rank == 0:
         # Host aliases & buffers specific to the top process
         L_upper_nested_dissection_buffer_local = None
 
-        cp.cuda.nvtx.RangePop()
-
         # Forward block-Cholesky, performed by a "top" process
-        cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:fwd_cholesky_topprocess")
 
         # --- Host 2 Device transfers ---
         A_diagonal_blocks_d[0, :, :].set(arr=A_diagonal_blocks_local[0, :, :])
@@ -359,7 +387,7 @@ def _streaming_d_pobtaf(
             A_diagonal_blocks_d[(i + 1) % 2, :, :].set(
                 arr=A_diagonal_blocks_local[i + 1, :, :]
             )
-            A_lower_diagonal_blocks_d[:, :].set(
+            A_lower_diagonal_blocks_d[i % 2, :, :].set(
                 arr=A_lower_diagonal_blocks_local[i, :, :]
             )
             A_arrow_bottom_blocks_d[(i + 1) % 2, :, :].set(
@@ -374,10 +402,10 @@ def _streaming_d_pobtaf(
 
             # Compute lower factors
             # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-            L_lower_diagonal_blocks_d[:, :] = (
+            L_lower_diagonal_blocks_d[i % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    A_lower_diagonal_blocks_d[:, :].conj().T,
+                    A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
                 )
                 .conj()
@@ -399,15 +427,15 @@ def _streaming_d_pobtaf(
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
                 A_diagonal_blocks_d[(i + 1) % 2, :, :]
-                - L_lower_diagonal_blocks_d[:, :]
-                @ L_lower_diagonal_blocks_d[:, :].conj().T
+                - L_lower_diagonal_blocks_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
             A_arrow_bottom_blocks_d[(i + 1) % 2, :, :] = (
                 A_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
                 - L_arrow_bottom_blocks_d[i % 2, :, :]
-                @ L_lower_diagonal_blocks_d[:, :].conj().T
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
@@ -419,7 +447,7 @@ def _streaming_d_pobtaf(
 
             # --- Device 2 Host transfers ---
             L_diagonal_blocks_d[i % 2, :, :].get(out=L_diagonal_blocks_local[i, :, :])
-            L_lower_diagonal_blocks_d[:, :].get(
+            L_lower_diagonal_blocks_d[i % 2, :, :].get(
                 out=L_lower_diagonal_blocks_local[i, :, :]
             )
             L_arrow_bottom_blocks_d[i % 2, :, :].get(
@@ -449,10 +477,8 @@ def _streaming_d_pobtaf(
         )
 
         L_upper_nested_dissection_buffer_d = A_upper_nested_dissection_buffer_d
-        cp.cuda.nvtx.RangePop()
 
         # Forward block-Cholesky, performed by a "middle" process
-        cp.cuda.nvtx.RangePush("_streaming_d_pobtaf:fwd_cholesky_middleprocess")
 
         # --- Host 2 Device transfers ---
         A_diagonal_blocks_d[1, :, :].set(arr=A_diagonal_blocks_local[1, :, :])
@@ -469,7 +495,7 @@ def _streaming_d_pobtaf(
             A_diagonal_blocks_d[(i + 1) % 2, :, :].set(
                 arr=A_diagonal_blocks_local[i + 1, :, :]
             )
-            A_lower_diagonal_blocks_d[:, :].set(
+            A_lower_diagonal_blocks_d[i % 2, :, :].set(
                 arr=A_lower_diagonal_blocks_local[i, :, :]
             )
             A_arrow_bottom_blocks_d[(i + 1) % 2, :, :].set(
@@ -484,10 +510,10 @@ def _streaming_d_pobtaf(
 
             # Compute lower factors
             # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-            L_lower_diagonal_blocks_d[:, :] = (
+            L_lower_diagonal_blocks_d[i % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    A_lower_diagonal_blocks_d[:, :].conj().T,
+                    A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
                 )
                 .conj()
@@ -520,15 +546,15 @@ def _streaming_d_pobtaf(
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
                 A_diagonal_blocks_d[(i + 1) % 2, :, :]
-                - L_lower_diagonal_blocks_d[:, :]
-                @ L_lower_diagonal_blocks_d[:, :].conj().T
+                - L_lower_diagonal_blocks_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
             A_arrow_bottom_blocks_d[(i + 1) % 2, :, :] = (
                 A_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
                 - L_arrow_bottom_blocks_d[i % 2, :, :]
-                @ L_lower_diagonal_blocks_d[:, :].conj().T
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # Update the block at the tip of the arrowhead
@@ -550,7 +576,7 @@ def _streaming_d_pobtaf(
             # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
             A_upper_nested_dissection_buffer_d[(i + 1) % 2, :, :] = (
                 -L_upper_nested_dissection_buffer_d[i % 2, :, :]
-                @ L_lower_diagonal_blocks_d[:, :].conj().T
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # Update the top (first blocks) of the arrowhead
@@ -563,7 +589,7 @@ def _streaming_d_pobtaf(
 
             # --- Device 2 Host transfers ---
             L_diagonal_blocks_d[i % 2, :, :].get(out=L_diagonal_blocks_local[i, :, :])
-            L_lower_diagonal_blocks_d[:, :].get(
+            L_lower_diagonal_blocks_d[i % 2, :, :].get(
                 out=L_lower_diagonal_blocks_local[i, :, :]
             )
             L_arrow_bottom_blocks_d[i % 2, :, :].get(
@@ -589,7 +615,6 @@ def _streaming_d_pobtaf(
     Update_arrow_tip_block_d.get(out=Update_arrow_tip_block_host)
 
     cp.cuda.Device().synchronize()
-    cp.cuda.nvtx.RangePop()
 
     # Accumulate the distributed update of the arrow tip block
     MPI.COMM_WORLD.Allreduce(
