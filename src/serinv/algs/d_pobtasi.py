@@ -43,6 +43,46 @@ def d_pobtasi(
         are aliases on the inputs.
     - If a device array is given, the algorithm will run on the GPU.
 
+    Complexity analysis:
+        Parameters:
+            n : number of diagonal blocks
+            b : diagonal block size
+            a : arrow block size
+            p : number of processes
+            n_r = (2*p-1): number of diagonal blocks of the reduced system
+
+        The FLOPS count of the top process is the same as the one of the sequential
+        block selected inversion algorithm (pobtasi). Following the assumption
+        of a load balancing between the first processes and the others ("middle"), the FLOPS
+        count is derived assuming only "middle" processes.
+
+        The selected inversion procedure require the inversion of a reduced system
+        made of boundary blocks of the distributed factorization of the matrix. The
+        reduced system is constructed by gathering the boundary blocks of the factorization
+        on each processes and performing a selected inversion of the reduced system.
+        This selected inversion is assumed to be performed using the sequential
+        block-Cholesky and selected inversion algorithm (pobtaf + pobtasi).
+
+        Inversion of the reduced system:
+
+        FLOPS count:
+            Selected inversion of the reduced system:
+                T_{flops_{POBTAF}} = n_r * (10/3 * b^3 + (1/2 + 3*a) * b^2 + (1/6 + 2*a^2) * b) - 3 * b^3 - 2*a*b^2 + 1/3 * a^3 + 1/2 * a^2 + 1/6 * a
+                T_{flops_{POBTASI}} = (n_r-1) * (9*b^3 + 10*b^2 + 2*a^2*b) + 2*b^3 + 5*a*b^2 + 2*a^2*b + 2*a^3
+
+            Distributed selected inversion:
+                GEMM_b^3 : (n/p-1) * 18 * b^3
+                GEMM_b^2_a : (n/p-1) * 14 * b^2 * a
+                TRSM_b^3 : (n/p-1) * b^3
+
+                Total FLOPS: (n/p-1) * (19*b^3 + 14*a*b^2)
+
+            T_{flops_{d\_pobtasi}} = (n/p-1) * (19*b^3 + 14*a*b^2) + T_{flops_{POBTAF}} + T_{flops_{POBTASI}}
+
+        Complexity:
+            By making the assumption that b >> a, the complexity of the d_pobtasi
+            algorithm is O(n/p * b^3 + p * b^3) or O((n+p^2)/p * b^3).
+
     Parameters
     ----------
     L_diagonal_blocks_local : ArrayLike

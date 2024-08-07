@@ -43,6 +43,36 @@ def d_pobtaf(
         are aliases on the inputs.
     - If a device array is given, the algorithm will run on the GPU.
 
+    Complexity analysis:
+        Parameters:
+            n : number of diagonal blocks
+            b : diagonal block size
+            a : arrow block size
+            p : number of processes
+
+        The FLOPS count of the top process is the same as the one of the sequential
+        block Cholesky factorization algorithm (pobtaf). Following the assumption
+        of a load balancing between the first processes and the others ("middle"), the FLOPS
+        count is derived assuming only "middle" processes.
+
+        The factorization process is embarassingly parallel. Only the tip of the arrow
+        is updated through an MPI.Allreduce operation at the end of the factorization.
+
+        FLOPS count:
+            POTRF_b^3 : (n/p-2) * (1/3 * b^3 + 1/2 * b^2 + 1/6 * b)
+            GEMM_b^3 : (n/p-2) * 4 * b^3
+            GEMM_b^2_a : (n/p-2) * 4 * b^2 * a
+            GEMM_a^2_b : (n/p-2) * 4 * a^2 * b
+            TRSM_b^3 : (n/p-2) * 2 * b^3
+            TRSM_a_b^2 : (n/p-2) * a * b^2
+
+        Total FLOPS:
+            T_{flops_{d_pobtaf}} = (n/p-2) * (19/3 * b^3 + (1/2 + 5*a) * b^2 + (1/6 + 4*a^2) * b)
+
+        Complexity:
+            By making the assumption that b >> a, the complexity of the POBTAF
+            algorithm is O(n/p * b^3).
+
     Parameters
     ----------
     A_diagonal_blocks_local : ArrayLike
