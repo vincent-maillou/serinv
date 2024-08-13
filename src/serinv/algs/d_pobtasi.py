@@ -28,6 +28,7 @@ def d_pobtasi(
     L_arrow_tip_block_global: ArrayLike,
     L_upper_nested_dissection_buffer_local: ArrayLike = None,
     device_streaming: bool = False,
+    nested_solving: bool = False
 ) -> tuple[
     ArrayLike,
     ArrayLike,
@@ -98,6 +99,8 @@ def d_pobtasi(
         uppermost process.
     device_streaming : bool
         Whether to use streamed GPU computation.
+    nested_solving : bool
+        If true, recursively calls d_pobtasi to solve the reduced system.
 
     Returns
     -------
@@ -122,6 +125,7 @@ def d_pobtasi(
             L_arrow_bottom_blocks_local,
             L_arrow_tip_block_global,
             L_upper_nested_dissection_buffer_local,
+            nested_solving=nested_solving
         )
 
     return _d_pobtasi(
@@ -130,6 +134,7 @@ def d_pobtasi(
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
         L_upper_nested_dissection_buffer_local,
+        nested_solving=nested_solving
     )
 
 
@@ -139,6 +144,7 @@ def _d_pobtasi(
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
     L_upper_nested_dissection_buffer_local: ArrayLike,
+    nested_solving: bool = False
 ) -> tuple[
     ArrayLike,
     ArrayLike,
@@ -260,31 +266,60 @@ def _d_pobtasi(
         )
 
     # Perform the inversion of the reduced system.
-    (
-        L_reduced_system_diagonal_blocks,
-        L_reduced_system_lower_diagonal_blocks,
-        L_reduced_system_arrow_bottom_blocks,
-        L_reduced_system_arrow_tip_block,
-    ) = pobtaf(
-        A_reduced_system_diagonal_blocks,
-        A_reduced_system_lower_diagonal_blocks,
-        A_reduced_system_arrow_bottom_blocks,
-        A_reduced_system_arrow_tip_block,
-        device_streaming=True if CUPY_AVAIL and xp == cp else False,
-    )
+    if nested_solving:
+        # Nested Solving
+        # Reduced system has 2 * size - 1 diagonal blocks.
+        # Assing to 1 block to rank 0 and 2 blocks to all other ranks.
+        m0 = 1
+        m = 2
+        if comm_rank == 0:
+            A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[:m0, :, :]
+            A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[:m0-1, :, :] if m0 > 1 else None
+            A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[:m0, :, :]
+        else:
+            A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[m0 - 1 + (comm_rank - 1) * 2 : m0 + comm_rank * m, :, :]
+            A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[min(0, m0 - 2 + (comm_rank - 1) * 2) : m0 - 2 + comm_rank * m, :, :]
+            A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[m0 - 1 + (comm_rank - 1) * 2 : m0 + comm_rank * m, :, :]
+        (
+            X_reduced_system_diagonal_blocks_local,
+            X_reduced_system_lower_diagonal_blocks_local,
+            X_reduced_system_arrow_bottom_blocks_local,
+            X_reduced_system_arrow_tip_block
+        ) = d_pobtasi(
+            A_reduced_system_diagonal_blocks_local,
+            A_reduced_system_lower_diagonal_blocks_local,
+            A_reduced_system_arrow_bottom_blocks_local,
+            A_reduced_system_arrow_tip_block,
+            device_streaming=True if CUPY_AVAIL and xp == cp else False,
+        )
 
-    (
-        X_reduced_system_diagonal_blocks,
-        X_reduced_system_lower_diagonal_blocks,
-        X_reduced_system_arrow_bottom_blocks,
-        X_reduced_system_arrow_tip_block,
-    ) = pobtasi(
-        L_reduced_system_diagonal_blocks,
-        L_reduced_system_lower_diagonal_blocks,
-        L_reduced_system_arrow_bottom_blocks,
-        L_reduced_system_arrow_tip_block,
-        device_streaming=True if CUPY_AVAIL and xp == cp else False,
-    )
+        # TODO: Gather the results to the X_reduced_system buffers. Is this needed or can we just use the local buffers?
+    else:
+        (
+            L_reduced_system_diagonal_blocks,
+            L_reduced_system_lower_diagonal_blocks,
+            L_reduced_system_arrow_bottom_blocks,
+            L_reduced_system_arrow_tip_block,
+        ) = pobtaf(
+            A_reduced_system_diagonal_blocks,
+            A_reduced_system_lower_diagonal_blocks,
+            A_reduced_system_arrow_bottom_blocks,
+            A_reduced_system_arrow_tip_block,
+            device_streaming=True if CUPY_AVAIL and xp == cp else False,
+        )
+
+        (
+            X_reduced_system_diagonal_blocks,
+            X_reduced_system_lower_diagonal_blocks,
+            X_reduced_system_arrow_bottom_blocks,
+            X_reduced_system_arrow_tip_block,
+        ) = pobtasi(
+            L_reduced_system_diagonal_blocks,
+            L_reduced_system_lower_diagonal_blocks,
+            L_reduced_system_arrow_bottom_blocks,
+            L_reduced_system_arrow_tip_block,
+            device_streaming=True if CUPY_AVAIL and xp == cp else False,
+        )
 
     X_arrow_tip_block_global = X_reduced_system_arrow_tip_block
 
@@ -442,6 +477,7 @@ def _streaming_d_pobtasi(
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
     L_upper_nested_dissection_buffer_local: ArrayLike,
+    nested_solving: bool = False
 ) -> tuple[
     ArrayLike,
     ArrayLike,
