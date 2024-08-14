@@ -232,6 +232,8 @@ def test_d_pobtasi(
             X_arrow_bottom_blocks_local.ctypes.data
             == A_arrow_bottom_blocks_local.ctypes.data
         )
-        assert (
-            X_arrow_tip_block_global.ctypes.data == A_arrow_tip_block_global.ctypes.data
-        )
+        # NOTE: This assertion fails with nested solving because we have to copy the arrow tip block to a contiguous buffer
+        if not nested_solving:
+            assert (
+                X_arrow_tip_block_global.ctypes.data == A_arrow_tip_block_global.ctypes.data
+            )
