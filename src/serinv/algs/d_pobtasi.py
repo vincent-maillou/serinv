@@ -20,6 +20,12 @@ from mpi4py import MPI
 
 from serinv.algs import pobtaf, pobtasi, d_pobtaf
 
+DOUBLE_COMPLEX = MPI.C_DOUBLE_COMPLEX if MPI.Get_library_version().startswith('Open MPI') else MPI.DOUBLE_COMPLEX
+mpi_datatype = {np.float64: MPI.DOUBLE, np.complex128: DOUBLE_COMPLEX}
+if CUPY_AVAIL:
+    mpi_datatype[cp.float64] = MPI.DOUBLE
+    mpi_datatype[cp.complex128] = DOUBLE_COMPLEX
+
 
 def d_pobtasi(
     L_diagonal_blocks_local: ArrayLike,
@@ -287,10 +293,10 @@ def _d_pobtasi(
         reduced_key = comm_rank
         reduced_comm = comm.Split(color=reduced_color, key=reduced_key)
 
-        for rank in range(comm_size):
-            if rank == comm_rank:
-                print(f"Rank {comm_rank} reduced_color: {reduced_color}, reduced_key: {reduced_key}", flush=True)
-            comm.Barrier()
+        # for rank in range(comm_size):
+        #     if rank == comm_rank:
+        #         print(f"Rank {comm_rank} reduced_color: {reduced_color}, reduced_key: {reduced_key}", flush=True)
+        #     comm.Barrier()
 
         X_reduced_system_diagonal_blocks = xp.empty((n_diag_blocks, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
         X_reduced_system_lower_diagonal_blocks = xp.empty((n_diag_blocks - 1, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
@@ -514,13 +520,53 @@ def _d_pobtasi(
         lower_displ = list(range(0, lower_count * reduced_size, lower_count)) + [0] * (comm_size - reduced_size)
         arrow_displ = list(range(0, arrow_count * reduced_size, arrow_count)) + [0] * (comm_size - reduced_size)
 
-        comm.Allgatherv([X_reduced_system_diagonal_blocks_local, send_diag_count, MPI.DOUBLE],
-                        [X_reduced_system_diagonal_blocks, recv_diag_counts, diag_displ, MPI.DOUBLE])
-        comm.Allgatherv([X_reduced_system_lower_diagonal_blocks_local, send_lower_count, MPI.DOUBLE],
-                        [X_reduced_system_lower_diagonal_blocks, recv_lower_counts, lower_displ, MPI.DOUBLE])
-        comm.Allgatherv([X_reduced_system_arrow_bottom_blocks_local, send_arrow_count, MPI.DOUBLE],
-                        [X_reduced_system_arrow_bottom_blocks, recv_arrow_counts, arrow_displ, MPI.DOUBLE])
-        comm.Bcast(X_reduced_system_arrow_tip_block, root=0)
+        # if comm_rank == 0:
+        #     print(f"{CUPY_AVAIL and xp == cp}", flush=True)
+        # comm.Barrier()
+
+        if CUPY_AVAIL and xp == cp:
+
+            if reduced_color == 1:
+                X_reduced_system_diagonal_blocks_local_host = cpx.empty_like_pinned(X_reduced_system_diagonal_blocks_local)
+                X_reduced_system_lower_diagonal_blocks_local_host = cpx.empty_like_pinned(X_reduced_system_lower_diagonal_blocks_local)
+                X_reduced_system_arrow_bottom_blocks_local_host = cpx.empty_like_pinned(X_reduced_system_arrow_bottom_blocks_local)
+                X_reduced_system_diagonal_blocks_local.get(out=X_reduced_system_diagonal_blocks_local_host)
+                X_reduced_system_lower_diagonal_blocks_local.get(out=X_reduced_system_lower_diagonal_blocks_local_host)
+                X_reduced_system_arrow_bottom_blocks_local.get(out=X_reduced_system_arrow_bottom_blocks_local_host)
+            else:
+                X_reduced_system_diagonal_blocks_local_host = None
+                X_reduced_system_lower_diagonal_blocks_local_host = None
+                X_reduced_system_arrow_bottom_blocks_local_host = None
+            X_reduced_system_arrow_tip_block_host = cpx.empty_like_pinned(X_reduced_system_arrow_tip_block)
+            if comm_rank == 0:
+                X_reduced_system_arrow_tip_block.get(out=X_reduced_system_arrow_tip_block_host)
+
+            X_reduced_system_diagonal_blocks_host = cpx.empty_like_pinned(X_reduced_system_diagonal_blocks)
+            X_reduced_system_lower_diagonal_blocks_host = cpx.empty_like_pinned(X_reduced_system_lower_diagonal_blocks)
+            X_reduced_system_arrow_bottom_blocks_host = cpx.empty_like_pinned(X_reduced_system_arrow_bottom_blocks)
+        else:
+            X_reduced_system_diagonal_blocks_local_host = X_reduced_system_diagonal_blocks_local
+            X_reduced_system_lower_diagonal_blocks_local_host = X_reduced_system_lower_diagonal_blocks_local
+            X_reduced_system_arrow_bottom_blocks_local_host = X_reduced_system_arrow_bottom_blocks_local
+            X_reduced_system_diagonal_blocks_host = X_reduced_system_diagonal_blocks
+            X_reduced_system_lower_diagonal_blocks_host = X_reduced_system_lower_diagonal_blocks
+            X_reduced_system_arrow_bottom_blocks_host = X_reduced_system_arrow_bottom_blocks
+            X_reduced_system_arrow_tip_block_host = X_reduced_system_arrow_tip_block
+
+        mpi_dtype = mpi_datatype[L_diagonal_blocks_local.dtype.type]
+        comm.Allgatherv([X_reduced_system_diagonal_blocks_local_host, send_diag_count, mpi_dtype],
+                        [X_reduced_system_diagonal_blocks_host, recv_diag_counts, diag_displ, mpi_dtype])
+        comm.Allgatherv([X_reduced_system_lower_diagonal_blocks_local_host, send_lower_count, mpi_dtype],
+                        [X_reduced_system_lower_diagonal_blocks_host, recv_lower_counts, lower_displ, mpi_dtype])
+        comm.Allgatherv([X_reduced_system_arrow_bottom_blocks_local_host, send_arrow_count, mpi_dtype],
+                        [X_reduced_system_arrow_bottom_blocks_host, recv_arrow_counts, arrow_displ, mpi_dtype])
+        comm.Bcast(X_reduced_system_arrow_tip_block_host, root=0)
+
+        if CUPY_AVAIL and xp == cp:
+            X_reduced_system_diagonal_blocks.set(arr=X_reduced_system_diagonal_blocks_host)
+            X_reduced_system_lower_diagonal_blocks.set(arr=X_reduced_system_lower_diagonal_blocks_host)
+            X_reduced_system_arrow_bottom_blocks.set(arr=X_reduced_system_arrow_bottom_blocks_host)
+            X_reduced_system_arrow_tip_block.set(arr=X_reduced_system_arrow_tip_block_host)
                 
     else:
         (

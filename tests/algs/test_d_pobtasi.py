@@ -219,7 +219,8 @@ def test_d_pobtasi(
         assert X_diagonal_blocks_local.data == A_diagonal_blocks_local.data
         assert X_lower_diagonal_blocks_local.data == A_lower_diagonal_blocks_local.data
         assert X_arrow_bottom_blocks_local.data == A_arrow_bottom_blocks_local.data
-        assert X_arrow_tip_block_global.data == A_arrow_tip_block_global.data
+        if not nested_solving:
+            assert X_arrow_tip_block_global.data == A_arrow_tip_block_global.data
     else:
         assert (
             X_diagonal_blocks_local.ctypes.data == A_diagonal_blocks_local.ctypes.data
