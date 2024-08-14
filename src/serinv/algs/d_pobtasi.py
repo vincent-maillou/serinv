@@ -267,19 +267,39 @@ def _d_pobtasi(
 
     # Perform the inversion of the reduced system.
     if nested_solving:
-        # Nested Solving
-        # Reduced system has 2 * size - 1 diagonal blocks.
-        # Assing to 1 block to rank 0 and 2 blocks to all other ranks.
-        m0 = 1
-        m = 2
-        if comm_rank == 0:
-            A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[:m0, :, :]
-            A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[:m0-1, :, :] if m0 > 1 else None
-            A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[:m0, :, :]
+        # Extract the arrays' local slices for each MPI process
+        n_diag_blocks = 2 * comm_size - 1
+        n_diag_blocks_per_processes = n_diag_blocks // comm_size
+        A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[
+            comm_rank
+            * n_diag_blocks_per_processes : (comm_rank + 1)
+            * n_diag_blocks_per_processes,
+            :,
+            :,
+        ]
+
+        if comm_rank == comm_size - 1:
+            A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
+                comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+                :,
+                :,
+            ]
         else:
-            A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[m0 - 1 + (comm_rank - 1) * 2 : m0 + comm_rank * m, :, :]
-            A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[min(0, m0 - 2 + (comm_rank - 1) * 2) : m0 - 2 + comm_rank * m, :, :]
-            A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[m0 - 1 + (comm_rank - 1) * 2 : m0 + comm_rank * m, :, :]
+            A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
+                comm_rank
+                * n_diag_blocks_per_processes : (comm_rank + 1)
+                * n_diag_blocks_per_processes,
+                :,
+                :,
+            ]
+
+        A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[
+            comm_rank
+            * n_diag_blocks_per_processes : (comm_rank + 1)
+            * n_diag_blocks_per_processes,
+            :,
+            :,
+        ]
         (
             X_reduced_system_diagonal_blocks_local,
             X_reduced_system_lower_diagonal_blocks_local,
