@@ -296,37 +296,55 @@ def _d_pobtasi(
         X_reduced_system_arrow_tip_block = xp.empty((arrow_size, arrow_size), dtype=L_diagonal_blocks_local.dtype)
 
         if reduced_color == 1:
+            # TODO: Better load balancing
             n_diag_blocks_per_processes = n_diag_blocks // reduced_size
-            A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[
-                reduced_rank
-                * n_diag_blocks_per_processes : (reduced_rank + 1)
-                * n_diag_blocks_per_processes,
-                :,
-                :,
-            ]
-
+            # NOTE: Making copies for validation
             if reduced_rank == reduced_size - 1:
-                A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
+                A_reduced_system_diagonal_blocks_local = xp.empty((n_diag_blocks - reduced_rank * n_diag_blocks_per_processes, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
+                A_reduced_system_diagonal_blocks_local[:] = A_reduced_system_diagonal_blocks[
+                    reduced_rank * n_diag_blocks_per_processes :,
+                    :,
+                    :,
+                ]
+                A_reduced_system_lower_diagonal_blocks_local = xp.empty((n_diag_blocks - 1 - reduced_rank * n_diag_blocks_per_processes, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
+                A_reduced_system_lower_diagonal_blocks_local[:] = A_reduced_system_lower_diagonal_blocks[
                     reduced_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
                     :,
                     :,
                 ]
+                A_reduced_system_arrow_bottom_blocks_local = xp.empty((n_diag_blocks - reduced_rank * n_diag_blocks_per_processes, diag_blocksize, arrow_size), dtype=L_diagonal_blocks_local.dtype)
+                A_reduced_system_arrow_bottom_blocks_local[:] = A_reduced_system_arrow_bottom_blocks[
+                    reduced_rank * n_diag_blocks_per_processes :,
+                    :,
+                    :,
+                ]
             else:
-                A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
+                A_reduced_system_diagonal_blocks_local = xp.empty((n_diag_blocks_per_processes, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
+                A_reduced_system_diagonal_blocks_local[:] = A_reduced_system_diagonal_blocks[
                     reduced_rank
                     * n_diag_blocks_per_processes : (reduced_rank + 1)
                     * n_diag_blocks_per_processes,
                     :,
                     :,
                 ]
+                A_reduced_system_lower_diagonal_blocks_local = xp.empty((n_diag_blocks_per_processes, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
+                A_reduced_system_lower_diagonal_blocks_local[:] = A_reduced_system_lower_diagonal_blocks[
+                    reduced_rank
+                    * n_diag_blocks_per_processes : (reduced_rank + 1)
+                    * n_diag_blocks_per_processes,
+                    :,
+                    :,
+                ]
+                A_reduced_system_arrow_bottom_blocks_local = xp.empty((n_diag_blocks_per_processes, diag_blocksize, arrow_size), dtype=L_diagonal_blocks_local.dtype)
+                A_reduced_system_arrow_bottom_blocks_local[:] = A_reduced_system_arrow_bottom_blocks[
+                    reduced_rank
+                    * n_diag_blocks_per_processes : (reduced_rank + 1)
+                    * n_diag_blocks_per_processes,
+                    :,
+                    :,
+                ]
+            A_reduced_system_arrow_tip_block_global = xp.copy(A_reduced_system_arrow_tip_block)
 
-            A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[
-                reduced_rank
-                * n_diag_blocks_per_processes : (reduced_rank + 1)
-                * n_diag_blocks_per_processes,
-                :,
-                :,
-            ]
             (
                 L_reduced_system_diagonal_blocks_local,
                 L_reduced_system_lower_diagonal_blocks_local,
@@ -337,7 +355,7 @@ def _d_pobtasi(
                 A_reduced_system_diagonal_blocks_local,
                 A_reduced_system_lower_diagonal_blocks_local,
                 A_reduced_system_arrow_bottom_blocks_local,
-                A_reduced_system_arrow_tip_block,
+                A_reduced_system_arrow_tip_block_global,
                 device_streaming=True if CUPY_AVAIL and xp == cp else False,
                 comm=reduced_comm
             )
@@ -356,6 +374,44 @@ def _d_pobtasi(
                 nested_solving=False,
                 comm=reduced_comm
             )
+
+            # NOTE: Validation
+            (
+                L_reduced_system_diagonal_blocks,
+                L_reduced_system_lower_diagonal_blocks,
+                L_reduced_system_arrow_bottom_blocks,
+                L_reduced_system_arrow_tip_block,
+            ) = pobtaf(
+                A_reduced_system_diagonal_blocks,
+                A_reduced_system_lower_diagonal_blocks,
+                A_reduced_system_arrow_bottom_blocks,
+                A_reduced_system_arrow_tip_block,
+                device_streaming=True if CUPY_AVAIL and xp == cp else False,
+            )
+
+            (
+                X_reduced_system_diagonal_blocks_ref,
+                X_reduced_system_lower_diagonal_blocks_ref,
+                X_reduced_system_arrow_bottom_blocks_ref,
+                X_reduced_system_arrow_tip_block_ref,
+            ) = pobtasi(
+                L_reduced_system_diagonal_blocks,
+                L_reduced_system_lower_diagonal_blocks,
+                L_reduced_system_arrow_bottom_blocks,
+                L_reduced_system_arrow_tip_block,
+                device_streaming=True if CUPY_AVAIL and xp == cp else False,
+            )
+
+            assert xp.allclose(X_reduced_system_arrow_tip_block_ref, X_reduced_system_arrow_tip_block_tmp)
+            if reduced_rank == reduced_size - 1:
+                assert xp.allclose(X_reduced_system_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:], X_reduced_system_diagonal_blocks_local)
+                assert xp.allclose(X_reduced_system_lower_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:], X_reduced_system_lower_diagonal_blocks_local)
+                assert xp.allclose(X_reduced_system_arrow_bottom_blocks_ref[reduced_rank * n_diag_blocks_per_processes:], X_reduced_system_arrow_bottom_blocks_local)
+            else:
+                assert xp.allclose(X_reduced_system_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:(reduced_rank + 1) * n_diag_blocks_per_processes], X_reduced_system_diagonal_blocks_local)
+                assert xp.allclose(X_reduced_system_lower_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:(reduced_rank + 1) * n_diag_blocks_per_processes], X_reduced_system_lower_diagonal_blocks_local)
+                assert xp.allclose(X_reduced_system_arrow_bottom_blocks_ref[reduced_rank * n_diag_blocks_per_processes:(reduced_rank + 1) * n_diag_blocks_per_processes], X_reduced_system_arrow_bottom_blocks_local)
+
             # NOTE: For some reason, the returned X_reduced_system_arrow_tip_block is not contiguous in memory.
             X_reduced_system_arrow_tip_block[:] = X_reduced_system_arrow_tip_block_tmp
 
