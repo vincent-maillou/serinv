@@ -30,6 +30,7 @@ from serinv.algs import d_pobtaf, d_pobtasi
 @pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 @pytest.mark.parametrize("device_streaming", [False, True])
+@pytest.mark.parametrize("nested_solving", [True, False])
 def test_d_pobtasi(
     dd_bta,
     bta_dense_to_arrays,
@@ -39,6 +40,7 @@ def test_d_pobtasi(
     n_diag_blocks,
     device_array,
     device_streaming,
+    nested_solving,
 ):
     if CUPY_AVAIL:
         xp = cp.get_array_module(dd_bta)
@@ -188,7 +190,19 @@ def test_d_pobtasi(
         L_arrow_tip_block_global,
         L_upper_nested_dissection_buffer_local,
         device_streaming,
+        nested_solving=nested_solving,
     )
+
+    def _relerror(a, b):
+        return xp.linalg.norm(a - b) / xp.linalg.norm(a)
+    
+    for rank in range(comm_size):
+        if rank == comm_rank:
+            print(f"rank {comm_rank} relerror diagonal blocks: {_relerror(X_ref_diagonal_blocks_local, X_diagonal_blocks_local)}")
+            print(f"rank {comm_rank} relerror lower diagonal blocks: {_relerror(X_ref_lower_diagonal_blocks_local, X_lower_diagonal_blocks_local)}")
+            print(f"rank {comm_rank} relerror arrow bottom blocks: {_relerror(X_ref_arrow_bottom_blocks_local, X_arrow_bottom_blocks_local)}")
+            print(f"rank {comm_rank} relerror arrow tip block: {_relerror(X_ref_arrow_tip_block_global, X_arrow_tip_block_global)}", flush=True)
+        MPI.COMM_WORLD.Barrier()
 
     assert xp.allclose(X_diagonal_blocks_local, X_ref_diagonal_blocks_local)
     assert xp.allclose(

@@ -15,10 +15,10 @@ import scipy.linalg as np_la
 from numpy.typing import ArrayLike
 from mpi4py import MPI
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
+# comm_rank = MPI.COMM_WORLD.Get_rank()
+# comm_size = MPI.COMM_WORLD.Get_size()
 
-from serinv.algs import pobtaf, pobtasi
+from serinv.algs import pobtaf, pobtasi, d_pobtaf
 
 
 def d_pobtasi(
@@ -28,7 +28,8 @@ def d_pobtasi(
     L_arrow_tip_block_global: ArrayLike,
     L_upper_nested_dissection_buffer_local: ArrayLike = None,
     device_streaming: bool = False,
-    nested_solving: bool = False
+    nested_solving: bool = False,
+    comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[
     ArrayLike,
     ArrayLike,
@@ -101,6 +102,8 @@ def d_pobtasi(
         Whether to use streamed GPU computation.
     nested_solving : bool
         If true, recursively calls d_pobtasi to solve the reduced system.
+    comm : MPI.Comm
+        MPI communicator.
 
     Returns
     -------
@@ -125,7 +128,8 @@ def d_pobtasi(
             L_arrow_bottom_blocks_local,
             L_arrow_tip_block_global,
             L_upper_nested_dissection_buffer_local,
-            nested_solving=nested_solving
+            nested_solving=nested_solving,
+            comm=comm
         )
 
     return _d_pobtasi(
@@ -134,7 +138,8 @@ def d_pobtasi(
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
         L_upper_nested_dissection_buffer_local,
-        nested_solving=nested_solving
+        nested_solving=nested_solving,
+        comm=comm
     )
 
 
@@ -145,14 +150,16 @@ def _d_pobtasi(
     L_arrow_tip_block_global: ArrayLike,
     L_upper_nested_dissection_buffer_local: ArrayLike,
     nested_solving: bool = False,
-    nested_rank: int = None,
-    nested_size: int = None,
+    comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[
     ArrayLike,
     ArrayLike,
     ArrayLike,
     ArrayLike,
 ]:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     la = np_la
     if CUPY_AVAIL:
         xp = cp.get_array_module(L_diagonal_blocks_local)
@@ -161,11 +168,8 @@ def _d_pobtasi(
     else:
         xp = np
 
-    # TODO: Update how rank and size are set to support arbitrary communicators.
-    comm_rank = nested_rank or comm_rank
-    comm_size = nested_size or comm_size
-
     diag_blocksize = L_diagonal_blocks_local.shape[1]
+    arrow_size = L_arrow_tip_block_global.shape[0]
     n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
 
     X_diagonal_blocks_local = L_diagonal_blocks_local
@@ -246,17 +250,17 @@ def _d_pobtasi(
         )
         A_reduced_system_arrow_bottom_blocks_host = A_reduced_system_arrow_bottom_blocks
 
-    MPI.COMM_WORLD.Allreduce(
+    comm.Allreduce(
         MPI.IN_PLACE,
         A_reduced_system_diagonal_blocks_host,
         op=MPI.SUM,
     )
-    MPI.COMM_WORLD.Allreduce(
+    comm.Allreduce(
         MPI.IN_PLACE,
         A_reduced_system_lower_diagonal_blocks_host,
         op=MPI.SUM,
     )
-    MPI.COMM_WORLD.Allreduce(
+    comm.Allreduce(
         MPI.IN_PLACE,
         A_reduced_system_arrow_bottom_blocks_host,
         op=MPI.SUM,
@@ -272,28 +276,28 @@ def _d_pobtasi(
         )
 
     # Perform the inversion of the reduced system.
-    if nested_solving:
+    n_diag_blocks = 2 * comm_size - 1
+    reduced_rank = comm_rank
+    reduced_size = comm_size // 2
+    if nested_solving and reduced_size > 1:
         # Extract the arrays' local slices for each MPI process
-        n_diag_blocks = 2 * comm_size - 1
-        reduced_rank = comm_rank
-        reduced_size = comm_size // 2
-        n_diag_blocks_per_processes = n_diag_blocks // reduced_size
-        A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[
-            reduced_rank
-            * n_diag_blocks_per_processes : (reduced_rank + 1)
-            * n_diag_blocks_per_processes,
-            :,
-            :,
-        ]
+        reduced_color = int(comm_rank < reduced_size)
+        reduced_key = comm_rank
+        reduced_comm = comm.Split(color=reduced_color, key=reduced_key)
 
-        if reduced_rank == reduced_size - 1:
-            A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
-                reduced_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
-                :,
-                :,
-            ]
-        else:
-            A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
+        for rank in range(comm_size):
+            if rank == comm_rank:
+                print(f"Rank {comm_rank} reduced_color: {reduced_color}, reduced_key: {reduced_key}", flush=True)
+            comm.Barrier()
+
+        X_reduced_system_diagonal_blocks = xp.empty((n_diag_blocks, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
+        X_reduced_system_lower_diagonal_blocks = xp.empty((n_diag_blocks - 1, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
+        X_reduced_system_arrow_bottom_blocks = xp.empty((n_diag_blocks, diag_blocksize, arrow_size), dtype=L_diagonal_blocks_local.dtype)
+        X_reduced_system_arrow_tip_block = xp.empty((arrow_size, arrow_size), dtype=L_diagonal_blocks_local.dtype)
+
+        if reduced_color == 1:
+            n_diag_blocks_per_processes = n_diag_blocks // reduced_size
+            A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[
                 reduced_rank
                 * n_diag_blocks_per_processes : (reduced_rank + 1)
                 * n_diag_blocks_per_processes,
@@ -301,51 +305,84 @@ def _d_pobtasi(
                 :,
             ]
 
-        A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[
-            reduced_rank
-            * n_diag_blocks_per_processes : (reduced_rank + 1)
-            * n_diag_blocks_per_processes,
-            :,
-            :,
-        ]
-        (
-            X_reduced_system_diagonal_blocks_local,
-            X_reduced_system_lower_diagonal_blocks_local,
-            X_reduced_system_arrow_bottom_blocks_local,
-            X_reduced_system_arrow_tip_block
-        ) = d_pobtasi(
-            A_reduced_system_diagonal_blocks_local,
-            A_reduced_system_lower_diagonal_blocks_local,
-            A_reduced_system_arrow_bottom_blocks_local,
-            A_reduced_system_arrow_tip_block,
-            device_streaming=True if CUPY_AVAIL and xp == cp else False,
-            nested_solving=False,
-            nested_rank=reduced_rank,
-            nested_size=reduced_size
-        )
+            if reduced_rank == reduced_size - 1:
+                A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
+                    reduced_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+                    :,
+                    :,
+                ]
+            else:
+                A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
+                    reduced_rank
+                    * n_diag_blocks_per_processes : (reduced_rank + 1)
+                    * n_diag_blocks_per_processes,
+                    :,
+                    :,
+                ]
 
-        # TODO: Gather the results to the X_reduced_system buffers. Is this needed or can we just use the local buffers?
-        # NOTE: We gather naively for now; optimize later.
-        if reduced_rank == 0:
-            X_reduced_system_diagonal_blocks[:n_diag_blocks_per_processes] = X_reduced_system_diagonal_blocks_local
-            X_reduced_system_lower_diagonal_blocks[:n_diag_blocks_per_processes] = X_reduced_system_lower_diagonal_blocks_local
-            X_reduced_system_arrow_bottom_blocks[:n_diag_blocks_per_processes] = X_reduced_system_arrow_bottom_blocks_local
+            A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[
+                reduced_rank
+                * n_diag_blocks_per_processes : (reduced_rank + 1)
+                * n_diag_blocks_per_processes,
+                :,
+                :,
+            ]
+            (
+                L_reduced_system_diagonal_blocks_local,
+                L_reduced_system_lower_diagonal_blocks_local,
+                L_reduced_system_arrow_bottom_blocks_local,
+                L_reduced_system_arrow_tip_block_global,
+                L_reduced_system_upper_nested_dissection_buffer,
+            ) = d_pobtaf(
+                A_reduced_system_diagonal_blocks_local,
+                A_reduced_system_lower_diagonal_blocks_local,
+                A_reduced_system_arrow_bottom_blocks_local,
+                A_reduced_system_arrow_tip_block,
+                device_streaming=True if CUPY_AVAIL and xp == cp else False,
+                comm=reduced_comm
+            )
+            (
+                X_reduced_system_diagonal_blocks_local,
+                X_reduced_system_lower_diagonal_blocks_local,
+                X_reduced_system_arrow_bottom_blocks_local,
+                X_reduced_system_arrow_tip_block_tmp
+            ) = d_pobtasi(
+                L_reduced_system_diagonal_blocks_local,
+                L_reduced_system_lower_diagonal_blocks_local,
+                L_reduced_system_arrow_bottom_blocks_local,
+                L_reduced_system_arrow_tip_block_global,
+                L_reduced_system_upper_nested_dissection_buffer,
+                device_streaming=True if CUPY_AVAIL and xp == cp else False,
+                nested_solving=False,
+                comm=reduced_comm
+            )
+            # NOTE: For some reason, the returned X_reduced_system_arrow_tip_block is not contiguous in memory.
+            X_reduced_system_arrow_tip_block[:] = X_reduced_system_arrow_tip_block_tmp
 
-            for rank in range(1, reduced_size - 1):
-                MPI.COMM_WORLD.Recv(X_reduced_system_diagonal_blocks[rank * n_diag_blocks_per_processes:(rank + 1) * n_diag_blocks_per_processes], source=rank, tag=0)
-                MPI.COMM_WORLD.Recv(X_reduced_system_lower_diagonal_blocks[rank * n_diag_blocks_per_processes:(rank + 1) * n_diag_blocks_per_processes], source=rank, tag=1)
-                MPI.COMM_WORLD.Recv(X_reduced_system_arrow_bottom_blocks[rank * n_diag_blocks_per_processes:(rank + 1) * n_diag_blocks_per_processes], source=rank, tag=2)
-            rank = reduced_size - 1
-            MPI.COMM_WORLD.Recv(X_reduced_system_diagonal_blocks[rank * n_diag_blocks_per_processes:], source=rank, tag=0)
-            MPI.COMM_WORLD.Recv(X_reduced_system_lower_diagonal_blocks[rank * n_diag_blocks_per_processes:], source=rank, tag=1)
-            MPI.COMM_WORLD.Recv(X_reduced_system_arrow_bottom_blocks[rank * n_diag_blocks_per_processes:], source=rank, tag=2)
-        else:
-            MPI.COMM_WORLD.Send(X_reduced_system_diagonal_blocks_local, dest=0, tag=0)
-            MPI.COMM_WORLD.Send(X_reduced_system_lower_diagonal_blocks_local, dest=0, tag=1)
-            MPI.COMM_WORLD.Send(X_reduced_system_arrow_bottom_blocks_local, dest=0, tag=2)
-        MPI.COMM_WORLD.Bcast(X_reduced_system_diagonal_blocks, root=0)
-        MPI.COMM_WORLD.Bcast(X_reduced_system_lower_diagonal_blocks, root=0)
-        MPI.COMM_WORLD.Bcast(X_reduced_system_arrow_bottom_blocks, root=0)
+            # TODO: Gather the results to the X_reduced_system buffers. Is this needed or can we just use the local buffers?
+            # NOTE: We gather naively for now; optimize later.
+            if reduced_rank == 0:
+                X_reduced_system_diagonal_blocks[:n_diag_blocks_per_processes] = X_reduced_system_diagonal_blocks_local
+                X_reduced_system_lower_diagonal_blocks[:n_diag_blocks_per_processes] = X_reduced_system_lower_diagonal_blocks_local
+                X_reduced_system_arrow_bottom_blocks[:n_diag_blocks_per_processes] = X_reduced_system_arrow_bottom_blocks_local
+
+                for rank in range(1, reduced_size - 1):
+                    comm.Recv(X_reduced_system_diagonal_blocks[rank * n_diag_blocks_per_processes:(rank + 1) * n_diag_blocks_per_processes], source=rank, tag=0)
+                    comm.Recv(X_reduced_system_lower_diagonal_blocks[rank * n_diag_blocks_per_processes:(rank + 1) * n_diag_blocks_per_processes], source=rank, tag=1)
+                    comm.Recv(X_reduced_system_arrow_bottom_blocks[rank * n_diag_blocks_per_processes:(rank + 1) * n_diag_blocks_per_processes], source=rank, tag=2)
+                rank = reduced_size - 1
+                comm.Recv(X_reduced_system_diagonal_blocks[rank * n_diag_blocks_per_processes:], source=rank, tag=0)
+                comm.Recv(X_reduced_system_lower_diagonal_blocks[rank * n_diag_blocks_per_processes:], source=rank, tag=1)
+                comm.Recv(X_reduced_system_arrow_bottom_blocks[rank * n_diag_blocks_per_processes:], source=rank, tag=2)
+            else:
+                comm.Send(X_reduced_system_diagonal_blocks_local, dest=0, tag=0)
+                comm.Send(X_reduced_system_lower_diagonal_blocks_local, dest=0, tag=1)
+                comm.Send(X_reduced_system_arrow_bottom_blocks_local, dest=0, tag=2)
+
+        comm.Bcast(X_reduced_system_diagonal_blocks, root=0)
+        comm.Bcast(X_reduced_system_lower_diagonal_blocks, root=0)
+        comm.Bcast(X_reduced_system_arrow_bottom_blocks, root=0)
+        comm.Bcast(X_reduced_system_arrow_tip_block, root=0)
                 
     else:
         (
@@ -530,13 +567,17 @@ def _streaming_d_pobtasi(
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
     L_upper_nested_dissection_buffer_local: ArrayLike,
-    nested_solving: bool = False
+    nested_solving: bool = False,
+    comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[
     ArrayLike,
     ArrayLike,
     ArrayLike,
     ArrayLike,
 ]:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     diag_blocksize = L_diagonal_blocks_local.shape[1]
     n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
 
@@ -593,17 +634,17 @@ def _streaming_d_pobtasi(
             L_arrow_bottom_blocks_local[-1, :, :]
         )
 
-    MPI.COMM_WORLD.Allreduce(
+    comm.Allreduce(
         MPI.IN_PLACE,
         A_reduced_system_diagonal_blocks,
         op=MPI.SUM,
     )
-    MPI.COMM_WORLD.Allreduce(
+    comm.Allreduce(
         MPI.IN_PLACE,
         A_reduced_system_lower_diagonal_blocks,
         op=MPI.SUM,
     )
-    MPI.COMM_WORLD.Allreduce(
+    comm.Allreduce(
         MPI.IN_PLACE,
         A_reduced_system_arrow_bottom_blocks,
         op=MPI.SUM,

@@ -16,8 +16,8 @@ import scipy.linalg as np_la
 from numpy.typing import ArrayLike
 from mpi4py import MPI
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
+# comm_rank = MPI.COMM_WORLD.Get_rank()
+# comm_size = MPI.COMM_WORLD.Get_size()
 
 
 def d_pobtaf(
@@ -26,6 +26,7 @@ def d_pobtaf(
     A_arrow_bottom_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
     device_streaming: bool = False,
+    comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[
     ArrayLike,
     ArrayLike,
@@ -85,6 +86,8 @@ def d_pobtaf(
         Arrow tip block of A.
     device_streaming : bool
         Whether to use streamed GPU computation.
+    comm : MPI.Comm
+        MPI communicator.
 
     Returns
     -------
@@ -111,6 +114,7 @@ def d_pobtaf(
             A_lower_diagonal_blocks_local,
             A_arrow_bottom_blocks_local,
             A_arrow_tip_block_global,
+            comm=comm
         )
 
     return _d_pobtaf(
@@ -118,6 +122,7 @@ def d_pobtaf(
         A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
+        comm=comm
     )
 
 
@@ -126,6 +131,7 @@ def _d_pobtaf(
     A_lower_diagonal_blocks_local: ArrayLike,
     A_arrow_bottom_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[
     ArrayLike,
     ArrayLike,
@@ -133,6 +139,9 @@ def _d_pobtaf(
     ArrayLike,
     ArrayLike,
 ]:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     la = np_la
     if CUPY_AVAIL:
         xp = cp.get_array_module(A_diagonal_blocks_local)
@@ -310,7 +319,7 @@ def _d_pobtaf(
         Update_arrow_tip_block_host = Update_arrow_tip_block
 
     # Accumulate the distributed update of the arrow tip block
-    MPI.COMM_WORLD.Allreduce(
+    comm.Allreduce(
         MPI.IN_PLACE,
         Update_arrow_tip_block_host,
         op=MPI.SUM,
@@ -336,6 +345,7 @@ def _streaming_d_pobtaf(
     A_lower_diagonal_blocks_local: ArrayLike,
     A_arrow_bottom_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[
     ArrayLike,
     ArrayLike,
@@ -343,6 +353,9 @@ def _streaming_d_pobtaf(
     ArrayLike,
     ArrayLike,
 ]:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     # Host aliases & buffers
     L_diagonal_blocks_local = A_diagonal_blocks_local
     L_lower_diagonal_blocks_local = A_lower_diagonal_blocks_local
@@ -613,7 +626,7 @@ def _streaming_d_pobtaf(
     cp.cuda.Device().synchronize()
 
     # Accumulate the distributed update of the arrow tip block
-    MPI.COMM_WORLD.Allreduce(
+    comm.Allreduce(
         MPI.IN_PLACE,
         Update_arrow_tip_block_host,
         op=MPI.SUM,
