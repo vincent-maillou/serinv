@@ -206,14 +206,14 @@ def _streaming_pobtasi(
     h2d_lower_events = [cp.cuda.Event(), cp.cuda.Event()]
     h2d_arrow_events = [cp.cuda.Event(), cp.cuda.Event()]
 
-    d2h_lower_events = [cp.cuda.Event(), cp.cuda.Event()]
-
     compute_diagonal_events = [cp.cuda.Event(), cp.cuda.Event()]
     compute_diagonal_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
     compute_lower_events = [cp.cuda.Event(), cp.cuda.Event()]
     compute_arrow_events = [cp.cuda.Event(), cp.cuda.Event()]
     compute_arrow_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
     compute_arrow_tip_event = cp.cuda.Event()
+
+    d2h_lower_events = [cp.cuda.Event(), cp.cuda.Event()]
 
     n_diag_blocks = L_diagonal_blocks.shape[0]
     diag_blocksize = L_diagonal_blocks.shape[1]
