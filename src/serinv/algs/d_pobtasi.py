@@ -294,7 +294,7 @@ def _d_pobtasi(
 
         X_reduced_system_diagonal_blocks = xp.empty((n_diag_blocks, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
         X_reduced_system_lower_diagonal_blocks = xp.empty((n_diag_blocks - 1, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
-        X_reduced_system_arrow_bottom_blocks = xp.empty((n_diag_blocks, diag_blocksize, arrow_size), dtype=L_diagonal_blocks_local.dtype)
+        X_reduced_system_arrow_bottom_blocks = xp.empty((n_diag_blocks, arrow_size, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
         X_reduced_system_arrow_tip_block = xp.empty((arrow_size, arrow_size), dtype=L_diagonal_blocks_local.dtype)
 
         if reduced_color == 1:
