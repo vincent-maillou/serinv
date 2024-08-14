@@ -818,17 +818,17 @@ def _streaming_d_pobtasi(
             L_arrow_bottom_blocks_local[-1, :, :]
         )
 
-    MPI.COMM_WORLD.Allgather(
+    comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_diagonal_blocks,
     )
 
-    MPI.COMM_WORLD.Allgather(
+    comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_lower_diagonal_blocks,
     )
 
-    MPI.COMM_WORLD.Allgather(
+    comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_arrow_bottom_blocks,
     )
