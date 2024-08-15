@@ -11,7 +11,7 @@
 #####SBATCH --cpus-per-task=1
 #####SBATCH --constraint=a100_80
 
-N_ITERATIONS=10
+N_ITERATIONS=5
 N_WARMUPS=1
 
 
