@@ -7,29 +7,39 @@ import numpy as np
 np.random.seed(SEED)
 
 from serinv.utils.check_dd import check_ddbta
+from complexity_analysis import (
+    compute_flops_pobtaf,
+    compute_flops_d_pobtaf,
+    get_partition_size,
+)
 import argparse
 
+
 def generate_synthetic_dataset_for_pobta(
-        path: str,
-        n_blocks: int,
-        diagonal_blocksize: int,
-        arrowhead_blocksize: int,
-        dtype = np.float64,
+    path: str,
+    n_blocks: int,
+    diagonal_blocksize: int,
+    arrowhead_blocksize: int,
+    dtype=np.float64,
 ):
     rc = (1.0 + 1.0j) if dtype == np.complex128 else 1.0
-    
-    A_diagonal_blocks = rc * np.random.rand(n_blocks, diagonal_blocksize, diagonal_blocksize)
-    A_lower_diagonal_blocks = rc * np.random.rand(n_blocks - 1, diagonal_blocksize, diagonal_blocksize)
-    A_arrow_bottom_blocks = rc * np.random.rand(n_blocks, arrowhead_blocksize, diagonal_blocksize)
-    A_arrow_tip_block = rc * np.random.rand(arrowhead_blocksize, arrowhead_blocksize)
 
+    A_diagonal_blocks = rc * np.random.rand(
+        n_blocks, diagonal_blocksize, diagonal_blocksize
+    )
+    A_lower_diagonal_blocks = rc * np.random.rand(
+        n_blocks - 1, diagonal_blocksize, diagonal_blocksize
+    )
+    A_arrow_bottom_blocks = rc * np.random.rand(
+        n_blocks, arrowhead_blocksize, diagonal_blocksize
+    )
+    A_arrow_tip_block = rc * np.random.rand(arrowhead_blocksize, arrowhead_blocksize)
 
     # CODE TO MODIFY
     arrow_colsum = np.zeros((arrowhead_blocksize), dtype=A_diagonal_blocks.dtype)
     for i in range(A_diagonal_blocks.shape[0]):
-        colsum = (
-            np.sum(A_diagonal_blocks[i, :, :], axis=1)
-            - np.diag(A_diagonal_blocks[i, :, :])
+        colsum = np.sum(A_diagonal_blocks[i, :, :], axis=1) - np.diag(
+            A_diagonal_blocks[i, :, :]
         )
         if i > 0:
             colsum += np.sum(A_lower_diagonal_blocks[i - 1, :, :], axis=1)
@@ -38,7 +48,9 @@ def generate_synthetic_dataset_for_pobta(
 
         arrow_colsum[:] += np.sum(A_arrow_bottom_blocks[i, :, :], axis=1)
 
-    A_arrow_tip_block[:, :] += np.diag(arrow_colsum + np.sum(A_arrow_tip_block[:, :], axis=1)) 
+    A_arrow_tip_block[:, :] += np.diag(
+        arrow_colsum + np.sum(A_arrow_tip_block[:, :], axis=1)
+    )
 
     print("A_diagonal_blocks.shape", A_diagonal_blocks.shape, flush=True)
     print("A_lower_diagonal_blocks.shape", A_lower_diagonal_blocks.shape, flush=True)
@@ -60,7 +72,7 @@ def generate_synthetic_dataset_for_pobta(
     file_name = f"pobta_nb{n_blocks}_ds{diagonal_blocksize}_as{arrowhead_blocksize}.npz"
 
     np.savez(
-        path+file_name,
+        path + file_name,
         A_diagonal_blocks=A_diagonal_blocks,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks,
         A_arrow_bottom_blocks=A_arrow_bottom_blocks,
@@ -69,37 +81,55 @@ def generate_synthetic_dataset_for_pobta(
 
 
 def generate_distributed_synthetic_dataset_for_d_pobta(
-        path: str,
-        n_blocks: int,
-        diagonal_blocksize: int,
-        arrowhead_blocksize: int,
-        n_processes: int,
-        dtype = np.float64,
+    path: str,
+    n_blocks: int,
+    diagonal_blocksize: int,
+    arrowhead_blocksize: int,
+    n_processes: int,
+    dtype=np.float64,
 ):
     rc = (1.0 + 1.0j) if dtype == np.complex128 else 1.0
-    
+
     arrow_colsum = np.zeros((arrowhead_blocksize), dtype=dtype)
     last_process_colsum = np.zeros((diagonal_blocksize), dtype=dtype)
 
+    load_balancing_ratio = compute_flops_d_pobtaf(
+        n=n_blocks, b=diagonal_blocksize, a=arrowhead_blocksize, p=1
+    ) / compute_flops_pobtaf(n=n_blocks, b=diagonal_blocksize, a=arrowhead_blocksize)
+
+    partition_sizes = get_partition_size(
+        n=n_blocks, p=n_processes, balancing_ratio=load_balancing_ratio
+    )
+
     for p in range(n_processes):
 
-        n_blocks_pi = n_blocks // n_processes
+        # n_blocks_pi = n_blocks // n_processes
+        n_blocks_pi = partition_sizes[p]
 
-        A_diagonal_blocks_pi = rc * np.random.rand(n_blocks_pi, diagonal_blocksize, diagonal_blocksize)
-        A_arrow_bottom_blocks_pi = rc * np.random.rand(n_blocks_pi, arrowhead_blocksize, diagonal_blocksize)
+        A_diagonal_blocks_pi = rc * np.random.rand(
+            n_blocks_pi, diagonal_blocksize, diagonal_blocksize
+        )
+        A_arrow_bottom_blocks_pi = rc * np.random.rand(
+            n_blocks_pi, arrowhead_blocksize, diagonal_blocksize
+        )
 
         A_diagonal_blocks_pi[0, :, :] += np.diag(last_process_colsum)
 
         if p == n_processes - 1:
-            A_lower_diagonal_blocks_pi = rc * np.random.rand(n_blocks_pi - 1, diagonal_blocksize, diagonal_blocksize)
+            A_lower_diagonal_blocks_pi = rc * np.random.rand(
+                n_blocks_pi - 1, diagonal_blocksize, diagonal_blocksize
+            )
         else:
-            A_lower_diagonal_blocks_pi = rc * np.random.rand(n_blocks_pi, diagonal_blocksize, diagonal_blocksize)
-            last_process_colsum[:] = np.sum(A_lower_diagonal_blocks_pi[-1, :, :], axis=1)
+            A_lower_diagonal_blocks_pi = rc * np.random.rand(
+                n_blocks_pi, diagonal_blocksize, diagonal_blocksize
+            )
+            last_process_colsum[:] = np.sum(
+                A_lower_diagonal_blocks_pi[-1, :, :], axis=1
+            )
 
         for i in range(A_diagonal_blocks_pi.shape[0]):
-            colsum = (
-                np.sum(A_diagonal_blocks_pi[i, :, :], axis=1)
-                - np.diag(A_diagonal_blocks_pi[i, :, :])
+            colsum = np.sum(A_diagonal_blocks_pi[i, :, :], axis=1) - np.diag(
+                A_diagonal_blocks_pi[i, :, :]
             )
             if i > 0:
                 colsum += np.sum(A_lower_diagonal_blocks_pi[i - 1, :, :], axis=1)
@@ -107,27 +137,41 @@ def generate_distributed_synthetic_dataset_for_d_pobta(
             A_diagonal_blocks_pi[i, :, :] += np.diag(colsum)
             arrow_colsum[:] += np.sum(A_arrow_bottom_blocks_pi[i, :, :], axis=1)
 
-        print(f"A_diagonal_blocks_p{p}x{n_processes-1}.shape", A_diagonal_blocks_pi.shape, flush=True)
-        print(f"A_lower_diagonal_blocks_p{p}x{n_processes-1}.shape", A_lower_diagonal_blocks_pi.shape, flush=True)
-        print(f"A_arrow_bottom_blocks_p{p}x{n_processes-1}.shape", A_arrow_bottom_blocks_pi.shape, flush=True)
+        print(
+            f"A_diagonal_blocks_p{p}x{n_processes-1}.shape",
+            A_diagonal_blocks_pi.shape,
+            flush=True,
+        )
+        print(
+            f"A_lower_diagonal_blocks_p{p}x{n_processes-1}.shape",
+            A_lower_diagonal_blocks_pi.shape,
+            flush=True,
+        )
+        print(
+            f"A_arrow_bottom_blocks_p{p}x{n_processes-1}.shape",
+            A_arrow_bottom_blocks_pi.shape,
+            flush=True,
+        )
 
         file_name = f"pobta_nb{n_blocks}_ds{diagonal_blocksize}_as{arrowhead_blocksize}_blocks_p{p}_np{n_processes-1}.npz"
 
         np.savez(
-            path+file_name,
+            path + file_name,
             A_diagonal_blocks=A_diagonal_blocks_pi,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks_pi,
             A_arrow_bottom_blocks=A_arrow_bottom_blocks_pi,
         )
 
     A_arrow_tip_block = rc * np.random.rand(arrowhead_blocksize, arrowhead_blocksize)
-    A_arrow_tip_block[:, :] += np.diag(arrow_colsum + np.sum(A_arrow_tip_block[:, :], axis=1)) 
+    A_arrow_tip_block[:, :] += np.diag(
+        arrow_colsum + np.sum(A_arrow_tip_block[:, :], axis=1)
+    )
     print("A_arrow_tip_block.shape", A_arrow_tip_block.shape, flush=True)
 
     file_name_arrowtip = f"pobta_nb{n_blocks}_ds{diagonal_blocksize}_as{arrowhead_blocksize}_arrowtip_np{n_processes-1}.npz"
 
     np.savez(
-        path+file_name_arrowtip,
+        path + file_name_arrowtip,
         A_arrow_tip_block=A_arrow_tip_block,
     )
 
@@ -174,8 +218,9 @@ if __name__ == "__main__":
             PATH, n_blocks, diagonal_blocksize, arrowhead_blocksize
         )
     else:
-        PATH = "/home/vault/j101df/j101df10/inla_matrices/synthetic_dataset/distributed/"
+        PATH = (
+            "/home/vault/j101df/j101df10/inla_matrices/synthetic_dataset/distributed/"
+        )
         generate_distributed_synthetic_dataset_for_d_pobta(
             PATH, n_blocks, diagonal_blocksize, arrowhead_blocksize, n_processes
         )
-        

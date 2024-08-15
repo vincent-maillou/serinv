@@ -34,10 +34,31 @@ def compute_flops_pobtasi(n: int, b: int, a: int):
 
 def get_partition_size(n: int, p: int, balancing_ratio: float):
     # Also need to ensure that the partition size is greater than 3
-    middle_process_partition_size = int(n / (p - 1 + balancing_ratio))
+    middle_process_partition_size = int(np.ceil(n / (p - 1 + balancing_ratio)))
+
     if middle_process_partition_size < 3:
-        return 3
-    return middle_process_partition_size
+        middle_process_partition_size = 3
+
+    first_partition_size = n - (p - 1) * middle_process_partition_size
+
+    extras = 0
+    if first_partition_size < 3:
+        Neach_section, extras = divmod(n, p)
+        first_partition_size = middle_process_partition_size = Neach_section
+
+    partition_sizes = []
+    for i in range(p):
+        if i == 0:
+            partition_sizes.append(first_partition_size)
+        else:
+            partition_sizes.append(middle_process_partition_size)
+        if extras > 0:
+            partition_sizes[-1] += 1
+            extras -= 1
+
+    assert np.sum(partition_sizes) == n
+
+    return partition_sizes
 
 
 def compute_flops_d_pobtaf(
@@ -99,11 +120,11 @@ if __name__ == "__main__":
     for n_i in range(len(n)):
         for p_i in range(len(p)):
             if n[n_i] >= 3 * p[p_i]:
-                n_blocks_balanced_partition = get_partition_size(
+                partition_sizes = get_partition_size(
                     n=n[n_i], p=p[p_i], balancing_ratio=ratio_avg
                 )
                 total_flops_d_pobtaf[p_i, n_i] = compute_flops_d_pobtaf(
-                    n_blocks_balanced_partition, b, a, p[p_i]
+                    partition_sizes[1], b, a, p[p_i]
                 )
             else:
                 total_flops_d_pobtaf[p_i, n_i] = -1
@@ -113,3 +134,30 @@ if __name__ == "__main__":
         print("\n    ", end="")
         for n_i in range(len(n)):
             print(f"{total_flops_d_pobtaf[p_i, n_i]:.2e}, ", end="")
+
+    print()
+
+# Strong scaling partition ratio
+if __name__ == "__main__":
+    n = 365
+    b = 2865
+    a = 4
+
+    ratio_first_over_middle_partitions = compute_flops_d_pobtaf(
+        n, b, a, p=1
+    ) / compute_flops_pobtaf(n, b, a)
+
+    print(
+        f"INLA case ratio (n={n}, b={b}, a={a}): {ratio_first_over_middle_partitions}"
+    )
+
+    p = [2, 4, 8, 16, 32]
+
+    for i in range(len(p)):
+        partition_sizes = get_partition_size(
+            n=n, p=p[i], balancing_ratio=ratio_first_over_middle_partitions
+        )
+
+        print(
+            f"  {p[i]} processes | first_partition: {partition_sizes[0]}, middle_partition: {partition_sizes[1]}, total: {np.sum(partition_sizes)}"
+        )
