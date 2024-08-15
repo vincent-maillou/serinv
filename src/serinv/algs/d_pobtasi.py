@@ -529,6 +529,7 @@ def _streaming_d_pobtasi(
         L_reduced_system_lower_diagonal_blocks,
         L_reduced_system_arrow_bottom_blocks,
         L_reduced_system_arrow_tip_block,
+        _,
     ) = pobtaf(
         A_reduced_system_diagonal_blocks[1:, :, :],
         A_reduced_system_lower_diagonal_blocks[1:-1, :, :],
@@ -542,6 +543,7 @@ def _streaming_d_pobtasi(
         X_reduced_system_lower_diagonal_blocks,
         X_reduced_system_arrow_bottom_blocks,
         X_reduced_system_arrow_tip_block,
+        _,
     ) = pobtasi(
         L_reduced_system_diagonal_blocks,
         L_reduced_system_lower_diagonal_blocks,

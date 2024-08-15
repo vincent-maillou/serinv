@@ -236,8 +236,8 @@ def _streaming_pobtaf(
 ]:
     dict_timings = {}
     dict_timings["potrf"] = 0.
-    dict_timings["trsm"] = 0.
-    dict_timings["gemm"] = 0.
+    # dict_timings["trsm"] = 0.
+    # dict_timings["gemm"] = 0.
 
     compute_stream = cp.cuda.Stream(non_blocking=True)
     h2d_stream = cp.cuda.Stream(non_blocking=True)
@@ -407,7 +407,6 @@ def _streaming_pobtaf(
                 @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
             )
             compute_arrow_h2d_events[i % 2].record(stream=compute_stream)
-            compute_stream.launch_host_func(cp.cuda.nvtx.RangePop, None)
 
     cp.cuda.Device().synchronize()
 
@@ -488,8 +487,8 @@ def _streaming_pobtaf_timed(
     dict_timings["potrf"] = 0.
     dict_timings["trsm"] = 0.
     dict_timings["gemm"] = 0.
-    tic_gpu = cp.cuda.Event()
-    toc_gpu = cp.cuda.Event()
+    # tic_gpu = cp.cuda.Event()
+    # toc_gpu = cp.cuda.Event()
 
     compute_stream = cp.cuda.Stream(non_blocking=True)
     h2d_stream = cp.cuda.Stream(non_blocking=True)
@@ -561,13 +560,13 @@ def _streaming_pobtaf_timed(
         # L_{i, i} = chol(A_{i, i})
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
-            tic_gpu.record(stream=compute_stream)
+            # tic_gpu.record(stream=compute_stream)
             L_diagonal_blocks_d[i % 2, :, :] = cholesky_lowerfill(
                 A_diagonal_blocks_d[i % 2, :, :]
             )
-            toc_gpu.record(stream=compute_stream)
-            compute_stream.synchronize()
-            dict_timings["potrf"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+            # toc_gpu.record(stream=compute_stream)
+            # compute_stream.synchronize()
+            # dict_timings["potrf"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
             compute_diagonal_events[i % 2].record(stream=compute_stream)
 
         d2h_stream.wait_event(compute_diagonal_events[i % 2])
@@ -588,7 +587,7 @@ def _streaming_pobtaf_timed(
 
         with compute_stream:
             compute_stream.wait_event(h2d_lower_events[i % 2])
-            tic_gpu.record(stream=compute_stream)
+            # tic_gpu.record(stream=compute_stream)
             L_lower_diagonal_blocks_d[i % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
@@ -598,9 +597,9 @@ def _streaming_pobtaf_timed(
                 .conj()
                 .T
             )
-            toc_gpu.record(stream=compute_stream)
-            compute_stream.synchronize()
-            dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+            # toc_gpu.record(stream=compute_stream)
+            # compute_stream.synchronize()
+            # dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
             compute_lower_events[i % 2].record(stream=compute_stream)
 
         d2h_stream.wait_event(compute_lower_events[i % 2])
@@ -619,7 +618,7 @@ def _streaming_pobtaf_timed(
 
         with compute_stream:
             compute_stream.wait_event(h2d_arrow_events[i % 2])
-            tic_gpu.record(stream=compute_stream)
+            # tic_gpu.record(stream=compute_stream)
             L_arrow_bottom_blocks_d[i % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
@@ -629,9 +628,9 @@ def _streaming_pobtaf_timed(
                 .conj()
                 .T
             )
-            toc_gpu.record(stream=compute_stream)
-            compute_stream.synchronize()
-            dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+            # toc_gpu.record(stream=compute_stream)
+            # compute_stream.synchronize()
+            # dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
             compute_arrow_events[i % 2].record(stream=compute_stream)
 
         d2h_stream.wait_event(compute_arrow_events[i % 2])
@@ -650,7 +649,7 @@ def _streaming_pobtaf_timed(
 
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[(i + 1) % 2])
-            tic_gpu.record(stream=compute_stream)
+            # tic_gpu.record(stream=compute_stream)
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
                 A_diagonal_blocks_d[(i + 1) % 2, :, :]
@@ -672,24 +671,23 @@ def _streaming_pobtaf_timed(
                 - L_arrow_bottom_blocks_d[i % 2, :, :]
                 @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
             )
-            toc_gpu.record(stream=compute_stream)
-            compute_stream.synchronize()
-            dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+            # toc_gpu.record(stream=compute_stream)
+            # compute_stream.synchronize()
+            # dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
             compute_arrow_h2d_events[i % 2].record(stream=compute_stream)
-            compute_stream.launch_host_func(cp.cuda.nvtx.RangePop, None)
 
     cp.cuda.Device().synchronize()
 
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
     with compute_stream:
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
-        tic_gpu.record(stream=compute_stream)
+        # tic_gpu.record(stream=compute_stream)
         L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cholesky_lowerfill(
             A_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
         )
-        toc_gpu.record(stream=compute_stream)
-        compute_stream.synchronize()
-        dict_timings["potrf"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+        # toc_gpu.record(stream=compute_stream)
+        # compute_stream.synchronize()
+        # dict_timings["potrf"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
         compute_diagonal_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
     d2h_stream.wait_event(compute_diagonal_events[(n_diag_blocks - 1) % 2])
@@ -702,7 +700,7 @@ def _streaming_pobtaf_timed(
     # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
     with compute_stream:
         compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
-        tic_gpu.record(stream=compute_stream)
+        # tic_gpu.record(stream=compute_stream)
         L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
             cu_la.solve_triangular(
                 L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
@@ -712,9 +710,9 @@ def _streaming_pobtaf_timed(
             .conj()
             .T
         )
-        toc_gpu.record(stream=compute_stream)
-        compute_stream.synchronize()
-        dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+        # toc_gpu.record(stream=compute_stream)
+        # compute_stream.synchronize()
+        # dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
         compute_arrow_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
     d2h_stream.wait_event(compute_arrow_events[(n_diag_blocks - 1) % 2])
@@ -726,22 +724,22 @@ def _streaming_pobtaf_timed(
 
     with compute_stream:
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
-        tic_gpu.record(stream=compute_stream)
+        # tic_gpu.record(stream=compute_stream)
         A_arrow_tip_block_d[:, :] = (
             A_arrow_tip_block_d[:, :]
             - L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :]
             @ L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
         )
-        toc_gpu.record(stream=compute_stream)
-        compute_stream.synchronize()
-        dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+        # toc_gpu.record(stream=compute_stream)
+        # compute_stream.synchronize()
+        # dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-        tic_gpu.record(stream=compute_stream)
+        # tic_gpu.record(stream=compute_stream)
         L_arrow_tip_block_d[:, :] = cholesky_lowerfill(A_arrow_tip_block_d[:, :])
-        toc_gpu.record(stream=compute_stream)
-        compute_stream.synchronize()
-        dict_timings["potrf"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+        # toc_gpu.record(stream=compute_stream)
+        # compute_stream.synchronize()
+        # dict_timings["potrf"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
 
         L_arrow_tip_block_d[:, :].get(
             out=L_arrow_tip_block[:, :], stream=compute_stream

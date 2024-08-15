@@ -446,8 +446,8 @@ def _streaming_pobtasi_timed(
     dict_timings = {}
     dict_timings["trsm"] = 0.
     dict_timings["gemm"] = 0.
-    tic_gpu = cp.cuda.Event()
-    toc_gpu = cp.cuda.Event()
+    # tic_gpu = cp.cuda.Event()
+    # toc_gpu = cp.cuda.Event()
 
     compute_stream = cp.cuda.Stream(non_blocking=True)
     h2d_stream = cp.cuda.Stream(non_blocking=True)
@@ -509,19 +509,19 @@ def _streaming_pobtasi_timed(
 
     with compute_stream:
         # X_{ndb+1, ndb+1} = L_{ndb+1, ndb}^{-T} L_{ndb+1, ndb}^{-1}
-        tic_gpu.record(stream=compute_stream)
+        # tic_gpu.record(stream=compute_stream)
         L_last_blk_inv_d = cu_la.solve_triangular(
             L_arrow_tip_block_d[:, :], cp.eye(arrow_blocksize), lower=True
         )
-        toc_gpu.record(stream=compute_stream)
-        compute_stream.synchronize()
-        dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+        # toc_gpu.record(stream=compute_stream)
+        # compute_stream.synchronize()
+        # dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
 
-        tic_gpu.record(stream=compute_stream)
+        # tic_gpu.record(stream=compute_stream)
         X_arrow_tip_block_d[:, :] = L_last_blk_inv_d.conj().T @ L_last_blk_inv_d
-        toc_gpu.record(stream=compute_stream)
-        compute_stream.synchronize()
-        dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+        # toc_gpu.record(stream=compute_stream)
+        # compute_stream.synchronize()
+        # dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
         compute_arrow_tip_event.record(stream=compute_stream)
 
     # --- Device 2 Host transfers ---
@@ -545,19 +545,19 @@ def _streaming_pobtasi_timed(
 
     with compute_stream:
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
-        tic_gpu.record(stream=compute_stream)
+        # tic_gpu.record(stream=compute_stream)
         # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
         L_blk_inv_d = cu_la.solve_triangular(
             L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
             cp.eye(diag_blocksize),
             lower=True,
         )
-        toc_gpu.record(stream=compute_stream)
-        compute_stream.synchronize()
-        dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+        # toc_gpu.record(stream=compute_stream)
+        # compute_stream.synchronize()
+        # dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
 
         compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
-        tic_gpu.record(stream=compute_stream)
+        # tic_gpu.record(stream=compute_stream)
         L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[
             (n_diag_blocks - 1) % 2, :, :
         ]
@@ -573,9 +573,9 @@ def _streaming_pobtasi_timed(
             - X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
             @ L_arrow_bottom_blocks_d_i[:, :]
         ) @ L_blk_inv_d
-        toc_gpu.record(stream=compute_stream)
-        compute_stream.synchronize()
-        dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+        # toc_gpu.record(stream=compute_stream)
+        # compute_stream.synchronize()
+        # dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
         compute_diagonal_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
     # --- Device 2 Host transfers ---
@@ -616,15 +616,15 @@ def _streaming_pobtasi_timed(
 
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
-            tic_gpu.record(stream=compute_stream)
+            # tic_gpu.record(stream=compute_stream)
             L_blk_inv_d = cu_la.solve_triangular(
                 L_diagonal_blocks_d[i % 2, :, :],
                 cp.eye(diag_blocksize),
                 lower=True,
             )
-            toc_gpu.record(stream=compute_stream)
-            compute_stream.synchronize()
-            dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+            # toc_gpu.record(stream=compute_stream)
+            # compute_stream.synchronize()
+            # dict_timings["trsm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
 
             # --- Off-diagonal block part ---
             compute_stream.wait_event(h2d_lower_events[i % 2])
@@ -632,7 +632,7 @@ def _streaming_pobtasi_timed(
             compute_stream.wait_event(h2d_arrow_events[i % 2])
             L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[i % 2, :, :]
             # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}^{T} L_{ndb+1, i}) L_{i, i}^{-1}
-            tic_gpu.record(stream=compute_stream)
+            # tic_gpu.record(stream=compute_stream)
             X_lower_diagonal_blocks_d[i % 2, :, :] = (
                 -X_diagonal_blocks_d[(i + 1) % 2, :, :]
                 @ L_lower_diagonal_blocks_d_i[:, :]
@@ -661,9 +661,9 @@ def _streaming_pobtasi_timed(
                 - X_arrow_bottom_blocks_d[i % 2, :, :].conj().T
                 @ L_arrow_bottom_blocks_d_i[:, :]
             ) @ L_blk_inv_d
-            toc_gpu.record(stream=compute_stream)
-            compute_stream.synchronize()
-            dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
+            # toc_gpu.record(stream=compute_stream)
+            # compute_stream.synchronize()
+            # dict_timings["gemm"] += cp.cuda.get_elapsed_time(tic_gpu, toc_gpu)
             compute_diagonal_events[i % 2].record(stream=compute_stream)
 
         # --- Device 2 Host transfers ---
