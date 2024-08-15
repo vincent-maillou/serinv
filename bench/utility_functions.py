@@ -12,12 +12,14 @@ except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
+from numpy.typing import ArrayLike
+
 
 np.random.seed(SEED)
 
 
 def bta_dense_to_arrays(
-    bta: np.ndarray | cp.ndarray,
+    bta: ArrayLike,
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
     n_diag_blocks: int,
@@ -91,12 +93,12 @@ def bta_dense_to_arrays(
 
 
 def bta_arrays_to_dense(
-    A_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_lower_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_upper_diagonal_blocks: np.ndarray | cp.ndarray,
-    A_arrow_bottom_blocks: np.ndarray | cp.ndarray,
-    A_arrow_right_blocks: np.ndarray | cp.ndarray,
-    A_arrow_tip_block: np.ndarray | cp.ndarray,
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_upper_diagonal_blocks: ArrayLike,
+    A_arrow_bottom_blocks: ArrayLike,
+    A_arrow_right_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
 ):
     """Converts arrays of blocks to a block tridiagonal arrowhead matrix in a dense representation."""
     if CUPY_AVAIL:
@@ -148,7 +150,7 @@ def bta_arrays_to_dense(
 
 
 def bta_symmetrize(
-    bta: np.ndarray | cp.ndarray,
+    bta: ArrayLike,
 ):
     """Symmetrizes a block tridiagonal arrowhead matrix."""
 

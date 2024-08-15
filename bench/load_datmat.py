@@ -26,6 +26,30 @@ def read_sym_CSC(filename):
 
     return A
 
+def read_CSC(filename):
+    with open(filename, "r") as f:
+        nrows = int(f.readline().strip())
+        ncols = int(f.readline().strip())
+        nnz = int(f.readline().strip())
+
+        inner_indices = np.zeros(nnz, dtype=int)
+        outer_index_ptr = np.zeros(ncols + 1, dtype=int)
+        values = np.zeros(nnz, dtype=float)
+
+        for i in range(nnz):
+            inner_indices[i] = int(f.readline().strip())
+
+        for i in range(ncols + 1):
+            outer_index_ptr[i] = int(f.readline().strip())
+
+        for i in range(nnz):
+            values[i] = float(f.readline().strip())
+
+    # Create CSC matrix
+    A = csc_matrix((values, inner_indices, outer_index_ptr), shape=(nrows, ncols))
+
+    return A
+
 
 def csc_to_dense_bta(
     A: csc_matrix, diagonal_blocksize: int, arrowhead_blocksize: int, n_diag_blocks: int
