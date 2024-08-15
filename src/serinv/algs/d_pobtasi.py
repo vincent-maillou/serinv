@@ -461,15 +461,15 @@ def _streaming_d_pobtasi(
     X_upper_nested_dissection_buffer_local = L_upper_nested_dissection_buffer_local
 
     A_reduced_system_diagonal_blocks = cpx.zeros_pinned(
-        (2 * comm_size - 1, *L_diagonal_blocks_local.shape[1:]),
+        (2 * comm_size, *L_diagonal_blocks_local.shape[1:]),
         dtype=L_diagonal_blocks_local.dtype,
     )
     A_reduced_system_lower_diagonal_blocks = cpx.zeros_pinned(
-        (2 * comm_size - 2, *L_lower_diagonal_blocks_local.shape[1:]),
+        (2 * comm_size, *L_lower_diagonal_blocks_local.shape[1:]),
         dtype=L_lower_diagonal_blocks_local.dtype,
     )
     A_reduced_system_arrow_bottom_blocks = cpx.zeros_pinned(
-        (2 * comm_size - 1, *L_arrow_bottom_blocks_local.shape[1:]),
+        (2 * comm_size, *L_arrow_bottom_blocks_local.shape[1:]),
         dtype=L_arrow_bottom_blocks_local.dtype,
     )
     # Alias on the tip block for the reduced system
@@ -478,50 +478,49 @@ def _streaming_d_pobtasi(
     # Construct the reduced system from the factorized blocks distributed over the
     # processes.
     if comm_rank == 0:
-        A_reduced_system_diagonal_blocks[0, :, :] = L_diagonal_blocks_local[-1, :, :]
-        A_reduced_system_lower_diagonal_blocks[0, :, :] = L_lower_diagonal_blocks_local[
+        A_reduced_system_diagonal_blocks[1, :, :] = L_diagonal_blocks_local[-1, :, :]
+        A_reduced_system_lower_diagonal_blocks[1, :, :] = L_lower_diagonal_blocks_local[
             -1, :, :
         ]
-        A_reduced_system_arrow_bottom_blocks[0, :, :] = L_arrow_bottom_blocks_local[
+        A_reduced_system_arrow_bottom_blocks[1, :, :] = L_arrow_bottom_blocks_local[
             -1, :, :
         ]
     else:
-        A_reduced_system_diagonal_blocks[2 * comm_rank - 1, :, :] = (
-            L_diagonal_blocks_local[0, :, :]
-        )
         A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
-            -1, :, :
+            0, :, :
         ]
+        A_reduced_system_diagonal_blocks[2 * comm_rank + 1, :, :] = (
+            L_diagonal_blocks_local[-1, :, :]
+        )
 
-        A_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+        A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
             L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
-            A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
+            A_reduced_system_lower_diagonal_blocks[2 * comm_rank + 1, :, :] = (
                 L_lower_diagonal_blocks_local[-1, :, :]
             )
 
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank - 1, :, :] = (
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
             L_arrow_bottom_blocks_local[0, :, :]
         )
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank + 1, :, :] = (
             L_arrow_bottom_blocks_local[-1, :, :]
         )
 
-    MPI.COMM_WORLD.Allreduce(
+    MPI.COMM_WORLD.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_diagonal_blocks,
-        op=MPI.SUM,
     )
-    MPI.COMM_WORLD.Allreduce(
+
+    MPI.COMM_WORLD.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_lower_diagonal_blocks,
-        op=MPI.SUM,
     )
-    MPI.COMM_WORLD.Allreduce(
+
+    MPI.COMM_WORLD.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_arrow_bottom_blocks,
-        op=MPI.SUM,
     )
 
     # Perform the inversion of the reduced system.
@@ -531,9 +530,9 @@ def _streaming_d_pobtasi(
         L_reduced_system_arrow_bottom_blocks,
         L_reduced_system_arrow_tip_block,
     ) = pobtaf(
-        A_reduced_system_diagonal_blocks,
-        A_reduced_system_lower_diagonal_blocks,
-        A_reduced_system_arrow_bottom_blocks,
+        A_reduced_system_diagonal_blocks[1:, :, :],
+        A_reduced_system_lower_diagonal_blocks[1:-1, :, :],
+        A_reduced_system_arrow_bottom_blocks[1:, :, :],
         A_reduced_system_arrow_tip_block,
         device_streaming=True,
     )
