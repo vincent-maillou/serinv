@@ -13,10 +13,14 @@ except ImportError:
 import numpy as np
 import scipy.linalg as np_la
 from numpy.typing import ArrayLike
+import time
+
+import mpi4py
+mpi4py.rc.initialize = False  # do not initialize MPI automatically
 from mpi4py import MPI
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
+# comm_rank = MPI.COMM_WORLD.Get_rank()
+# comm_size = MPI.COMM_WORLD.Get_size()
 
 from serinv.algs import pobtaf, pobtasi
 
@@ -145,6 +149,9 @@ def _d_pobtasi(
     ArrayLike,
     ArrayLike,
 ]:
+    comm_rank = MPI.COMM_WORLD.Get_rank()
+    comm_size = MPI.COMM_WORLD.Get_size()
+
     la = np_la
     if CUPY_AVAIL:
         xp = cp.get_array_module(L_diagonal_blocks_local)
@@ -161,55 +168,101 @@ def _d_pobtasi(
     X_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local
     X_upper_nested_dissection_buffer_local = L_upper_nested_dissection_buffer_local
 
+    # A_reduced_system_diagonal_blocks = xp.zeros(
+    #     (2 * comm_size - 1, *L_diagonal_blocks_local.shape[1:]),
+    #     dtype=L_diagonal_blocks_local.dtype,
+    # )
+    # A_reduced_system_lower_diagonal_blocks = xp.zeros(
+    #     (2 * comm_size - 2, *L_lower_diagonal_blocks_local.shape[1:]),
+    #     dtype=L_lower_diagonal_blocks_local.dtype,
+    # )
+    # A_reduced_system_arrow_bottom_blocks = xp.zeros(
+    #     (2 * comm_size - 1, *L_arrow_bottom_blocks_local.shape[1:]),
+    #     dtype=L_arrow_bottom_blocks_local.dtype,
+    # )
     A_reduced_system_diagonal_blocks = xp.zeros(
-        (2 * comm_size - 1, *L_diagonal_blocks_local.shape[1:]),
+        (2 * comm_size, *L_diagonal_blocks_local.shape[1:]),
         dtype=L_diagonal_blocks_local.dtype,
     )
     A_reduced_system_lower_diagonal_blocks = xp.zeros(
-        (2 * comm_size - 2, *L_lower_diagonal_blocks_local.shape[1:]),
+        (2 * comm_size, *L_lower_diagonal_blocks_local.shape[1:]),
         dtype=L_lower_diagonal_blocks_local.dtype,
     )
     A_reduced_system_arrow_bottom_blocks = xp.zeros(
-        (2 * comm_size - 1, *L_arrow_bottom_blocks_local.shape[1:]),
+        (2 * comm_size, *L_arrow_bottom_blocks_local.shape[1:]),
         dtype=L_arrow_bottom_blocks_local.dtype,
     )
     # Alias on the tip block for the reduced system
     A_reduced_system_arrow_tip_block = L_arrow_tip_block_global
 
+    # # Construct the reduced system from the factorized blocks distributed over the
+    # # processes.
+    # if comm_rank == 0:
+    #     A_reduced_system_diagonal_blocks[0, :, :] = L_diagonal_blocks_local[-1, :, :]
+    #     A_reduced_system_lower_diagonal_blocks[0, :, :] = L_lower_diagonal_blocks_local[
+    #         -1, :, :
+    #     ]
+    #     A_reduced_system_arrow_bottom_blocks[0, :, :] = L_arrow_bottom_blocks_local[
+    #         -1, :, :
+    #     ]
+    # else:
+    #     A_reduced_system_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+    #         L_diagonal_blocks_local[0, :, :]
+    #     )
+    #     A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
+    #         -1, :, :
+    #     ]
+
+    #     A_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+    #         L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
+    #     )
+    #     if comm_rank < comm_size - 1:
+    #         A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
+    #             L_lower_diagonal_blocks_local[-1, :, :]
+    #         )
+
+    #     A_reduced_system_arrow_bottom_blocks[2 * comm_rank - 1, :, :] = (
+    #         L_arrow_bottom_blocks_local[0, :, :]
+    #     )
+    #     A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
+    #         L_arrow_bottom_blocks_local[-1, :, :]
+    #     )
+
     # Construct the reduced system from the factorized blocks distributed over the
     # processes.
     if comm_rank == 0:
-        A_reduced_system_diagonal_blocks[0, :, :] = L_diagonal_blocks_local[-1, :, :]
-        A_reduced_system_lower_diagonal_blocks[0, :, :] = L_lower_diagonal_blocks_local[
+        A_reduced_system_diagonal_blocks[1, :, :] = L_diagonal_blocks_local[-1, :, :]
+        A_reduced_system_lower_diagonal_blocks[1, :, :] = L_lower_diagonal_blocks_local[
             -1, :, :
         ]
-        A_reduced_system_arrow_bottom_blocks[0, :, :] = L_arrow_bottom_blocks_local[
+        A_reduced_system_arrow_bottom_blocks[1, :, :] = L_arrow_bottom_blocks_local[
             -1, :, :
         ]
     else:
-        A_reduced_system_diagonal_blocks[2 * comm_rank - 1, :, :] = (
-            L_diagonal_blocks_local[0, :, :]
-        )
         A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
-            -1, :, :
+            0, :, :
         ]
+        A_reduced_system_diagonal_blocks[2 * comm_rank + 1, :, :] = (
+            L_diagonal_blocks_local[-1, :, :]
+        )
 
-        A_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+        A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
             L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
-            A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
+            A_reduced_system_lower_diagonal_blocks[2 * comm_rank + 1, :, :] = (
                 L_lower_diagonal_blocks_local[-1, :, :]
             )
 
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank - 1, :, :] = (
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
             L_arrow_bottom_blocks_local[0, :, :]
         )
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank + 1, :, :] = (
             L_arrow_bottom_blocks_local[-1, :, :]
         )
 
     if CUPY_AVAIL and xp == cp:
+    # if False:
         A_reduced_system_diagonal_blocks_host = cpx.empty_like_pinned(
             A_reduced_system_diagonal_blocks
         )
@@ -227,6 +280,10 @@ def _d_pobtasi(
         A_reduced_system_arrow_bottom_blocks.get(
             out=A_reduced_system_arrow_bottom_blocks_host
         )
+
+        # A_reduced_system_diagonal_blocks_host = cp.asnumpy(A_reduced_system_diagonal_blocks)
+        # A_reduced_system_lower_diagonal_blocks_host = cp.asnumpy(A_reduced_system_lower_diagonal_blocks)
+        # A_reduced_system_arrow_bottom_blocks_host = cp.asnumpy(A_reduced_system_arrow_bottom_blocks)
     else:
         A_reduced_system_diagonal_blocks_host = A_reduced_system_diagonal_blocks
         A_reduced_system_lower_diagonal_blocks_host = (
@@ -234,23 +291,55 @@ def _d_pobtasi(
         )
         A_reduced_system_arrow_bottom_blocks_host = A_reduced_system_arrow_bottom_blocks
 
-    MPI.COMM_WORLD.Allreduce(
+    start = time.perf_counter_ns()
+    # MPI.COMM_WORLD.Allreduce(
+    #     MPI.IN_PLACE,
+    #     A_reduced_system_diagonal_blocks_host,
+    #     op=MPI.SUM,
+    # )
+    MPI.COMM_WORLD.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_diagonal_blocks_host,
-        op=MPI.SUM,
     )
-    MPI.COMM_WORLD.Allreduce(
+    # if comm_rank == 0:
+    #     MPI.COMM_WORLD.Reduce(MPI.IN_PLACE,
+    #                           A_reduced_system_diagonal_blocks_host,
+    #                           op=MPI.SUM,
+    #                           root=0)
+    # else:
+    #     MPI.COMM_WORLD.Reduce(A_reduced_system_diagonal_blocks_host,
+    #                           A_reduced_system_diagonal_blocks_host,
+    #                           op=MPI.SUM,
+    #                           root=0)
+    # MPI.COMM_WORLD.Bcast(A_reduced_system_diagonal_blocks_host, root=0)
+    finish_1 = time.perf_counter_ns()
+    # MPI.COMM_WORLD.Allreduce(
+    #     MPI.IN_PLACE,
+    #     A_reduced_system_lower_diagonal_blocks_host,
+    #     op=MPI.SUM,
+    # )
+    MPI.COMM_WORLD.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_lower_diagonal_blocks_host,
-        op=MPI.SUM,
     )
-    MPI.COMM_WORLD.Allreduce(
+    finish_2 = time.perf_counter_ns()
+    # MPI.COMM_WORLD.Allreduce(
+    #     MPI.IN_PLACE,
+    #     A_reduced_system_arrow_bottom_blocks_host,
+    #     op=MPI.SUM,
+    # )
+    MPI.COMM_WORLD.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_arrow_bottom_blocks_host,
-        op=MPI.SUM,
     )
+    finish_3 = time.perf_counter_ns()
+    print(f"Rank {comm_rank}: POBTASI Allgather 1 {(finish_1-start) // 1000000} ms.", flush=True)
+    print(f"Rank {comm_rank}: POBTASI Allgather 2 {(finish_2-finish_1) // 1000000} ms.", flush=True)
+    print(f"Rank {comm_rank}: POBTASI Allgather 3 {(finish_3-finish_2) // 1000000} ms.", flush=True)
+
 
     if CUPY_AVAIL and xp == cp:
+    # if False:
         A_reduced_system_diagonal_blocks.set(arr=A_reduced_system_diagonal_blocks_host)
         A_reduced_system_lower_diagonal_blocks.set(
             arr=A_reduced_system_lower_diagonal_blocks_host

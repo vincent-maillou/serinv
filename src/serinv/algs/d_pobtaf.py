@@ -14,10 +14,14 @@ except ImportError:
 import numpy as np
 import scipy.linalg as np_la
 from numpy.typing import ArrayLike
+import time
+
+import mpi4py
+mpi4py.rc.initialize = False  # do not initialize MPI automatically
 from mpi4py import MPI
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
+# comm_rank = MPI.COMM_WORLD.Get_rank()
+# comm_size = MPI.COMM_WORLD.Get_size()
 
 
 def d_pobtaf(
@@ -133,6 +137,9 @@ def _d_pobtaf(
     ArrayLike,
     ArrayLike,
 ]:
+    comm_rank = MPI.COMM_WORLD.Get_rank()
+    comm_size = MPI.COMM_WORLD.Get_size()
+
     la = np_la
     if CUPY_AVAIL:
         xp = cp.get_array_module(A_diagonal_blocks_local)
@@ -304,19 +311,24 @@ def _d_pobtaf(
     # Check if operations are happening on the device, in this case we need to get
     # back the tip blocks on the host to perform the accumulation through MPI.
     if CUPY_AVAIL and xp == cp:
+    # if False:
         Update_arrow_tip_block_host = cpx.empty_like_pinned(Update_arrow_tip_block)
         Update_arrow_tip_block.get(out=Update_arrow_tip_block_host)
     else:
         Update_arrow_tip_block_host = Update_arrow_tip_block
 
     # Accumulate the distributed update of the arrow tip block
+    start = time.perf_counter_ns()
     MPI.COMM_WORLD.Allreduce(
         MPI.IN_PLACE,
         Update_arrow_tip_block_host,
         op=MPI.SUM,
     )
+    finish = time.perf_counter_ns()
+    print(f"Rank {comm_rank}: POBTAF Allreduce {(finish-start) // 1000000} ms.", flush=True)
 
     if CUPY_AVAIL and xp == cp:
+    # if False:
         Update_arrow_tip_block.set(arr=Update_arrow_tip_block_host)
 
     A_arrow_tip_block_global[:, :] += Update_arrow_tip_block[:, :]
