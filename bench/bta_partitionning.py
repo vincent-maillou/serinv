@@ -30,6 +30,8 @@ def show_partitionning(
     ax.set_xticklabels([])
     ax.set_yticklabels([])
 
+    fig.tight_layout()
+
 
 if __name__ == "__main__":
     n = 11

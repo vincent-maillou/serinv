@@ -267,7 +267,7 @@ if __name__ == "__main__":
     n_processes = 3
     save_fig = True
 
-    type = "Cholesky"
+    type = "LU"
 
     if type == "Cholesky":
         A, annotations_A = make_pobta_matrix(n)
@@ -289,6 +289,8 @@ if __name__ == "__main__":
     ax.set_xticklabels([])
     ax.set_yticklabels([])
 
+    fig.tight_layout()
+
     if save_fig:
         plt.savefig(f"{type}_sequentiallity_matrix_a.png")
 
@@ -307,6 +309,8 @@ if __name__ == "__main__":
     ax.set_yticks([])
     ax.set_xticklabels([])
     ax.set_yticklabels([])
+
+    fig.tight_layout()
 
     if save_fig:
         plt.savefig(f"{type}_sequentiallity_matrix_b.png")
@@ -329,6 +333,8 @@ if __name__ == "__main__":
     ax.set_xticklabels([])
     ax.set_yticklabels([])
 
+    fig.tight_layout()
+
     if save_fig:
         plt.savefig(f"{type}_sequentiallity_matrix_c.png")
 
@@ -346,6 +352,8 @@ if __name__ == "__main__":
     ax.set_yticks([])
     ax.set_xticklabels([])
     ax.set_yticklabels([])
+
+    fig.tight_layout()
 
     if save_fig:
         plt.savefig(f"{type}_sequentiallity_matrix_d.png")
@@ -368,6 +376,8 @@ if __name__ == "__main__":
     ax.set_xticklabels([])
     ax.set_yticklabels([])
 
+    fig.tight_layout()
+
     if save_fig:
         plt.savefig(f"{type}_sequentiallity_matrix_e.png")
 
@@ -386,6 +396,8 @@ if __name__ == "__main__":
     ax.set_yticks([])
     ax.set_xticklabels([])
     ax.set_yticklabels([])
+
+    fig.tight_layout()
 
     if save_fig:
         plt.savefig(f"{type}_sequentiallity_matrix_f.png")
