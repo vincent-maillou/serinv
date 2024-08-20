@@ -18,11 +18,11 @@ colormap = cm.get_cmap("viridis")
 norm = Normalize(vmin=0, vmax=1)
 background_color = colormap(norm(0))[:3]
 
-traversed_color = np.array([0.5, 0.5, 0.5])
-# traversed_color = colormap(0.5)[:3]
+factors_color = np.array([0.5, 0.5, 0.5])
+# factors_color = colormap(0.5)[:3]
 
-# factorized_color = colormap(0.8)[:3]
-factorized_color = np.array([0.6, 0.4, 0.2])
+# boundary_color = colormap(0.8)[:3]
+boundary_color = np.array([0.6, 0.4, 0.2])
 
 inverse_color = np.array([6, 57, 112]) / 255
 
@@ -34,25 +34,25 @@ def d_pobtaf_matrix(A, n_processes):
     annotations = np.zeros((n + 1, n + 1), dtype="U20")
 
     for i in range(n):
-        A_factorized[i, i] = traversed_color
+        A_factorized[i, i] = factors_color
         annotations[i, i] = f"$D_{{{i+1},{i+1}}}$"
 
-        A_factorized[-1:, i] = traversed_color
+        A_factorized[-1:, i] = factors_color
         annotations[n, i] = f"$L_{{{n+1},{i+1}}}$"
 
         if np.all(A[i, -1:] != background_color):
-            A_factorized[i, -1:] = traversed_color
+            A_factorized[i, -1:] = factors_color
             annotations[i, n] = f"$U_{{{i+1},{n+1}}}$"
 
         if i < n - 1:
-            A_factorized[(i + 1), i] = traversed_color
+            A_factorized[(i + 1), i] = factors_color
             annotations[i + 1, i] = f"$L_{{{i+2},{i+1}}}$"
 
             if np.all(A[i, (i + 1)] != background_color):
-                A_factorized[i, (i + 1)] = traversed_color
+                A_factorized[i, (i + 1)] = factors_color
                 annotations[i, i + 1] = f"$U_{{{i+1},{i+2}}}$"
 
-    A_factorized[-1:, -1:] = traversed_color
+    A_factorized[-1:, -1:] = factors_color
     annotations[-1, -1] = f"$D_{{{n+1},{n+1}}}$"
 
     section_sizes = get_section_sizes(n, n_processes)
@@ -61,56 +61,56 @@ def d_pobtaf_matrix(A, n_processes):
         boundary = np.sum(section_sizes[: i + 1])
 
         # Diagonal boundary blocks
-        A_factorized[boundary - 1, boundary - 1] = factorized_color
+        A_factorized[boundary - 1, boundary - 1] = boundary_color
         annotations[boundary - 1, boundary - 1] = f"$R_{{{boundary},{boundary}}}$"
 
-        A_factorized[boundary, boundary] = factorized_color
+        A_factorized[boundary, boundary] = boundary_color
         annotations[boundary, boundary] = f"$R_{{{boundary+1},{boundary+1}}}$"
 
         # Lower/Upper boundary blocks
-        A_factorized[boundary, boundary - 1] = factorized_color
+        A_factorized[boundary, boundary - 1] = boundary_color
         annotations[boundary, boundary - 1] = f"$R_{{{boundary+1},{boundary}}}$"
 
         # if A[boundary - 1, boundary] > 0:
         if np.all(A[boundary - 1, boundary] != background_color):
-            A_factorized[boundary - 1, boundary] = factorized_color
+            A_factorized[boundary - 1, boundary] = boundary_color
             annotations[boundary - 1, boundary] = f"$R_{{{boundary},{boundary+1}}}$"
 
         # Arrowhead blocks
-        A_factorized[n, boundary - 1] = factorized_color
+        A_factorized[n, boundary - 1] = boundary_color
         annotations[n, boundary - 1] = f"$R_{{{n+1},{boundary}}}$"
 
-        A_factorized[n, boundary] = factorized_color
+        A_factorized[n, boundary] = boundary_color
         annotations[n, boundary] = f"$R_{{{n+1},{boundary+1}}}$"
 
         # if A[boundary - 1, n] > 0:
         if np.all(A[boundary - 1, n] != background_color):
-            A_factorized[boundary - 1, n] = factorized_color
+            A_factorized[boundary - 1, n] = boundary_color
             annotations[boundary - 1, n] = f"$R_{{{boundary},{n+1}}}$"
 
-            A_factorized[boundary, n] = factorized_color
+            A_factorized[boundary, n] = boundary_color
             annotations[boundary, n] = f"$R_{{{boundary+1},{n+1}}}$"
 
         # Lower/Upper buffer blocks
         if i < len(section_sizes) - 1:
             boundary_p1 = np.sum(section_sizes[: i + 2]) - 1
 
-            A_factorized[boundary_p1, boundary] = factorized_color
+            A_factorized[boundary_p1, boundary] = boundary_color
             annotations[boundary_p1, boundary] = f"$R_{{{boundary_p1+1},{boundary+1}}}$"
 
             for i in range(boundary + 1, boundary_p1):
-                A_factorized[i, boundary] = traversed_color
+                A_factorized[i, boundary] = factors_color
                 annotations[i, boundary] = f"$L_{{{i+1},{boundary+1}}}$"
 
             # if A[boundary - 1, n] > 0:
             if np.all(A[boundary - 1, n] != background_color):
-                A_factorized[boundary, boundary_p1] = factorized_color
+                A_factorized[boundary, boundary_p1] = boundary_color
                 annotations[boundary, boundary_p1] = (
                     f"$R_{{{boundary+1},{boundary_p1+1}}}$"
                 )
 
                 for i in range(boundary + 1, boundary_p1):
-                    A_factorized[boundary, i] = traversed_color
+                    A_factorized[boundary, i] = factors_color
                     annotations[boundary, i] = f"$U_{{{boundary+1},{i+1}}}$"
 
     return A_factorized, annotations
@@ -242,7 +242,7 @@ def initialize_inverse_matrix(
 
     for i in range(Xinit.shape[0]):
         for j in range(Xinit.shape[1]):
-            if np.all(Xinit[i, j] == factorized_color):
+            if np.all(Xinit[i, j] == boundary_color):
                 Xinit[i, j] = inverse_color
                 annotations_Xinit[i, j] = f"$X_{{{i+1},{j+1}}}$"
 
