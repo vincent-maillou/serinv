@@ -32,6 +32,7 @@ def d_pobtasi(
     L_arrow_tip_block_global: ArrayLike,
     L_upper_nested_dissection_buffer_local: ArrayLike = None,
     device_streaming: bool = False,
+    comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[
     ArrayLike,
     ArrayLike,
@@ -126,6 +127,7 @@ def d_pobtasi(
             L_arrow_bottom_blocks_local,
             L_arrow_tip_block_global,
             L_upper_nested_dissection_buffer_local,
+            comm
         )
 
     return _d_pobtasi(
@@ -134,6 +136,7 @@ def d_pobtasi(
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
         L_upper_nested_dissection_buffer_local,
+        comm
     )
 
 
@@ -143,14 +146,15 @@ def _d_pobtasi(
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
     L_upper_nested_dissection_buffer_local: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[
     ArrayLike,
     ArrayLike,
     ArrayLike,
     ArrayLike,
 ]:
-    comm_rank = MPI.COMM_WORLD.Get_rank()
-    comm_size = MPI.COMM_WORLD.Get_size()
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
     la = np_la
     if CUPY_AVAIL:
@@ -297,7 +301,7 @@ def _d_pobtasi(
     #     A_reduced_system_diagonal_blocks_host,
     #     op=MPI.SUM,
     # )
-    MPI.COMM_WORLD.Allgather(
+    comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_diagonal_blocks_host,
     )
@@ -318,7 +322,7 @@ def _d_pobtasi(
     #     A_reduced_system_lower_diagonal_blocks_host,
     #     op=MPI.SUM,
     # )
-    MPI.COMM_WORLD.Allgather(
+    comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_lower_diagonal_blocks_host,
     )
@@ -328,7 +332,7 @@ def _d_pobtasi(
     #     A_reduced_system_arrow_bottom_blocks_host,
     #     op=MPI.SUM,
     # )
-    MPI.COMM_WORLD.Allgather(
+    comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_arrow_bottom_blocks_host,
     )
@@ -531,12 +535,16 @@ def _streaming_d_pobtasi(
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
     L_upper_nested_dissection_buffer_local: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD,
 ) -> tuple[
     ArrayLike,
     ArrayLike,
     ArrayLike,
     ArrayLike,
 ]:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     diag_blocksize = L_diagonal_blocks_local.shape[1]
     n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
 
@@ -593,17 +601,17 @@ def _streaming_d_pobtasi(
             L_arrow_bottom_blocks_local[-1, :, :]
         )
 
-    MPI.COMM_WORLD.Allgather(
+    comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_diagonal_blocks,
     )
 
-    MPI.COMM_WORLD.Allgather(
+    comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_lower_diagonal_blocks,
     )
 
-    MPI.COMM_WORLD.Allgather(
+    comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_arrow_bottom_blocks,
     )
