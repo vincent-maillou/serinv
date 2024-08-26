@@ -77,7 +77,313 @@ def compute_flops_d_pobtaf(
     )
 
 
+def compute_flops_reduced_system(
+    b: int,
+    a: int,
+    p: int,
+):
+    reduced_system_size = 2 * p - 1
+    flops_reduced_system = compute_flops_pobtaf(
+        reduced_system_size, b, a
+    ) + compute_flops_pobtasi(reduced_system_size, b, a)
+
+    return flops_reduced_system
+
+
+def compute_flops_d_pobtasi(
+    n: int,
+    b: int,
+    a: int,
+    p: int,
+):
+    return (n / p - 1) * (19 * pow(b, 3) + 14 * a * pow(b, 2))
+
+
+def show_sequential_flops_bargraph(
+    n, b, a, flops_pobtaf, flops_pobtasi, flops_pobtaA2X
+):
+
+    base_width = 0.4
+
+    pct_pobtaf = [(flops_pobtaf[i] / flops_pobtaA2X[i]) * 100 for i in range(len(n))]
+    pct_pobtasi = [(flops_pobtasi[i] / flops_pobtaA2X[i]) * 100 for i in range(len(n))]
+
+    print("pct_pobtaf: ", pct_pobtaf)
+    print("pct_pobtasi: ", pct_pobtasi)
+
+    fig, ax = plt.subplots()
+    for i in range(len(n)):
+        width = base_width * n[i]
+        ax.bar(
+            n[i],
+            flops_pobtaf[i],
+            width,
+            color="b",
+            label="flops pobtaf" if i == 0 else "",
+        )
+        ax.bar(
+            n[i],
+            flops_pobtasi[i],
+            width,
+            bottom=flops_pobtaf[i],
+            color="g",
+            label="flops pobtasi" if i == 0 else "",
+        )
+
+        ax.text(
+            n[i],
+            flops_pobtaf[i] / 2,
+            f"{pct_pobtaf[i]:.2f}%",
+            ha="center",
+            va="center",
+            color="white",
+        )
+        ax.text(
+            n[i],
+            flops_pobtaf[i] + flops_pobtasi[i] / 2,
+            f"{pct_pobtasi[i]:.2f}%",
+            ha="center",
+            va="center",
+            color="white",
+        )
+
+    print(n)
+
+    ax.legend(loc="upper left")
+    ax.set_xscale("log", base=2)
+    ax.set_xticks(n)
+    ax.set_xticklabels([str(int(val)) for val in n])
+
+    # ax.set_yscale("log", base=2)
+
+    plt.show()
+
+
+def show_sequential_flops(ax, n, b, a, flops_pobtaf, flops_pobtasi, flops_pobtaA2X):
+
+    # make a scatter plot
+    ax.scatter(n, flops_pobtaf, color="b", label="flops POBTAF", marker="x")
+    ax.scatter(n, flops_pobtasi, color="g", label="flops POBTASI", marker="x")
+
+    # Annotate the points
+    for i in range(len(n)):
+        ax.annotate(
+            f"{flops_pobtaf[i]:.1e}",
+            (n[i], flops_pobtaf[i]),
+            textcoords="offset points",
+            xytext=(-10, 7),
+        )
+        ax.annotate(
+            f"{flops_pobtasi[i]:.1e}",
+            (n[i], flops_pobtasi[i]),
+            textcoords="offset points",
+            xytext=(-10, 7),
+        )
+
+    # Fit linear trend lines
+    coeffs_pobtaf = np.polyfit(np.log2(n), np.log2(flops_pobtaf), 1)
+    coeffs_pobtasi = np.polyfit(np.log2(n), np.log2(flops_pobtasi), 1)
+
+    # Generate x values for the trend lines
+    x_vals = np.linspace(16, 1024, 100)
+    y_vals_pobtaf = 2 ** (coeffs_pobtaf[0] * np.log2(x_vals) + coeffs_pobtaf[1])
+    y_vals_pobtasi = 2 ** (coeffs_pobtasi[0] * np.log2(x_vals) + coeffs_pobtasi[1])
+
+    # Plot the trend lines
+    stroke_width = 0.6
+    ax.plot(
+        x_vals,
+        y_vals_pobtaf,
+        color="b",
+        linestyle="--",
+        linewidth=stroke_width,
+        label="Trend POBTAF",
+    )
+    ax.plot(
+        x_vals,
+        y_vals_pobtasi,
+        color="g",
+        linestyle="--",
+        linewidth=stroke_width,
+        label="Trend POBTASI",
+    )
+
+    # Increase the font size
+    ax.set_xlabel("Number of diagonal blocks: n", fontsize=14)
+    ax.set_ylabel("FLOPS", fontsize=14)
+    ax.legend()
+
+    # set x and y range
+    ax.set_xlim([n[0] / 1.1, n[-1] * 1.7])
+    ax.set_ylim([flops_pobtaf[0] / 1.1, flops_pobtasi[-1] * 1.3])
+
+    ax.set_xscale("log", base=2)
+    ax.set_xticks(n)
+    ax.set_xticklabels([str(int(val)) for val in n], fontsize=14)
+
+    ax.set_yscale("log", base=2)
+    ax.set_yticks([])
+
+    # Add custom annotations
+    ax.text(
+        n[-1] * 1.1,
+        flops_pobtaf[0],
+        f"b={b}\na={a}",
+        fontsize=14,
+        color="black",
+    )
+
+
+def show_sequential_flops_pct(ax, n, b, a, flops_pobtaf, flops_pobtasi, flops_pobtaA2X):
+    pct_pobtaf = [(flops_pobtaf[i] / flops_pobtaA2X[i]) * 100 for i in range(len(n))]
+    pct_pobtasi = [100 - pct_pobtaf[i] for i in range(len(n))]
+
+    # Plot the stacked lines
+    ax.fill_between(n, pct_pobtaf, label="POBTAF", color="blue", alpha=0.5)
+    ax.fill_between(
+        n,
+        y1=100,
+        y2=pct_pobtaf,
+        label="POBTASI",
+        color="green",
+        alpha=0.5,
+        where=[True] * len(n),
+        interpolate=True,
+    )
+
+    i = 2
+    ax.annotate(
+        f"≈{pct_pobtaf[i]:.2f}%",
+        (n[i], pct_pobtaf[i] / 2),
+        textcoords="offset points",
+        xytext=(-50, -5),
+    )
+    ax.annotate(
+        f"≈{pct_pobtasi[i]:.2f}%",
+        (n[i], pct_pobtaf[i] + pct_pobtasi[i] / 2),
+        textcoords="offset points",
+        xytext=(-50, -5),
+    )
+
+    # Add labels and title
+    ax.set_xlabel("Number of diagonal blocks: n", fontsize=14)
+    ax.set_ylabel("Percentage", fontsize=14)
+    ax.legend()
+
+    ax.set_xscale("log", base=2)
+    ax.set_xticks(n)
+    ax.set_xticklabels([str(int(val)) for val in n], fontsize=14)
+
+    # ax.set_yticks([])
+
+
+def show_load_balancing(
+    n,
+    b,
+    a,
+    load_balancing_d_pobtaf,
+    load_balancing_d_pobtasi,
+    ratio_d_pobtaf_d_pobtasi,
+    ideal_load_balancing,
+):
+    fig, ax = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={"height_ratios": [3, 1]})
+
+    ax[0].plot(
+        n,
+        load_balancing_d_pobtaf,
+        label="load balancing d_pobtaf",
+        marker="x",
+        color="b",
+    )
+    ax[0].plot(
+        n,
+        load_balancing_d_pobtasi,
+        label="load balancing d_pobtasi",
+        marker="x",
+        color="g",
+    )
+    ax[0].plot(
+        n,
+        ideal_load_balancing,
+        label="ideal load balancing",
+        marker="x",
+        linestyle="--",
+        color="r",
+    )
+
+    # annotate the ideal load balancing and put the values
+    offset = 0.05
+    for i in range(len(n)):
+        ax[0].text(
+            n[i],
+            ideal_load_balancing[i] + offset,
+            f"{ideal_load_balancing[i]:.2f}",
+            ha="center",
+            va="center",
+            color="black",
+        )
+
+    # set x and y range
+    ax[0].set_xscale("log", base=2)
+    ax[0].set_xlim([n[0] / 1.2, n[-1] * 1.2])
+    ax[0].set_xticks([])
+    ax[0].set_ylim([0, max(load_balancing_d_pobtasi) * 1.1])
+    ax[0].set_ylabel("Load balancing ratio")
+    ax[0].legend()
+
+    # plot a stacked bar graph
+    width = 0.2
+    for i in range(len(n)):
+        adjusted_width = width * n[i]
+        ax[1].bar(n[i], ratio_d_pobtaf_d_pobtasi[i], color="b", width=adjusted_width)
+        ax[1].bar(
+            n[i],
+            1 - ratio_d_pobtaf_d_pobtasi[i],
+            color="g",
+            bottom=ratio_d_pobtaf_d_pobtasi[i],
+            width=adjusted_width,
+        )
+
+    # annotate the values in the bar
+    for i in range(len(n)):
+        ax[1].text(
+            n[i],
+            ratio_d_pobtaf_d_pobtasi[i] / 2,
+            f"{ratio_d_pobtaf_d_pobtasi[i]*100:.1f}%",
+            ha="center",
+            va="center",
+            color="white",
+        )
+        ax[1].text(
+            n[i],
+            ratio_d_pobtaf_d_pobtasi[i] + (1 - ratio_d_pobtaf_d_pobtasi[i]) / 2,
+            f"{(1 - ratio_d_pobtaf_d_pobtasi[i])*100:.1f}%",
+            ha="center",
+            va="center",
+            color="white",
+        )
+
+    ax[1].set_xlabel("Number of diagonal blocks: n")
+    ax[1].set_xscale("log", base=2)
+    ax[1].set_xlim([n[0] / 1.2, n[-1] * 1.2])
+    ax[1].set_xticks(n)
+    ax[1].set_xticklabels([str(int(val)) for val in n])
+
+    ax[1].set_ylim([0, 1])
+    ax[1].set_ylabel("Operations ratio\nd_pobtaf / d_pobtasi")
+    ax[1].set_yticks([])
+
+    fig.tight_layout()
+
+    plt.savefig("load_balancing_analysis.png")
+
+    plt.show()
+
+
 if __name__ == "__main__":
+    debug_values = True
+    plot = False
+
     n = [32, 64, 128, 256, 512]
     b = 1024
     a = b // 4
@@ -86,31 +392,133 @@ if __name__ == "__main__":
     # Complexity analysis
     # POBTAF
     total_flops_pobtaf = [compute_flops_pobtaf(n[i], b, a) for i in range(len(n))]
-    print("total_flops_pobtaf\n    ", end="")
-    [print(f"{total_flops_pobtaf[i]:.2e}, ", end="") for i in range(len(n))]
 
     # POBTASI
     total_flops_pobtasi = [compute_flops_pobtasi(n[i], b, a) for i in range(len(n))]
-    print("\ntotal_flops_pobtasi\n    ", end="")
-    [print(f"{total_flops_pobtasi[i]:.2e}, ", end="") for i in range(len(n))]
 
     # POBTA A2X
     total_flops_pobtaA2X = [
         total_flops_pobtaf[i] + total_flops_pobtasi[i] for i in range(len(n))
     ]
-    print("\ntotal_flops_pobtaA2X\n    ", end="")
-    [print(f"{total_flops_pobtaA2X[i]:.2e}, ", end="") for i in range(len(n))]
 
-    print()
+    if plot:
+        fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+
+        # Set font size
+        plt.rcParams.update({"font.size": 20})
+
+        show_sequential_flops(
+            ax[0],
+            n,
+            b,
+            a,
+            total_flops_pobtaf,
+            total_flops_pobtasi,
+            total_flops_pobtaA2X,
+        )
+
+        show_sequential_flops_pct(
+            ax[1],
+            n,
+            b,
+            a,
+            total_flops_pobtaf,
+            total_flops_pobtasi,
+            total_flops_pobtaA2X,
+        )
+
+        # add a) and b) labels
+        ax[0].text(
+            0.5,
+            -0.15,
+            "a)",
+            fontsize=20,
+            # fontweight="bold",
+            transform=ax[0].transAxes,
+        )
+
+        ax[1].text(
+            0.5,
+            -0.15,
+            "b)",
+            fontsize=20,
+            # fontweight="bold",
+            transform=ax[1].transAxes,
+        )
+
+        fig.tight_layout()
+        plt.savefig("sequential_complexity_analysis.png")
+
+        plt.show()
+
+    if debug_values:
+        print("total_flops_pobtaf: ", end="")
+        [print(f"{total_flops_pobtaf[i]:.2e}, ", end="") for i in range(len(n))]
+
+        print("\ntotal_flops_pobtasi\n    ", end="")
+        [print(f"{total_flops_pobtasi[i]:.2e}, ", end="") for i in range(len(n))]
+
+        print("\ntotal_flops_pobtaA2X\n    ", end="")
+        [print(f"{total_flops_pobtaA2X[i]:.2e}, ", end="") for i in range(len(n))]
+
+        print()
 
     # Distributed algorithms
     # load balancing analysis
-    ratio_first_over_middle_partitions = [
+    load_balancing_d_pobtaf = [
         compute_flops_d_pobtaf(n[i], b, a, p=1) / compute_flops_pobtaf(n[i], b, a)
         for i in range(len(n))
     ]
-    ratio_avg = np.mean(ratio_first_over_middle_partitions)
-    print("ratio_first_over_middle_partitions:", ratio_avg)
+
+    load_balancing_d_pobtasi = [
+        compute_flops_d_pobtasi(n[i], b, a, p=1) / compute_flops_pobtasi(n[i], b, a)
+        for i in range(len(n))
+    ]
+
+    ratio_d_pobtaf_d_pobtasi = [
+        compute_flops_d_pobtaf(n[i], b, a, p=1)
+        / compute_flops_d_pobtasi(n[i], b, a, p=1)
+        for i in range(len(n))
+    ]
+
+    ideal_load_balancing = [
+        ratio_d_pobtaf_d_pobtasi[i] * load_balancing_d_pobtaf[i]
+        + (1 - ratio_d_pobtaf_d_pobtasi[i]) * load_balancing_d_pobtasi[i]
+        for i in range(len(n))
+    ]
+
+    show_load_balancing(
+        n,
+        b,
+        a,
+        load_balancing_d_pobtaf,
+        load_balancing_d_pobtasi,
+        ratio_d_pobtaf_d_pobtasi,
+        ideal_load_balancing,
+    )
+
+    if debug_values:
+        print("load_balancing_d_pobtaf: ", end="")
+        for i in range(len(n)):
+            print(f"{load_balancing_d_pobtaf[i]:.2f}, ", end="")
+        print()
+
+        print("load_balancing_d_pobtasi: ", end="")
+        for i in range(len(n)):
+            print(f"{load_balancing_d_pobtasi[i]:.2f}, ", end="")
+        print()
+
+        print("ratio_d_pobtaf_d_pobtasi: ", end="")
+        for i in range(len(n)):
+            print(f"{ratio_d_pobtaf_d_pobtasi[i]:.2f}, ", end="")
+        print()
+
+        print("ideal_load_balancing: ", end="")
+        for i in range(len(n)):
+            print(f"{ideal_load_balancing[i]:.2f}, ", end="")
+        print()
+
+    ratio_avg = np.mean(load_balancing_d_pobtaf)
 
     # Complexity analysis
     p = [2, 4, 8, 16, 32]
@@ -139,6 +547,8 @@ if __name__ == "__main__":
 
 # Strong scaling partition ratio
 if __name__ == "__main__":
+    exit()
+
     n = 365
     b = 2865
     a = 4
