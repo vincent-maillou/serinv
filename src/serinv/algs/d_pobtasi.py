@@ -179,32 +179,46 @@ def _d_pobtasi(
     # Construct the reduced system from the factorized blocks distributed over the
     # processes.
     if comm_rank == 0:
+        # R_{0,0} = A^{p_0}_{0,0}
         A_reduced_system_diagonal_blocks[0, :, :] = L_diagonal_blocks_local[-1, :, :]
+
+        # R_{1, 0} = A^{p_0}_{1, 0}
         A_reduced_system_lower_diagonal_blocks[0, :, :] = L_lower_diagonal_blocks_local[
             -1, :, :
         ]
+
+        # R_{n, 0} = A^{p_0}_{n, 0}
         A_reduced_system_arrow_bottom_blocks[0, :, :] = L_arrow_bottom_blocks_local[
             -1, :, :
         ]
     else:
+        # R_{2p_i-1, 2p_i-1} = A^{p_i}_{0, 0}
         A_reduced_system_diagonal_blocks[2 * comm_rank - 1, :, :] = (
             L_diagonal_blocks_local[0, :, :]
         )
+
+        # R_{2p_i, 2p_i-1} = A^{p_i}_{-1, -1}
         A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
             -1, :, :
         ]
 
+        # R_{2p_i-1, 2p_i-2} = B^{p_i}_{-1}^\dagger
         A_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :] = (
             L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
         )
+
         if comm_rank < comm_size - 1:
+            # R_{2p_i, 2p_i-1} = A^{p_i}_{1, 0}
             A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
                 L_lower_diagonal_blocks_local[-1, :, :]
             )
 
+        # R_{n, 2p_i-1} = A^{p_i}_{n, 0}
         A_reduced_system_arrow_bottom_blocks[2 * comm_rank - 1, :, :] = (
             L_arrow_bottom_blocks_local[0, :, :]
         )
+
+        # R_{n, 2p_i} = A^{p_i}_{n, -1}
         A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
             L_arrow_bottom_blocks_local[-1, :, :]
         )
@@ -411,7 +425,7 @@ def _d_pobtasi(
                 - X_arrow_tip_block_global[:, :] @ L_arrow_bottom_blocks_temp[:, :]
             ) @ L_inv_temp[:, :]
 
-            # X_{i, i} = (U_{i, i}^{-1} - X_{i+1, i}.T L_{i+1, i} - X_{top, i}.T L_{top, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}.T L_{i+1, i} - X_{top, i}.T L_{top, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
             X_diagonal_blocks_local[i, :, :] = (
                 L_inv_temp[:, :].conj().T
                 - X_lower_diagonal_blocks_local[i, :, :].conj().T
