@@ -1,38 +1,39 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from matplotlib.colors import Normalize
 
 plt.rcParams["text.usetex"] = True
 
-colormap = cm.get_cmap("viridis")
-norm = Normalize(vmin=0, vmax=1)
-background_color = colormap(norm(0))[:3]
-
 from matrix_utilities import (
-    make_pobta_matrix,
+    ColorScheme,
+    make_pobta_symm_matrix,
     make_ddbta_matrix,
     annotate_matrix,
     hatch_matrix,
 )
 
+color_scheme = ColorScheme()
+
 
 def make_bta_permutation_matrix(
     n: int,
 ):
+    P_show = np.ones((n + 1, n + 1, 3)) * color_scheme.background
     P = np.zeros((n + 1, n + 1), dtype=bool)
 
     offset = 0
     for i in range(n):
         if i % 2 == 0:
-            P[i, n // 2 + offset] = 1
+            P[i, n // 2 + offset] = True
+            P_show[i, n // 2 + offset] = color_scheme.P_elements
             offset += 1
         else:
-            P[i, n // 2 - offset] = 1
+            P[i, n // 2 - offset] = True
+            P_show[i, n // 2 - offset] = color_scheme.P_elements
 
     P[-1:, -1:] = 1
+    P_show[-1:, -1:] = color_scheme.P_elements
 
-    return P
+    return P, P_show
 
 
 def get_fillin_hatching(A, P):
@@ -49,13 +50,13 @@ def get_fillin_hatching(A, P):
         fillin_upper = False
         for j in range(0, i):
             # if PAPt[i, j] > 0:
-            if np.all(PAPt[i, j] != background_color):
+            if np.all(PAPt[i, j] != color_scheme.background):
                 fillin_lower = True
             elif fillin_lower == True:
                 hatching[i, j] = True
 
             # if PAPt[j, i] > 0:
-            if np.all(PAPt[j, i] != background_color):
+            if np.all(PAPt[j, i] != color_scheme.background):
                 fillin_upper = True
             elif fillin_upper == True:
                 hatching[j, i] = True
@@ -67,7 +68,7 @@ def get_reordering_vector_from_permutation_matrix(P):
     return np.array([np.where(P[i] == 1)[0][0] for i in range(P.shape[0])])
 
 
-def show_triptic(A, P, annotations=None, hatching=None):
+def show_triptic(A, P, P_show, annotations=None, hatching=None):
     # PAPt = P @ A @ P.T
 
     PAPt = np.einsum("ij,jkl->ikl", P, A)
@@ -80,7 +81,7 @@ def show_triptic(A, P, annotations=None, hatching=None):
     if annotations is not None:
         annotate_matrix(ax[0], A, annotations)
 
-    ax[1].imshow(P)
+    ax[1].imshow(P_show)
     ax[1].set_title("$P$", fontsize=16)
 
     ax[2].imshow(PAPt)
@@ -114,18 +115,23 @@ if __name__ == "__main__":
     n = 8
     save_fig = True
 
-    P = make_bta_permutation_matrix(n)
+    P, P_show = make_bta_permutation_matrix(n)
 
-    A, annotations_A = make_pobta_matrix(n)
-    hatching_A = get_fillin_hatching(A, P)
-    show_triptic(A, P, annotations_A, hatching_A)
-    if save_fig:
-        plt.savefig("pobta_permutation_scheme.png")
+    type = "Cholesky"
 
-    B, annotations_B = make_ddbta_matrix(n)
-    hatching_B = get_fillin_hatching(B, P)
-    show_triptic(B, P, annotations_B, hatching_B)
-    if save_fig:
-        plt.savefig("ddbta_permutation_scheme.png")
+    if type == "Cholesky":
+        # POBTA (CHOLESKY)
+        A, annotations_A = make_pobta_symm_matrix(n)
+        hatching_A = get_fillin_hatching(A, P)
+        show_triptic(A, P, P_show, annotations_A, hatching_A)
+        if save_fig:
+            plt.savefig("pobta_permutation_scheme.png")
+    elif type == "LU":
+        # DDBTA (LU)
+        B, annotations_B = make_ddbta_matrix(n)
+        hatching_B = get_fillin_hatching(B, P)
+        show_triptic(B, P, P_show, annotations_B, hatching_B)
+        if save_fig:
+            plt.savefig("ddbta_permutation_scheme.png")
 
     plt.show()

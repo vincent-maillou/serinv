@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 plt.rcParams["text.usetex"] = True
 
 from matrix_utilities import (
-    make_pobta_matrix,
+    make_pobta_symm_matrix,
     make_ddbta_matrix,
     slice_matrix,
     annotate_matrix,
@@ -38,14 +38,17 @@ if __name__ == "__main__":
     n_processes = 3
     save_fig = True
 
-    A, annotations_A = make_pobta_matrix(n)
-    show_partitionning(A, n_processes, annotations_A)
-    if save_fig:
-        plt.savefig("pobta_partitionning.png")
+    type = "Cholesky"
 
-    B, annotations_B = make_ddbta_matrix(n)
-    show_partitionning(B, n_processes, annotations_B)
-    if save_fig:
-        plt.savefig("ddbta_partitionning.png")
+    if type == "Cholesky":
+        A, annotations_A = make_pobta_symm_matrix(n)
+        show_partitionning(A, n_processes, annotations_A)
+        if save_fig:
+            plt.savefig("pobta_partitionning.png")
+    elif type == "LU":
+        B, annotations_B = make_ddbta_matrix(n)
+        show_partitionning(B, n_processes, annotations_B)
+        if save_fig:
+            plt.savefig("ddbta_partitionning.png")
 
     plt.show()
