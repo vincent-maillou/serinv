@@ -380,6 +380,23 @@ def show_load_balancing(
     plt.show()
 
 
+def plot_theoretical_parallel_efficiency(
+    ax,
+    n,
+    b,
+    a,
+    p,
+    reference,
+    flops_matrix,
+):
+    ideal_d_flops = np.zeros((len(p), len(n)))
+    for p_i in range(len(p)):
+        for n_i in range(len(n)):
+            ideal_d_flops[p_i, n_i] = reference[n_i] / p[p_i]
+
+    ax.imshow(ideal_d_flops, cmap="viridis", aspect="auto")
+
+
 if __name__ == "__main__":
     debug_values = True
     plot = False
@@ -452,13 +469,13 @@ if __name__ == "__main__":
         plt.show()
 
     if debug_values:
-        print("total_flops_pobtaf: ", end="")
+        print("total_flops_pobtaf:   ", end="")
         [print(f"{total_flops_pobtaf[i]:.2e}, ", end="") for i in range(len(n))]
 
-        print("\ntotal_flops_pobtasi\n    ", end="")
+        print("\ntotal_flops_pobtasi   ", end="")
         [print(f"{total_flops_pobtasi[i]:.2e}, ", end="") for i in range(len(n))]
 
-        print("\ntotal_flops_pobtaA2X\n    ", end="")
+        print("\ntotal_flops_pobtaA2X  ", end="")
         [print(f"{total_flops_pobtaA2X[i]:.2e}, ", end="") for i in range(len(n))]
 
         print()
@@ -487,18 +504,20 @@ if __name__ == "__main__":
         for i in range(len(n))
     ]
 
-    show_load_balancing(
-        n,
-        b,
-        a,
-        load_balancing_d_pobtaf,
-        load_balancing_d_pobtasi,
-        ratio_d_pobtaf_d_pobtasi,
-        ideal_load_balancing,
-    )
+    if plot:
+        show_load_balancing(
+            n,
+            b,
+            a,
+            load_balancing_d_pobtaf,
+            load_balancing_d_pobtasi,
+            ratio_d_pobtaf_d_pobtasi,
+            ideal_load_balancing,
+        )
 
     if debug_values:
-        print("load_balancing_d_pobtaf: ", end="")
+        print()
+        print("load_balancing_d_pobtaf:  ", end="")
         for i in range(len(n)):
             print(f"{load_balancing_d_pobtaf[i]:.2f}, ", end="")
         print()
@@ -518,8 +537,6 @@ if __name__ == "__main__":
             print(f"{ideal_load_balancing[i]:.2f}, ", end="")
         print()
 
-    ratio_avg = np.mean(load_balancing_d_pobtaf)
-
     # Complexity analysis
     p = [2, 4, 8, 16, 32]
 
@@ -529,21 +546,79 @@ if __name__ == "__main__":
         for p_i in range(len(p)):
             if n[n_i] >= 3 * p[p_i]:
                 partition_sizes = get_partition_size(
-                    n=n[n_i], p=p[p_i], balancing_ratio=ratio_avg
+                    n=n[n_i], p=p[p_i], balancing_ratio=ideal_load_balancing[n_i]
                 )
+
+                # The more full central partition is the '1'
+                central_partition_size = partition_sizes[1]
+
                 total_flops_d_pobtaf[p_i, n_i] = compute_flops_d_pobtaf(
-                    partition_sizes[1], b, a, p[p_i]
+                    central_partition_size, b, a, p=1
                 )
             else:
-                total_flops_d_pobtaf[p_i, n_i] = -1
+                total_flops_d_pobtaf[p_i, n_i] = 0
 
     print("\ntotal_flops_d_pobtaf", end="")
     for p_i in range(len(p)):
         print("\n    ", end="")
         for n_i in range(len(n)):
             print(f"{total_flops_d_pobtaf[p_i, n_i]:.2e}, ", end="")
-
     print()
+
+    # Reduced system
+    total_flops_reduced_system = np.zeros((len(p), len(n)))
+    for n_i in range(len(n)):
+        for p_i in range(len(p)):
+            if n[n_i] >= 3 * p[p_i]:
+                total_flops_reduced_system[p_i, n_i] = compute_flops_reduced_system(
+                    b, a, p[p_i]
+                )
+            else:
+                total_flops_reduced_system[p_i, n_i] = 0
+
+    print("\ntotal_flops_reduced_system (pobtaf + pobtasi)", end="")
+    for p_i in range(len(p)):
+        print("\n    ", end="")
+        for n_i in range(len(n)):
+            print(f"{total_flops_reduced_system[p_i, n_i]:.2e}, ", end="")
+    print()
+
+    # D_POBTASI
+    total_flops_d_pobtasi = np.zeros((len(p), len(n)))
+    for n_i in range(len(n)):
+        for p_i in range(len(p)):
+            if n[n_i] >= 3 * p[p_i]:
+                partition_sizes = get_partition_size(
+                    n=n[n_i], p=p[p_i], balancing_ratio=ideal_load_balancing[n_i]
+                )
+
+                # The more full central partition is the '1'
+                central_partition_size = partition_sizes[1]
+
+                total_flops_d_pobtasi[p_i, n_i] = compute_flops_d_pobtasi(
+                    central_partition_size, b, a, p=1
+                )
+            else:
+                total_flops_d_pobtasi[p_i, n_i] = 0
+
+    print("\ntotal_flops_d_pobtasi", end="")
+    for p_i in range(len(p)):
+        print("\n    ", end="")
+        for n_i in range(len(n)):
+            print(f"{total_flops_d_pobtasi[p_i, n_i]:.2e}, ", end="")
+    print()
+
+    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+
+    plot_theoretical_parallel_efficiency(
+        ax[0], n, b, a, p, total_flops_pobtaf, total_flops_d_pobtaf
+    )
+    plot_theoretical_parallel_efficiency(
+        ax[1], n, b, a, p, total_flops_pobtasi, total_flops_d_pobtasi
+    )
+
+    plt.show()
+
 
 # Strong scaling partition ratio
 if __name__ == "__main__":
