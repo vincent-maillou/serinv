@@ -454,6 +454,216 @@ def plot_theoretical_parallel_efficiency(
         ax[ax_mat[0], ax_mat[1]].set_yticks([])
 
 
+def plot_theoretical_parallel_efficiency_A2X(
+    n,
+    b,
+    a,
+    p,
+    reference,
+    flops_matrix,
+):
+    fig, ax = plt.subplots(2, 1, figsize=(8, 8), gridspec_kw={"height_ratios": [1, 5]})
+
+    # Plot the reference
+    ax[0].imshow(np.reshape(reference, (1, len(n))), cmap="viridis", aspect="auto")
+
+    # add title
+    ax[0].set_title("A2X\n(POBTAF + Inv_red + POBTASI)", fontsize=14)
+
+    # Add the reference values
+    for i in range(len(n)):
+        ax[0].text(
+            i,
+            0,
+            f"{reference[i]:.1e} flops",
+            ha="center",
+            va="center",
+            color="white",
+        )
+
+    # remove x and y ticks
+    ax[0].set_xticks([])
+    ax[0].set_yticks([])
+    ax[0].set_ylabel("Sequential\nreference", fontsize=14)
+
+    ideal_d_flops = np.zeros((len(p), len(n)))
+    for p_i in range(len(p)):
+        for n_i in range(len(n)):
+            ideal_d_flops[p_i, n_i] = reference[n_i] / p[p_i]
+
+    theoretical_parallel_efficiency = np.zeros((len(p), len(n)))
+    for p_i in range(len(p)):
+        for n_i in range(len(n)):
+            theoretical_parallel_efficiency[p_i, n_i] = (
+                ideal_d_flops[p_i, n_i] / flops_matrix[p_i, n_i]
+            ) * 100
+
+    ax[1].imshow(theoretical_parallel_efficiency, cmap="viridis", aspect="auto")
+
+    for p_i in range(len(p)):
+        for n_i in range(len(n)):
+            ax[1].text(
+                n_i,
+                p_i,
+                f"{theoretical_parallel_efficiency[p_i, n_i]:.2f}%\n{flops_matrix[p_i, n_i]:.1e} flops",
+                ha="center",
+                va="center",
+                color="white",
+            )
+
+    # Add xtiks and yticks
+    ax[1].set_xticks(range(len(n)))
+    ax[1].set_xticklabels([str(val) for val in n], fontsize=14)
+    ax[1].set_xlabel("Number of diagonal blocks", fontsize=14)
+
+    ax[1].set_yticks(range(len(p)))
+    ax[1].set_yticklabels([str(val) for val in p], fontsize=14)
+
+    # add y label
+    ax[1].set_ylabel("Number of processes", fontsize=14)
+
+    fig.tight_layout()
+
+    plt.savefig("theoretical_parallel_efficiency_A2X.png")
+
+
+def compute_ideal_load_balancing(
+    n,
+    b,
+    a,
+):
+    # Distributed algorithms
+    # load balancing analysis
+    load_balancing_d_pobtaf = compute_flops_d_pobtaf(
+        n, b, a, p=1
+    ) / compute_flops_pobtaf(n, b, a)
+
+    load_balancing_d_pobtasi = compute_flops_d_pobtasi(
+        n, b, a, p=1
+    ) / compute_flops_pobtasi(n, b, a)
+
+    ratio_d_pobtaf_d_pobtasi = compute_flops_d_pobtaf(
+        n, b, a, p=1
+    ) / compute_flops_d_pobtasi(n, b, a, p=1)
+
+    ideal_load_balancing = (
+        ratio_d_pobtaf_d_pobtasi * load_balancing_d_pobtaf
+        + (1 - ratio_d_pobtaf_d_pobtasi) * load_balancing_d_pobtasi
+    )
+
+    return ideal_load_balancing
+
+
+def plot_nested_solving(
+    np_nested,
+    n,
+    p,
+    sequential_reference,
+    flops_matrix_3d,
+):
+    n_rows = len(p) + 1
+    fig, ax = plt.subplots(
+        n_rows, 1, figsize=(14, 8), gridspec_kw={"height_ratios": [1] + [4] * len(p)}
+    )
+
+    # Plot the reference
+    ax[0].imshow(
+        np.reshape(sequential_reference, (1, len(n))), cmap="viridis", aspect="auto"
+    )
+
+    # Add the reference values
+    for i in range(len(n)):
+        ax[0].text(
+            i,
+            0,
+            f"{sequential_reference[i]:.1e} flops",
+            ha="center",
+            va="center",
+            color="white",
+        )
+
+    # remove x and y ticks
+    ax[0].set_xticks([])
+    ax[0].set_yticks([])
+    # ax[0].set_ylabel("Sequential\nflops", fontsize=14)
+
+    ideal_d_flops = np.zeros((len(p), len(n)))
+    for p_i in range(len(p)):
+        for n_i in range(len(n)):
+            ideal_d_flops[p_i, n_i] = sequential_reference[n_i] / p[p_i]
+
+    np_nested = [1] + np_nested
+
+    theoretical_parallel_efficiency = np.zeros((len(np_nested), len(p), len(n)))
+
+    colors = ["b", "g", "r", "c", "m", "y", "k"]
+
+    bar_width = 0.22
+    offset = np.arange(len(np_nested)) * bar_width
+
+    for np_i in range(len(np_nested)):
+        for p_i in range(len(p)):
+            if n_reduced >= 3 * np_nested[np_i]:
+                for n_i in range(len(n)):
+                    theoretical_parallel_efficiency[np_i, p_i, n_i] = (
+                        ideal_d_flops[p_i, n_i] / flops_matrix_3d[np_i, p_i, n_i]
+                    ) * 100
+
+                    ax[1 + p_i].bar(
+                        n_i + offset[np_i],
+                        theoretical_parallel_efficiency[np_i, p_i, n_i],
+                        width=bar_width,
+                        label=f"np_i={np_i}, p_i={p_i}" if n_i == 0 else "",
+                        color=colors[np_i],
+                    )
+
+                    # add annotation
+                    ax[1 + p_i].text(
+                        n_i + offset[np_i],
+                        theoretical_parallel_efficiency[np_i, p_i, n_i]
+                        + 1,  # Adjust the position above the bar
+                        f"{theoretical_parallel_efficiency[np_i, p_i, n_i]:.2f}%",
+                        ha="center",
+                        va="bottom",
+                        color="black",
+                    )
+
+    # Set axis ranges:
+    for ax_i in range(1, n_rows):
+        ax[ax_i].set_xlim([-0.2, (len(n) - 1) + 0.8])
+        if ax_i == n_rows - 1:
+            ax[ax_i].set_xticks(range(len(n)))
+            ax[ax_i].set_xticklabels([str(val) for val in n], fontsize=14)
+            ax[ax_i].set_xlabel("Number of diagonal blocks", fontsize=14)
+        else:
+            ax[ax_i].set_xticks([])
+            ax[ax_i].set_xticklabels([])
+
+        ax[ax_i].set_ylim([0, 100])
+
+        if ax_i == n_rows // 2:
+            ax[ax_i].set_ylabel("Parallel efficiency (%)", fontsize=14)
+
+    handles, labels = [], []
+    for np_i in range(len(np_nested)):
+        handles.append(plt.Rectangle((0, 0), 1, 1, color=colors[np_i]))
+        if np_i == 0:
+            labels.append("No nested solving")
+        else:
+            labels.append(f"np = {np_nested[np_i]}")
+
+    legend = fig.legend(
+        handles, labels, loc="lower left", bbox_to_anchor=(0.06, 0.09), fontsize=12
+    )
+
+    legend.get_frame().set_facecolor("white")
+    legend.get_frame().set_alpha(1)
+
+    plt.tight_layout()
+
+    plt.savefig("nested_solving_flops.png")
+
+
 if __name__ == "__main__":
     debug_values = True
     plot = False
@@ -665,24 +875,130 @@ if __name__ == "__main__":
             print(f"{total_flops_d_pobtasi[p_i, n_i]:.2e}, ", end="")
     print()
 
-    fig, ax = plt.subplots(2, 2, figsize=(16, 8), gridspec_kw={"height_ratios": [1, 5]})
+    if plot:
+        plt.rcParams.update({"font.size": 12})
+        fig, ax = plt.subplots(
+            2, 2, figsize=(16, 8), gridspec_kw={"height_ratios": [1, 5]}
+        )
 
-    ax[0, 0].set_title("Factorization", fontsize=18)
-    plot_theoretical_parallel_efficiency(
-        ax, [0, 0], [1, 0], n, b, a, p, total_flops_pobtaf, total_flops_d_pobtaf
+        ax[0, 0].set_title("Factorization", fontsize=18)
+        plot_theoretical_parallel_efficiency(
+            ax, [0, 0], [1, 0], n, b, a, p, total_flops_pobtaf, total_flops_d_pobtaf
+        )
+
+        ax[0, 1].set_title("Selected-inversion", fontsize=18)
+        plot_theoretical_parallel_efficiency(
+            ax, [0, 1], [1, 1], n, b, a, p, total_flops_pobtasi, total_flops_d_pobtasi
+        )
+
+        fig.tight_layout()
+
+        plt.savefig("theoretical_parallel_efficiency.png")
+
+    if plot:
+        # Show reduced system
+        fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+        ax.imshow(total_flops_reduced_system, cmap="viridis", aspect="auto")
+
+        for p_i in range(len(p)):
+            for n_i in range(len(n)):
+                if total_flops_reduced_system[p_i, n_i] > 0:
+                    ax.text(
+                        n_i,
+                        p_i,
+                        f"{total_flops_reduced_system[p_i, n_i]:.1e}\nflops",
+                        ha="center",
+                        va="center",
+                        color="white",
+                    )
+
+        ax.set_xticks(range(len(n)))
+        ax.set_xticklabels([str(val) for val in n], fontsize=14)
+        ax.set_xlabel("Number of diagonal blocks", fontsize=14)
+
+        ax.set_yticks(range(len(p)))
+        ax.set_yticklabels([str(val) for val in p], fontsize=14)
+        ax.set_ylabel("Number of processes", fontsize=14)
+
+        ax.set_title("Inversion of the reduced system\n(POBTAF + POBTASI)", fontsize=14)
+
+        fig.tight_layout()
+        plt.savefig("reduced_system_inversion_flops.png")
+
+    # A2X
+    total_flops_pobtaA2X = [
+        total_flops_pobtaf[i] + total_flops_pobtasi[i] for i in range(len(n))
+    ]
+    total_flops_d_pobtaA2X = (
+        total_flops_d_pobtaf + total_flops_d_pobtasi + total_flops_reduced_system
     )
 
-    ax[0, 1].set_title("Selected-inversion", fontsize=18)
-    plot_theoretical_parallel_efficiency(
-        ax, [0, 1], [1, 1], n, b, a, p, total_flops_pobtasi, total_flops_d_pobtasi
+    if plot:
+        plot_theoretical_parallel_efficiency_A2X(
+            n, b, a, p, total_flops_pobtaA2X, total_flops_d_pobtaA2X
+        )
+
+    # Nested solving
+
+    np_nested = [2, 4, 8]
+    redistribute_nested_partitions_ideally = False
+
+    total_flops_d_pobtaA2X_nested = np.zeros((len(np_nested) + 1, len(p), len(n)))
+    total_flops_d_pobtaA2X_nested[0] = total_flops_d_pobtaA2X
+
+    # plot_theoretical_parallel_efficiency_A2X(
+    #     n, b, a, p, total_flops_pobtaA2X, total_flops_d_pobtaA2X_nested[0]
+    # )
+
+    for np_i in range(len(np_nested)):
+        for p_i in range(len(p)):
+            n_reduced = 2 * p[p_i] - 1
+            if n_reduced >= 3 * np_nested[np_i]:
+                for n_i in range(len(n)):
+                    if n[n_i] >= 3 * p[p_i]:
+                        # Initialize the base flops
+                        total_flops_d_pobtaA2X_nested[np_i + 1, p_i, n_i] = (
+                            total_flops_d_pobtaf[p_i, n_i]
+                            + total_flops_d_pobtasi[p_i, n_i]
+                        )
+
+                        if redistribute_nested_partitions_ideally:
+                            load_balancing = compute_ideal_load_balancing(
+                                n_reduced, b, a
+                            )
+                        else:
+                            load_balancing = 1
+
+                        partition_sizes = get_partition_size(
+                            n=n_reduced,
+                            p=np_nested[np_i],
+                            balancing_ratio=load_balancing,
+                        )
+
+                        # The more full central partition is the '1'
+                        central_partition_size = partition_sizes[1]
+
+                        total_flops_d_pobtaA2X_nested[
+                            np_i + 1, p_i, n_i
+                        ] += compute_flops_d_pobtaf(
+                            central_partition_size, b, a, p=1
+                        ) + compute_flops_d_pobtasi(
+                            central_partition_size, b, a, p=1
+                        )
+
+                        total_flops_d_pobtaA2X_nested[
+                            np_i + 1, p_i, n_i
+                        ] += compute_flops_reduced_system(b, a, np_nested[np_i])
+
+        # plot_theoretical_parallel_efficiency_A2X(
+        #     n, b, a, p, total_flops_pobtaA2X, total_flops_d_pobtaA2X_nested[np_i + 1]
+        # )
+
+    plot_nested_solving(
+        np_nested, n, p, total_flops_pobtaA2X, total_flops_d_pobtaA2X_nested
     )
-
-    fig.tight_layout()
-
-    plt.savefig("theoretical_parallel_efficiency.png")
 
     plt.show()
-
 
 # Strong scaling partition ratio
 if __name__ == "__main__":
