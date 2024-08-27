@@ -440,15 +440,16 @@ def plot_theoretical_parallel_efficiency(
 
     # Add xtiks and yticks
     ax[ax_mat[0], ax_mat[1]].set_xticks(range(len(n)))
-    ax[ax_mat[0], ax_mat[1]].set_xticklabels([str(val) for val in n])
-    ax[ax_mat[0], ax_mat[1]].set_xlabel("Number of diagonal blocks")
+    ax[ax_mat[0], ax_mat[1]].set_xticklabels([str(val) for val in n], fontsize=14)
+    ax[ax_mat[0], ax_mat[1]].set_xlabel("Number of diagonal blocks", fontsize=14)
 
     if ax_mat == [1, 0]:
         ax[ax_mat[0], ax_mat[1]].set_yticks(range(len(p)))
-        ax[ax_mat[0], ax_mat[1]].set_yticklabels([str(val) for val in p])
+        ax[ax_mat[0], ax_mat[1]].set_yticklabels([str(val) for val in p], fontsize=14)
 
         # add y label
-        ax[ax_mat[0], ax_mat[1]].set_ylabel("Number of processes")
+        ax[ax_ref[0], ax_ref[1]].set_ylabel("Sequential\nreference", fontsize=14)
+        ax[ax_mat[0], ax_mat[1]].set_ylabel("Number of processes", fontsize=14)
     else:
         ax[ax_mat[0], ax_mat[1]].set_yticks([])
 
@@ -666,17 +667,20 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots(2, 2, figsize=(16, 8), gridspec_kw={"height_ratios": [1, 5]})
 
-    ax[0, 0].set_title("Factorization")
+    ax[0, 0].set_title("Factorization", fontsize=18)
     plot_theoretical_parallel_efficiency(
         ax, [0, 0], [1, 0], n, b, a, p, total_flops_pobtaf, total_flops_d_pobtaf
     )
 
-    ax[0, 1].set_title("Selected-inversion")
+    ax[0, 1].set_title("Selected-inversion", fontsize=18)
     plot_theoretical_parallel_efficiency(
         ax, [0, 1], [1, 1], n, b, a, p, total_flops_pobtasi, total_flops_d_pobtasi
     )
 
     fig.tight_layout()
+
+    plt.savefig("theoretical_parallel_efficiency.png")
+
     plt.show()
 
 
