@@ -382,6 +382,8 @@ def show_load_balancing(
 
 def plot_theoretical_parallel_efficiency(
     ax,
+    ax_ref,
+    ax_mat,
     n,
     b,
     a,
@@ -389,12 +391,66 @@ def plot_theoretical_parallel_efficiency(
     reference,
     flops_matrix,
 ):
+    # Plot the reference
+    ax[ax_ref[0], ax_ref[1]].imshow(
+        np.reshape(reference, (1, len(n))), cmap="viridis", aspect="auto"
+    )
+
+    # Add the reference values
+    for i in range(len(n)):
+        ax[ax_ref[0], ax_ref[1]].text(
+            i,
+            0,
+            f"{reference[i]:.1e} flops",
+            ha="center",
+            va="center",
+            color="white",
+        )
+
+    # remove x and y ticks
+    ax[ax_ref[0], ax_ref[1]].set_xticks([])
+    ax[ax_ref[0], ax_ref[1]].set_yticks([])
+
     ideal_d_flops = np.zeros((len(p), len(n)))
     for p_i in range(len(p)):
         for n_i in range(len(n)):
             ideal_d_flops[p_i, n_i] = reference[n_i] / p[p_i]
 
-    ax.imshow(ideal_d_flops, cmap="viridis", aspect="auto")
+    theoretical_parallel_efficiency = np.zeros((len(p), len(n)))
+    for p_i in range(len(p)):
+        for n_i in range(len(n)):
+            theoretical_parallel_efficiency[p_i, n_i] = (
+                ideal_d_flops[p_i, n_i] / flops_matrix[p_i, n_i]
+            ) * 100
+
+    ax[ax_mat[0], ax_mat[1]].imshow(
+        theoretical_parallel_efficiency, cmap="viridis", aspect="auto"
+    )
+
+    for p_i in range(len(p)):
+        for n_i in range(len(n)):
+            ax[ax_mat[0], ax_mat[1]].text(
+                n_i,
+                p_i,
+                f"{theoretical_parallel_efficiency[p_i, n_i]:.2f}%\n{flops_matrix[p_i, n_i]:.1e} flops",
+                ha="center",
+                va="center",
+                color="white",
+            )
+
+    # Add xtiks and yticks
+    ax[ax_mat[0], ax_mat[1]].set_xticks(range(len(n)))
+    ax[ax_mat[0], ax_mat[1]].set_xticklabels([str(val) for val in n])
+    ax[ax_mat[0], ax_mat[1]].set_xlabel("Number of diagonal blocks")
+
+    if ax_mat == [1, 0]:
+        ax[ax_mat[0], ax_mat[1]].set_yticks(range(len(p)))
+        ax[ax_mat[0], ax_mat[1]].set_yticklabels([str(val) for val in p])
+
+        # add y label
+        ax[ax_mat[0], ax_mat[1]].set_ylabel("Number of processes")
+    else:
+        ax[ax_mat[0], ax_mat[1]].set_yticks([])
 
 
 if __name__ == "__main__":
@@ -608,15 +664,19 @@ if __name__ == "__main__":
             print(f"{total_flops_d_pobtasi[p_i, n_i]:.2e}, ", end="")
     print()
 
-    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+    fig, ax = plt.subplots(2, 2, figsize=(16, 8), gridspec_kw={"height_ratios": [1, 5]})
 
+    ax[0, 0].set_title("Factorization")
     plot_theoretical_parallel_efficiency(
-        ax[0], n, b, a, p, total_flops_pobtaf, total_flops_d_pobtaf
-    )
-    plot_theoretical_parallel_efficiency(
-        ax[1], n, b, a, p, total_flops_pobtasi, total_flops_d_pobtasi
+        ax, [0, 0], [1, 0], n, b, a, p, total_flops_pobtaf, total_flops_d_pobtaf
     )
 
+    ax[0, 1].set_title("Selected-inversion")
+    plot_theoretical_parallel_efficiency(
+        ax, [0, 1], [1, 1], n, b, a, p, total_flops_pobtasi, total_flops_d_pobtasi
+    )
+
+    fig.tight_layout()
     plt.show()
 
 
