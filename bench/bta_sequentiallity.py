@@ -21,7 +21,7 @@ color_scheme = ColorScheme()
 def d_pobtaf_matrix(A, n_processes):
     n = A.shape[0] - 1
 
-    A_factorized = np.ones((n + 1, n + 1, 3)) * color_scheme.background
+    A_factorized = np.ones((n + 1, n + 1, 4)) * color_scheme.background
     annotations = np.zeros((n + 1, n + 1), dtype="U20")
 
     for i in range(n):
@@ -134,7 +134,7 @@ def make_reduce_system(
 ):
     n = A_factorized.shape[0] - 1
     r_size = 2 * n_processes
-    R = np.ones((r_size, r_size, 3)) * color_scheme.background
+    R = np.ones((r_size, r_size, 4)) * color_scheme.background
     annotations = np.zeros((r_size, r_size), dtype="U20")
 
     section_sizes = get_section_sizes(n, n_processes)
@@ -246,7 +246,7 @@ def invert_matrix(Xinit, annotations_Xinit):
 
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
-            if np.all(X[i, j] != color_scheme.background):
+            if np.all(X[i, j] == color_scheme.factor_elements):
                 X[i, j] = color_scheme.inverse_elements
                 annotations_X[i, j] = f"$X_{{{i+1},{j+1}}}$"
 
@@ -274,6 +274,7 @@ if __name__ == "__main__":
         for i in range(n + 1):
             diag_colors[i] = A[i, i]
             A[i, i] = color_scheme.background
+            #A[i, i] = np.array([0, 0, 0, 0])
         show_lower_diag_elements(ax, diag_colors)
     ax.imshow(A)
     ax.set_title("$A$", fontsize=16)
@@ -304,6 +305,7 @@ if __name__ == "__main__":
         for i in range(n + 1):
             diag_colors[i] = A_factorized[i, i]
             A_factorized[i, i] = color_scheme.background
+            #A_factorized[i, i] = np.array([0, 0, 0, 0])
         show_lower_diag_elements(ax, diag_colors)
     ax.imshow(A_factorized)
     ax.set_title(type, fontsize=16)
@@ -338,6 +340,7 @@ if __name__ == "__main__":
         for i in range(R.shape[0]):
             diag_colors[i] = R[i, i]
             R[i, i] = color_scheme.background
+            #R[i, i] = np.array([0, 0, 0, 0])
         show_lower_diag_elements(ax, diag_colors)
     ax.imshow(R)
     ax.set_title("$R$", fontsize=16)
@@ -359,6 +362,8 @@ if __name__ == "__main__":
         for i in range(R.shape[0]):
             R[i, i] = diag_colors[i]
 
+
+
     # Print inverse reduced system
     Xr, annotations_Xr = inverse_reduce_system(R, A)
 
@@ -368,6 +373,7 @@ if __name__ == "__main__":
         for i in range(Xr.shape[0]):
             diag_colors[i] = Xr[i, i]
             Xr[i, i] = color_scheme.background
+            #Xr[i, i] = np.array([0, 0, 0, 0])
         show_lower_diag_elements(ax, diag_colors)
     ax.imshow(Xr)
     ax.set_title("$X_r$", fontsize=16)
@@ -400,6 +406,7 @@ if __name__ == "__main__":
         for i in range(Xinit.shape[0]):
             diag_colors[i] = Xinit[i, i]
             Xinit[i, i] = color_scheme.background
+            #Xinit[i, i] = np.array([0, 0, 0, 0])
         show_lower_diag_elements(ax, diag_colors)
     ax.imshow(Xinit)
     ax.set_title("$X_{init}$", fontsize=16)
@@ -421,7 +428,7 @@ if __name__ == "__main__":
     if type == "Cholesky":
         for i in range(Xinit.shape[0]):
             Xinit[i, i] = diag_colors[i]
-
+            
     # Print final inverse matrix
     X, annotation_X = invert_matrix(Xinit, annotation_Xinit)
 
@@ -431,6 +438,7 @@ if __name__ == "__main__":
         for i in range(X.shape[0]):
             diag_colors[i] = X[i, i]
             X[i, i] = color_scheme.background
+            #X[i, i] = np.array([0, 0, 0, 0])    
         show_lower_diag_elements(ax, diag_colors)
     ax.imshow(X)
     ax.set_title("$X$", fontsize=16)

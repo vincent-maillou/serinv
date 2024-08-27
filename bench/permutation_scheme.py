@@ -17,7 +17,7 @@ color_scheme = ColorScheme()
 def make_bta_permutation_matrix(
     n: int,
 ):
-    P_show = np.ones((n + 1, n + 1, 3)) * color_scheme.background
+    P_show = np.ones((n + 1, n + 1, 4)) * color_scheme.background
     P = np.zeros((n + 1, n + 1), dtype=bool)
 
     offset = 0

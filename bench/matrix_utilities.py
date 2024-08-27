@@ -29,22 +29,22 @@ class ColorScheme:
         inverse_elements (np.ndarray): Color of the inverse elements.
     """
 
-    background: ArrayLike = field(default_factory=lambda: colormap(norm(0))[:3])
-    A_elements: ArrayLike = field(default_factory=lambda: np.array([0, 143, 140]) / 255)
-    P_elements: ArrayLike = field(default_factory=lambda: np.array([0, 255, 0]) / 255)
+    background: ArrayLike = field(default_factory=lambda: np.array([0,0,0,0]) / 255)
+    A_elements: ArrayLike = field(default_factory=lambda: np.array([22, 106, 140, 220]) / 255)
+    P_elements: ArrayLike = field(default_factory=lambda: np.array([206, 119, 39, 255]) / 255) 
+    
     fillin_hatching: ArrayLike = field(
-        default_factory=lambda: np.array([255, 0, 0]) / 255
+        default_factory=lambda: np.array([180, 0, 0, 255]) / 255
     )
     factor_elements: ArrayLike = field(
-        default_factory=lambda: np.array([127, 127, 127]) / 255
-    )
+        default_factory=lambda: np.array([22, 106, 140, 127.5]) / 255
+    )  
     boundary_elements: ArrayLike = field(
-        default_factory=lambda: np.array([153, 102, 51]) / 255
-    )
+        default_factory=lambda: np.array([206, 119, 39, 255]) / 255
+    )    
     inverse_elements: ArrayLike = field(
-        default_factory=lambda: np.array([6, 57, 112]) / 255
+        default_factory=lambda: np.array([0, 15, 66, 171.25]) / 255
     )
-
 
 color_scheme = ColorScheme()
 
@@ -52,7 +52,7 @@ color_scheme = ColorScheme()
 def make_pobta_lower_matrix(
     n: int,
 ):
-    A = np.ones((n + 1, n + 1, 3)) * color_scheme.background
+    A = np.ones((n + 1, n + 1, 4)) * color_scheme.background
     annotations = np.zeros((n + 1, n + 1), dtype="U20")
 
     for i in range(n):
@@ -92,12 +92,27 @@ def show_lower_diag_elements(
                 facecolor=diag_colors[i],
             )
         )
+        
+        # ax.add_patch(
+        #     plt.Polygon(
+        #         [
+        #             [i - offset, i - offset],
+        #             [i - offset + 1, i - offset],
+        #             [i - offset + 1, i - offset + 1],
+        #         ],
+        #         closed=True,
+        #         fill=True,
+        #         edgecolor="none",
+        #         facecolor=color_scheme.background,
+        #     )
+        # )
+
 
 
 def make_pobta_symm_matrix(
     n: int,
 ):
-    A = np.ones((n + 1, n + 1, 3)) * color_scheme.background
+    A = np.ones((n + 1, n + 1, 4)) * color_scheme.background
     annotations = np.zeros((n + 1, n + 1), dtype="U20")
 
     for i in range(n):
@@ -126,7 +141,7 @@ def make_pobta_symm_matrix(
 def make_ddbta_matrix(
     n: int,
 ):
-    A = np.ones((n + 1, n + 1, 3)) * color_scheme.background
+    A = np.ones((n + 1, n + 1, 4)) * color_scheme.background
     annotations = np.zeros((n + 1, n + 1), dtype="U20")
 
     for i in range(n):
@@ -161,7 +176,8 @@ def annotate_matrix(ax, matrix, annotations):
                 annotations[i, j],
                 va="center",
                 ha="center",
-                color="white",
+                #color="white",
+                color="black",
                 fontsize=12,
             )
 
@@ -177,7 +193,7 @@ def hatch_matrix(ax, hatching):
                         1,
                         fill=False,
                         hatch="//",
-                        # edgecolor="red",
+                        #edgecolor="red",
                         edgecolor=color_scheme.fillin_hatching,
                     )
                 )
@@ -197,8 +213,8 @@ def slice_matrix(
     matrix,
 ):
     n = matrix.shape[0] - 1
-    linewidth = 1.5
-    color = "white"
+    linewidth = 1
+    color = "black"
 
     section_sizes = get_section_sizes(n, n_processes)
 
