@@ -468,7 +468,9 @@ def plot_theoretical_parallel_efficiency_A2X(
     ax[0].imshow(np.reshape(reference, (1, len(n))), cmap="viridis", aspect="auto")
 
     # add title
-    ax[0].set_title("A2X\n(POBTAF + Inv_red + POBTASI)", fontsize=14)
+    ax[0].set_title(
+        "A2X theoretical parallel efficiency\n(POBTAF + Inv_red + POBTASI)", fontsize=14
+    )
 
     # Add the reference values
     for i in range(len(n)):
@@ -527,6 +529,51 @@ def plot_theoretical_parallel_efficiency_A2X(
     plt.savefig("theoretical_parallel_efficiency_A2X.png")
 
 
+def plot_theoretical_speedup_A2X(
+    n,
+    b,
+    a,
+    p,
+    reference,
+    flops_matrix,
+):
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+
+    theoretical_speedup = np.zeros((len(p), len(n)))
+    for p_i in range(len(p)):
+        for n_i in range(len(n)):
+            theoretical_speedup[p_i, n_i] = reference[n_i] / flops_matrix[p_i, n_i]
+
+    ax.imshow(theoretical_speedup, cmap="viridis", aspect="auto")
+
+    for p_i in range(len(p)):
+        for n_i in range(len(n)):
+            ax.text(
+                n_i,
+                p_i,
+                f"{theoretical_speedup[p_i, n_i]:.2f}",
+                ha="center",
+                va="center",
+                color="white",
+            )
+
+    # Add xtiks and yticks
+    ax.set_xticks(range(len(n)))
+    ax.set_xticklabels([str(val) for val in n], fontsize=14)
+    ax.set_xlabel("Number of diagonal blocks", fontsize=14)
+
+    ax.set_yticks(range(len(p)))
+    ax.set_yticklabels([str(val) for val in p], fontsize=14)
+
+    # add y label
+    ax.set_ylabel("Number of processes", fontsize=14)
+
+    ax.set_title("A2X theoretical speedup\n(POBTAF + Inv_red + POBTASI)", fontsize=14)
+    fig.tight_layout()
+
+    plt.savefig("theoretical_speedup_A2X.png")
+
+
 def compute_ideal_load_balancing(
     n,
     b,
@@ -552,6 +599,154 @@ def compute_ideal_load_balancing(
     )
 
     return ideal_load_balancing
+
+
+def plot_cost_breakdown(
+    n,
+    b,
+    a,
+    p,
+    total_flops_d_pobtaf,
+    total_flops_d_pobtasi,
+    total_flops_reduced_system,
+):
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+
+    selected_n = 128
+    n_i = n.index(selected_n)
+
+    pct_d_pobtaf = np.zeros((len(p)))
+    pct_d_pobtasi = np.zeros((len(p)))
+    pct_reduced_system = np.zeros((len(p)))
+
+    for p_i in range(len(p)):
+        total = (
+            total_flops_d_pobtaf[p_i, n_i]
+            + total_flops_d_pobtasi[p_i, n_i]
+            + total_flops_reduced_system[p_i, n_i]
+        )
+
+        pct_d_pobtaf[p_i] = (total_flops_d_pobtaf[p_i, n_i] / total) * 100
+        pct_reduced_system[p_i] = (total_flops_reduced_system[p_i, n_i] / total) * 100
+        pct_d_pobtasi[p_i] = (total_flops_d_pobtasi[p_i, n_i] / total) * 100
+
+    width = 0.4
+    for p_i in range(len(p)):
+        adjusted_width = width * p[p_i]
+        # ax.bar(
+        #     p[p_i],
+        #     pct_d_pobtaf[p_i],
+        #     color="b",
+        #     width=adjusted_width,
+        #     label="d_pobtaf" if p_i == 0 else "",
+        # )
+        # ax.bar(
+        #     p[p_i],
+        #     pct_reduced_system[p_i],
+        #     color="r",
+        #     width=adjusted_width,
+        #     bottom=pct_d_pobtaf[p_i],
+        #     label="reduced system" if p_i == 0 else "",
+        # )
+        # ax.bar(
+        #     p[p_i],
+        #     pct_d_pobtasi[p_i],
+        #     color="g",
+        #     width=adjusted_width,
+        #     bottom=pct_d_pobtaf[p_i] + pct_reduced_system[p_i],
+        #     label="d_pobtasi" if p_i == 0 else "",
+        # )
+        # ax.text(
+        #     p[p_i],
+        #     pct_d_pobtaf[p_i] / 2,
+        #     f"{pct_d_pobtaf[p_i]:.2f}%",
+        #     ha="center",
+        #     va="center",
+        #     color="black",
+        # )
+        # ax.text(
+        #     p[p_i],
+        #     pct_d_pobtaf[p_i] + pct_reduced_system[p_i] / 2,
+        #     f"{pct_reduced_system[p_i]:.2f}%",
+        #     ha="center",
+        #     va="center",
+        #     color="black",
+        # )
+        # ax.text(
+        #     p[p_i],
+        #     pct_d_pobtaf[p_i] + pct_reduced_system[p_i] + pct_d_pobtasi[p_i] / 2,
+        #     f"{pct_d_pobtasi[p_i]:.2f}%",
+        #     ha="center",
+        #     va="center",
+        #     color="black",
+        # )
+
+        ax.bar(
+            p[p_i],
+            total_flops_d_pobtaf[p_i, n_i],
+            color="b",
+            width=adjusted_width,
+            label="d_pobtaf" if p_i == 0 else "",
+        )
+        ax.bar(
+            p[p_i],
+            total_flops_reduced_system[p_i, n_i],
+            color="r",
+            width=adjusted_width,
+            bottom=total_flops_d_pobtaf[p_i, n_i],
+            label="reduced system" if p_i == 0 else "",
+        )
+        ax.bar(
+            p[p_i],
+            total_flops_d_pobtasi[p_i, n_i],
+            color="g",
+            width=adjusted_width,
+            bottom=total_flops_d_pobtaf[p_i, n_i]
+            + total_flops_reduced_system[p_i, n_i],
+            label="d_pobtasi" if p_i == 0 else "",
+        )
+
+        ax.text(
+            p[p_i],
+            total_flops_d_pobtaf[p_i, n_i] / 2,
+            f"{total_flops_d_pobtaf[p_i, n_i]:.1e}\n{pct_d_pobtaf[p_i]:.2f}%",
+            ha="center",
+            va="center",
+            color="white",
+        )
+        ax.text(
+            p[p_i],
+            total_flops_d_pobtaf[p_i, n_i] + total_flops_reduced_system[p_i, n_i] / 2,
+            f"{total_flops_reduced_system[p_i, n_i]:.1e}\n{pct_reduced_system[p_i]:.2f}%",
+            ha="center",
+            va="center",
+            color="white",
+        )
+        ax.text(
+            p[p_i],
+            total_flops_d_pobtaf[p_i, n_i]
+            + total_flops_reduced_system[p_i, n_i]
+            + total_flops_d_pobtasi[p_i, n_i] / 2,
+            f"{total_flops_d_pobtasi[p_i, n_i]:.1e}\n{pct_d_pobtasi[p_i]:.2f}%",
+            ha="center",
+            va="center",
+            color="white",
+        )
+
+    ax.set_xscale("log", base=2)
+    ax.set_xticks(p)
+    ax.set_xticklabels([str(val) for val in p])
+    ax.set_xlabel("Number of processes")
+
+    ax.set_ylabel("Total flops per rank")
+    ax.legend(loc="upper right")
+
+    # add title
+    ax.set_title(f"n={selected_n}")
+
+    plt.tight_layout()
+
+    plt.savefig("cost_breakdown.png")
 
 
 def plot_nested_solving(
@@ -642,7 +837,9 @@ def plot_nested_solving(
         ax[ax_i].set_ylim([0, 100])
 
         if ax_i == n_rows // 2:
-            ax[ax_i].set_ylabel("Parallel efficiency (%)", fontsize=14)
+            ax[ax_i].set_ylabel(f"Parallel efficiency (%)\n{p[ax_i-1]}", fontsize=14)
+        else:
+            ax[ax_i].set_ylabel(f"{p[ax_i-1]}", fontsize=14)
 
     handles, labels = [], []
     for np_i in range(len(np_nested)):
@@ -895,6 +1092,8 @@ if __name__ == "__main__":
 
         plt.savefig("theoretical_parallel_efficiency.png")
 
+        plt.show()
+
     if plot:
         # Show reduced system
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
@@ -925,6 +1124,8 @@ if __name__ == "__main__":
         fig.tight_layout()
         plt.savefig("reduced_system_inversion_flops.png")
 
+        plt.show()
+
     # A2X
     total_flops_pobtaA2X = [
         total_flops_pobtaf[i] + total_flops_pobtasi[i] for i in range(len(n))
@@ -938,10 +1139,22 @@ if __name__ == "__main__":
             n, b, a, p, total_flops_pobtaA2X, total_flops_d_pobtaA2X
         )
 
+    if plot:
+        # Pct taken by reduce system
+        plot_cost_breakdown(
+            n,
+            b,
+            a,
+            p,
+            total_flops_d_pobtaf,
+            total_flops_d_pobtasi,
+            total_flops_reduced_system,
+        )
+
     # Nested solving
 
     np_nested = [2, 4, 8]
-    redistribute_nested_partitions_ideally = False
+    redistribute_nested_partitions_ideally = True
 
     total_flops_d_pobtaA2X_nested = np.zeros((len(np_nested) + 1, len(p), len(n)))
     total_flops_d_pobtaA2X_nested[0] = total_flops_d_pobtaA2X
@@ -994,8 +1207,15 @@ if __name__ == "__main__":
         #     n, b, a, p, total_flops_pobtaA2X, total_flops_d_pobtaA2X_nested[np_i + 1]
         # )
 
-    plot_nested_solving(
-        np_nested, n, p, total_flops_pobtaA2X, total_flops_d_pobtaA2X_nested
+    if plot:
+        plot_nested_solving(
+            np_nested, n, p, total_flops_pobtaA2X, total_flops_d_pobtaA2X_nested
+        )
+
+        plt.show()
+
+    plot_theoretical_speedup_A2X(
+        n, b, a, p, total_flops_pobtaA2X, total_flops_d_pobtaA2X
     )
 
     plt.show()
