@@ -8,30 +8,32 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 if __name__ == "__main__":
     # abg of all reduce
-    b_sizes = [256, 512, 1024]
+    b_sizes = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
     n_iterations = 100
 
     timings = np.zeros((len(b_sizes), n_iterations))
 
-    print(f"Bench Allreduce for P={comm_size}")
-    for b_i in b_sizes:
-        b_init = np.random.rand(b_i)
+    print(f"Bench Allreduce for P={comm_size}", flush=True)
+    for b_i in range(len(b_sizes)):
+        b_init = np.random.rand(b_sizes[b_i], b_sizes[b_i])
+        print(f"    b_size: {b_init.shape}", flush=True)
         for i in range(n_iterations):
             b = b_init.copy()
 
+            MPI.COMM_WORLD.Barrier()
             tic = time.perf_counter()
             MPI.COMM_WORLD.Allreduce(
                 MPI.IN_PLACE,
                 b,
                 op=MPI.SUM,
             )
+            MPI.COMM_WORLD.Barrier()
             toc = time.perf_counter()
 
             timings[b_i, i] = toc - tic
 
         if comm_rank == 0:
-            print(f"    b_size: {b_i}")
-            print(f"        mean: {np.mean(timings[b_i])}")
-            print(f"        std: {np.std(timings[b_i])}")
+            print(f"        mean: {np.mean(timings[b_i])}", flush=True)
+            print(f"        std: {np.std(timings[b_i])}", flush=True)
 
     np.save(f"abg_allreduce_timings_{comm_size}.npy", timings)
