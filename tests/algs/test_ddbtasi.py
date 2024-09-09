@@ -2,7 +2,6 @@
 
 try:
     import cupy as cp
-    import cupyx.scipy.linalg as cu_la
 
     CUPY_AVAIL = True
 
@@ -10,8 +9,6 @@ except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
-import scipy.linalg as np_la
-
 import pytest
 
 from serinv.algs import ddbtaf, ddbtasi
@@ -32,8 +29,6 @@ def test_ddbtasi(
 ):
     if CUPY_AVAIL:
         xp = cp.get_array_module(dd_bta)
-        if xp == cp:
-            la = cu_la
     else:
         xp = np
 

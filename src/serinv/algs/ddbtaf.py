@@ -21,14 +21,7 @@ def ddbtaf(
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_right_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     """Perform the LU factorization of a block tridiagonal arrowhead matrix using
     a sequential block algorithm.
 
@@ -81,7 +74,6 @@ def ddbtaf(
     else:
         xp = np
 
-    diag_blocksize = A_diagonal_blocks.shape[1]
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
     L_diagonal_blocks = xp.empty_like(A_diagonal_blocks)

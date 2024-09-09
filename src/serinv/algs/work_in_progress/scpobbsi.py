@@ -99,9 +99,9 @@ def scpobbsi(
         # X_{i, i} = (L_{i, i}^{-T} - sum_{k=i+1}^{min(i+ndiags/2, nblocks)} X_{i, k} L_{k, i}) L_{i, i}^{-1}
 
         # X_{i, i} = L_{i, i}^{-T}
-        X[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
-            L_blk_inv.T
-        )
+        X[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = L_blk_inv.T
 
         for k in range(i + 1, min(i + n_offdiags_blk + 1, nblocks), 1):
             # X_{i, i} = X_{i, i} - X_{k, i}.T L_{k, i}

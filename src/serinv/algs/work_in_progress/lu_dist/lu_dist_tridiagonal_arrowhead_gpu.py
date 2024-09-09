@@ -139,16 +139,16 @@ def lu_dist_tridiagonal_arrowhead_gpu(
         A_top_2sided_arrow_blocks_local[:, :diag_blocksize] = A_diagonal_blocks_local[
             :, :diag_blocksize
         ]
-        A_top_2sided_arrow_blocks_local[:, diag_blocksize : 2 * diag_blocksize] = (
-            A_upper_diagonal_blocks_local[:, :diag_blocksize]
-        )
+        A_top_2sided_arrow_blocks_local[
+            :, diag_blocksize : 2 * diag_blocksize
+        ] = A_upper_diagonal_blocks_local[:, :diag_blocksize]
 
         A_left_2sided_arrow_blocks_local[:diag_blocksize, :] = A_diagonal_blocks_local[
             :, :diag_blocksize
         ]
-        A_left_2sided_arrow_blocks_local[diag_blocksize : 2 * diag_blocksize, :] = (
-            A_lower_diagonal_blocks_local[:, :diag_blocksize]
-        )
+        A_left_2sided_arrow_blocks_local[
+            diag_blocksize : 2 * diag_blocksize, :
+        ] = A_lower_diagonal_blocks_local[:, :diag_blocksize]
 
         (
             L_diagonal_blocks,
@@ -1113,33 +1113,33 @@ def middle_factorize_gpu(
         :, -diag_blocksize:
     ].get()
 
-    A_arrow_bottom_blocks_local_updated[:, :diag_blocksize] = (
-        A_arrow_bottom_blocks_local_gpu[:, :diag_blocksize].get()
-    )
-    A_arrow_bottom_blocks_local_updated[:, -diag_blocksize:] = (
-        A_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:].get()
-    )
+    A_arrow_bottom_blocks_local_updated[
+        :, :diag_blocksize
+    ] = A_arrow_bottom_blocks_local_gpu[:, :diag_blocksize].get()
+    A_arrow_bottom_blocks_local_updated[
+        :, -diag_blocksize:
+    ] = A_arrow_bottom_blocks_local_gpu[:, -diag_blocksize:].get()
 
-    A_arrow_right_blocks_local_updated[:diag_blocksize, :] = (
-        A_arrow_right_blocks_local_gpu[:diag_blocksize, :].get()
-    )
-    A_arrow_right_blocks_local_updated[-diag_blocksize:, :] = (
-        A_arrow_right_blocks_local_gpu[-diag_blocksize:, :].get()
-    )
+    A_arrow_right_blocks_local_updated[
+        :diag_blocksize, :
+    ] = A_arrow_right_blocks_local_gpu[:diag_blocksize, :].get()
+    A_arrow_right_blocks_local_updated[
+        -diag_blocksize:, :
+    ] = A_arrow_right_blocks_local_gpu[-diag_blocksize:, :].get()
 
-    A_top_2sided_arrow_blocks_local_updated[:, :diag_blocksize] = (
-        A_top_2sided_arrow_blocks_local_gpu[:, :diag_blocksize].get()
-    )
-    A_top_2sided_arrow_blocks_local_updated[:, -diag_blocksize:] = (
-        A_top_2sided_arrow_blocks_local_gpu[:, -diag_blocksize:].get()
-    )
+    A_top_2sided_arrow_blocks_local_updated[
+        :, :diag_blocksize
+    ] = A_top_2sided_arrow_blocks_local_gpu[:, :diag_blocksize].get()
+    A_top_2sided_arrow_blocks_local_updated[
+        :, -diag_blocksize:
+    ] = A_top_2sided_arrow_blocks_local_gpu[:, -diag_blocksize:].get()
 
-    A_left_2sided_arrow_blocks_local_updated[:diag_blocksize, :] = (
-        A_left_2sided_arrow_blocks_local_gpu[:diag_blocksize, :].get()
-    )
-    A_left_2sided_arrow_blocks_local_updated[-diag_blocksize:, :] = (
-        A_left_2sided_arrow_blocks_local_gpu[-diag_blocksize:, :].get()
-    )
+    A_left_2sided_arrow_blocks_local_updated[
+        :diag_blocksize, :
+    ] = A_left_2sided_arrow_blocks_local_gpu[:diag_blocksize, :].get()
+    A_left_2sided_arrow_blocks_local_updated[
+        -diag_blocksize:, :
+    ] = A_left_2sided_arrow_blocks_local_gpu[-diag_blocksize:, :].get()
 
     L_diagonal_blocks_inv_local_gpu.get(out=L_diagonal_blocks_inv_local)
     L_lower_diagonal_blocks_local_gpu.get(out=L_lower_diagonal_blocks_local)
@@ -1273,23 +1273,23 @@ def create_reduced_system(
     else:
         start_index = diag_blocksize + (comm_rank - 1) * 2 * diag_blocksize
 
-        A_rs_lower_diagonal_blocks[:, start_index - diag_blocksize : start_index] = (
-            A_bridges_lower[
-                :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
-            ]
-        )
+        A_rs_lower_diagonal_blocks[
+            :, start_index - diag_blocksize : start_index
+        ] = A_bridges_lower[
+            :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
+        ]
 
-        A_rs_diagonal_blocks[:, start_index : start_index + diag_blocksize] = (
-            A_diagonal_blocks_local[:, :diag_blocksize]
-        )
+        A_rs_diagonal_blocks[
+            :, start_index : start_index + diag_blocksize
+        ] = A_diagonal_blocks_local[:, :diag_blocksize]
 
-        A_rs_upper_diagonal_blocks[:, start_index : start_index + diag_blocksize] = (
-            A_top_2sided_arrow_blocks_local[:, -diag_blocksize:]
-        )
+        A_rs_upper_diagonal_blocks[
+            :, start_index : start_index + diag_blocksize
+        ] = A_top_2sided_arrow_blocks_local[:, -diag_blocksize:]
 
-        A_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize] = (
-            A_left_2sided_arrow_blocks_local[-diag_blocksize:, :]
-        )
+        A_rs_lower_diagonal_blocks[
+            :, start_index : start_index + diag_blocksize
+        ] = A_left_2sided_arrow_blocks_local[-diag_blocksize:, :]
 
         A_rs_diagonal_blocks[
             :, start_index + diag_blocksize : start_index + 2 * diag_blocksize
@@ -1302,17 +1302,17 @@ def create_reduced_system(
                 :, comm_rank * diag_blocksize : (comm_rank + 1) * diag_blocksize
             ]
 
-        A_rs_arrow_bottom_blocks[:, start_index : start_index + diag_blocksize] = (
-            A_arrow_bottom_blocks_local[:, :diag_blocksize]
-        )
+        A_rs_arrow_bottom_blocks[
+            :, start_index : start_index + diag_blocksize
+        ] = A_arrow_bottom_blocks_local[:, :diag_blocksize]
 
         A_rs_arrow_bottom_blocks[
             :, start_index + diag_blocksize : start_index + 2 * diag_blocksize
         ] = A_arrow_bottom_blocks_local[:, -diag_blocksize:]
 
-        A_rs_arrow_right_blocks[start_index : start_index + diag_blocksize, :] = (
-            A_arrow_right_blocks_local[:diag_blocksize, :]
-        )
+        A_rs_arrow_right_blocks[
+            start_index : start_index + diag_blocksize, :
+        ] = A_arrow_right_blocks_local[:diag_blocksize, :]
 
         A_rs_arrow_right_blocks[
             start_index + diag_blocksize : start_index + 2 * diag_blocksize, :
@@ -1599,13 +1599,13 @@ def update_sinv_reduced_system(
             :, start_index : start_index + diag_blocksize
         ]
 
-        X_top_2sided_arrow_blocks_local[:, -diag_blocksize:] = (
-            X_rs_upper_diagonal_blocks[:, start_index : start_index + diag_blocksize]
-        )
+        X_top_2sided_arrow_blocks_local[
+            :, -diag_blocksize:
+        ] = X_rs_upper_diagonal_blocks[:, start_index : start_index + diag_blocksize]
 
-        X_left_2sided_arrow_blocks_local[-diag_blocksize:, :diag_blocksize] = (
-            X_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize]
-        )
+        X_left_2sided_arrow_blocks_local[
+            -diag_blocksize:, :diag_blocksize
+        ] = X_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize]
 
         X_diagonal_blocks_local[:, -diag_blocksize:] = X_rs_diagonal_blocks[
             :, start_index + diag_blocksize : start_index + 2 * diag_blocksize
@@ -2206,12 +2206,12 @@ def middle_sinv_gpu(
 
     # Copy back the 2 first blocks that have been produced in the 2-sided pattern
     # to the tridiagonal storage.
-    X_upper_diagonal_blocks_local_gpu[:, :diag_blocksize] = (
-        X_top_2sided_arrow_blocks_local_gpu[:, diag_blocksize : 2 * diag_blocksize]
-    )
-    X_lower_diagonal_blocks_local_gpu[:, :diag_blocksize] = (
-        X_left_2sided_arrow_blocks_local_gpu[diag_blocksize : 2 * diag_blocksize, :]
-    )
+    X_upper_diagonal_blocks_local_gpu[
+        :, :diag_blocksize
+    ] = X_top_2sided_arrow_blocks_local_gpu[:, diag_blocksize : 2 * diag_blocksize]
+    X_lower_diagonal_blocks_local_gpu[
+        :, :diag_blocksize
+    ] = X_left_2sided_arrow_blocks_local_gpu[diag_blocksize : 2 * diag_blocksize, :]
 
     X_diagonal_blocks_local_gpu.get(out=X_diagonal_blocks_local)
     X_lower_diagonal_blocks_local_gpu.get(out=X_lower_diagonal_blocks_local)

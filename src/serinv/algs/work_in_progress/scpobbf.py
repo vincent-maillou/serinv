@@ -1,9 +1,7 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
 import numpy as np
-import numpy.linalg as npla
 import scipy.linalg as la
-import scipy.linalg as scla
 
 
 def scpobbf(
@@ -44,14 +42,14 @@ def scpobbf(
     nblocks = A.shape[0] // blocksize
     for i in range(0, nblocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
-            la.cholesky(
-                L[
-                    i * blocksize : (i + 1) * blocksize,
-                    i * blocksize : (i + 1) * blocksize,
-                ]
-            ).T
-        )
+        L[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = la.cholesky(
+            L[
+                i * blocksize : (i + 1) * blocksize,
+                i * blocksize : (i + 1) * blocksize,
+            ]
+        ).T
 
         # Temporary storage of re-used triangular solving
         L_inv_temp = la.solve_triangular(

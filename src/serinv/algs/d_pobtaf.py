@@ -4,6 +4,7 @@ try:
     import cupy as cp
     import cupyx as cpx
     import cupyx.scipy.linalg as cu_la
+
     from serinv.cupyfix.cholesky_lowerfill import cholesky_lowerfill
 
     CUPY_AVAIL = True
@@ -13,8 +14,8 @@ except ImportError:
 
 import numpy as np
 import scipy.linalg as np_la
-from numpy.typing import ArrayLike
 from mpi4py import MPI
+from numpy.typing import ArrayLike
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
@@ -26,13 +27,7 @@ def d_pobtaf(
     A_arrow_bottom_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
     device_streaming: bool = False,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     """Perform the distributed Cholesky factorization of a block tridiagonal
     with arrowhead matrix.
 
@@ -126,13 +121,7 @@ def _d_pobtaf(
     A_lower_diagonal_blocks_local: ArrayLike,
     A_arrow_bottom_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     la = np_la
     if CUPY_AVAIL:
         xp = cp.get_array_module(A_diagonal_blocks_local)
@@ -335,13 +324,7 @@ def _streaming_d_pobtaf(
     A_lower_diagonal_blocks_local: ArrayLike,
     A_arrow_bottom_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     compute_stream = cp.cuda.Stream(non_blocking=True)
     h2d_stream = cp.cuda.Stream(non_blocking=True)
     d2h_stream = cp.cuda.Stream(non_blocking=True)
@@ -591,7 +574,6 @@ def _streaming_d_pobtaf(
         d2h_diagonal_events[1].record(stream=d2h_stream)
 
         for i in range(1, n_diag_blocks_local - 1):
-
             # L_{i, i} = chol(A_{i, i})
             with compute_stream:
                 compute_stream.wait_event(h2d_diagonal_events[i % 2])

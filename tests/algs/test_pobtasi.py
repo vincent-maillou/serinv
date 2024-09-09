@@ -11,6 +11,7 @@ except ImportError:
 
 import numpy as np
 import pytest
+
 from serinv.algs import pobtaf, pobtasi
 
 

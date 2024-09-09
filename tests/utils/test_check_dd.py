@@ -9,7 +9,6 @@ except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
-
 import pytest
 
 from serinv.utils.check_dd import check_block_dd, check_ddbta

@@ -192,12 +192,7 @@ def _streaming_pobtasi(
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     compute_stream = cp.cuda.Stream(non_blocking=True)
     h2d_stream = cp.cuda.Stream(non_blocking=True)
     d2h_stream = cp.cuda.Stream(non_blocking=True)

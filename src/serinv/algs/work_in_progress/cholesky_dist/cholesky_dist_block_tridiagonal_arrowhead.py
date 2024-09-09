@@ -19,13 +19,7 @@ def cholesky_dist_block_tridiagonal_arrowhead(
     A_arrow_bottom_blocks_local: np.ndarray,
     A_arrow_tip_block: np.ndarray,
     A_bridges_lower: np.ndarray,
-) -> tuple[
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray,]:
     diag_blocksize = A_diagonal_blocks_local.shape[0]
     arrow_blocksize = A_arrow_bottom_blocks_local.shape[0]
     n_diag_blocks_partition = A_diagonal_blocks_local.shape[1] // diag_blocksize
@@ -68,9 +62,9 @@ def cholesky_dist_block_tridiagonal_arrowhead(
         A_top_2sided_arrow_blocks_local[:, :diag_blocksize] = A_diagonal_blocks_local[
             :, :diag_blocksize
         ]
-        A_top_2sided_arrow_blocks_local[:, diag_blocksize : 2 * diag_blocksize] = (
-            A_lower_diagonal_blocks_local[:, :diag_blocksize].T
-        )
+        A_top_2sided_arrow_blocks_local[
+            :, diag_blocksize : 2 * diag_blocksize
+        ] = A_lower_diagonal_blocks_local[:, :diag_blocksize].T
 
         (
             L_diagonal_blocks_inv,
@@ -524,27 +518,27 @@ def create_reduced_system(
     else:
         start_index = diag_blocksize + (comm_rank - 1) * 2 * diag_blocksize
 
-        A_rs_lower_diagonal_blocks[:, start_index - diag_blocksize : start_index] = (
-            A_bridges_lower[
-                :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
-            ]
-        )
+        A_rs_lower_diagonal_blocks[
+            :, start_index - diag_blocksize : start_index
+        ] = A_bridges_lower[
+            :, (comm_rank - 1) * diag_blocksize : comm_rank * diag_blocksize
+        ]
 
-        A_rs_diagonal_blocks[:, start_index : start_index + diag_blocksize] = (
-            A_diagonal_blocks_local[:, :diag_blocksize]
-        )
+        A_rs_diagonal_blocks[
+            :, start_index : start_index + diag_blocksize
+        ] = A_diagonal_blocks_local[:, :diag_blocksize]
 
-        A_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize] = (
-            A_top_2sided_arrow_blocks_local[:, -diag_blocksize:].T
-        )
+        A_rs_lower_diagonal_blocks[
+            :, start_index : start_index + diag_blocksize
+        ] = A_top_2sided_arrow_blocks_local[:, -diag_blocksize:].T
 
         A_rs_diagonal_blocks[
             :, start_index + diag_blocksize : start_index + 2 * diag_blocksize
         ] = A_diagonal_blocks_local[:, -diag_blocksize:]
 
-        A_rs_arrow_bottom_blocks[:, start_index : start_index + diag_blocksize] = (
-            A_arrow_bottom_blocks_local[:, :diag_blocksize]
-        )
+        A_rs_arrow_bottom_blocks[
+            :, start_index : start_index + diag_blocksize
+        ] = A_arrow_bottom_blocks_local[:, :diag_blocksize]
 
         A_rs_arrow_bottom_blocks[
             :, start_index + diag_blocksize : start_index + 2 * diag_blocksize
@@ -594,7 +588,6 @@ def inverse_reduced_system(
     A_rs_arrow_bottom_blocks: np.ndarray,
     A_rs_arrow_tip_block: np.ndarray,
 ):
-
     (
         L_diagonal_blocks,
         L_lower_diagonal_blocks,
@@ -684,9 +677,9 @@ def update_sinv_reduced_system(
             :, start_index : start_index + diag_blocksize
         ]
 
-        X_top_2sided_arrow_blocks_local[:, -diag_blocksize:] = (
-            X_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize].T
-        )
+        X_top_2sided_arrow_blocks_local[
+            :, -diag_blocksize:
+        ] = X_rs_lower_diagonal_blocks[:, start_index : start_index + diag_blocksize].T
 
         X_diagonal_blocks_local[:, -diag_blocksize:] = X_rs_diagonal_blocks[
             :, start_index + diag_blocksize : start_index + 2 * diag_blocksize

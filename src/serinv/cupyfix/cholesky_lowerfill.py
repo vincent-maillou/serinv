@@ -3,7 +3,6 @@
 
 import cupy
 import numpy
-
 from cupy.cuda import device
 from cupy.linalg import _util
 
@@ -35,8 +34,7 @@ def cholesky_lowerfill(a: cupy.ndarray) -> cupy.ndarray:
 
     .. seealso:: :func:`numpy.linalg.cholesky`
     """
-    from cupy_backends.cuda.libs import cublas
-    from cupy_backends.cuda.libs import cusolver
+    from cupy_backends.cuda.libs import cublas, cusolver
 
     _util._assert_cupy_array(a)
     _util._assert_stacked_2d(a)

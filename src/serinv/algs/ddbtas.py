@@ -73,7 +73,6 @@ def ddbtas(
     diag_blocksize = L_diagonal_blocks.shape[1]
     arrow_blocksize = L_arrow_bottom_blocks.shape[1]
     n_diag_blocks = L_diagonal_blocks.shape[0]
-    n_rhs = B.shape[1]
 
     X[0:diag_blocksize, :] = la.solve_triangular(
         L_diagonal_blocks[0, :, :],
