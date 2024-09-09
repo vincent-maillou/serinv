@@ -10,6 +10,16 @@ try:
 except ImportError:
     CUPY_AVAIL = False
 
+NCCL_AVAIL = False
+if CUPY_AVAIL:
+    try:
+        from cupy.cuda import nccl
+        nccl.get_version()  # Check if NCCL is available
+
+        NCCL_AVAIL = True
+    except (ImportError, ModuleNotFoundError):
+        pass
+
 import numpy as np
 import scipy.linalg as np_la
 from numpy.typing import ArrayLike
@@ -153,8 +163,12 @@ def _d_pobtasi(
     ArrayLike,
     ArrayLike,
 ]:
-    comm_rank = comm.Get_rank()
-    comm_size = comm.Get_size()
+    if isinstance(comm, nccl.NcclCommunicator):
+        comm_rank = comm.rank_id()
+        comm_size = comm.size()
+    else:
+        comm_rank = comm.Get_rank()
+        comm_size = comm.Get_size()
 
     la = np_la
     if CUPY_AVAIL:
@@ -265,7 +279,7 @@ def _d_pobtasi(
             L_arrow_bottom_blocks_local[-1, :, :]
         )
 
-    if CUPY_AVAIL and xp == cp:
+    if CUPY_AVAIL and xp == cp and not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
     # if False:
         A_reduced_system_diagonal_blocks_host = cpx.empty_like_pinned(
             A_reduced_system_diagonal_blocks
@@ -296,53 +310,57 @@ def _d_pobtasi(
         A_reduced_system_arrow_bottom_blocks_host = A_reduced_system_arrow_bottom_blocks
 
     start = time.perf_counter_ns()
-    # MPI.COMM_WORLD.Allreduce(
-    #     MPI.IN_PLACE,
-    #     A_reduced_system_diagonal_blocks_host,
-    #     op=MPI.SUM,
-    # )
-    comm.Allgather(
-        MPI.IN_PLACE,
-        A_reduced_system_diagonal_blocks_host,
-    )
-    # if comm_rank == 0:
-    #     MPI.COMM_WORLD.Reduce(MPI.IN_PLACE,
-    #                           A_reduced_system_diagonal_blocks_host,
-    #                           op=MPI.SUM,
-    #                           root=0)
-    # else:
-    #     MPI.COMM_WORLD.Reduce(A_reduced_system_diagonal_blocks_host,
-    #                           A_reduced_system_diagonal_blocks_host,
-    #                           op=MPI.SUM,
-    #                           root=0)
-    # MPI.COMM_WORLD.Bcast(A_reduced_system_diagonal_blocks_host, root=0)
-    finish_1 = time.perf_counter_ns()
-    # MPI.COMM_WORLD.Allreduce(
-    #     MPI.IN_PLACE,
-    #     A_reduced_system_lower_diagonal_blocks_host,
-    #     op=MPI.SUM,
-    # )
-    comm.Allgather(
-        MPI.IN_PLACE,
-        A_reduced_system_lower_diagonal_blocks_host,
-    )
-    finish_2 = time.perf_counter_ns()
-    # MPI.COMM_WORLD.Allreduce(
-    #     MPI.IN_PLACE,
-    #     A_reduced_system_arrow_bottom_blocks_host,
-    #     op=MPI.SUM,
-    # )
-    comm.Allgather(
-        MPI.IN_PLACE,
-        A_reduced_system_arrow_bottom_blocks_host,
-    )
+    if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
+        print(f"Rank {comm_rank}: POBTASI Allgather with NCCL.", flush=True)
+        sz = A_reduced_system_diagonal_blocks_host.size // comm_size
+        comm.allGather(
+            A_reduced_system_diagonal_blocks_host.data.ptr + comm_rank * sz,
+            A_reduced_system_diagonal_blocks_host.data.ptr,
+            sz,
+            nccl.NCCL_DOUBLE,
+            cp.cuda.Stream.null.ptr,
+        )
+        finish_1 = time.perf_counter_ns()
+        sz = A_reduced_system_lower_diagonal_blocks_host.size // comm_size
+        comm.allGather(
+            A_reduced_system_lower_diagonal_blocks_host.data.ptr + comm_rank * sz,
+            A_reduced_system_lower_diagonal_blocks_host.data.ptr,
+            sz,
+            nccl.NCCL_DOUBLE,
+            cp.cuda.Stream.null.ptr,
+        )
+        finish_2 = time.perf_counter_ns()
+        sz = A_reduced_system_arrow_bottom_blocks_host.size // comm_size
+        comm.allGather(
+            A_reduced_system_arrow_bottom_blocks_host.data.ptr + comm_rank * sz,
+            A_reduced_system_arrow_bottom_blocks_host.data.ptr,
+            sz,
+            nccl.NCCL_DOUBLE,
+            cp.cuda.Stream.null.ptr,
+        )
+        cp.cuda.Stream.null.synchronize()
+    else:
+        comm.Allgather(
+            MPI.IN_PLACE,
+            A_reduced_system_diagonal_blocks_host,
+        )
+        finish_1 = time.perf_counter_ns()
+        comm.Allgather(
+            MPI.IN_PLACE,
+            A_reduced_system_lower_diagonal_blocks_host,
+        )
+        finish_2 = time.perf_counter_ns()
+        comm.Allgather(
+            MPI.IN_PLACE,
+            A_reduced_system_arrow_bottom_blocks_host,
+        )
     finish_3 = time.perf_counter_ns()
     print(f"Rank {comm_rank}: POBTASI Allgather 1 {(finish_1-start) // 1000000} ms.", flush=True)
     print(f"Rank {comm_rank}: POBTASI Allgather 2 {(finish_2-finish_1) // 1000000} ms.", flush=True)
     print(f"Rank {comm_rank}: POBTASI Allgather 3 {(finish_3-finish_2) // 1000000} ms.", flush=True)
 
 
-    if CUPY_AVAIL and xp == cp:
+    if CUPY_AVAIL and xp == cp and not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
     # if False:
         A_reduced_system_diagonal_blocks.set(arr=A_reduced_system_diagonal_blocks_host)
         A_reduced_system_lower_diagonal_blocks.set(

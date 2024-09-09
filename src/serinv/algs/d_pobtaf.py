@@ -11,6 +11,16 @@ try:
 except ImportError:
     CUPY_AVAIL = False
 
+NCCL_AVAIL = False
+if CUPY_AVAIL:
+    try:
+        from cupy.cuda import nccl
+        nccl.get_version()  # Check if NCCL is available
+
+        NCCL_AVAIL = True
+    except (ImportError, ModuleNotFoundError):
+        pass
+
 import numpy as np
 import scipy.linalg as np_la
 from numpy.typing import ArrayLike
@@ -314,7 +324,7 @@ def _d_pobtaf(
 
     # Check if operations are happening on the device, in this case we need to get
     # back the tip blocks on the host to perform the accumulation through MPI.
-    if CUPY_AVAIL and xp == cp:
+    if CUPY_AVAIL and xp == cp and not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
     # if False:
         Update_arrow_tip_block_host = cpx.empty_like_pinned(Update_arrow_tip_block)
         Update_arrow_tip_block.get(out=Update_arrow_tip_block_host)
@@ -323,15 +333,27 @@ def _d_pobtaf(
 
     # Accumulate the distributed update of the arrow tip block
     start = time.perf_counter_ns()
-    comm.Allreduce(
-        MPI.IN_PLACE,
-        Update_arrow_tip_block_host,
-        op=MPI.SUM,
-    )
+    if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
+        print(f"Rank {comm_rank}: POBTAF Allreduce with NCCL.", flush=True)
+        comm.allReduce(
+            Update_arrow_tip_block_host.data.ptr,
+            Update_arrow_tip_block_host.data.ptr,
+            Update_arrow_tip_block_host.size,
+            nccl.NCCL_DOUBLE,
+            nccl.NCCL_SUM,
+            cp.cuda.Stream.null.ptr,
+        )
+        cp.cuda.Stream.null.synchronize()
+    else:
+        comm.Allreduce(
+            MPI.IN_PLACE,
+            Update_arrow_tip_block_host,
+            op=MPI.SUM,
+        )
     finish = time.perf_counter_ns()
     print(f"Rank {comm_rank}: POBTAF Allreduce {(finish-start) // 1000000} ms.", flush=True)
 
-    if CUPY_AVAIL and xp == cp:
+    if CUPY_AVAIL and xp == cp and not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
     # if False:
         Update_arrow_tip_block.set(arr=Update_arrow_tip_block_host)
 
