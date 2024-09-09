@@ -96,7 +96,7 @@ def d_pobtaf(
         Local slice of the arrow bottom blocks of L, alias on A_arrow_bottom_blocks_local.
     L_arrow_tip_block_global : ArrayLike
         Arrow tip block of L, alias on A_arrow_tip_block_global.
-    L_upper_nested_dissection_buffer_local : ArrayLike, optional
+    B_permutation_upper : ArrayLike, optional
         Local upper buffer used in the nested dissection factorization. None for
         uppermost process.
     """
@@ -151,7 +151,7 @@ def _d_pobtaf(
     L_lower_diagonal_blocks_local = A_lower_diagonal_blocks_local
     L_arrow_bottom_blocks_local = A_arrow_bottom_blocks_local
 
-    L_upper_nested_dissection_buffer_local = None
+    B_permutation_upper = None
 
     Update_arrow_tip_block = xp.zeros_like(A_arrow_tip_block_global)
 
@@ -209,7 +209,7 @@ def _d_pobtaf(
             )
     else:
         A_upper_nested_dissection_buffer_local = xp.empty_like(A_diagonal_blocks_local)
-        L_upper_nested_dissection_buffer_local = A_upper_nested_dissection_buffer_local
+        B_permutation_upper = A_upper_nested_dissection_buffer_local
 
         A_upper_nested_dissection_buffer_local[1, :, :] = (
             A_lower_diagonal_blocks_local[0, :, :].conj().T
@@ -235,7 +235,7 @@ def _d_pobtaf(
             )
 
             # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
-            L_upper_nested_dissection_buffer_local[i, :, :] = (
+            B_permutation_upper[i, :, :] = (
                 la.solve_triangular(
                     L_diagonal_blocks_local[i, :, :],
                     A_upper_nested_dissection_buffer_local[i, :, :].conj().T,
@@ -283,13 +283,12 @@ def _d_pobtaf(
             # A_{top, top} = A_{top, top} - L_{top, i} @ L_{top, i}.conj().T
             A_diagonal_blocks_local[0, :, :] = (
                 A_diagonal_blocks_local[0, :, :]
-                - L_upper_nested_dissection_buffer_local[i, :, :]
-                @ L_upper_nested_dissection_buffer_local[i, :, :].conj().T
+                - B_permutation_upper[i, :, :] @ B_permutation_upper[i, :, :].conj().T
             )
 
             # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
             A_upper_nested_dissection_buffer_local[i + 1, :, :] = (
-                -L_upper_nested_dissection_buffer_local[i, :, :]
+                -B_permutation_upper[i, :, :]
                 @ L_lower_diagonal_blocks_local[i, :, :].conj().T
             )
 
@@ -298,7 +297,7 @@ def _d_pobtaf(
             A_arrow_bottom_blocks_local[0, :, :] = (
                 A_arrow_bottom_blocks_local[0, :, :]
                 - L_arrow_bottom_blocks_local[i, :, :]
-                @ L_upper_nested_dissection_buffer_local[i, :, :].conj().T
+                @ B_permutation_upper[i, :, :].conj().T
             )
 
     # Check if operations are happening on the device, in this case we need to get
@@ -327,7 +326,7 @@ def _d_pobtaf(
         L_lower_diagonal_blocks_local,
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
-        L_upper_nested_dissection_buffer_local,
+        B_permutation_upper,
     )
 
 
@@ -386,7 +385,7 @@ def _streaming_d_pobtaf(
     n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
     if comm_rank == 0:
         # Host aliases & buffers specific to the top process
-        L_upper_nested_dissection_buffer_local = None
+        B_permutation_upper = None
 
         # --- Initial Host 2 Device transfers ---
         # --- H2D: transfers ---
@@ -542,7 +541,7 @@ def _streaming_d_pobtaf(
         A_upper_nested_dissection_buffer_local = cpx.empty_like_pinned(
             A_diagonal_blocks_local
         )
-        L_upper_nested_dissection_buffer_local = A_upper_nested_dissection_buffer_local
+        B_permutation_upper = A_upper_nested_dissection_buffer_local
 
         # Device aliases & buffers specific to the middle process
         A_diagonal_top_block_d = cp.empty_like(A_diagonal_blocks_local[0])
@@ -681,7 +680,7 @@ def _streaming_d_pobtaf(
 
             d2h_stream.wait_event(cp_upper_nested_dissection_buffer_events[i % 2])
             L_upper_nested_dissection_buffer_d[i % 2, :, :].get(
-                out=L_upper_nested_dissection_buffer_local[i, :, :],
+                out=B_permutation_upper[i, :, :],
                 stream=d2h_stream,
                 blocking=False,
             )
@@ -799,5 +798,5 @@ def _streaming_d_pobtaf(
         L_lower_diagonal_blocks_local,
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
-        L_upper_nested_dissection_buffer_local,
+        B_permutation_upper,
     )

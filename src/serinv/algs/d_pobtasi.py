@@ -26,7 +26,7 @@ def d_pobtasi(
     L_lower_diagonal_blocks_local: ArrayLike,
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
-    L_upper_nested_dissection_buffer_local: ArrayLike = None,
+    B_permutation_upper: ArrayLike = None,
     device_streaming: bool = False,
 ) -> tuple[
     ArrayLike,
@@ -93,7 +93,7 @@ def d_pobtasi(
         Local slice of the arrow bottom blocks of L.
     L_arrow_tip_block_global : ArrayLike
         Arrow tip block of L.
-    L_upper_nested_dissection_buffer_local : ArrayLike, optional
+    B_permutation_upper : ArrayLike, optional
         Local upper buffer used in the nested dissection factorization. None for
         uppermost process.
     device_streaming : bool
@@ -121,7 +121,7 @@ def d_pobtasi(
             L_lower_diagonal_blocks_local,
             L_arrow_bottom_blocks_local,
             L_arrow_tip_block_global,
-            L_upper_nested_dissection_buffer_local,
+            B_permutation_upper,
         )
 
     return _d_pobtasi(
@@ -129,7 +129,7 @@ def d_pobtasi(
         L_lower_diagonal_blocks_local,
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
-        L_upper_nested_dissection_buffer_local,
+        B_permutation_upper,
     )
 
 
@@ -138,7 +138,7 @@ def _d_pobtasi(
     L_lower_diagonal_blocks_local: ArrayLike,
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
-    L_upper_nested_dissection_buffer_local: ArrayLike,
+    B_permutation_upper: ArrayLike,
 ) -> tuple[
     ArrayLike,
     ArrayLike,
@@ -159,7 +159,6 @@ def _d_pobtasi(
     X_diagonal_blocks_local = L_diagonal_blocks_local
     X_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local
     X_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local
-    X_upper_nested_dissection_buffer_local = L_upper_nested_dissection_buffer_local
 
     A_reduced_system_diagonal_blocks = xp.zeros(
         (2 * comm_size - 1, *L_diagonal_blocks_local.shape[1:]),
@@ -204,7 +203,7 @@ def _d_pobtasi(
 
         # R_{2p_i-1, 2p_i-2} = B^{p_i}_{-1}^\dagger
         A_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :] = (
-            L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
+            B_permutation_upper[-1, :, :].conj().T
         )
 
         if comm_rank < comm_size - 1:
@@ -320,7 +319,7 @@ def _d_pobtasi(
             2 * comm_rank, :, :
         ]
 
-        X_upper_nested_dissection_buffer_local[-1, :, :] = (
+        B_permutation_upper[-1, :, :] = (
             X_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
@@ -379,15 +378,13 @@ def _d_pobtasi(
             ) @ L_inv_temp[:, :]
     else:
         L_upper_nested_dissection_buffer_temp = xp.empty_like(
-            L_upper_nested_dissection_buffer_local[0, :, :]
+            B_permutation_upper[0, :, :]
         )
 
         for i in range(n_diag_blocks_local - 2, 0, -1):
             L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
             L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
-            L_upper_nested_dissection_buffer_temp[:, :] = (
-                L_upper_nested_dissection_buffer_local[i, :, :]
-            )
+            L_upper_nested_dissection_buffer_temp[:, :] = B_permutation_upper[i, :, :]
 
             L_inv_temp[:, :] = la.solve_triangular(
                 L_diagonal_blocks_local[i, :, :],
@@ -397,7 +394,7 @@ def _d_pobtasi(
 
             # X_{i+1, i} = (- X_{top, i+1}.T L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}.T L_{ndb+1, i}) L_{i, i}^{-1}
             X_lower_diagonal_blocks_local[i, :, :] = (
-                -X_upper_nested_dissection_buffer_local[i + 1, :, :].conj().T
+                -B_permutation_upper[i + 1, :, :].conj().T
                 @ L_upper_nested_dissection_buffer_temp[:, :]
                 - X_diagonal_blocks_local[i + 1, :, :]
                 @ L_lower_diagonal_blocks_temp[:, :]
@@ -406,9 +403,8 @@ def _d_pobtasi(
             ) @ L_inv_temp[:, :]
 
             # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{ndb+1, top}.T L_{ndb+1, i}) L_{i, i}^{-1}
-            X_upper_nested_dissection_buffer_local[i, :, :] = (
-                -X_upper_nested_dissection_buffer_local[i + 1, :, :]
-                @ L_lower_diagonal_blocks_temp[:, :]
+            B_permutation_upper[i, :, :] = (
+                -B_permutation_upper[i + 1, :, :] @ L_lower_diagonal_blocks_temp[:, :]
                 - X_diagonal_blocks_local[0, :, :]
                 @ L_upper_nested_dissection_buffer_temp[:, :]
                 - X_arrow_bottom_blocks_local[0, :, :].conj().T
@@ -430,7 +426,7 @@ def _d_pobtasi(
                 L_inv_temp[:, :].conj().T
                 - X_lower_diagonal_blocks_local[i, :, :].conj().T
                 @ L_lower_diagonal_blocks_temp[:, :]
-                - X_upper_nested_dissection_buffer_local[i, :, :].conj().T
+                - B_permutation_upper[i, :, :].conj().T
                 @ L_upper_nested_dissection_buffer_temp[:, :]
                 - X_arrow_bottom_blocks_local[i, :, :].conj().T
                 @ L_arrow_bottom_blocks_temp[:, :]
@@ -438,9 +434,7 @@ def _d_pobtasi(
 
         # Copy back the 2 first blocks that have been produced in the 2-sided pattern
         # to the tridiagonal storage.
-        X_lower_diagonal_blocks_local[0, :, :] = (
-            X_upper_nested_dissection_buffer_local[1, :, :].conj().T
-        )
+        X_lower_diagonal_blocks_local[0, :, :] = B_permutation_upper[1, :, :].conj().T
 
     return (
         X_diagonal_blocks_local,
@@ -455,7 +449,7 @@ def _streaming_d_pobtasi(
     L_lower_diagonal_blocks_local: ArrayLike,
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
-    L_upper_nested_dissection_buffer_local: ArrayLike,
+    B_permutation_upper: ArrayLike,
 ) -> tuple[
     ArrayLike,
     ArrayLike,
@@ -468,7 +462,7 @@ def _streaming_d_pobtasi(
     X_diagonal_blocks_local = L_diagonal_blocks_local
     X_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local
     X_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local
-    X_upper_nested_dissection_buffer_local = L_upper_nested_dissection_buffer_local
+    B_permutation_upper = B_permutation_upper
 
     A_reduced_system_diagonal_blocks = cpx.zeros_pinned(
         (2 * comm_size, *L_diagonal_blocks_local.shape[1:]),
@@ -504,7 +498,7 @@ def _streaming_d_pobtasi(
         )
 
         A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
-            L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
+            B_permutation_upper[-1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
             A_reduced_system_lower_diagonal_blocks[2 * comm_rank + 1, :, :] = (
@@ -580,7 +574,7 @@ def _streaming_d_pobtasi(
             2 * comm_rank, :, :
         ]
 
-        X_upper_nested_dissection_buffer_local[-1, :, :] = (
+        B_permutation_upper[-1, :, :] = (
             X_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
@@ -743,14 +737,14 @@ def _streaming_d_pobtasi(
         X_diagonal_top_block_d = cp.empty_like(X_diagonal_blocks_local[0])
         X_arrow_bottom_top_block_d = cp.empty_like(X_arrow_bottom_blocks_local[0])
         L_upper_nested_dissection_buffer_d = cp.empty(
-            (2, *L_upper_nested_dissection_buffer_local.shape[1:]),
-            dtype=L_upper_nested_dissection_buffer_local.dtype,
+            (2, *B_permutation_upper.shape[1:]),
+            dtype=B_permutation_upper.dtype,
         )
 
         X_upper_nested_dissection_buffer_d = L_upper_nested_dissection_buffer_d
 
         L_upper_nested_dissection_buffer_d_i = cp.empty_like(
-            L_upper_nested_dissection_buffer_local[0, :, :]
+            B_permutation_upper[0, :, :]
         )
 
         h2d_upper_nested_dissection_buffer_events = [cp.cuda.Event(), cp.cuda.Event()]
@@ -782,7 +776,7 @@ def _streaming_d_pobtasi(
         h2d_arrow_events[(n_diag_blocks_local - 1) % 2].record(h2d_stream)
 
         L_upper_nested_dissection_buffer_d[(n_diag_blocks_local - 1) % 2, :, :].set(
-            arr=L_upper_nested_dissection_buffer_local[-1, :, :], stream=h2d_stream
+            arr=B_permutation_upper[-1, :, :], stream=h2d_stream
         )
         h2d_upper_nested_dissection_buffer_events[(n_diag_blocks_local - 1) % 2].record(
             stream=h2d_stream
@@ -814,7 +808,7 @@ def _streaming_d_pobtasi(
                 compute_upper_nested_dissection_buffer_h2d_events[i % 2]
             )
             L_upper_nested_dissection_buffer_d[i % 2, :, :].set(
-                arr=L_upper_nested_dissection_buffer_local[i, :, :], stream=h2d_stream
+                arr=B_permutation_upper[i, :, :], stream=h2d_stream
             )
             h2d_upper_nested_dissection_buffer_events[i % 2].record(stream=h2d_stream)
 
@@ -911,7 +905,7 @@ def _streaming_d_pobtasi(
 
             d2h_stream.wait_event(compute_upper_nested_dissection_buffer_events[i % 2])
             X_upper_nested_dissection_buffer_d[i % 2, :, :].get(
-                out=X_upper_nested_dissection_buffer_local[i, :, :],
+                out=B_permutation_upper[i, :, :],
                 stream=d2h_stream,
                 blocking=False,
             )
@@ -928,7 +922,7 @@ def _streaming_d_pobtasi(
         with d2h_stream:
             d2h_stream.synchronize()
             X_lower_diagonal_blocks_local[0, :, :] = (
-                X_upper_nested_dissection_buffer_local[1, :, :].conj().T
+                B_permutation_upper[1, :, :].conj().T
             )
 
     cp.cuda.Device().synchronize()
