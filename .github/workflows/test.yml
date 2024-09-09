@@ -22,6 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          pip install mpi4py
           pip install pytest pytest-mpi pytest-cov coverage
           pip install -e .
         
