@@ -177,7 +177,7 @@ def test_d_pobtasi(
         A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
-        device_streaming,
+        solver_config,
     )
 
     # Distributed selected-inversion

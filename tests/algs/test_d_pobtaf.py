@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from mpi4py import MPI
 
+from serinv import SolverConfig
 from serinv.algs import d_pobtaf, pobtasinv
 
 try:
@@ -161,6 +162,9 @@ def test_d_pobtaf(
         :,
     ]
 
+    # SerinV solver configuration
+    solver_config = SolverConfig(device_streaming=device_streaming)
+
     # Distributed factorization
     (
         L_diagonal_blocks_local,
@@ -173,7 +177,7 @@ def test_d_pobtaf(
         A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
-        device_streaming,
+        solver_config,
     )
 
     # Create a reduced system out of the factorized blocks
