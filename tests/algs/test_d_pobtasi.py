@@ -5,7 +5,7 @@ import pytest
 from mpi4py import MPI
 
 from serinv import SolverConfig
-from serinv.algs import d_pobtaf, d_pobtasi
+from serinv.algs import d_pobtaf, d_pobtasi, d_pobtasi_rss
 
 try:
     import cupy as cp
@@ -181,6 +181,23 @@ def test_d_pobtasi(
     )
 
     # Distributed selected-inversion
+    # Inversion of the reduced system
+    (
+        L_diagonal_blocks_local,
+        L_lower_diagonal_blocks_local,
+        L_arrow_bottom_blocks_local,
+        L_arrow_tip_block_global,
+        L_upper_nested_dissection_buffer_local,
+    ) = d_pobtasi_rss(
+        L_diagonal_blocks_local,
+        L_lower_diagonal_blocks_local,
+        L_arrow_bottom_blocks_local,
+        L_arrow_tip_block_global,
+        L_upper_nested_dissection_buffer_local,
+        solver_config,
+    )
+
+    # Inversion of the full system
     (
         X_diagonal_blocks_local,
         X_lower_diagonal_blocks_local,

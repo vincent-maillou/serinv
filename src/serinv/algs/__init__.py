@@ -11,7 +11,7 @@ from serinv.algs.pobtasi import pobtasi
 from serinv.algs.pobtasinv import pobtasinv
 
 from serinv.algs.d_pobtaf import d_pobtaf
-from serinv.algs.d_pobtasi import d_pobtasi
+from serinv.algs.d_pobtasi import d_pobtasi, d_pobtasi_rss
 
 __all__ = [
     "ddbtaf",
@@ -24,4 +24,5 @@ __all__ = [
     "pobtasinv",
     "d_pobtaf",
     "d_pobtasi",
+    "d_pobtasi_rss",
 ]
