@@ -8,7 +8,7 @@
 [![codecov](https://codecov.io/gh/vincent-maillou/SDR/graph/badge.svg?token=VZTGAUW2NW)](https://codecov.io/gh/vincent-maillou/SDR)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 
-SerinV bundle implementations of several factorization, selected-inversion and solver for severals types of block-structured sparse matrices. It implement sequential and distributed algorithm and support GPUs backends.
+SerinV bundle implementations of several factorization, selected-inversion and solver for severals types of structured sparse matrices. It implements sequential and distributed algorithm and support GPUs backends.
 
 # Routine Naming Conventions
 We have adopted a LAPACK-like naming convention for the routines. The naming convention is as follows:
@@ -28,6 +28,8 @@ We have adopted a LAPACK-like naming convention for the routines. The naming con
 	S: Solve a linear system given a decomposition of the system matrix and a right-hand side.
 	SI: Compute a Selected Inversion given a decomposition of the system matrix.
     SSI: Compute a Schur-complement based Selected Inversion. Do not explicit the factorization but perform a Schur-complement and a selected inversion.
+## Others:
+    _RSS: reduced-system solve. Solve a reduced system constructed from the distributed factorization of a matrix.
 
 ## Examples:
   - pobtaf: Perform the factorization of a block-tridiagonal with arrowhead, symmetric positive definite, matrix.
