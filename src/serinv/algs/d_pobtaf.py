@@ -18,7 +18,7 @@ if CUPY_AVAIL:
         nccl.get_version()  # Check if NCCL is available
 
         NCCL_AVAIL = True
-    except (ImportError, ModuleNotFoundError):
+    except (AttributeError, ImportError, ModuleNotFoundError):
         pass
 
 import numpy as np
