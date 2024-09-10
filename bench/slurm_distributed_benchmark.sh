@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=serinv_distributed_gpu_08
+#SBATCH --job-name=serinv_distributed_nccl_000
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
 #SBATCH --cpus-per-task=16
