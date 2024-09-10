@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from mpi4py import MPI
 
+from serinv import SolverConfig
 from serinv.algs import d_pobtaf, d_pobtasi
 
 try:
@@ -161,6 +162,9 @@ def test_d_pobtasi(
         :,
     ]
 
+    # SerinV solver configuration
+    solver_config = SolverConfig(device_streaming=device_streaming)
+
     # Distributed factorization
     (
         L_diagonal_blocks_local,
@@ -188,7 +192,7 @@ def test_d_pobtasi(
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
         L_upper_nested_dissection_buffer_local,
-        device_streaming,
+        solver_config,
     )
 
     assert xp.allclose(X_diagonal_blocks_local, X_ref_diagonal_blocks_local)
