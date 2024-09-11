@@ -6,8 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "SerinV"
 version = "0.1"
 authors = [{ name = "Vincent Maillou", email = "vmaillou@iis.ee.ethz.ch" },
-           { name = "Lisa Gaedke-Merzhaeuser", email = "lisa.gaedke.merzhaeuser@usi.ch" }]
-description = "Implementations of selected factorization, inversion and solving algorithms."
+           { name = "Dr. Lisa Gaedke-Merzhaeuser", email = "lisa.gaedke.merzhaeuser@usi.ch" },
+           { name = "Dr. Alexandros Nikolaos Ziogas", email = "alziogas@iis.ee.ethz.ch" }]
+description = "Implementations of selected -factorization, -inversion and -solving algorithms."
 readme = "README.MD"
 requires-python = ">=3.9"
 license = {text = "BSD-3-Clause"}
@@ -20,6 +21,7 @@ dependencies = [
     "numpy",
     "scipy",
     "matplotlib",
+    "pydantic",
     "pytest",
     "pytest-mpi",
     "pytest-cov",
@@ -34,15 +36,6 @@ repository = "https://github.com/vincent-maillou/serinv"
 
 [tool.setuptools.dynamic]
 version = { attr = "serinv.__about__.__version__" }
-
-[tool.pytest.ini_options]
-markers = [
-    "cpu: tests of the cpu implementations.)",
-    "gpu: tests require a GPU + cupy installation to run.)",
-]
-
-[tool.coverage.run]
-omit = ['*gpu*.py']
 
 [tool.isort]
 profile = "black"

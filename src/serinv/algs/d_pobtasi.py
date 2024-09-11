@@ -1,4 +1,6 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
+from serinv import SolverConfig
+from serinv.algs import pobtaf, pobtasi
 
 try:
     import cupy as cp
@@ -22,15 +24,12 @@ if CUPY_AVAIL:
 
 import numpy as np
 import scipy.linalg as np_la
-from numpy.typing import ArrayLike
 import time
 
 import mpi4py
 mpi4py.rc.initialize = False  # do not initialize MPI automatically
 from mpi4py import MPI
-
-# comm_rank = MPI.COMM_WORLD.Get_rank()
-# comm_size = MPI.COMM_WORLD.Get_size()
+from numpy.typing import ArrayLike
 
 from serinv.algs import pobtaf, pobtasi
 
@@ -40,15 +39,10 @@ def d_pobtasi(
     L_lower_diagonal_blocks_local: ArrayLike,
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
-    L_upper_nested_dissection_buffer_local: ArrayLike = None,
-    device_streaming: bool = False,
+    B_permutation_upper: ArrayLike = None,
+    solver_config: SolverConfig = SolverConfig(),
     comm: MPI.Comm = MPI.COMM_WORLD
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     """Perform a distributed selected-inversion of a block tridiagonal with
     arrowhead matrix.
 
@@ -108,11 +102,11 @@ def d_pobtasi(
         Local slice of the arrow bottom blocks of L.
     L_arrow_tip_block_global : ArrayLike
         Arrow tip block of L.
-    L_upper_nested_dissection_buffer_local : ArrayLike, optional
+    B_permutation_upper : ArrayLike, optional
         Local upper buffer used in the nested dissection factorization. None for
         uppermost process.
-    device_streaming : bool
-        Whether to use streamed GPU computation.
+    solver_config : SolverConfig, optional
+        Configuration of the solver.
 
     Returns
     -------
@@ -126,87 +120,148 @@ def d_pobtasi(
         Arrow tip block of X, alias on L_arrow_tip_block_global.
     """
 
-    if (
-        CUPY_AVAIL
-        and cp.get_array_module(L_diagonal_blocks_local) == np
-        and device_streaming
-    ):
-        return _streaming_d_pobtasi(
-            L_diagonal_blocks_local,
-            L_lower_diagonal_blocks_local,
-            L_arrow_bottom_blocks_local,
-            L_arrow_tip_block_global,
-            L_upper_nested_dissection_buffer_local,
-            comm
+    if CUPY_AVAIL:
+        array_module = cp.get_array_module(L_diagonal_blocks_local)
+        if solver_config.device_streaming and array_module == np:
+            # Device streaming
+            return _streaming_d_pobtasi(
+                L_diagonal_blocks_local,
+                L_lower_diagonal_blocks_local,
+                L_arrow_bottom_blocks_local,
+                L_arrow_tip_block_global,
+                B_permutation_upper,
+                solver_config,
+                comm
         )
 
-    return _d_pobtasi(
+        if array_module == cp:
+            # Device computation
+            return _device_d_pobtasi(
+                L_diagonal_blocks_local,
+                L_lower_diagonal_blocks_local,
+                L_arrow_bottom_blocks_local,
+                L_arrow_tip_block_global,
+                B_permutation_upper,
+                solver_config,
+                comm
+            )
+
+    # Host computation
+    return _host_d_pobtasi(
         L_diagonal_blocks_local,
         L_lower_diagonal_blocks_local,
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
-        L_upper_nested_dissection_buffer_local,
+        B_permutation_upper,
         comm
     )
 
 
-def _d_pobtasi(
+def d_pobtasi_rss(
     L_diagonal_blocks_local: ArrayLike,
     L_lower_diagonal_blocks_local: ArrayLike,
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
-    L_upper_nested_dissection_buffer_local: ArrayLike,
+    B_permutation_upper: ArrayLike = None,
+    solver_config: SolverConfig = SolverConfig(),
     comm: MPI.Comm = MPI.COMM_WORLD
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
-    if isinstance(comm, nccl.NcclCommunicator):
-        comm_rank = comm.rank_id()
-        comm_size = comm.size()
-    else:
-        comm_rank = comm.Get_rank()
-        comm_size = comm.Get_size()
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+    """Perform the selected-inversion of the reduced system constructed from the
+    distributed factorization of the block tridiagonal with arrowhead matrix.
+
+    Parameters
+    ----------
+    L_diagonal_blocks_local : ArrayLike
+        Local slice of the diagonal blocks of L.
+    L_lower_diagonal_blocks_local : ArrayLike
+        Local slice of the lower diagonal blocks of L.
+    L_arrow_bottom_blocks_local : ArrayLike
+        Local slice of the arrow bottom blocks of L.
+    L_arrow_tip_block_global : ArrayLike
+        Arrow tip block of L.
+    B_permutation_upper : ArrayLike, optional
+        Local upper buffer used in the permuted factorization. None for
+        uppermost process.
+    solver_config : SolverConfig, optional
+        Configuration of the solver.
+
+    Returns
+    -------
+    L_diagonal_blocks_local : ArrayLike
+        Local slice of the diagonal blocks of L, initialized with the solution
+        of the reduced system.
+    L_lower_diagonal_blocks_local : ArrayLike
+        Local slice of the lower diagonal blocks of L, initialized with the solution
+        of the reduced system.
+    L_arrow_bottom_blocks_local : ArrayLike
+        Local slice of the arrow bottom blocks of L, initialized with the solution
+        of the reduced system.
+    L_arrow_tip_block_global : ArrayLike
+        Arrow tip block of L, initialized with the solution of the reduced system.
+    B_permutation_upper : ArrayLike, optional
+        Local upper buffer used in the permuted factorization, initialized
+        with the solution of the reduced system. None for uppermost process.
+    """
 
     la = np_la
+
     if CUPY_AVAIL:
-        xp = cp.get_array_module(L_diagonal_blocks_local)
-        if xp == cp:
-            la = cu_la
-    else:
-        xp = np
+        array_module = cp.get_array_module(L_diagonal_blocks_local)
+        if solver_config.device_streaming and array_module == np:
+            # Device streaming
+            return _streaming_d_pobtasi_rss(
+                L_diagonal_blocks_local,
+                L_lower_diagonal_blocks_local,
+                L_arrow_bottom_blocks_local,
+                L_arrow_tip_block_global,
+                B_permutation_upper,
+                solver_config,
+                comm
+            )
 
-    diag_blocksize = L_diagonal_blocks_local.shape[1]
-    n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
+        if array_module == cp:
+            # Device computation
+            return _device_d_pobtasi_rss(
+                L_diagonal_blocks_local,
+                L_lower_diagonal_blocks_local,
+                L_arrow_bottom_blocks_local,
+                L_arrow_tip_block_global,
+                B_permutation_upper,
+                solver_config,
+                comm
+            )
 
-    X_diagonal_blocks_local = L_diagonal_blocks_local
-    X_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local
-    X_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local
-    X_upper_nested_dissection_buffer_local = L_upper_nested_dissection_buffer_local
+    # Host computation
+    return _host_d_pobtasi_rss(
+        L_diagonal_blocks_local,
+        L_lower_diagonal_blocks_local,
+        L_arrow_bottom_blocks_local,
+        L_arrow_tip_block_global,
+        B_permutation_upper,
+        comm
+    )
 
-    # A_reduced_system_diagonal_blocks = xp.zeros(
-    #     (2 * comm_size - 1, *L_diagonal_blocks_local.shape[1:]),
-    #     dtype=L_diagonal_blocks_local.dtype,
-    # )
-    # A_reduced_system_lower_diagonal_blocks = xp.zeros(
-    #     (2 * comm_size - 2, *L_lower_diagonal_blocks_local.shape[1:]),
-    #     dtype=L_lower_diagonal_blocks_local.dtype,
-    # )
-    # A_reduced_system_arrow_bottom_blocks = xp.zeros(
-    #     (2 * comm_size - 1, *L_arrow_bottom_blocks_local.shape[1:]),
-    #     dtype=L_arrow_bottom_blocks_local.dtype,
-    # )
-    A_reduced_system_diagonal_blocks = xp.zeros(
+
+def _host_d_pobtasi_rss(
+    L_diagonal_blocks_local: ArrayLike,
+    L_lower_diagonal_blocks_local: ArrayLike,
+    L_arrow_bottom_blocks_local: ArrayLike,
+    L_arrow_tip_block_global: ArrayLike,
+    B_permutation_upper: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    A_reduced_system_diagonal_blocks = np.zeros(
         (2 * comm_size, *L_diagonal_blocks_local.shape[1:]),
         dtype=L_diagonal_blocks_local.dtype,
     )
-    A_reduced_system_lower_diagonal_blocks = xp.zeros(
+    A_reduced_system_lower_diagonal_blocks = np.zeros(
         (2 * comm_size, *L_lower_diagonal_blocks_local.shape[1:]),
         dtype=L_lower_diagonal_blocks_local.dtype,
     )
-    A_reduced_system_arrow_bottom_blocks = xp.zeros(
+    A_reduced_system_arrow_bottom_blocks = np.zeros(
         (2 * comm_size, *L_arrow_bottom_blocks_local.shape[1:]),
         dtype=L_arrow_bottom_blocks_local.dtype,
     )
@@ -249,38 +304,217 @@ def _d_pobtasi(
     # Construct the reduced system from the factorized blocks distributed over the
     # processes.
     if comm_rank == 0:
+        # R_{0,0} = A^{p_0}_{0,0}
         A_reduced_system_diagonal_blocks[1, :, :] = L_diagonal_blocks_local[-1, :, :]
+
+        # R_{1, 0} = A^{p_0}_{1, 0}
         A_reduced_system_lower_diagonal_blocks[1, :, :] = L_lower_diagonal_blocks_local[
             -1, :, :
         ]
+
+        # R_{n, 0} = A^{p_0}_{n, 0}
         A_reduced_system_arrow_bottom_blocks[1, :, :] = L_arrow_bottom_blocks_local[
             -1, :, :
         ]
     else:
+        # R_{2p_i-1, 2p_i-1} = A^{p_i}_{0, 0}
         A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
             0, :, :
         ]
-        A_reduced_system_diagonal_blocks[2 * comm_rank + 1, :, :] = (
-            L_diagonal_blocks_local[-1, :, :]
+
+        # R_{2p_i, 2p_i-1} = A^{p_i}_{-1, -1}
+        A_reduced_system_diagonal_blocks[
+            2 * comm_rank + 1, :, :
+        ] = L_diagonal_blocks_local[-1, :, :]
+
+        # R_{2p_i-1, 2p_i-2} = B^{p_i}_{-1}^\dagger
+        A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
+            B_permutation_upper[-1, :, :].conj().T
         )
 
-        A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
-            L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
+        if comm_rank < comm_size - 1:
+            # R_{2p_i, 2p_i-1} = A^{p_i}_{1, 0}
+            A_reduced_system_lower_diagonal_blocks[
+                2 * comm_rank + 1, :, :
+            ] = L_lower_diagonal_blocks_local[-1, :, :]
+
+        # R_{n, 2p_i-1} = A^{p_i}_{n, 0}
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank, :, :
+        ] = L_arrow_bottom_blocks_local[0, :, :]
+
+        # R_{n, 2p_i} = A^{p_i}_{n, -1}
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank + 1, :, :
+        ] = L_arrow_bottom_blocks_local[-1, :, :]
+
+    # Communicate the reduced system
+    comm.Allgather(
+        MPI.IN_PLACE,
+        A_reduced_system_diagonal_blocks,
+    )
+
+    comm.Allgather(
+        MPI.IN_PLACE,
+        A_reduced_system_lower_diagonal_blocks,
+    )
+
+    comm.Allgather(
+        MPI.IN_PLACE,
+        A_reduced_system_arrow_bottom_blocks,
+    )
+
+    # Perform the inversion of the reduced system.
+    (
+        L_reduced_system_diagonal_blocks,
+        L_reduced_system_lower_diagonal_blocks,
+        L_reduced_system_arrow_bottom_blocks,
+        L_reduced_system_arrow_tip_block,
+    ) = pobtaf(
+        A_reduced_system_diagonal_blocks[1:, :, :],
+        A_reduced_system_lower_diagonal_blocks[1:-1, :, :],
+        A_reduced_system_arrow_bottom_blocks[1:, :, :],
+        A_reduced_system_arrow_tip_block,
+    )
+
+    (
+        X_reduced_system_diagonal_blocks,
+        X_reduced_system_lower_diagonal_blocks,
+        X_reduced_system_arrow_bottom_blocks,
+        X_reduced_system_arrow_tip_block,
+    ) = pobtasi(
+        L_reduced_system_diagonal_blocks,
+        L_reduced_system_lower_diagonal_blocks,
+        L_reduced_system_arrow_bottom_blocks,
+        L_reduced_system_arrow_tip_block,
+    )
+
+    # Update of the local slices by there corresponding blocks in the inverted
+    # reduced system.
+    if comm_rank == 0:
+        L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
+        L_lower_diagonal_blocks_local[
+            -1, :, :
+        ] = X_reduced_system_lower_diagonal_blocks[0, :, :]
+        L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
+            0, :, :
+        ]
+    else:
+        L_diagonal_blocks_local[0, :, :] = X_reduced_system_diagonal_blocks[
+            2 * comm_rank - 1, :, :
+        ]
+        L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[
+            2 * comm_rank, :, :
+        ]
+
+        B_permutation_upper[-1, :, :] = (
+            X_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
-            A_reduced_system_lower_diagonal_blocks[2 * comm_rank + 1, :, :] = (
-                L_lower_diagonal_blocks_local[-1, :, :]
-            )
+            L_lower_diagonal_blocks_local[
+                -1, :, :
+            ] = X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
 
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
-            L_arrow_bottom_blocks_local[0, :, :]
-        )
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank + 1, :, :] = (
-            L_arrow_bottom_blocks_local[-1, :, :]
+        L_arrow_bottom_blocks_local[0, :, :] = X_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank - 1, :, :
+        ]
+        L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank, :, :
+        ]
+
+    return (
+        L_diagonal_blocks_local,
+        L_lower_diagonal_blocks_local,
+        L_arrow_bottom_blocks_local,
+        L_arrow_tip_block_global,
+        B_permutation_upper,
+    )
+
+
+def _device_d_pobtasi_rss(
+    L_diagonal_blocks_local: ArrayLike,
+    L_lower_diagonal_blocks_local: ArrayLike,
+    L_arrow_bottom_blocks_local: ArrayLike,
+    L_arrow_tip_block_global: ArrayLike,
+    B_permutation_upper: ArrayLike,
+    solver_config: SolverConfig,
+    comm: MPI.Comm = MPI.COMM_WORLD
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+    if isinstance(comm, nccl.NcclCommunicator):
+        comm_rank = comm.rank
+        comm_size = comm.size
+    else:
+        comm_rank = comm.Get_rank()
+        comm_size = comm.Get_size()
+
+    A_reduced_system_diagonal_blocks = cp.zeros(
+        (2 * comm_size, *L_diagonal_blocks_local.shape[1:]),
+        dtype=L_diagonal_blocks_local.dtype,
+    )
+    A_reduced_system_lower_diagonal_blocks = cp.zeros(
+        (2 * comm_size, *L_lower_diagonal_blocks_local.shape[1:]),
+        dtype=L_lower_diagonal_blocks_local.dtype,
+    )
+    A_reduced_system_arrow_bottom_blocks = cp.zeros(
+        (2 * comm_size, *L_arrow_bottom_blocks_local.shape[1:]),
+        dtype=L_arrow_bottom_blocks_local.dtype,
+    )
+    # Alias on the tip block for the reduced system
+    A_reduced_system_arrow_tip_block = L_arrow_tip_block_global
+
+    # Construct the reduced system from the factorized blocks distributed over the
+    # processes.
+    if comm_rank == 0:
+        # R_{0,0} = A^{p_0}_{0,0}
+        A_reduced_system_diagonal_blocks[1, :, :] = L_diagonal_blocks_local[-1, :, :]
+
+        # R_{1, 0} = A^{p_0}_{1, 0}
+        A_reduced_system_lower_diagonal_blocks[1, :, :] = L_lower_diagonal_blocks_local[
+            -1, :, :
+        ]
+
+        # R_{n, 0} = A^{p_0}_{n, 0}
+        A_reduced_system_arrow_bottom_blocks[1, :, :] = L_arrow_bottom_blocks_local[
+            -1, :, :
+        ]
+    else:
+        # R_{2p_i-1, 2p_i-1} = A^{p_i}_{0, 0}
+        A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
+            0, :, :
+        ]
+
+        # R_{2p_i, 2p_i-1} = A^{p_i}_{-1, -1}
+        A_reduced_system_diagonal_blocks[
+            2 * comm_rank + 1, :, :
+        ] = L_diagonal_blocks_local[-1, :, :]
+
+        # R_{2p_i-1, 2p_i-2} = B^{p_i}_{-1}^\dagger
+        A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
+            B_permutation_upper[-1, :, :].conj().T
         )
 
-    if CUPY_AVAIL and xp == cp and not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
-    # if False:
+        if comm_rank < comm_size - 1:
+            # R_{2p_i, 2p_i-1} = A^{p_i}_{1, 0}
+            A_reduced_system_lower_diagonal_blocks[
+                2 * comm_rank + 1, :, :
+            ] = L_lower_diagonal_blocks_local[-1, :, :]
+
+        # R_{n, 2p_i-1} = A^{p_i}_{n, 0}
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank, :, :
+        ] = L_arrow_bottom_blocks_local[0, :, :]
+
+        # R_{n, 2p_i} = A^{p_i}_{n, -1}
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank + 1, :, :
+        ] = L_arrow_bottom_blocks_local[-1, :, :]
+
+    if (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
+        A_reduced_system_diagonal_blocks_host = A_reduced_system_diagonal_blocks
+        A_reduced_system_lower_diagonal_blocks_host = A_reduced_system_lower_diagonal_blocks
+        A_reduced_system_arrow_bottom_blocks_host = A_reduced_system_arrow_bottom_blocks
+    else:
+        # Allocate reduced system on host using pinned memory
         A_reduced_system_diagonal_blocks_host = cpx.empty_like_pinned(
             A_reduced_system_diagonal_blocks
         )
@@ -291,6 +525,7 @@ def _d_pobtasi(
             A_reduced_system_arrow_bottom_blocks
         )
 
+        # Copy the reduced system to the host
         A_reduced_system_diagonal_blocks.get(out=A_reduced_system_diagonal_blocks_host)
         A_reduced_system_lower_diagonal_blocks.get(
             out=A_reduced_system_lower_diagonal_blocks_host
@@ -299,16 +534,7 @@ def _d_pobtasi(
             out=A_reduced_system_arrow_bottom_blocks_host
         )
 
-        # A_reduced_system_diagonal_blocks_host = cp.asnumpy(A_reduced_system_diagonal_blocks)
-        # A_reduced_system_lower_diagonal_blocks_host = cp.asnumpy(A_reduced_system_lower_diagonal_blocks)
-        # A_reduced_system_arrow_bottom_blocks_host = cp.asnumpy(A_reduced_system_arrow_bottom_blocks)
-    else:
-        A_reduced_system_diagonal_blocks_host = A_reduced_system_diagonal_blocks
-        A_reduced_system_lower_diagonal_blocks_host = (
-            A_reduced_system_lower_diagonal_blocks
-        )
-        A_reduced_system_arrow_bottom_blocks_host = A_reduced_system_arrow_bottom_blocks
-
+    # Communicate the reduced system
     start = time.perf_counter_ns()
     if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
         print(f"Rank {comm_rank}: POBTASI Allgather with NCCL.", flush=True)
@@ -360,8 +586,7 @@ def _d_pobtasi(
     print(f"Rank {comm_rank}: POBTASI Allgather 3 {(finish_3-finish_2) // 1000000} ms.", flush=True)
 
 
-    if CUPY_AVAIL and xp == cp and not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
-    # if False:
+    if not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
         A_reduced_system_diagonal_blocks.set(arr=A_reduced_system_diagonal_blocks_host)
         A_reduced_system_lower_diagonal_blocks.set(
             arr=A_reduced_system_lower_diagonal_blocks_host
@@ -377,11 +602,10 @@ def _d_pobtasi(
         L_reduced_system_arrow_bottom_blocks,
         L_reduced_system_arrow_tip_block,
     ) = pobtaf(
-        A_reduced_system_diagonal_blocks,
-        A_reduced_system_lower_diagonal_blocks,
-        A_reduced_system_arrow_bottom_blocks,
+        A_reduced_system_diagonal_blocks[1:, :, :],
+        A_reduced_system_lower_diagonal_blocks[1:-1, :, :],
+        A_reduced_system_arrow_bottom_blocks[1:, :, :],
         A_reduced_system_arrow_tip_block,
-        device_streaming=True if CUPY_AVAIL and xp == cp else False,
     )
 
     (
@@ -394,182 +618,61 @@ def _d_pobtasi(
         L_reduced_system_lower_diagonal_blocks,
         L_reduced_system_arrow_bottom_blocks,
         L_reduced_system_arrow_tip_block,
-        device_streaming=True if CUPY_AVAIL and xp == cp else False,
     )
-
-    X_arrow_tip_block_global = X_reduced_system_arrow_tip_block
 
     # Update of the local slices by there corresponding blocks in the inverted
     # reduced system.
     if comm_rank == 0:
-        X_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
-        X_lower_diagonal_blocks_local[-1, :, :] = (
-            X_reduced_system_lower_diagonal_blocks[0, :, :]
-        )
-        X_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
+        L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
+        L_lower_diagonal_blocks_local[
+            -1, :, :
+        ] = X_reduced_system_lower_diagonal_blocks[0, :, :]
+        L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
             0, :, :
         ]
     else:
-        X_diagonal_blocks_local[0, :, :] = X_reduced_system_diagonal_blocks[
+        L_diagonal_blocks_local[0, :, :] = X_reduced_system_diagonal_blocks[
             2 * comm_rank - 1, :, :
         ]
-        X_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[
+        L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[
             2 * comm_rank, :, :
         ]
 
-        X_upper_nested_dissection_buffer_local[-1, :, :] = (
+        B_permutation_upper[-1, :, :] = (
             X_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
-            X_lower_diagonal_blocks_local[-1, :, :] = (
-                X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
-            )
+            L_lower_diagonal_blocks_local[
+                -1, :, :
+            ] = X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
 
-        X_arrow_bottom_blocks_local[0, :, :] = X_reduced_system_arrow_bottom_blocks[
+        L_arrow_bottom_blocks_local[0, :, :] = X_reduced_system_arrow_bottom_blocks[
             2 * comm_rank - 1, :, :
         ]
-        X_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
+        L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
             2 * comm_rank, :, :
         ]
 
-    # Backward selected-inversion
-    L_inv_temp = xp.empty_like(L_diagonal_blocks_local[0])
-    L_lower_diagonal_blocks_temp = xp.empty_like(L_lower_diagonal_blocks_local[0])
-    L_arrow_bottom_blocks_temp = xp.empty_like(L_arrow_bottom_blocks_local[0])
-
-    if comm_rank == 0:
-        for i in range(n_diag_blocks_local - 2, -1, -1):
-            L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
-            L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
-
-            # Compute lower factors
-            L_inv_temp[:, :] = la.solve_triangular(
-                L_diagonal_blocks_local[i, :, :],
-                xp.eye(diag_blocksize),
-                lower=True,
-            )
-
-            # --- Lower-diagonal blocks ---
-            # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-            X_lower_diagonal_blocks_local[i, :, :] = (
-                -X_diagonal_blocks_local[i + 1, :, :]
-                @ L_lower_diagonal_blocks_temp[:, :]
-                - X_arrow_bottom_blocks_local[i + 1, :, :].conj().T
-                @ L_arrow_bottom_blocks_temp[:, :]
-            ) @ L_inv_temp[:, :]
-
-            # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-            X_arrow_bottom_blocks_local[i, :, :] = (
-                -X_arrow_bottom_blocks_local[i + 1, :, :]
-                @ L_lower_diagonal_blocks_temp[:, :]
-                - X_arrow_tip_block_global[:, :] @ L_arrow_bottom_blocks_temp[:, :]
-            ) @ L_inv_temp[:, :]
-
-            # --- Diagonal block part ---
-            # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}^{T} L_{i+1, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
-            X_diagonal_blocks_local[i, :, :] = (
-                L_inv_temp[:, :].conj().T
-                - X_lower_diagonal_blocks_local[i, :, :].conj().T
-                @ L_lower_diagonal_blocks_temp[:, :]
-                - X_arrow_bottom_blocks_local[i, :, :].conj().T
-                @ L_arrow_bottom_blocks_temp[:, :]
-            ) @ L_inv_temp[:, :]
-    else:
-        L_upper_nested_dissection_buffer_temp = xp.empty_like(
-            L_upper_nested_dissection_buffer_local[0, :, :]
-        )
-
-        for i in range(n_diag_blocks_local - 2, 0, -1):
-            L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
-            L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
-            L_upper_nested_dissection_buffer_temp[:, :] = (
-                L_upper_nested_dissection_buffer_local[i, :, :]
-            )
-
-            L_inv_temp[:, :] = la.solve_triangular(
-                L_diagonal_blocks_local[i, :, :],
-                xp.eye(diag_blocksize),
-                lower=True,
-            )
-
-            # X_{i+1, i} = (- X_{top, i+1}.T L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}.T L_{ndb+1, i}) L_{i, i}^{-1}
-            X_lower_diagonal_blocks_local[i, :, :] = (
-                -X_upper_nested_dissection_buffer_local[i + 1, :, :].conj().T
-                @ L_upper_nested_dissection_buffer_temp[:, :]
-                - X_diagonal_blocks_local[i + 1, :, :]
-                @ L_lower_diagonal_blocks_temp[:, :]
-                - X_arrow_bottom_blocks_local[i + 1, :, :].conj().T
-                @ L_arrow_bottom_blocks_temp[:, :]
-            ) @ L_inv_temp[:, :]
-
-            # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{ndb+1, top}.T L_{ndb+1, i}) L_{i, i}^{-1}
-            X_upper_nested_dissection_buffer_local[i, :, :] = (
-                -X_upper_nested_dissection_buffer_local[i + 1, :, :]
-                @ L_lower_diagonal_blocks_temp[:, :]
-                - X_diagonal_blocks_local[0, :, :]
-                @ L_upper_nested_dissection_buffer_temp[:, :]
-                - X_arrow_bottom_blocks_local[0, :, :].conj().T
-                @ L_arrow_bottom_blocks_temp[:, :]
-            ) @ L_inv_temp[:, :]
-
-            # Arrowhead
-            # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, top} L_{top, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
-            X_arrow_bottom_blocks_local[i, :, :] = (
-                -X_arrow_bottom_blocks_local[i + 1, :, :]
-                @ L_lower_diagonal_blocks_temp[:, :]
-                - X_arrow_bottom_blocks_local[0, :, :]
-                @ L_upper_nested_dissection_buffer_temp[:, :]
-                - X_arrow_tip_block_global[:, :] @ L_arrow_bottom_blocks_temp[:, :]
-            ) @ L_inv_temp[:, :]
-
-            # X_{i, i} = (U_{i, i}^{-1} - X_{i+1, i}.T L_{i+1, i} - X_{top, i}.T L_{top, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
-            X_diagonal_blocks_local[i, :, :] = (
-                L_inv_temp[:, :].conj().T
-                - X_lower_diagonal_blocks_local[i, :, :].conj().T
-                @ L_lower_diagonal_blocks_temp[:, :]
-                - X_upper_nested_dissection_buffer_local[i, :, :].conj().T
-                @ L_upper_nested_dissection_buffer_temp[:, :]
-                - X_arrow_bottom_blocks_local[i, :, :].conj().T
-                @ L_arrow_bottom_blocks_temp[:, :]
-            ) @ L_inv_temp[:, :]
-
-        # Copy back the 2 first blocks that have been produced in the 2-sided pattern
-        # to the tridiagonal storage.
-        X_lower_diagonal_blocks_local[0, :, :] = (
-            X_upper_nested_dissection_buffer_local[1, :, :].conj().T
-        )
-
     return (
-        X_diagonal_blocks_local,
-        X_lower_diagonal_blocks_local,
-        X_arrow_bottom_blocks_local,
-        X_arrow_tip_block_global,
+        L_diagonal_blocks_local,
+        L_lower_diagonal_blocks_local,
+        L_arrow_bottom_blocks_local,
+        L_arrow_tip_block_global,
+        B_permutation_upper,
     )
 
 
-def _streaming_d_pobtasi(
+def _streaming_d_pobtasi_rss(
     L_diagonal_blocks_local: ArrayLike,
     L_lower_diagonal_blocks_local: ArrayLike,
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
-    L_upper_nested_dissection_buffer_local: ArrayLike,
-    comm: MPI.Comm = MPI.COMM_WORLD,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+    B_permutation_upper: ArrayLike,
+    solver_config: SolverConfig,
+    comm: MPI.Comm = MPI.COMM_WORLD
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
-
-    diag_blocksize = L_diagonal_blocks_local.shape[1]
-    n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
-
-    X_diagonal_blocks_local = L_diagonal_blocks_local
-    X_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local
-    X_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local
-    X_upper_nested_dissection_buffer_local = L_upper_nested_dissection_buffer_local
 
     A_reduced_system_diagonal_blocks = cpx.zeros_pinned(
         (2 * comm_size, *L_diagonal_blocks_local.shape[1:]),
@@ -589,36 +692,51 @@ def _streaming_d_pobtasi(
     # Construct the reduced system from the factorized blocks distributed over the
     # processes.
     if comm_rank == 0:
+        # R_{0,0} = A^{p_0}_{0,0}
         A_reduced_system_diagonal_blocks[1, :, :] = L_diagonal_blocks_local[-1, :, :]
+
+        # R_{1, 0} = A^{p_0}_{1, 0}
         A_reduced_system_lower_diagonal_blocks[1, :, :] = L_lower_diagonal_blocks_local[
             -1, :, :
         ]
+
+        # R_{n, 0} = A^{p_0}_{n, 0}
         A_reduced_system_arrow_bottom_blocks[1, :, :] = L_arrow_bottom_blocks_local[
             -1, :, :
         ]
     else:
+        # R_{2p_i-1, 2p_i-1} = A^{p_i}_{0, 0}
         A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
             0, :, :
         ]
-        A_reduced_system_diagonal_blocks[2 * comm_rank + 1, :, :] = (
-            L_diagonal_blocks_local[-1, :, :]
-        )
 
+        # R_{2p_i, 2p_i-1} = A^{p_i}_{-1, -1}
+        A_reduced_system_diagonal_blocks[
+            2 * comm_rank + 1, :, :
+        ] = L_diagonal_blocks_local[-1, :, :]
+
+        # R_{2p_i-1, 2p_i-2} = B^{p_i}_{-1}^\dagger
         A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
-            L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
+            B_permutation_upper[-1, :, :].conj().T
         )
+
         if comm_rank < comm_size - 1:
-            A_reduced_system_lower_diagonal_blocks[2 * comm_rank + 1, :, :] = (
-                L_lower_diagonal_blocks_local[-1, :, :]
-            )
+            # R_{2p_i, 2p_i-1} = A^{p_i}_{1, 0}
+            A_reduced_system_lower_diagonal_blocks[
+                2 * comm_rank + 1, :, :
+            ] = L_lower_diagonal_blocks_local[-1, :, :]
 
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
-            L_arrow_bottom_blocks_local[0, :, :]
-        )
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank + 1, :, :] = (
-            L_arrow_bottom_blocks_local[-1, :, :]
-        )
+        # R_{n, 2p_i-1} = A^{p_i}_{n, 0}
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank, :, :
+        ] = L_arrow_bottom_blocks_local[0, :, :]
 
+        # R_{n, 2p_i} = A^{p_i}_{n, -1}
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank + 1, :, :
+        ] = L_arrow_bottom_blocks_local[-1, :, :]
+
+    # Communicate the reduced system
     comm.Allgather(
         MPI.IN_PLACE,
         A_reduced_system_diagonal_blocks,
@@ -661,40 +779,326 @@ def _streaming_d_pobtasi(
         device_streaming=True,
     )
 
-    X_arrow_tip_block_global = X_reduced_system_arrow_tip_block
-
     # Update of the local slices by there corresponding blocks in the inverted
     # reduced system.
     if comm_rank == 0:
-        X_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
-        X_lower_diagonal_blocks_local[-1, :, :] = (
-            X_reduced_system_lower_diagonal_blocks[0, :, :]
-        )
-        X_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
+        L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
+        L_lower_diagonal_blocks_local[
+            -1, :, :
+        ] = X_reduced_system_lower_diagonal_blocks[0, :, :]
+        L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
             0, :, :
         ]
     else:
-        X_diagonal_blocks_local[0, :, :] = X_reduced_system_diagonal_blocks[
+        L_diagonal_blocks_local[0, :, :] = X_reduced_system_diagonal_blocks[
             2 * comm_rank - 1, :, :
         ]
-        X_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[
+        L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[
             2 * comm_rank, :, :
         ]
 
-        X_upper_nested_dissection_buffer_local[-1, :, :] = (
+        B_permutation_upper[-1, :, :] = (
             X_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
-            X_lower_diagonal_blocks_local[-1, :, :] = (
-                X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
-            )
+            L_lower_diagonal_blocks_local[
+                -1, :, :
+            ] = X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
 
-        X_arrow_bottom_blocks_local[0, :, :] = X_reduced_system_arrow_bottom_blocks[
+        L_arrow_bottom_blocks_local[0, :, :] = X_reduced_system_arrow_bottom_blocks[
             2 * comm_rank - 1, :, :
         ]
-        X_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
+        L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
             2 * comm_rank, :, :
         ]
+
+    return (
+        L_diagonal_blocks_local,
+        L_lower_diagonal_blocks_local,
+        L_arrow_bottom_blocks_local,
+        L_arrow_tip_block_global,
+        B_permutation_upper,
+    )
+
+
+def _host_d_pobtasi(
+    L_diagonal_blocks_local: ArrayLike,
+    L_lower_diagonal_blocks_local: ArrayLike,
+    L_arrow_bottom_blocks_local: ArrayLike,
+    L_arrow_tip_block_global: ArrayLike,
+    B_permutation_upper: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    diag_blocksize = L_diagonal_blocks_local.shape[1]
+    n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
+
+    X_diagonal_blocks_local = L_diagonal_blocks_local
+    X_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local
+    X_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local
+    X_arrow_tip_block_global = L_arrow_tip_block_global
+
+    # Backward selected-inversion
+    L_inv_temp = np.empty_like(L_diagonal_blocks_local[0])
+    L_lower_diagonal_blocks_temp = np.empty_like(L_lower_diagonal_blocks_local[0])
+    L_arrow_bottom_blocks_temp = np.empty_like(L_arrow_bottom_blocks_local[0])
+
+    if comm_rank == 0:
+        for i in range(n_diag_blocks_local - 2, -1, -1):
+            L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
+            L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
+
+            # Compute lower factors
+            L_inv_temp[:, :] = np_la.solve_triangular(
+                L_diagonal_blocks_local[i, :, :],
+                np.eye(diag_blocksize),
+                lower=True,
+            )
+
+            # --- Lower-diagonal blocks ---
+            # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+            X_lower_diagonal_blocks_local[i, :, :] = (
+                -X_diagonal_blocks_local[i + 1, :, :]
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_bottom_blocks_local[i + 1, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+            X_arrow_bottom_blocks_local[i, :, :] = (
+                -X_arrow_bottom_blocks_local[i + 1, :, :]
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_tip_block_global[:, :] @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # --- Diagonal block part ---
+            # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}^{T} L_{i+1, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_diagonal_blocks_local[i, :, :] = (
+                L_inv_temp[:, :].conj().T
+                - X_lower_diagonal_blocks_local[i, :, :].conj().T
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_bottom_blocks_local[i, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+    else:
+        L_upper_nested_dissection_buffer_temp = np.empty_like(
+            B_permutation_upper[0, :, :]
+        )
+
+        for i in range(n_diag_blocks_local - 2, 0, -1):
+            L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
+            L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
+            L_upper_nested_dissection_buffer_temp[:, :] = B_permutation_upper[i, :, :]
+
+            L_inv_temp[:, :] = np_la.solve_triangular(
+                L_diagonal_blocks_local[i, :, :],
+                np.eye(diag_blocksize),
+                lower=True,
+            )
+
+            # X_{i+1, i} = (- X_{top, i+1}.T L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_lower_diagonal_blocks_local[i, :, :] = (
+                -B_permutation_upper[i + 1, :, :].conj().T
+                @ L_upper_nested_dissection_buffer_temp[:, :]
+                - X_diagonal_blocks_local[i + 1, :, :]
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_bottom_blocks_local[i + 1, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{ndb+1, top}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            B_permutation_upper[i, :, :] = (
+                -B_permutation_upper[i + 1, :, :] @ L_lower_diagonal_blocks_temp[:, :]
+                - X_diagonal_blocks_local[0, :, :]
+                @ L_upper_nested_dissection_buffer_temp[:, :]
+                - X_arrow_bottom_blocks_local[0, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # Arrowhead
+            # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, top} L_{top, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+            X_arrow_bottom_blocks_local[i, :, :] = (
+                -X_arrow_bottom_blocks_local[i + 1, :, :]
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_bottom_blocks_local[0, :, :]
+                @ L_upper_nested_dissection_buffer_temp[:, :]
+                - X_arrow_tip_block_global[:, :] @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}.T L_{i+1, i} - X_{top, i}.T L_{top, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_diagonal_blocks_local[i, :, :] = (
+                L_inv_temp[:, :].conj().T
+                - X_lower_diagonal_blocks_local[i, :, :].conj().T
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - B_permutation_upper[i, :, :].conj().T
+                @ L_upper_nested_dissection_buffer_temp[:, :]
+                - X_arrow_bottom_blocks_local[i, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+        # Copy back the 2 first blocks that have been produced in the 2-sided pattern
+        # to the tridiagonal storage.
+        X_lower_diagonal_blocks_local[0, :, :] = B_permutation_upper[1, :, :].conj().T
+
+    return (
+        X_diagonal_blocks_local,
+        X_lower_diagonal_blocks_local,
+        X_arrow_bottom_blocks_local,
+        X_arrow_tip_block_global,
+    )
+
+
+def _device_d_pobtasi(
+    L_diagonal_blocks_local: ArrayLike,
+    L_lower_diagonal_blocks_local: ArrayLike,
+    L_arrow_bottom_blocks_local: ArrayLike,
+    L_arrow_tip_block_global: ArrayLike,
+    B_permutation_upper: ArrayLike,
+    solver_config: SolverConfig,
+    comm: MPI.Comm = MPI.COMM_WORLD,
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    diag_blocksize = L_diagonal_blocks_local.shape[1]
+    n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
+
+    X_diagonal_blocks_local = L_diagonal_blocks_local
+    X_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local
+    X_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local
+    X_arrow_tip_block_global = L_arrow_tip_block_global
+
+    # Backward selected-inversion
+    L_inv_temp = cp.empty_like(L_diagonal_blocks_local[0])
+    L_lower_diagonal_blocks_temp = cp.empty_like(L_lower_diagonal_blocks_local[0])
+    L_arrow_bottom_blocks_temp = cp.empty_like(L_arrow_bottom_blocks_local[0])
+
+    if comm_rank == 0:
+        for i in range(n_diag_blocks_local - 2, -1, -1):
+            L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
+            L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
+
+            # Compute lower factors
+            L_inv_temp[:, :] = cu_la.solve_triangular(
+                L_diagonal_blocks_local[i, :, :],
+                cp.eye(diag_blocksize),
+                lower=True,
+            )
+
+            # --- Lower-diagonal blocks ---
+            # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{i+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+            X_lower_diagonal_blocks_local[i, :, :] = (
+                -X_diagonal_blocks_local[i + 1, :, :]
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_bottom_blocks_local[i + 1, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+            X_arrow_bottom_blocks_local[i, :, :] = (
+                -X_arrow_bottom_blocks_local[i + 1, :, :]
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_tip_block_global[:, :] @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # --- Diagonal block part ---
+            # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}^{T} L_{i+1, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_diagonal_blocks_local[i, :, :] = (
+                L_inv_temp[:, :].conj().T
+                - X_lower_diagonal_blocks_local[i, :, :].conj().T
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_bottom_blocks_local[i, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+    else:
+        L_upper_nested_dissection_buffer_temp = cp.empty_like(
+            B_permutation_upper[0, :, :]
+        )
+
+        for i in range(n_diag_blocks_local - 2, 0, -1):
+            L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks_local[i, :, :]
+            L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks_local[i, :, :]
+            L_upper_nested_dissection_buffer_temp[:, :] = B_permutation_upper[i, :, :]
+
+            L_inv_temp[:, :] = cu_la.solve_triangular(
+                L_diagonal_blocks_local[i, :, :],
+                cp.eye(diag_blocksize),
+                lower=True,
+            )
+
+            # X_{i+1, i} = (- X_{top, i+1}.T L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_lower_diagonal_blocks_local[i, :, :] = (
+                -B_permutation_upper[i + 1, :, :].conj().T
+                @ L_upper_nested_dissection_buffer_temp[:, :]
+                - X_diagonal_blocks_local[i + 1, :, :]
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_bottom_blocks_local[i + 1, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{ndb+1, top}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            B_permutation_upper[i, :, :] = (
+                -B_permutation_upper[i + 1, :, :] @ L_lower_diagonal_blocks_temp[:, :]
+                - X_diagonal_blocks_local[0, :, :]
+                @ L_upper_nested_dissection_buffer_temp[:, :]
+                - X_arrow_bottom_blocks_local[0, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # Arrowhead
+            # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, top} L_{top, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
+            X_arrow_bottom_blocks_local[i, :, :] = (
+                -X_arrow_bottom_blocks_local[i + 1, :, :]
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - X_arrow_bottom_blocks_local[0, :, :]
+                @ L_upper_nested_dissection_buffer_temp[:, :]
+                - X_arrow_tip_block_global[:, :] @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+            # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}.T L_{i+1, i} - X_{top, i}.T L_{top, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
+            X_diagonal_blocks_local[i, :, :] = (
+                L_inv_temp[:, :].conj().T
+                - X_lower_diagonal_blocks_local[i, :, :].conj().T
+                @ L_lower_diagonal_blocks_temp[:, :]
+                - B_permutation_upper[i, :, :].conj().T
+                @ L_upper_nested_dissection_buffer_temp[:, :]
+                - X_arrow_bottom_blocks_local[i, :, :].conj().T
+                @ L_arrow_bottom_blocks_temp[:, :]
+            ) @ L_inv_temp[:, :]
+
+        # Copy back the 2 first blocks that have been produced in the 2-sided pattern
+        # to the tridiagonal storage.
+        X_lower_diagonal_blocks_local[0, :, :] = B_permutation_upper[1, :, :].conj().T
+
+    return (
+        X_diagonal_blocks_local,
+        X_lower_diagonal_blocks_local,
+        X_arrow_bottom_blocks_local,
+        X_arrow_tip_block_global,
+    )
+
+
+def _streaming_d_pobtasi(
+    L_diagonal_blocks_local: ArrayLike,
+    L_lower_diagonal_blocks_local: ArrayLike,
+    L_arrow_bottom_blocks_local: ArrayLike,
+    L_arrow_tip_block_global: ArrayLike,
+    B_permutation_upper: ArrayLike,
+    solver_config: SolverConfig,
+    comm: MPI.Comm = MPI.COMM_WORLD
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    diag_blocksize = L_diagonal_blocks_local.shape[1]
+    n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
+
+    X_diagonal_blocks_local = L_diagonal_blocks_local
+    X_lower_diagonal_blocks_local = L_lower_diagonal_blocks_local
+    X_arrow_bottom_blocks_local = L_arrow_bottom_blocks_local
+    X_arrow_tip_block_global = L_arrow_tip_block_global
 
     # Backward selected-inversion
     # Device buffers
@@ -844,14 +1248,14 @@ def _streaming_d_pobtasi(
         X_diagonal_top_block_d = cp.empty_like(X_diagonal_blocks_local[0])
         X_arrow_bottom_top_block_d = cp.empty_like(X_arrow_bottom_blocks_local[0])
         L_upper_nested_dissection_buffer_d = cp.empty(
-            (2, *L_upper_nested_dissection_buffer_local.shape[1:]),
-            dtype=L_upper_nested_dissection_buffer_local.dtype,
+            (2, *B_permutation_upper.shape[1:]),
+            dtype=B_permutation_upper.dtype,
         )
 
         X_upper_nested_dissection_buffer_d = L_upper_nested_dissection_buffer_d
 
         L_upper_nested_dissection_buffer_d_i = cp.empty_like(
-            L_upper_nested_dissection_buffer_local[0, :, :]
+            B_permutation_upper[0, :, :]
         )
 
         h2d_upper_nested_dissection_buffer_events = [cp.cuda.Event(), cp.cuda.Event()]
@@ -883,7 +1287,7 @@ def _streaming_d_pobtasi(
         h2d_arrow_events[(n_diag_blocks_local - 1) % 2].record(h2d_stream)
 
         L_upper_nested_dissection_buffer_d[(n_diag_blocks_local - 1) % 2, :, :].set(
-            arr=L_upper_nested_dissection_buffer_local[-1, :, :], stream=h2d_stream
+            arr=B_permutation_upper[-1, :, :], stream=h2d_stream
         )
         h2d_upper_nested_dissection_buffer_events[(n_diag_blocks_local - 1) % 2].record(
             stream=h2d_stream
@@ -915,7 +1319,7 @@ def _streaming_d_pobtasi(
                 compute_upper_nested_dissection_buffer_h2d_events[i % 2]
             )
             L_upper_nested_dissection_buffer_d[i % 2, :, :].set(
-                arr=L_upper_nested_dissection_buffer_local[i, :, :], stream=h2d_stream
+                arr=B_permutation_upper[i, :, :], stream=h2d_stream
             )
             h2d_upper_nested_dissection_buffer_events[i % 2].record(stream=h2d_stream)
 
@@ -938,9 +1342,9 @@ def _streaming_d_pobtasi(
                 compute_stream.wait_event(
                     h2d_upper_nested_dissection_buffer_events[i % 2]
                 )
-                L_upper_nested_dissection_buffer_d_i[:, :] = (
-                    L_upper_nested_dissection_buffer_d[i % 2, :, :]
-                )
+                L_upper_nested_dissection_buffer_d_i[
+                    :, :
+                ] = L_upper_nested_dissection_buffer_d[i % 2, :, :]
 
                 # X_{i+1, i} = (- X_{top, i+1}.T L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}.T L_{ndb+1, i}) L_{i, i}^{-1}
                 X_lower_diagonal_blocks_d[i % 2, :, :] = (
@@ -1012,7 +1416,7 @@ def _streaming_d_pobtasi(
 
             d2h_stream.wait_event(compute_upper_nested_dissection_buffer_events[i % 2])
             X_upper_nested_dissection_buffer_d[i % 2, :, :].get(
-                out=X_upper_nested_dissection_buffer_local[i, :, :],
+                out=B_permutation_upper[i, :, :],
                 stream=d2h_stream,
                 blocking=False,
             )
@@ -1029,7 +1433,7 @@ def _streaming_d_pobtasi(
         with d2h_stream:
             d2h_stream.synchronize()
             X_lower_diagonal_blocks_local[0, :, :] = (
-                X_upper_nested_dissection_buffer_local[1, :, :].conj().T
+                B_permutation_upper[1, :, :].conj().T
             )
 
     cp.cuda.Device().synchronize()

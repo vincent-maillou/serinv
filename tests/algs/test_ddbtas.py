@@ -9,7 +9,6 @@ except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
-
 import pytest
 
 from serinv.algs import ddbtaf, ddbtas

@@ -1,5 +1,9 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
+import numpy as np
+import pytest
+from numpy.typing import ArrayLike
+
 SEED = 63
 
 try:
@@ -11,16 +15,12 @@ try:
 except ImportError:
     CUPY_AVAIL = False
 
-import numpy as np
-from numpy.typing import ArrayLike
 
 np.random.seed(SEED)
-import pytest
 
 
 @pytest.fixture(scope="function", autouse=False)
 def bta_dense_to_arrays():
-
     def _bta_dense_to_arrays(
         bta: ArrayLike,
         diagonal_blocksize: int,
@@ -99,7 +99,6 @@ def bta_dense_to_arrays():
 
 @pytest.fixture(scope="function", autouse=False)
 def bta_arrays_to_dense():
-
     def _bta_arrays_to_dense(
         A_diagonal_blocks: ArrayLike,
         A_lower_diagonal_blocks: ArrayLike,
@@ -161,7 +160,6 @@ def bta_arrays_to_dense():
 
 @pytest.fixture(scope="function", autouse=False)
 def bta_symmetrize():
-
     def _bta_symmetrize(
         bta: ArrayLike,
     ):

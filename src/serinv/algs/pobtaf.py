@@ -3,6 +3,7 @@
 try:
     import cupy as cp
     import cupyx.scipy.linalg as cu_la
+
     from serinv.cupyfix.cholesky_lowerfill import cholesky_lowerfill
 
     CUPY_AVAIL = True
@@ -21,12 +22,7 @@ def pobtaf(
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     device_streaming: bool = False,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     """Perform the Cholesky factorization of a block tridiagonal with arrowhead
     matrix using a sequential block algorithm.
 
@@ -104,12 +100,7 @@ def _pobtaf(
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     la = np_la
     if CUPY_AVAIL:
         xp = cp.get_array_module(A_diagonal_blocks)
@@ -212,12 +203,7 @@ def _streaming_pobtaf(
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     compute_stream = cp.cuda.Stream(non_blocking=True)
     h2d_stream = cp.cuda.Stream(non_blocking=True)
     d2h_stream = cp.cuda.Stream(non_blocking=True)

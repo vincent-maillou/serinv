@@ -19,14 +19,7 @@ def ddbtasinv(
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_right_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     """Perform the selected inversion of a block tridiagonal arrowhead matrix. Do
     not explicitly factorize the matrix, but rather compute the selected inverse
     using a schur complement approach.

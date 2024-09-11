@@ -1,5 +1,12 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
+import numpy as np
+import pytest
+from mpi4py import MPI
+
+from serinv import SolverConfig
+from serinv.algs import d_pobtaf, pobtasinv
+
 try:
     import cupy as cp
     import cupyx as cpx
@@ -13,14 +20,9 @@ from os import environ
 
 environ["OMP_NUM_THREADS"] = "1"
 
-import numpy as np
-import pytest
-from mpi4py import MPI
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
-
-from serinv.algs import d_pobtaf, pobtasinv
 
 
 @pytest.mark.mpi(min_size=2)
@@ -160,6 +162,9 @@ def test_d_pobtaf(
         :,
     ]
 
+    # SerinV solver configuration
+    solver_config = SolverConfig(device_streaming=device_streaming)
+
     # Distributed factorization
     (
         L_diagonal_blocks_local,
@@ -172,7 +177,7 @@ def test_d_pobtaf(
         A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
-        device_streaming,
+        solver_config,
     )
 
     # Create a reduced system out of the factorized blocks
@@ -198,9 +203,9 @@ def test_d_pobtaf(
         ]
     else:
         # Middle processes storing reduced blocks in reduced system
-        A_reduced_system_diagonal_blocks[2 * comm_rank - 1, :, :] = (
-            L_diagonal_blocks_local[0, :, :]
-        )
+        A_reduced_system_diagonal_blocks[
+            2 * comm_rank - 1, :, :
+        ] = L_diagonal_blocks_local[0, :, :]
         A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
             -1, :, :
         ]
@@ -209,16 +214,16 @@ def test_d_pobtaf(
             L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
-            A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
-                L_lower_diagonal_blocks_local[-1, :, :]
-            )
+            A_reduced_system_lower_diagonal_blocks[
+                2 * comm_rank, :, :
+            ] = L_lower_diagonal_blocks_local[-1, :, :]
 
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank - 1, :, :] = (
-            L_arrow_bottom_blocks_local[0, :, :]
-        )
-        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
-            L_arrow_bottom_blocks_local[-1, :, :]
-        )
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank - 1, :, :
+        ] = L_arrow_bottom_blocks_local[0, :, :]
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank, :, :
+        ] = L_arrow_bottom_blocks_local[-1, :, :]
 
     A_reduced_system_arrow_tip_block[:, :] = L_arrow_tip_block_global[:, :]
 

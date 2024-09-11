@@ -18,12 +18,7 @@ def pobtasinv(
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     device_streaming: bool = False,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     """Perform the Schur-complement-based selected inversion of a block tridiagonal
     arrowhead matrix.
 
@@ -79,12 +74,7 @@ def _pobtasinv(
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     if CUPY_AVAIL:
         xp = cp.get_array_module(A_diagonal_blocks)
     else:
@@ -209,12 +199,7 @@ def _streaming_pobtasinv(
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-) -> tuple[
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-    ArrayLike,
-]:
+) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     cp.cuda.nvtx.RangePush("_streaming_pobtasinv:mem_init")
 
     # X hosts arrays pointers

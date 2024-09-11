@@ -110,9 +110,9 @@ def scddbbsi(
         # X_{i, i} = (U_{i, i}^{-1} - sum_{k=i+1}^{min(i+ndiags/2, nblocks)} X_{i, k} L_{k, i}) L_{i, i}^{-1}
 
         # X_{i, i} = U_{i, i}^{-1}
-        X[i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize] = (
-            U_blk_inv
-        )
+        X[
+            i * blocksize : (i + 1) * blocksize, i * blocksize : (i + 1) * blocksize
+        ] = U_blk_inv
 
         for k in range(i + 1, min(i + n_offdiags_blk + 1, nblocks), 1):
             # X_{i, i} = X_{i, i} - X_{i, k} L_{k, i}

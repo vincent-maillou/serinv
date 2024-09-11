@@ -10,9 +10,8 @@ except ImportError:
     CUPY_AVAIL = False
 
 import numpy as np
-import scipy.linalg as np_la
-
 import pytest
+import scipy.linalg as np_la
 
 from serinv.algs import ddbtaf
 

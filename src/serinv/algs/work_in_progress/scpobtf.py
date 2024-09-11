@@ -2,7 +2,6 @@
 
 import numpy as np
 import numpy.linalg as npla
-import scipy.linalg as la
 import scipy.linalg as scla
 
 
