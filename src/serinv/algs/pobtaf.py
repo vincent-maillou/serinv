@@ -115,6 +115,7 @@ def _pobtaf(
 
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
+    # L aliases
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
     L_arrow_bottom_blocks = A_arrow_bottom_blocks
