@@ -163,7 +163,7 @@ def test_d_pobtasi(
     ]
 
     # SerinV solver configuration
-    solver_config = SolverConfig(device_streaming=device_streaming)
+    solver_config = SolverConfig(device_streaming=device_streaming, nested_solving=True)
 
     # Distributed factorization
     (
