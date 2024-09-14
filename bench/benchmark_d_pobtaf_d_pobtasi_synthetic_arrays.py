@@ -172,20 +172,6 @@ if __name__ == "__main__":
 
         start_time = time.perf_counter()
 
-        # (
-        #     L_diagonal_blocks_local,
-        #     L_lower_diagonal_blocks_local,
-        #     L_arrow_bottom_blocks_local,
-        #     L_arrow_tip_block_global,
-        #     L_upper_nested_dissection_buffer_local,
-        # ) = d_pobtaf(
-        #     A_diagonal_blocks_local_pinned,
-        #     A_lower_diagonal_blocks_local_pinned,
-        #     A_arrow_bottom_blocks_local_pinned,
-        #     A_arrow_tip_block_pinned,
-        #     device_streaming,
-        # )
-
         (
             L_diagonal_blocks_local,
             L_lower_diagonal_blocks_local,
@@ -211,12 +197,13 @@ if __name__ == "__main__":
 
         start_time = time.perf_counter()
 
+        # Inversion of the reduced system
         (
-            X_diagonal_blocks_local,
-            X_lower_diagonal_blocks_local,
-            X_arrow_bottom_blocks_local,
-            X_arrow_tip_block_global,
-            _
+            L_diagonal_blocks_local,
+            L_lower_diagonal_blocks_local,
+            L_arrow_bottom_blocks_local,
+            L_arrow_tip_block_global,
+            L_upper_nested_dissection_buffer_local,
         ) = d_pobtasi_rss(
             L_diagonal_blocks_local,
             L_lower_diagonal_blocks_local,
@@ -224,6 +211,22 @@ if __name__ == "__main__":
             L_arrow_tip_block_global,
             L_upper_nested_dissection_buffer_local,
             solver_config=solver_config,
+            comm=comm,
+        )
+
+        # Inversion of the full system
+        (
+            X_diagonal_blocks_local,
+            X_lower_diagonal_blocks_local,
+            X_arrow_bottom_blocks_local,
+            X_arrow_tip_block_global,
+        ) = d_pobtasi(
+            L_diagonal_blocks_local,
+            L_lower_diagonal_blocks_local,
+            L_arrow_bottom_blocks_local,
+            L_arrow_tip_block_global,
+            L_upper_nested_dissection_buffer_local,
+            solver_config,
             comm=comm,
         )
 
