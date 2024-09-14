@@ -6,3 +6,5 @@ from pydantic import BaseModel
 class SolverConfig(BaseModel):
     device_streaming: bool = True
     cuda_aware_mpi: bool = False
+    nccl: bool = False
+    nested_solving: bool = False
