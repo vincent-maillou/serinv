@@ -402,76 +402,91 @@ def _host_d_pobtasi_rss(
             A_reduced_system_lower_diagonal_blocks = A_reduced_system_lower_diagonal_blocks[1:-1]
             A_reduced_system_arrow_bottom_blocks = A_reduced_system_arrow_bottom_blocks[1:]
             
-            # A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[
-            #     reduced_rank
-            #     * n_diag_blocks_per_processes : (reduced_rank + 1)
-            #     * n_diag_blocks_per_processes,
-            #     :,
-            #     :,
-            # ]
-
-            # if reduced_rank == reduced_size - 1:
-            #     A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
-            #         reduced_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
-            #         :,
-            #         :,
-            #     ]
-            # else:
-            #     A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
-            #         reduced_rank
-            #         * n_diag_blocks_per_processes : (reduced_rank + 1)
-            #         * n_diag_blocks_per_processes,
-            #         :,
-            #         :,
-            #     ]
-
-            # A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[
-            #     reduced_rank
-            #     * n_diag_blocks_per_processes : (reduced_rank + 1)
-            #     * n_diag_blocks_per_processes,
-            #     :,
-            #     :,
-            # ]
-            # A_reduced_system_arrow_tip_block_global = A_reduced_system_arrow_tip_block
-
             # NOTE: Making copies for validation
-            A_reduced_system_diagonal_blocks_local = np.copy(A_reduced_system_diagonal_blocks[
-                reduced_rank
-                * n_diag_blocks_per_processes : (reduced_rank + 1)
-                * n_diag_blocks_per_processes,
-                :,
-                :,
-            ])
-
             if reduced_rank == reduced_size - 1:
-                A_reduced_system_lower_diagonal_blocks_local = np.copy(A_reduced_system_lower_diagonal_blocks[
+                A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[
+                    reduced_rank * n_diag_blocks_per_processes :,
+                    :,
+                    :,
+                ]
+                A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
                     reduced_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
                     :,
                     :,
-                ])
+                ]
+                A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[
+                    reduced_rank * n_diag_blocks_per_processes :,
+                    :,
+                    :,
+                ]
             else:
-                A_reduced_system_lower_diagonal_blocks_local = np.copy(A_reduced_system_lower_diagonal_blocks[
+                A_reduced_system_diagonal_blocks_local = A_reduced_system_diagonal_blocks[
                     reduced_rank
                     * n_diag_blocks_per_processes : (reduced_rank + 1)
                     * n_diag_blocks_per_processes,
                     :,
                     :,
-                ])
+                ]
+                A_reduced_system_lower_diagonal_blocks_local = A_reduced_system_lower_diagonal_blocks[
+                    reduced_rank
+                    * n_diag_blocks_per_processes : (reduced_rank + 1)
+                    * n_diag_blocks_per_processes,
+                    :,
+                    :,
+                ]
+                A_reduced_system_arrow_bottom_blocks_local = A_reduced_system_arrow_bottom_blocks[
+                    reduced_rank
+                    * n_diag_blocks_per_processes : (reduced_rank + 1)
+                    * n_diag_blocks_per_processes,
+                    :,
+                    :,
+                ]
+            A_reduced_system_arrow_tip_block_global = A_reduced_system_arrow_tip_block
 
-            A_reduced_system_arrow_bottom_blocks_local = np.copy(A_reduced_system_arrow_bottom_blocks[
-                reduced_rank
-                * n_diag_blocks_per_processes : (reduced_rank + 1)
-                * n_diag_blocks_per_processes,
-                :,
-                :,
-            ])
-            A_reduced_system_arrow_tip_block_global = np.copy(A_reduced_system_arrow_tip_block)
-            if reduced_rank == 0:
-                print(A_reduced_system_arrow_tip_block_global, flush=True)
+            # # NOTE: Making copies for validation
+            # if reduced_rank == reduced_size - 1:
+            #     A_reduced_system_diagonal_blocks_local = np.copy(A_reduced_system_diagonal_blocks[
+            #         reduced_rank * n_diag_blocks_per_processes :,
+            #         :,
+            #         :,
+            #     ])
+            #     A_reduced_system_lower_diagonal_blocks_local = np.copy(A_reduced_system_lower_diagonal_blocks[
+            #         reduced_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+            #         :,
+            #         :,
+            #     ])
+            #     A_reduced_system_arrow_bottom_blocks_local = np.copy(A_reduced_system_arrow_bottom_blocks[
+            #         reduced_rank * n_diag_blocks_per_processes :,
+            #         :,
+            #         :,
+            #     ])
+            # else:
+            #     A_reduced_system_diagonal_blocks_local = np.copy(A_reduced_system_diagonal_blocks[
+            #         reduced_rank
+            #         * n_diag_blocks_per_processes : (reduced_rank + 1)
+            #         * n_diag_blocks_per_processes,
+            #         :,
+            #         :,
+            #     ])
+            #     A_reduced_system_lower_diagonal_blocks_local = np.copy(A_reduced_system_lower_diagonal_blocks[
+            #         reduced_rank
+            #         * n_diag_blocks_per_processes : (reduced_rank + 1)
+            #         * n_diag_blocks_per_processes,
+            #         :,
+            #         :,
+            #     ])
+            #     A_reduced_system_arrow_bottom_blocks_local = np.copy(A_reduced_system_arrow_bottom_blocks[
+            #         reduced_rank
+            #         * n_diag_blocks_per_processes : (reduced_rank + 1)
+            #         * n_diag_blocks_per_processes,
+            #         :,
+            #         :,
+            #     ])
+            # A_reduced_system_arrow_tip_block_global = np.copy(A_reduced_system_arrow_tip_block)
 
             reduced_solver_config = solver_config.copy(update={"nested_solving": False})
-            if reduced_rank == 0:
-                print(reduced_solver_config, flush=True)
+            # if reduced_rank == 0:
+            #     print(reduced_solver_config, flush=True)
 
             (
                 L_reduced_system_diagonal_blocks_local,
@@ -487,7 +502,6 @@ def _host_d_pobtasi_rss(
                 solver_config=reduced_solver_config,
                 comm=reduced_comm
             )
-            reduced_comm.Barrier()
             (
                 L_reduced_system_diagonal_blocks_local,
                 L_reduced_system_lower_diagonal_blocks_local,
@@ -503,7 +517,6 @@ def _host_d_pobtasi_rss(
                 solver_config=reduced_solver_config,
                 comm=reduced_comm,
             )
-            reduced_comm.Barrier()
             (
                 X_reduced_system_diagonal_blocks_local,
                 X_reduced_system_lower_diagonal_blocks_local,
@@ -518,48 +531,47 @@ def _host_d_pobtasi_rss(
                 solver_config=reduced_solver_config,
                 comm=reduced_comm
             )
-            reduced_comm.Barrier()
 
-            # NOTE: Validation
-            (
-                L_reduced_system_diagonal_blocks,
-                L_reduced_system_lower_diagonal_blocks,
-                L_reduced_system_arrow_bottom_blocks,
-                L_reduced_system_arrow_tip_block,
-            ) = pobtaf(
-                A_reduced_system_diagonal_blocks,
-                A_reduced_system_lower_diagonal_blocks,
-                A_reduced_system_arrow_bottom_blocks,
-                A_reduced_system_arrow_tip_block,
-            )
+            # # NOTE: Validation
+            # (
+            #     L_reduced_system_diagonal_blocks,
+            #     L_reduced_system_lower_diagonal_blocks,
+            #     L_reduced_system_arrow_bottom_blocks,
+            #     L_reduced_system_arrow_tip_block,
+            # ) = pobtaf(
+            #     A_reduced_system_diagonal_blocks,
+            #     A_reduced_system_lower_diagonal_blocks,
+            #     A_reduced_system_arrow_bottom_blocks,
+            #     A_reduced_system_arrow_tip_block,
+            # )
 
-            (
-                X_reduced_system_diagonal_blocks_ref,
-                X_reduced_system_lower_diagonal_blocks_ref,
-                X_reduced_system_arrow_bottom_blocks_ref,
-                X_reduced_system_arrow_tip_block_ref,
-            ) = pobtasi(
-                L_reduced_system_diagonal_blocks,
-                L_reduced_system_lower_diagonal_blocks,
-                L_reduced_system_arrow_bottom_blocks,
-                L_reduced_system_arrow_tip_block,
-            )
+            # (
+            #     X_reduced_system_diagonal_blocks_ref,
+            #     X_reduced_system_lower_diagonal_blocks_ref,
+            #     X_reduced_system_arrow_bottom_blocks_ref,
+            #     X_reduced_system_arrow_tip_block_ref,
+            # ) = pobtasi(
+            #     L_reduced_system_diagonal_blocks,
+            #     L_reduced_system_lower_diagonal_blocks,
+            #     L_reduced_system_arrow_bottom_blocks,
+            #     L_reduced_system_arrow_tip_block,
+            # )
 
-            if reduced_rank == 0:
-                print(f"Rank {comm_rank} reduced_color: {reduced_color}, reduced_key: {reduced_key} --- "
-                    f"{np.linalg.norm(X_reduced_system_arrow_tip_block_tmp - X_reduced_system_arrow_bottom_blocks_ref / np.linalg.norm(X_reduced_system_arrow_bottom_blocks_ref))}", flush=True)
+            # if reduced_rank == 0:
+            #     # print(f"Rank {comm_rank} reduced_color: {reduced_color}, reduced_key: {reduced_key} --- "
+            #     #     f"{np.linalg.norm(X_reduced_system_arrow_tip_block_tmp - X_reduced_system_arrow_tip_block_ref / np.linalg.norm(X_reduced_system_arrow_tip_block_ref))}", flush=True)
 
-                print(X_reduced_system_arrow_tip_block_tmp, flush=True)
-                print(X_reduced_system_arrow_tip_block_ref, flush=True)
-                assert np.allclose(X_reduced_system_arrow_tip_block_ref, X_reduced_system_arrow_tip_block_tmp)
-                if reduced_rank == reduced_size - 1:
-                    assert np.allclose(X_reduced_system_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:], X_reduced_system_diagonal_blocks_local)
-                    assert np.allclose(X_reduced_system_lower_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:], X_reduced_system_lower_diagonal_blocks_local)
-                    assert np.allclose(X_reduced_system_arrow_bottom_blocks_ref[reduced_rank * n_diag_blocks_per_processes:], X_reduced_system_arrow_bottom_blocks_local)
-                else:
-                    assert np.allclose(X_reduced_system_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:(reduced_rank + 1) * n_diag_blocks_per_processes], X_reduced_system_diagonal_blocks_local)
-                    assert np.allclose(X_reduced_system_lower_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:(reduced_rank + 1) * n_diag_blocks_per_processes], X_reduced_system_lower_diagonal_blocks_local)
-                    assert np.allclose(X_reduced_system_arrow_bottom_blocks_ref[reduced_rank * n_diag_blocks_per_processes:(reduced_rank + 1) * n_diag_blocks_per_processes], X_reduced_system_arrow_bottom_blocks_local)
+            #     print(X_reduced_system_arrow_tip_block_tmp, flush=True)
+                # print(X_reduced_system_arrow_tip_block_ref, flush=True)
+            # assert np.allclose(X_reduced_system_arrow_tip_block_ref, X_reduced_system_arrow_tip_block_tmp)
+            # if reduced_rank == reduced_size - 1:
+            #     assert np.allclose(X_reduced_system_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:], X_reduced_system_diagonal_blocks_local)
+            #     assert np.allclose(X_reduced_system_lower_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:], X_reduced_system_lower_diagonal_blocks_local)
+            #     assert np.allclose(X_reduced_system_arrow_bottom_blocks_ref[reduced_rank * n_diag_blocks_per_processes:], X_reduced_system_arrow_bottom_blocks_local)
+            # else:
+            #     assert np.allclose(X_reduced_system_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:(reduced_rank + 1) * n_diag_blocks_per_processes], X_reduced_system_diagonal_blocks_local)
+            #     assert np.allclose(X_reduced_system_lower_diagonal_blocks_ref[reduced_rank * n_diag_blocks_per_processes:(reduced_rank + 1) * n_diag_blocks_per_processes], X_reduced_system_lower_diagonal_blocks_local)
+            #     assert np.allclose(X_reduced_system_arrow_bottom_blocks_ref[reduced_rank * n_diag_blocks_per_processes:(reduced_rank + 1) * n_diag_blocks_per_processes], X_reduced_system_arrow_bottom_blocks_local)
 
             # NOTE: For some reason, the returned X_reduced_system_arrow_tip_block is not contiguous in memory.
             X_reduced_system_arrow_tip_block[:] = X_reduced_system_arrow_tip_block_tmp
@@ -654,7 +666,7 @@ def _host_d_pobtasi_rss(
         X_reduced_system_arrow_bottom_blocks_host = X_reduced_system_arrow_bottom_blocks
         X_reduced_system_arrow_tip_block_host = X_reduced_system_arrow_tip_block
 
-        print(f"Rank {comm_rank} reduced_color: {reduced_color}, reduced_key: {reduced_key}", flush=True)
+        # print(f"Rank {comm_rank} reduced_color: {reduced_color}, reduced_key: {reduced_key}", flush=True)
 
         mpi_dtype = mpi_datatype[L_diagonal_blocks_local.dtype.type]
         comm.Allgatherv([X_reduced_system_diagonal_blocks_local_host, send_diag_count, mpi_dtype],
@@ -664,6 +676,7 @@ def _host_d_pobtasi_rss(
         comm.Allgatherv([X_reduced_system_arrow_bottom_blocks_local_host, send_arrow_count, mpi_dtype],
                         [X_reduced_system_arrow_bottom_blocks_host, recv_arrow_counts, arrow_displ, mpi_dtype])
         comm.Bcast(X_reduced_system_arrow_tip_block_host, root=0)
+        L_arrow_tip_block_global[:] = X_reduced_system_arrow_tip_block_host
 
         # if CUPY_AVAIL and xp == cp:
         #     X_reduced_system_diagonal_blocks.set(arr=X_reduced_system_diagonal_blocks_host)
