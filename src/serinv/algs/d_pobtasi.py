@@ -440,7 +440,7 @@ def _device_d_pobtasi_rss(
     solver_config: SolverConfig,
     comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
-    if isinstance(comm, nccl.NcclCommunicator):
+    if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
         comm_rank = comm.rank
         comm_size = comm.size
     else:
