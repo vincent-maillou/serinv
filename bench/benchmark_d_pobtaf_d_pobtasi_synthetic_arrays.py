@@ -7,6 +7,8 @@ import os
 import argparse
 from ctypes import *
 
+from serinv import SolverConfig
+
 
 import mpi4py
 mpi4py.rc.initialize = False  # do not initialize MPI automatically
@@ -16,7 +18,7 @@ from mpi4py import MPI
 # comm_rank = MPI.COMM_WORLD.Get_rank()
 # comm_size = MPI.COMM_WORLD.Get_size()
 
-from serinv.algs import d_pobtaf, d_pobtasi
+from serinv.algs import d_pobtaf, d_pobtasi, d_pobtasi_rss
 
 def mean_confidence_interval(data, confidence=0.95):
     a = 1.0 * np.array(data)
@@ -107,7 +109,7 @@ if __name__ == "__main__":
     n_iterations = args.n_iterations
     n_warmups = args.n_warmups
 
-    device_streaming = False
+    solver_config = SolverConfig(device_streaming=False, cuda_aware_mpi=False)
     n_gpu_per_node = 8
 
     device_id = set_device(comm_rank, n_gpu_per_node, debug=True)
@@ -195,7 +197,7 @@ if __name__ == "__main__":
             A_lower_diagonal_blocks_local_dev,
             A_arrow_bottom_blocks_local_dev,
             A_arrow_tip_block_dev,
-            device_streaming,
+            solver_config=solver_config,
             comm=comm,
         )
 
@@ -214,13 +216,14 @@ if __name__ == "__main__":
             X_lower_diagonal_blocks_local,
             X_arrow_bottom_blocks_local,
             X_arrow_tip_block_global,
-        ) = d_pobtasi(
+            _
+        ) = d_pobtasi_rss(
             L_diagonal_blocks_local,
             L_lower_diagonal_blocks_local,
             L_arrow_bottom_blocks_local,
             L_arrow_tip_block_global,
             L_upper_nested_dissection_buffer_local,
-            device_streaming,
+            solver_config=solver_config,
             comm=comm,
         )
 

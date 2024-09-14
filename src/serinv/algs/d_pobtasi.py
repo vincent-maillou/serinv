@@ -441,8 +441,8 @@ def _device_d_pobtasi_rss(
     comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
-        comm_rank = comm.rank
-        comm_size = comm.size
+        comm_rank = comm.rank_id()
+        comm_size = comm.size()
     else:
         comm_rank = comm.Get_rank()
         comm_size = comm.Get_size()
@@ -959,8 +959,12 @@ def _device_d_pobtasi(
     solver_config: SolverConfig,
     comm: MPI.Comm = MPI.COMM_WORLD,
 ) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
-    comm_rank = comm.Get_rank()
-    comm_size = comm.Get_size()
+    if isinstance(comm, nccl.NcclCommunicator):
+        comm_rank = comm.rank_id()
+        comm_size = comm.size()
+    else:
+        comm_rank = comm.Get_rank()
+        comm_size = comm.Get_size()
 
     diag_blocksize = L_diagonal_blocks_local.shape[1]
     n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
