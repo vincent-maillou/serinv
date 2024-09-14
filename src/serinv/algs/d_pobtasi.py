@@ -1214,13 +1214,20 @@ def _device_d_pobtasi_rss(
         # print(f"Rank {comm_rank} reduced_color: {reduced_color}, reduced_key: {reduced_key}", flush=True)
 
         mpi_dtype = mpi_datatype[L_diagonal_blocks_local.dtype.type]
-        comm.Allgatherv([X_reduced_system_diagonal_blocks_local_host, send_diag_count, mpi_dtype],
-                        [X_reduced_system_diagonal_blocks_host, recv_diag_counts, diag_displ, mpi_dtype])
-        comm.Allgatherv([X_reduced_system_lower_diagonal_blocks_local_host, send_lower_count, mpi_dtype],
-                        [X_reduced_system_lower_diagonal_blocks_host, recv_lower_counts, lower_displ, mpi_dtype])
-        comm.Allgatherv([X_reduced_system_arrow_bottom_blocks_local_host, send_arrow_count, mpi_dtype],
-                        [X_reduced_system_arrow_bottom_blocks_host, recv_arrow_counts, arrow_displ, mpi_dtype])
-        comm.Bcast(X_reduced_system_arrow_tip_block_host, root=0)
+        if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
+            for i in range(reduced_size):
+                comm.broadcast(X_reduced_system_diagonal_blocks_local_host.ptr + i * diag_count, X_reduced_system_diagonal_blocks_local_host.ptr + i * diag_count, diag_count, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
+                comm.broadcast(X_reduced_system_lower_diagonal_blocks_local_host.ptr + i * lower_count, X_reduced_system_lower_diagonal_blocks_local_host.ptr + i * lower_count, lower_count, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
+                comm.broadcast(X_reduced_system_arrow_bottom_blocks_local_host.ptr + i * arrow_count, X_reduced_system_arrow_bottom_blocks_local_host.ptr + i * arrow_count, arrow_count, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
+            comm.broadcast(X_reduced_system_arrow_tip_block_host.ptr, X_reduced_system_arrow_tip_block_host.ptr, X_reduced_system_arrow_tip_block_host.size, nccl.NCCL_DOUBLE, 0, cp.cuda.Stream.null.ptr)
+        else:
+            comm.Allgatherv([X_reduced_system_diagonal_blocks_local_host, send_diag_count, mpi_dtype],
+                            [X_reduced_system_diagonal_blocks_host, recv_diag_counts, diag_displ, mpi_dtype])
+            comm.Allgatherv([X_reduced_system_lower_diagonal_blocks_local_host, send_lower_count, mpi_dtype],
+                            [X_reduced_system_lower_diagonal_blocks_host, recv_lower_counts, lower_displ, mpi_dtype])
+            comm.Allgatherv([X_reduced_system_arrow_bottom_blocks_local_host, send_arrow_count, mpi_dtype],
+                            [X_reduced_system_arrow_bottom_blocks_host, recv_arrow_counts, arrow_displ, mpi_dtype])
+            comm.Bcast(X_reduced_system_arrow_tip_block_host, root=0)
         L_arrow_tip_block_global[:] = cp.asarray(X_reduced_system_arrow_tip_block_host)
 
         if not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
