@@ -170,7 +170,8 @@ def d_pobtasi_rss(
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike = None,
     solver_config: SolverConfig = SolverConfig(),
-    comm: MPI.Comm = MPI.COMM_WORLD
+    comm: MPI.Comm = MPI.COMM_WORLD,
+    nested_comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     """Perform the selected-inversion of the reduced system constructed from the
     distributed factorization of the block tridiagonal with arrowhead matrix.
@@ -234,7 +235,8 @@ def d_pobtasi_rss(
                 L_arrow_tip_block_global,
                 B_permutation_upper,
                 solver_config,
-                comm
+                comm,
+                nested_comm
             )
 
     # Host computation
@@ -576,7 +578,8 @@ def _device_d_pobtasi_rss(
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike,
     solver_config: SolverConfig,
-    comm: MPI.Comm = MPI.COMM_WORLD
+    comm: MPI.Comm = MPI.COMM_WORLD,
+    reduced_comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
     if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
         comm_rank = comm.rank_id()
@@ -647,7 +650,7 @@ def _device_d_pobtasi_rss(
             2 * comm_rank + 1, :, :
         ] = L_arrow_bottom_blocks_local[-1, :, :]
 
-    if (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
+    if (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)) or solver_config.cuda_aware_mpi:
         A_reduced_system_diagonal_blocks_host = A_reduced_system_diagonal_blocks
         A_reduced_system_lower_diagonal_blocks_host = A_reduced_system_lower_diagonal_blocks
         A_reduced_system_arrow_bottom_blocks_host = A_reduced_system_arrow_bottom_blocks
@@ -724,7 +727,7 @@ def _device_d_pobtasi_rss(
     print(f"Rank {comm_rank}: POBTASI Allgather 3 {(finish_3-finish_2) // 1000000} ms.", flush=True)
 
 
-    if not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
+    if not ((NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)) or solver_config.cuda_aware_mpi):
         A_reduced_system_diagonal_blocks.set(arr=A_reduced_system_diagonal_blocks_host)
         A_reduced_system_lower_diagonal_blocks.set(
             arr=A_reduced_system_lower_diagonal_blocks_host
@@ -737,7 +740,7 @@ def _device_d_pobtasi_rss(
     n_diag_blocks = 2 * comm_size - 1
     reduced_rank = comm_rank
     reduced_size = comm_size // 2
-    n_diag_blocks_per_processes = n_diag_blocks // reduced_size
+    n_diag_blocks_per_processes = int(np.ceil(n_diag_blocks / reduced_size))
     if solver_config.nested_solving and reduced_size > 1:
         diag_blocksize = L_diagonal_blocks_local.shape[1]
         arrow_size = L_arrow_tip_block_global.shape[0]
@@ -745,22 +748,28 @@ def _device_d_pobtasi_rss(
         reduced_key = comm_rank
         start = time.perf_counter_ns()
         if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
-            comm_id = nccl.get_unique_id()
-            comm_id = MPI.COMM_WORLD.bcast(comm_id, root=0)
-            if reduced_color == 1:
-                reduced_comm = nccl.NcclCommunicator(reduced_size, comm_id, reduced_rank)
-            cp.cuda.runtime.deviceSynchronize()
+            pass
+            # comm_id = nccl.get_unique_id()
+            # comm_id = MPI.COMM_WORLD.bcast(comm_id, root=0)
+            # if reduced_color == 1:
+            #     reduced_comm = nccl.NcclCommunicator(reduced_size, comm_id, reduced_rank)
+            # cp.cuda.runtime.deviceSynchronize()
         else:
             reduced_comm = comm.Split(color=reduced_color, key=reduced_key)
         finish = time.perf_counter_ns()
         print(f"Rank {comm_rank}: POBTASI Split {(finish-start) // 1000000} ms.", flush=True)
 
+        start = time.perf_counter_ns()
         X_reduced_system_diagonal_blocks = cp.empty((n_diag_blocks, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
         X_reduced_system_lower_diagonal_blocks = cp.empty((n_diag_blocks - 1, diag_blocksize, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
         X_reduced_system_arrow_bottom_blocks = cp.empty((n_diag_blocks, arrow_size, diag_blocksize), dtype=L_diagonal_blocks_local.dtype)
         X_reduced_system_arrow_tip_block = cp.empty((arrow_size, arrow_size), dtype=L_diagonal_blocks_local.dtype)
+        finish = time.perf_counter_ns()
+        print(f"Rank {comm_rank}: POBTASI Empty {(finish-start) // 1000000} ms.", flush=True)
 
         if reduced_color == 1:
+
+            start = time.perf_counter_ns()
 
             A_reduced_system_diagonal_blocks = A_reduced_system_diagonal_blocks[1:]
             A_reduced_system_lower_diagonal_blocks = A_reduced_system_lower_diagonal_blocks[1:-1]
@@ -853,40 +862,15 @@ def _device_d_pobtasi_rss(
             )
             # NOTE: For some reason, the returned X_reduced_system_arrow_tip_block is not contiguous in memory.
             X_reduced_system_arrow_tip_block[:] = X_reduced_system_arrow_tip_block_tmp
+            cp.cuda.Stream.null.synchronize()
+            finish = time.perf_counter_ns()
+            print(f"Rank {comm_rank}: POBTASI RSS Nested {(finish-start) // 1000000} ms.", flush=True)
         else:
             X_reduced_system_diagonal_blocks_local = None
             X_reduced_system_lower_diagonal_blocks_local = None
             X_reduced_system_arrow_bottom_blocks_local = None
 
-        diag_count = n_diag_blocks_per_processes * diag_blocksize * diag_blocksize
-        lower_count = n_diag_blocks_per_processes * diag_blocksize * diag_blocksize
-        arrow_count = n_diag_blocks_per_processes * diag_blocksize * arrow_size
-        diag_count_last = (n_diag_blocks - (reduced_size - 1) * n_diag_blocks_per_processes) * diag_blocksize * diag_blocksize
-        lower_count_last = (n_diag_blocks - 1 - (reduced_size - 1) * n_diag_blocks_per_processes) * diag_blocksize * diag_blocksize
-        arrow_count_last = (n_diag_blocks - (reduced_size - 1) * n_diag_blocks_per_processes) * diag_blocksize * arrow_size
-
-        if reduced_color == 0:
-            send_diag_count = 0
-            send_lower_count = 0
-            send_arrow_count = 0
-        else:
-            if reduced_rank != reduced_size - 1:
-                send_diag_count = diag_count
-                send_lower_count = lower_count
-                send_arrow_count = arrow_count
-            else:
-                send_diag_count = diag_count_last
-                send_lower_count = lower_count_last
-                send_arrow_count = arrow_count_last
-        
-        recv_diag_counts = [diag_count] * (reduced_size - 1) + [diag_count_last] + [0] * (comm_size - reduced_size)
-        recv_lower_counts = [lower_count] * (reduced_size - 1) + [lower_count_last] + [0] * (comm_size - reduced_size)
-        recv_arrow_counts = [arrow_count] * (reduced_size - 1) + [arrow_count_last] + [0] * (comm_size - reduced_size)
-        diag_displ = list(range(0, diag_count * reduced_size, diag_count)) + [0] * (comm_size - reduced_size)
-        lower_displ = list(range(0, lower_count * reduced_size, lower_count)) + [0] * (comm_size - reduced_size)
-        arrow_displ = list(range(0, arrow_count * reduced_size, arrow_count)) + [0] * (comm_size - reduced_size)
-
-        if not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
+        if not ((NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)) or solver_config.cuda_aware_mpi):
 
             if reduced_color == 1:
                 X_reduced_system_diagonal_blocks_local_host = cpx.empty_like_pinned(X_reduced_system_diagonal_blocks_local)
@@ -915,19 +899,54 @@ def _device_d_pobtasi_rss(
             X_reduced_system_arrow_bottom_blocks_host = X_reduced_system_arrow_bottom_blocks
             X_reduced_system_arrow_tip_block_host = X_reduced_system_arrow_tip_block
 
-        mpi_dtype = mpi_datatype[L_diagonal_blocks_local.dtype.type]
         start = time.perf_counter_ns()
+
+        mpi_dtype = mpi_datatype[L_diagonal_blocks_local.dtype.type]
+
+        diag_count = n_diag_blocks_per_processes * diag_blocksize * diag_blocksize
+        lower_count = n_diag_blocks_per_processes * diag_blocksize * diag_blocksize
+        arrow_count = n_diag_blocks_per_processes * diag_blocksize * arrow_size
+        diag_count_last = (n_diag_blocks - (reduced_size - 1) * n_diag_blocks_per_processes) * diag_blocksize * diag_blocksize
+        lower_count_last = (n_diag_blocks - 1 - (reduced_size - 1) * n_diag_blocks_per_processes) * diag_blocksize * diag_blocksize
+        arrow_count_last = (n_diag_blocks - (reduced_size - 1) * n_diag_blocks_per_processes) * diag_blocksize * arrow_size
+
         if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
             diag_ptr = X_reduced_system_diagonal_blocks_local_host.data.ptr if comm_rank < reduced_size else 0
             lower_ptr = X_reduced_system_lower_diagonal_blocks_local_host.data.ptr if comm_rank < reduced_size else 0
             arrow_ptr = X_reduced_system_arrow_bottom_blocks_local_host.data.ptr if comm_rank < reduced_size else 0
-            for i in range(reduced_size):
+            for i in range(reduced_size - 1):
                 comm.broadcast(diag_ptr, X_reduced_system_diagonal_blocks_host.data.ptr + i * diag_count, diag_count, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
                 comm.broadcast(lower_ptr, X_reduced_system_lower_diagonal_blocks_host.data.ptr + i * lower_count, lower_count, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
                 comm.broadcast(arrow_ptr , X_reduced_system_arrow_bottom_blocks_host.data.ptr + i * arrow_count, arrow_count, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
+            i = reduced_size - 1
+            comm.broadcast(diag_ptr, X_reduced_system_diagonal_blocks_host.data.ptr + i * diag_count, diag_count_last, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
+            comm.broadcast(lower_ptr, X_reduced_system_lower_diagonal_blocks_host.data.ptr + i * lower_count, lower_count_last, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
+            comm.broadcast(arrow_ptr , X_reduced_system_arrow_bottom_blocks_host.data.ptr + i * arrow_count, arrow_count_last, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
             comm.broadcast(X_reduced_system_arrow_tip_block_host.data.ptr, X_reduced_system_arrow_tip_block_host.data.ptr, X_reduced_system_arrow_tip_block_host.size, nccl.NCCL_DOUBLE, 0, cp.cuda.Stream.null.ptr)
             cp.cuda.Stream.null.synchronize()
         else:
+
+            if reduced_color == 0:
+                send_diag_count = 0
+                send_lower_count = 0
+                send_arrow_count = 0
+            else:
+                if reduced_rank != reduced_size - 1:
+                    send_diag_count = diag_count
+                    send_lower_count = lower_count
+                    send_arrow_count = arrow_count
+                else:
+                    send_diag_count = diag_count_last
+                    send_lower_count = lower_count_last
+                    send_arrow_count = arrow_count_last
+            
+            recv_diag_counts = [diag_count] * (reduced_size - 1) + [diag_count_last] + [0] * (comm_size - reduced_size)
+            recv_lower_counts = [lower_count] * (reduced_size - 1) + [lower_count_last] + [0] * (comm_size - reduced_size)
+            recv_arrow_counts = [arrow_count] * (reduced_size - 1) + [arrow_count_last] + [0] * (comm_size - reduced_size)
+            diag_displ = list(range(0, diag_count * reduced_size, diag_count)) + [0] * (comm_size - reduced_size)
+            lower_displ = list(range(0, lower_count * reduced_size, lower_count)) + [0] * (comm_size - reduced_size)
+            arrow_displ = list(range(0, arrow_count * reduced_size, arrow_count)) + [0] * (comm_size - reduced_size)
+
             comm.Allgatherv([X_reduced_system_diagonal_blocks_local_host, send_diag_count, mpi_dtype],
                             [X_reduced_system_diagonal_blocks_host, recv_diag_counts, diag_displ, mpi_dtype])
             comm.Allgatherv([X_reduced_system_lower_diagonal_blocks_local_host, send_lower_count, mpi_dtype],
@@ -939,7 +958,7 @@ def _device_d_pobtasi_rss(
         print(f"Rank {comm_rank}: POBTASI Allgather x 3 + Bcast {(finish-start) // 1000000} ms.", flush=True)
         L_arrow_tip_block_global[:] = cp.asarray(X_reduced_system_arrow_tip_block_host)
 
-        if not (NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)):
+        if not ((NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator)) or solver_config.cuda_aware_mpi):
             X_reduced_system_diagonal_blocks.set(arr=X_reduced_system_diagonal_blocks_host)
             X_reduced_system_lower_diagonal_blocks.set(arr=X_reduced_system_lower_diagonal_blocks_host)
             X_reduced_system_arrow_bottom_blocks.set(arr=X_reduced_system_arrow_bottom_blocks_host)
@@ -948,6 +967,7 @@ def _device_d_pobtasi_rss(
     else:
 
         # Perform the inversion of the reduced system.
+        start = time.perf_counter_ns()
         (
             L_reduced_system_diagonal_blocks,
             L_reduced_system_lower_diagonal_blocks,
@@ -959,7 +979,6 @@ def _device_d_pobtasi_rss(
             A_reduced_system_arrow_bottom_blocks[1:, :, :],
             A_reduced_system_arrow_tip_block,
         )
-
         (
             X_reduced_system_diagonal_blocks,
             X_reduced_system_lower_diagonal_blocks,
@@ -971,9 +990,13 @@ def _device_d_pobtasi_rss(
             L_reduced_system_arrow_bottom_blocks,
             L_reduced_system_arrow_tip_block,
         )
+        cp.cuda.Stream.null.synchronize()
+        finish = time.perf_counter_ns()
+        print(f"Rank {comm_rank}: POBTASI RSS {(finish-start) // 1000000} ms.", flush=True)
 
     # Update of the local slices by there corresponding blocks in the inverted
     # reduced system.
+    start = time.perf_counter_ns()
     if comm_rank == 0:
         L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
         L_lower_diagonal_blocks_local[
@@ -1004,6 +1027,8 @@ def _device_d_pobtasi_rss(
         L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
             2 * comm_rank, :, :
         ]
+    finish = time.perf_counter_ns()
+    print(f"Rank {comm_rank}: POBTASI Update {(finish-start) // 1000000} ms.", flush=True)
 
     return (
         L_diagonal_blocks_local,

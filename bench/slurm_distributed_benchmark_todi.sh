@@ -1,5 +1,6 @@
 #!/bin/bash -l
 #SBATCH --job-name=serinv_distributed_gpu_test
+#SBATCH --partition=debug
 #SBATCH --time=00:10:00
 #SBATCH --nodes=4
 #SBATCH --ntasks-per-core=1
@@ -19,7 +20,7 @@ export FI_CXI_DEFAULT_TX_SIZE=256
 export NCCL_CROSS_NIC=1
 export NCCL_IGNORE_CPU_AFFINITY=1
 export NCCL_NET="AWS Libfabric"
-export MPICH_GPU_SUPPORT_ENABLED=0
+export MPICH_GPU_SUPPORT_ENABLED=1
 
 export PYTHONUNBUFFERED=1
 

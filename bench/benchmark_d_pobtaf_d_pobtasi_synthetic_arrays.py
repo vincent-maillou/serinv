@@ -110,6 +110,7 @@ if __name__ == "__main__":
     n_warmups = args.n_warmups
 
     solver_config = SolverConfig(device_streaming=False, cuda_aware_mpi=False, nested_solving=True)
+    # reduced_solver_config = SolverConfig(device_streaming=False, cuda_aware_mpi=False, nested_solving=True)
     n_gpu_per_node = 8
 
     device_id = set_device(comm_rank, n_gpu_per_node, debug=True)
@@ -122,6 +123,18 @@ if __name__ == "__main__":
         print(f"Process {comm_rank}: comm_id {comm_id}", flush=True)
         comm = nccl.NcclCommunicator(comm_size, comm_id, comm_rank)
         cp.cuda.runtime.deviceSynchronize()
+        if solver_config.nested_solving:
+            reduced_size = comm_size // 2
+            reduced_rank = comm_rank
+            reduced_color = int(comm_rank < reduced_size)
+            reduced_key = comm_rank
+            reduced_comm_id = nccl.get_unique_id()
+            reduced_comm_id = MPI.COMM_WORLD.bcast(reduced_comm_id, root=0)
+            if reduced_color == 1:
+                reduced_comm = nccl.NcclCommunicator(reduced_size, reduced_comm_id, reduced_rank)
+            else:
+                reduced_comm = None
+            cp.cuda.runtime.deviceSynchronize()
     except Exception as e:
         print(f"Error: {e}", flush=True)
         comm = MPI.COMM_WORLD
@@ -212,7 +225,13 @@ if __name__ == "__main__":
             L_upper_nested_dissection_buffer_local,
             solver_config=solver_config,
             comm=comm,
+            nested_comm=reduced_comm if solver_config.nested_solving else None,
+            # solver_config=reduced_solver_config,
         )
+
+        MPI.COMM_WORLD.Barrier()
+        med = time.perf_counter()
+        print(f"Process {comm_rank}: Time d_pobtasi_rss: {med - start_time:.5f} sec, shape: {L_diagonal_blocks_local.shape}", flush=True)
 
         # Inversion of the full system
         (
@@ -233,6 +252,7 @@ if __name__ == "__main__":
         MPI.COMM_WORLD.Barrier()
 
         end_time = time.perf_counter()
+        print(f"Process {comm_rank}: Time d_pobtasi: {end_time - med:.5f} sec", flush=True)
         elapsed_time_selinv = end_time - start_time
 
         if i >= n_warmups:
