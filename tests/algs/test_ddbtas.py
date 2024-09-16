@@ -49,14 +49,12 @@ def test_ddbtas(
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
     (
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
-        U_arrow_tip_block,
+        LU_diagonal_blocks,
+        LU_lower_diagonal_blocks,
+        LU_upper_diagonal_blocks,
+        LU_arrow_bottom_blocks,
+        LU_arrow_right_blocks,
+        LU_arrow_tip_block,
     ) = ddbtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -67,14 +65,12 @@ def test_ddbtas(
     )
 
     X_serinv = ddbtas(
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
-        U_arrow_tip_block,
+        LU_diagonal_blocks,
+        LU_lower_diagonal_blocks,
+        LU_upper_diagonal_blocks,
+        LU_arrow_bottom_blocks,
+        LU_arrow_right_blocks,
+        LU_arrow_tip_block,
         B,
     )
 
