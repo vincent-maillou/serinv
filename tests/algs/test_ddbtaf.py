@@ -60,8 +60,6 @@ def test_ddbtaf(
         LU_arrow_bottom_blocks,
         LU_arrow_right_blocks,
         LU_arrow_tip_block,
-        P_diag,
-        P_tip,
     ) = ddbtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,

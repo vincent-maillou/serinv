@@ -63,8 +63,6 @@ def test_ddbtasi(
         LU_arrow_bottom_blocks,
         LU_arrow_right_blocks,
         LU_arrow_tip_block,
-        P_diag,
-        P_tip,
     ) = ddbtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -88,8 +86,6 @@ def test_ddbtasi(
         LU_arrow_bottom_blocks,
         LU_arrow_right_blocks,
         LU_arrow_tip_block,
-        P_diag,
-        P_tip,
     )
 
     assert xp.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)

@@ -60,10 +60,6 @@ def ddbtaf(
         LU factors of the right arrow blocks.
     LU_arrow_tip_block : ArrayLike
         LU factors of the tip block of the arrowhead.
-    P_diag : ArrayLike
-        Permutation vectors of the diagonal blocks.
-    P_tip : ArrayLike
-        Permutation vector of the tip block of the arrowhead.
     """
 
     la = np_la
@@ -215,6 +211,4 @@ def ddbtaf(
         LU_arrow_bottom_blocks,
         LU_arrow_right_blocks,
         LU_arrow_tip_block,
-        P_diag,
-        P_tip,
     )
