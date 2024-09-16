@@ -57,14 +57,14 @@ def test_ddbtasi(
     )
 
     (
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
-        U_arrow_tip_block,
+        LU_diagonal_blocks,
+        LU_lower_diagonal_blocks,
+        LU_upper_diagonal_blocks,
+        LU_arrow_bottom_blocks,
+        LU_arrow_right_blocks,
+        LU_arrow_tip_block,
+        P_diag,
+        P_tip,
     ) = ddbtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -82,14 +82,14 @@ def test_ddbtasi(
         X_arrow_right_blocks_serinv,
         X_arrow_tip_block_serinv,
     ) = ddbtasi(
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-        U_diagonal_blocks,
-        U_upper_diagonal_blocks,
-        U_arrow_right_blocks,
-        U_arrow_tip_block,
+        LU_diagonal_blocks,
+        LU_lower_diagonal_blocks,
+        LU_upper_diagonal_blocks,
+        LU_arrow_bottom_blocks,
+        LU_arrow_right_blocks,
+        LU_arrow_tip_block,
+        P_diag,
+        P_tip,
     )
 
     assert xp.allclose(X_diagonal_blocks_ref, X_diagonal_blocks_serinv)
