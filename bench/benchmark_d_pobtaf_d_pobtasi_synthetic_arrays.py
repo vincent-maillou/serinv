@@ -109,7 +109,7 @@ if __name__ == "__main__":
     n_iterations = args.n_iterations
     n_warmups = args.n_warmups
 
-    solver_config = SolverConfig(device_streaming=False, cuda_aware_mpi=False, nested_solving=True)
+    solver_config = SolverConfig(device_streaming=False, cuda_aware_mpi=False, nccl=True, nested_solving=True)
     # reduced_solver_config = SolverConfig(device_streaming=False, cuda_aware_mpi=False, nested_solving=True)
     n_gpu_per_node = 8
 

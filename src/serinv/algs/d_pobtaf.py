@@ -32,8 +32,18 @@ mpi4py.rc.initialize = False  # do not initialize MPI automatically
 from mpi4py import MPI
 from numpy.typing import ArrayLike
 
-# comm_rank = MPI.COMM_WORLD.Get_rank()
-# comm_size = MPI.COMM_WORLD.Get_size()
+FLOAT_COMPLEX = MPI.C_FLOAT_COMPLEX
+DOUBLE_COMPLEX = MPI.C_DOUBLE_COMPLEX if MPI.Get_library_version().startswith('Open MPI') else MPI.DOUBLE_COMPLEX
+mpi_datatype = {np.float32: MPI.FLOAT, np.complex64: FLOAT_COMPLEX,
+                np.float64: MPI.DOUBLE, np.complex128: DOUBLE_COMPLEX}
+if CUPY_AVAIL:
+    mpi_datatype[cp.float32] = MPI.FLOAT
+    mpi_datatype[cp.complex64] = FLOAT_COMPLEX
+    mpi_datatype[cp.float64] = MPI.DOUBLE
+    mpi_datatype[cp.complex128] = DOUBLE_COMPLEX
+if NCCL_AVAIL:
+    nccl_datatype = {np.float32: nccl.NCCL_FLOAT, cp.float32: nccl.NCCL_FLOAT, cp.complex64: nccl.NCCL_FLOAT,
+                     np.float64: nccl.NCCL_DOUBLE, cp.float64: nccl.NCCL_DOUBLE, cp.complex128: nccl.NCCL_DOUBLE}
 
 
 def d_pobtaf(
@@ -342,8 +352,12 @@ def _device_d_pobtaf(
     solver_config: SolverConfig,
     comm: MPI.Comm = MPI.COMM_WORLD
 ) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
-    comm_rank = MPI.COMM_WORLD.Get_rank()
-    comm_size = MPI.COMM_WORLD.Get_size()
+    if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
+        comm_rank = comm.rank_id()
+        comm_size = comm.size()
+    else:
+        comm_rank = comm.Get_rank()
+        comm_size = comm.Get_size()
 
     cholesky = cholesky_lowerfill
 
@@ -514,11 +528,14 @@ def _device_d_pobtaf(
     start = time.perf_counter_ns()
     if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
         print(f"Rank {comm_rank}: POBTAF Allreduce with NCCL.", flush=True)
+        sz = Update_arrow_tip_block_host.size
+        if np.iscomplexobj(Update_arrow_tip_block_host):
+            sz *= 2
         comm.allReduce(
             Update_arrow_tip_block_host.data.ptr,
             Update_arrow_tip_block_host.data.ptr,
-            Update_arrow_tip_block_host.size,
-            nccl.NCCL_DOUBLE,
+            sz,
+            nccl_datatype[Update_arrow_tip_block_host.dtype.type],
             nccl.NCCL_SUM,
             cp.cuda.Stream.null.ptr,
         )

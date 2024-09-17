@@ -33,11 +33,19 @@ from numpy.typing import ArrayLike
 
 from serinv.algs import pobtaf, pobtasi, d_pobtaf
 
+FLOAT_COMPLEX = MPI.C_FLOAT_COMPLEX
 DOUBLE_COMPLEX = MPI.C_DOUBLE_COMPLEX if MPI.Get_library_version().startswith('Open MPI') else MPI.DOUBLE_COMPLEX
-mpi_datatype = {np.float64: MPI.DOUBLE, np.complex128: DOUBLE_COMPLEX}
+mpi_datatype = {np.float32: MPI.FLOAT, np.complex64: FLOAT_COMPLEX,
+                np.float64: MPI.DOUBLE, np.complex128: DOUBLE_COMPLEX}
 if CUPY_AVAIL:
+    mpi_datatype[cp.float32] = MPI.FLOAT
+    mpi_datatype[cp.complex64] = FLOAT_COMPLEX
     mpi_datatype[cp.float64] = MPI.DOUBLE
     mpi_datatype[cp.complex128] = DOUBLE_COMPLEX
+if NCCL_AVAIL:
+    nccl_datatype = {np.float32: nccl.NCCL_FLOAT, cp.float32: nccl.NCCL_FLOAT, cp.complex64: nccl.NCCL_FLOAT,
+                     np.float64: nccl.NCCL_DOUBLE, cp.float64: nccl.NCCL_DOUBLE, cp.complex128: nccl.NCCL_DOUBLE}
+
 
 
 def d_pobtasi(
@@ -679,30 +687,39 @@ def _device_d_pobtasi_rss(
     start = time.perf_counter_ns()
     if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
         print(f"Rank {comm_rank}: POBTASI Allgather with NCCL.", flush=True)
-        sz = A_reduced_system_diagonal_blocks_host.size // comm_size
+        szd = A_reduced_system_diagonal_blocks_host.size // comm_size
+        szl = A_reduced_system_lower_diagonal_blocks_host.size // comm_size
+        sza = A_reduced_system_arrow_bottom_blocks_host.size // comm_size
+        datatype = nccl_datatype[A_reduced_system_diagonal_blocks_host.dtype.type]
+        itemsize = A_reduced_system_diagonal_blocks_host.dtype.itemsize
+        dispd = szd * comm_rank * itemsize
+        displ = szl * comm_rank * itemsize
+        dispa = sza * comm_rank * itemsize
+        if np.iscomplexobj(A_reduced_system_diagonal_blocks_host):
+            szd *= 2
+            szl *= 2
+            sza *= 2
         comm.allGather(
-            A_reduced_system_diagonal_blocks_host.data.ptr + comm_rank * sz,
+            A_reduced_system_diagonal_blocks_host.data.ptr + dispd,
             A_reduced_system_diagonal_blocks_host.data.ptr,
-            sz,
-            nccl.NCCL_DOUBLE,
+            szd,
+            datatype,
             cp.cuda.Stream.null.ptr,
         )
         finish_1 = time.perf_counter_ns()
-        sz = A_reduced_system_lower_diagonal_blocks_host.size // comm_size
         comm.allGather(
-            A_reduced_system_lower_diagonal_blocks_host.data.ptr + comm_rank * sz,
+            A_reduced_system_lower_diagonal_blocks_host.data.ptr + displ,
             A_reduced_system_lower_diagonal_blocks_host.data.ptr,
-            sz,
-            nccl.NCCL_DOUBLE,
+            szl,
+            datatype,
             cp.cuda.Stream.null.ptr,
         )
         finish_2 = time.perf_counter_ns()
-        sz = A_reduced_system_arrow_bottom_blocks_host.size // comm_size
         comm.allGather(
-            A_reduced_system_arrow_bottom_blocks_host.data.ptr + comm_rank * sz,
+            A_reduced_system_arrow_bottom_blocks_host.data.ptr + dispa,
             A_reduced_system_arrow_bottom_blocks_host.data.ptr,
-            sz,
-            nccl.NCCL_DOUBLE,
+            sza,
+            datatype,
             cp.cuda.Stream.null.ptr,
         )
         cp.cuda.Stream.null.synchronize()
@@ -914,14 +931,26 @@ def _device_d_pobtasi_rss(
             diag_ptr = X_reduced_system_diagonal_blocks_local_host.data.ptr if comm_rank < reduced_size else 0
             lower_ptr = X_reduced_system_lower_diagonal_blocks_local_host.data.ptr if comm_rank < reduced_size else 0
             arrow_ptr = X_reduced_system_arrow_bottom_blocks_local_host.data.ptr if comm_rank < reduced_size else 0
+            datatype = nccl_datatype[X_reduced_system_diagonal_blocks.dtype.type]
+            itemsize = X_reduced_system_diagonal_blocks.dtype.itemsize
+            dispd = diag_count * itemsize
+            displ = lower_count * itemsize
+            dispa = arrow_count * itemsize
+            if np.iscomplexobj(X_reduced_system_diagonal_blocks_local_host):
+                diag_count *= 2
+                lower_count *= 2
+                arrow_count *= 2
+                diag_count_last *= 2
+                lower_count_last *= 2
+                arrow_count_last *= 2
             for i in range(reduced_size - 1):
-                comm.broadcast(diag_ptr, X_reduced_system_diagonal_blocks_host.data.ptr + i * diag_count, diag_count, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
-                comm.broadcast(lower_ptr, X_reduced_system_lower_diagonal_blocks_host.data.ptr + i * lower_count, lower_count, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
-                comm.broadcast(arrow_ptr , X_reduced_system_arrow_bottom_blocks_host.data.ptr + i * arrow_count, arrow_count, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
+                comm.broadcast(diag_ptr, X_reduced_system_diagonal_blocks_host.data.ptr + i * dispd, diag_count, datatype, i, cp.cuda.Stream.null.ptr)
+                comm.broadcast(lower_ptr, X_reduced_system_lower_diagonal_blocks_host.data.ptr + i * displ, lower_count, datatype, i, cp.cuda.Stream.null.ptr)
+                comm.broadcast(arrow_ptr , X_reduced_system_arrow_bottom_blocks_host.data.ptr + i * dispa, arrow_count, datatype, i, cp.cuda.Stream.null.ptr)
             i = reduced_size - 1
-            comm.broadcast(diag_ptr, X_reduced_system_diagonal_blocks_host.data.ptr + i * diag_count, diag_count_last, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
-            comm.broadcast(lower_ptr, X_reduced_system_lower_diagonal_blocks_host.data.ptr + i * lower_count, lower_count_last, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
-            comm.broadcast(arrow_ptr , X_reduced_system_arrow_bottom_blocks_host.data.ptr + i * arrow_count, arrow_count_last, nccl.NCCL_DOUBLE, i, cp.cuda.Stream.null.ptr)
+            comm.broadcast(diag_ptr, X_reduced_system_diagonal_blocks_host.data.ptr + i * dispd, diag_count_last, datatype, i, cp.cuda.Stream.null.ptr)
+            comm.broadcast(lower_ptr, X_reduced_system_lower_diagonal_blocks_host.data.ptr + i * displ, lower_count_last, datatype, i, cp.cuda.Stream.null.ptr)
+            comm.broadcast(arrow_ptr , X_reduced_system_arrow_bottom_blocks_host.data.ptr + i * dispa, arrow_count_last, datatype, i, cp.cuda.Stream.null.ptr)
             comm.broadcast(X_reduced_system_arrow_tip_block_host.data.ptr, X_reduced_system_arrow_tip_block_host.data.ptr, X_reduced_system_arrow_tip_block_host.size, nccl.NCCL_DOUBLE, 0, cp.cuda.Stream.null.ptr)
             cp.cuda.Stream.null.synchronize()
         else:

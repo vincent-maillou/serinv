@@ -16,6 +16,16 @@ try:
 except ImportError:
     CUPY_AVAIL = False
 
+NCCL_AVAIL = False
+if CUPY_AVAIL:
+    try:
+        from cupy.cuda import nccl
+        nccl.get_version()  # Check if NCCL is available
+
+        NCCL_AVAIL = True
+    except (AttributeError, ImportError, ModuleNotFoundError):
+        pass
+
 from os import environ
 
 environ["OMP_NUM_THREADS"] = "1"
@@ -163,7 +173,20 @@ def test_d_pobtaf(
     ]
 
     # SerinV solver configuration
-    solver_config = SolverConfig(device_streaming=device_streaming)
+    # cuda_aware = CUPY_AVAIL and device_array and not device_streaming
+    cuda_aware = False
+    use_nccl = True
+    nested_solving = False
+    if device_array and NCCL_AVAIL and use_nccl:
+        from cupy.cuda import nccl
+        comm_id = nccl.get_unique_id()
+        comm_id = MPI.COMM_WORLD.bcast(comm_id, root=0)
+        comm = nccl.NcclCommunicator(comm_size, comm_id, comm_rank)
+        cp.cuda.runtime.deviceSynchronize()
+    else:
+        comm = MPI.COMM_WORLD
+        use_nccl = False
+    solver_config = SolverConfig(device_streaming=device_streaming, cuda_aware_mpi=cuda_aware, nccl=use_nccl, nested_solving=nested_solving)
 
     # Distributed factorization
     (
@@ -178,6 +201,7 @@ def test_d_pobtaf(
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
         solver_config,
+        comm,
     )
 
     # Create a reduced system out of the factorized blocks

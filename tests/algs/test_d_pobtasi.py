@@ -16,6 +16,16 @@ try:
 except ImportError:
     CUPY_AVAIL = False
 
+NCCL_AVAIL = False
+if CUPY_AVAIL:
+    try:
+        from cupy.cuda import nccl
+        nccl.get_version()  # Check if NCCL is available
+
+        NCCL_AVAIL = True
+    except (AttributeError, ImportError, ModuleNotFoundError):
+        pass
+
 from os import environ
 
 environ["OMP_NUM_THREADS"] = "1"
@@ -23,6 +33,33 @@ environ["OMP_NUM_THREADS"] = "1"
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
+
+# cuda_aware = CUPY_AVAIL and device_array and not device_streaming
+cuda_aware = False
+use_nccl = True
+nested_solving = False
+if NCCL_AVAIL:
+    from cupy.cuda import nccl
+    comm_id = nccl.get_unique_id()
+    comm_id = MPI.COMM_WORLD.bcast(comm_id, root=0)
+    nccl_comm = nccl.NcclCommunicator(comm_size, comm_id, comm_rank)
+    cp.cuda.runtime.deviceSynchronize()
+    if nested_solving:
+        reduced_size = comm_size // 2
+        reduced_rank = comm_rank
+        reduced_color = int(comm_rank < reduced_size)
+        reduced_key = comm_rank
+        reduced_comm_id = nccl.get_unique_id()
+        reduced_comm_id = MPI.COMM_WORLD.bcast(reduced_comm_id, root=0)
+        if reduced_color == 1:
+            nccl_reduced_comm = nccl.NcclCommunicator(reduced_size, reduced_comm_id, reduced_rank)
+        else:
+            nccl_reduced_comm = None
+        cp.cuda.runtime.deviceSynchronize()
+    else:
+        nccl_reduced_comm = None
+else:
+    use_nccl = False
 
 
 @pytest.mark.mpi(min_size=2)
@@ -32,6 +69,12 @@ comm_size = MPI.COMM_WORLD.Get_size()
 @pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 @pytest.mark.parametrize("device_streaming", [False, True])
+# @pytest.mark.parametrize("diagonal_blocksize", [2])
+# @pytest.mark.parametrize("arrowhead_blocksize", [2])
+# @pytest.mark.parametrize("n_diag_blocks", [comm_size * 3])
+# @pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
+# @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
+# @pytest.mark.parametrize("device_streaming", [False])
 def test_d_pobtasi(
     dd_bta,
     bta_dense_to_arrays,
@@ -163,7 +206,13 @@ def test_d_pobtasi(
     ]
 
     # SerinV solver configuration
-    solver_config = SolverConfig(device_streaming=device_streaming, nested_solving=True)
+    if device_array and use_nccl:
+        comm = nccl_comm
+        reduced_comm = nccl_reduced_comm
+    else:
+        comm = MPI.COMM_WORLD
+        reduced_comm = None
+    solver_config = SolverConfig(device_streaming=device_streaming, cuda_aware_mpi=cuda_aware, nccl=use_nccl, nested_solving=nested_solving)
 
     # Distributed factorization
     (
@@ -178,6 +227,7 @@ def test_d_pobtasi(
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
         solver_config,
+        comm,
     )
 
     # Distributed selected-inversion
@@ -195,6 +245,8 @@ def test_d_pobtasi(
         L_arrow_tip_block_global,
         L_upper_nested_dissection_buffer_local,
         solver_config,
+        comm,
+        reduced_comm,
     )
 
     # Inversion of the full system
@@ -210,6 +262,7 @@ def test_d_pobtasi(
         L_arrow_tip_block_global,
         L_upper_nested_dissection_buffer_local,
         solver_config,
+        comm,
     )
 
     assert xp.allclose(X_diagonal_blocks_local, X_ref_diagonal_blocks_local)
