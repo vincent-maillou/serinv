@@ -26,6 +26,10 @@ dependencies = [
     "pytest-mpi",
     "pytest-cov",
     "coverage",
+    "black",
+    "isort",
+    "ruff",
+    "pre-commit",
 ]
 [project.optional-dependencies]
 cupy = ["cupy==13.2.0"]

@@ -38,18 +38,26 @@ We have adopted a LAPACK-like naming convention for the routines. The naming con
 # How to install
 First, you'll need to instal the project in your current environment. You can do this by running the following commands:
 
-    # Recommended: Create a new conda environment with python version above 3.9
-    conda create --name serinv_env python=3.11
+```
+1. Create a conda environment from the environment.yml file
+    $ conda env create -f environment.yml
+    $ conda activate serinv
 
-    # Activate the created environment
-    conda activate serinv_env
+2. Install mpi4py : (Optional)
+    $ python -m pip cache remove mpi4py
+    $ python -m pip install --no-cache-dir mpi4py
 
-    # Move to the root of the repository
-    cd /path/to/serinv/
+    Please refere to https://mpi4py.readthedocs.io/en/stable/install.html for more details.
 
-    # Install the package in editable mode
-    pip install -e .
+3. Install CuPy : (Optional)
+    # conda install -c conda-forge cupy cuda-version=xx.x cupy-version=xx.x
 
-To use the distributed version of the algorithms, you'll need to install mpi4py and have a working MPI implementation. You can find all the relevant information on the [mpi4py documentation](https://mpi4py.readthedocs.io/en/stable/install.html).
+    Please refere to https://docs.cupy.dev/en/stable/install.html for more details.
 
-To use the GPU version of the algorithms, you'll need to install CuPy. You can find all the relevant information on the [CuPy documentation](https://docs.cupy.dev/en/stable/install.html).
+4. Install SerinV
+    $ cd path/to/serinv
+    $ pip install --no-dependencies -e .
+```
+
+## Conda dependencies
+`conda install conda-forge::numpy conda-forge::scipy conda-forge::matplotlib conda-forge::pydantic conda-forge::pytest-mpi conda-forge::pytest-cov conda-forge::coverage conda-forge::black conda-forge::isort conda-forge::ruff conda-forge::pre_commit`
