@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#SBATCH --job-name=serinv_distributed_nccl_000
+#SBATCH --job-name=serinv_distributed_nccl_nested_solving
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
 #SBATCH --cpus-per-task=16
-#SBATCH --gres=gpu:a100:8 -C a100_80
+#SBATCH --gres=gpu:a100:8 -C a100_40  # a100_80
 ####SBATCH --qos=a100multi
 ####SBATCH --gres=gpu:a100:8
 #SBATCH --time=00:06:00
@@ -16,10 +16,10 @@
 
 unset SLURM_EXPORT_ENV
 
-UCX_HOME=" /apps/SPACK/0.19.1/opt/linux-almalinux8-zen/gcc-8.5.0/ucx-1.13.1-woaymodwh7p66njpgt76d7fyqyv7srl3/"
-export PATH="${UCX_HOME}/bin:${PATH}"
-export LD_LIBRARY_PATH="${UCX_HOME}/lib:${LD_LIBRARY_PATH}"
-which ucx_info
+# UCX_HOME=" /apps/SPACK/0.19.1/opt/linux-almalinux8-zen/gcc-8.5.0/ucx-1.13.1-woaymodwh7p66njpgt76d7fyqyv7srl3/"
+# export PATH="${UCX_HOME}/bin:${PATH}"
+# export LD_LIBRARY_PATH="${UCX_HOME}/lib:${LD_LIBRARY_PATH}"
+# which ucx_info
 
 # set number of threads to requested cpus-per-task
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK

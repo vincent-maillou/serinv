@@ -936,13 +936,15 @@ def _device_d_pobtasi_rss(
             dispd = diag_count * itemsize
             displ = lower_count * itemsize
             dispa = arrow_count * itemsize
-            if np.iscomplexobj(X_reduced_system_diagonal_blocks_local_host):
+            sz = X_reduced_system_arrow_tip_block_host.size
+            if np.iscomplexobj(X_reduced_system_arrow_tip_block_host):
                 diag_count *= 2
                 lower_count *= 2
                 arrow_count *= 2
                 diag_count_last *= 2
                 lower_count_last *= 2
                 arrow_count_last *= 2
+                sz *= 2
             for i in range(reduced_size - 1):
                 comm.broadcast(diag_ptr, X_reduced_system_diagonal_blocks_host.data.ptr + i * dispd, diag_count, datatype, i, cp.cuda.Stream.null.ptr)
                 comm.broadcast(lower_ptr, X_reduced_system_lower_diagonal_blocks_host.data.ptr + i * displ, lower_count, datatype, i, cp.cuda.Stream.null.ptr)
@@ -951,7 +953,7 @@ def _device_d_pobtasi_rss(
             comm.broadcast(diag_ptr, X_reduced_system_diagonal_blocks_host.data.ptr + i * dispd, diag_count_last, datatype, i, cp.cuda.Stream.null.ptr)
             comm.broadcast(lower_ptr, X_reduced_system_lower_diagonal_blocks_host.data.ptr + i * displ, lower_count_last, datatype, i, cp.cuda.Stream.null.ptr)
             comm.broadcast(arrow_ptr , X_reduced_system_arrow_bottom_blocks_host.data.ptr + i * dispa, arrow_count_last, datatype, i, cp.cuda.Stream.null.ptr)
-            comm.broadcast(X_reduced_system_arrow_tip_block_host.data.ptr, X_reduced_system_arrow_tip_block_host.data.ptr, X_reduced_system_arrow_tip_block_host.size, nccl.NCCL_DOUBLE, 0, cp.cuda.Stream.null.ptr)
+            comm.broadcast(X_reduced_system_arrow_tip_block_host.data.ptr, X_reduced_system_arrow_tip_block_host.data.ptr, sz, datatype, 0, cp.cuda.Stream.null.ptr)
             cp.cuda.Stream.null.synchronize()
         else:
 
