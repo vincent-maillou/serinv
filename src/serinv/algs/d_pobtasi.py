@@ -28,7 +28,12 @@ def d_pobtasi(
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike = None,
     solver_config: SolverConfig = SolverConfig(),
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     """Perform a distributed selected-inversion of a block tridiagonal with
     arrowhead matrix.
 
@@ -72,7 +77,7 @@ def d_pobtasi(
 
                 Total FLOPS: (n/p-1) * (19*b^3 + 14*a*b^2)
 
-            T_{flops_{d\_pobtasi}} = (n/p-1) * (19*b^3 + 14*a*b^2) + T_{flops_{POBTAF}} + T_{flops_{POBTASI}}
+            T_{flops_{d_pobtasi}} = (n/p-1) * (19*b^3 + 14*a*b^2) + T_{flops_{POBTAF}} + T_{flops_{POBTASI}}
 
         Complexity:
             By making the assumption that b >> a, the complexity of the d_pobtasi
@@ -147,7 +152,13 @@ def d_pobtasi_rss(
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike = None,
     solver_config: SolverConfig = SolverConfig(),
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     """Perform the selected-inversion of the reduced system constructed from the
     distributed factorization of the block tridiagonal with arrowhead matrix.
 
@@ -225,7 +236,13 @@ def _host_d_pobtasi_rss(
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     A_reduced_system_diagonal_blocks = np.zeros(
         (2 * comm_size, *L_diagonal_blocks_local.shape[1:]),
         dtype=L_diagonal_blocks_local.dtype,
@@ -263,9 +280,9 @@ def _host_d_pobtasi_rss(
         ]
 
         # R_{2p_i, 2p_i-1} = A^{p_i}_{-1, -1}
-        A_reduced_system_diagonal_blocks[
-            2 * comm_rank + 1, :, :
-        ] = L_diagonal_blocks_local[-1, :, :]
+        A_reduced_system_diagonal_blocks[2 * comm_rank + 1, :, :] = (
+            L_diagonal_blocks_local[-1, :, :]
+        )
 
         # R_{2p_i-1, 2p_i-2} = B^{p_i}_{-1}^\dagger
         A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
@@ -274,19 +291,19 @@ def _host_d_pobtasi_rss(
 
         if comm_rank < comm_size - 1:
             # R_{2p_i, 2p_i-1} = A^{p_i}_{1, 0}
-            A_reduced_system_lower_diagonal_blocks[
-                2 * comm_rank + 1, :, :
-            ] = L_lower_diagonal_blocks_local[-1, :, :]
+            A_reduced_system_lower_diagonal_blocks[2 * comm_rank + 1, :, :] = (
+                L_lower_diagonal_blocks_local[-1, :, :]
+            )
 
         # R_{n, 2p_i-1} = A^{p_i}_{n, 0}
-        A_reduced_system_arrow_bottom_blocks[
-            2 * comm_rank, :, :
-        ] = L_arrow_bottom_blocks_local[0, :, :]
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
+            L_arrow_bottom_blocks_local[0, :, :]
+        )
 
         # R_{n, 2p_i} = A^{p_i}_{n, -1}
-        A_reduced_system_arrow_bottom_blocks[
-            2 * comm_rank + 1, :, :
-        ] = L_arrow_bottom_blocks_local[-1, :, :]
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank + 1, :, :] = (
+            L_arrow_bottom_blocks_local[-1, :, :]
+        )
 
     # Communicate the reduced system
     MPI.COMM_WORLD.Allgather(
@@ -333,9 +350,9 @@ def _host_d_pobtasi_rss(
     # reduced system.
     if comm_rank == 0:
         L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
-        L_lower_diagonal_blocks_local[
-            -1, :, :
-        ] = X_reduced_system_lower_diagonal_blocks[0, :, :]
+        L_lower_diagonal_blocks_local[-1, :, :] = (
+            X_reduced_system_lower_diagonal_blocks[0, :, :]
+        )
         L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
             0, :, :
         ]
@@ -351,9 +368,9 @@ def _host_d_pobtasi_rss(
             X_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
-            L_lower_diagonal_blocks_local[
-                -1, :, :
-            ] = X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
+            L_lower_diagonal_blocks_local[-1, :, :] = (
+                X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
+            )
 
         L_arrow_bottom_blocks_local[0, :, :] = X_reduced_system_arrow_bottom_blocks[
             2 * comm_rank - 1, :, :
@@ -378,7 +395,13 @@ def _device_d_pobtasi_rss(
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike,
     solver_config: SolverConfig,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     A_reduced_system_diagonal_blocks = cp.zeros(
         (2 * comm_size, *L_diagonal_blocks_local.shape[1:]),
         dtype=L_diagonal_blocks_local.dtype,
@@ -416,9 +439,9 @@ def _device_d_pobtasi_rss(
         ]
 
         # R_{2p_i, 2p_i-1} = A^{p_i}_{-1, -1}
-        A_reduced_system_diagonal_blocks[
-            2 * comm_rank + 1, :, :
-        ] = L_diagonal_blocks_local[-1, :, :]
+        A_reduced_system_diagonal_blocks[2 * comm_rank + 1, :, :] = (
+            L_diagonal_blocks_local[-1, :, :]
+        )
 
         # R_{2p_i-1, 2p_i-2} = B^{p_i}_{-1}^\dagger
         A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
@@ -427,19 +450,19 @@ def _device_d_pobtasi_rss(
 
         if comm_rank < comm_size - 1:
             # R_{2p_i, 2p_i-1} = A^{p_i}_{1, 0}
-            A_reduced_system_lower_diagonal_blocks[
-                2 * comm_rank + 1, :, :
-            ] = L_lower_diagonal_blocks_local[-1, :, :]
+            A_reduced_system_lower_diagonal_blocks[2 * comm_rank + 1, :, :] = (
+                L_lower_diagonal_blocks_local[-1, :, :]
+            )
 
         # R_{n, 2p_i-1} = A^{p_i}_{n, 0}
-        A_reduced_system_arrow_bottom_blocks[
-            2 * comm_rank, :, :
-        ] = L_arrow_bottom_blocks_local[0, :, :]
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
+            L_arrow_bottom_blocks_local[0, :, :]
+        )
 
         # R_{n, 2p_i} = A^{p_i}_{n, -1}
-        A_reduced_system_arrow_bottom_blocks[
-            2 * comm_rank + 1, :, :
-        ] = L_arrow_bottom_blocks_local[-1, :, :]
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank + 1, :, :] = (
+            L_arrow_bottom_blocks_local[-1, :, :]
+        )
 
     # Allocate reduced system on host using pinned memory
     A_reduced_system_diagonal_blocks_host = cpx.empty_like_pinned(
@@ -513,9 +536,9 @@ def _device_d_pobtasi_rss(
     # reduced system.
     if comm_rank == 0:
         L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
-        L_lower_diagonal_blocks_local[
-            -1, :, :
-        ] = X_reduced_system_lower_diagonal_blocks[0, :, :]
+        L_lower_diagonal_blocks_local[-1, :, :] = (
+            X_reduced_system_lower_diagonal_blocks[0, :, :]
+        )
         L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
             0, :, :
         ]
@@ -531,9 +554,9 @@ def _device_d_pobtasi_rss(
             X_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
-            L_lower_diagonal_blocks_local[
-                -1, :, :
-            ] = X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
+            L_lower_diagonal_blocks_local[-1, :, :] = (
+                X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
+            )
 
         L_arrow_bottom_blocks_local[0, :, :] = X_reduced_system_arrow_bottom_blocks[
             2 * comm_rank - 1, :, :
@@ -558,7 +581,13 @@ def _streaming_d_pobtasi_rss(
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike,
     solver_config: SolverConfig,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     A_reduced_system_diagonal_blocks = cpx.zeros_pinned(
         (2 * comm_size, *L_diagonal_blocks_local.shape[1:]),
         dtype=L_diagonal_blocks_local.dtype,
@@ -596,9 +625,9 @@ def _streaming_d_pobtasi_rss(
         ]
 
         # R_{2p_i, 2p_i-1} = A^{p_i}_{-1, -1}
-        A_reduced_system_diagonal_blocks[
-            2 * comm_rank + 1, :, :
-        ] = L_diagonal_blocks_local[-1, :, :]
+        A_reduced_system_diagonal_blocks[2 * comm_rank + 1, :, :] = (
+            L_diagonal_blocks_local[-1, :, :]
+        )
 
         # R_{2p_i-1, 2p_i-2} = B^{p_i}_{-1}^\dagger
         A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
@@ -607,19 +636,19 @@ def _streaming_d_pobtasi_rss(
 
         if comm_rank < comm_size - 1:
             # R_{2p_i, 2p_i-1} = A^{p_i}_{1, 0}
-            A_reduced_system_lower_diagonal_blocks[
-                2 * comm_rank + 1, :, :
-            ] = L_lower_diagonal_blocks_local[-1, :, :]
+            A_reduced_system_lower_diagonal_blocks[2 * comm_rank + 1, :, :] = (
+                L_lower_diagonal_blocks_local[-1, :, :]
+            )
 
         # R_{n, 2p_i-1} = A^{p_i}_{n, 0}
-        A_reduced_system_arrow_bottom_blocks[
-            2 * comm_rank, :, :
-        ] = L_arrow_bottom_blocks_local[0, :, :]
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
+            L_arrow_bottom_blocks_local[0, :, :]
+        )
 
         # R_{n, 2p_i} = A^{p_i}_{n, -1}
-        A_reduced_system_arrow_bottom_blocks[
-            2 * comm_rank + 1, :, :
-        ] = L_arrow_bottom_blocks_local[-1, :, :]
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank + 1, :, :] = (
+            L_arrow_bottom_blocks_local[-1, :, :]
+        )
 
     # Communicate the reduced system
     MPI.COMM_WORLD.Allgather(
@@ -668,9 +697,9 @@ def _streaming_d_pobtasi_rss(
     # reduced system.
     if comm_rank == 0:
         L_diagonal_blocks_local[-1, :, :] = X_reduced_system_diagonal_blocks[0, :, :]
-        L_lower_diagonal_blocks_local[
-            -1, :, :
-        ] = X_reduced_system_lower_diagonal_blocks[0, :, :]
+        L_lower_diagonal_blocks_local[-1, :, :] = (
+            X_reduced_system_lower_diagonal_blocks[0, :, :]
+        )
         L_arrow_bottom_blocks_local[-1, :, :] = X_reduced_system_arrow_bottom_blocks[
             0, :, :
         ]
@@ -686,9 +715,9 @@ def _streaming_d_pobtasi_rss(
             X_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :].conj().T
         )
         if comm_rank < comm_size - 1:
-            L_lower_diagonal_blocks_local[
-                -1, :, :
-            ] = X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
+            L_lower_diagonal_blocks_local[-1, :, :] = (
+                X_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :]
+            )
 
         L_arrow_bottom_blocks_local[0, :, :] = X_reduced_system_arrow_bottom_blocks[
             2 * comm_rank - 1, :, :
@@ -712,7 +741,12 @@ def _host_d_pobtasi(
     L_arrow_bottom_blocks_local: ArrayLike,
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     diag_blocksize = L_diagonal_blocks_local.shape[1]
     n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
 
@@ -838,7 +872,12 @@ def _device_d_pobtasi(
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike,
     solver_config: SolverConfig,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     diag_blocksize = L_diagonal_blocks_local.shape[1]
     n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
 
@@ -964,7 +1003,12 @@ def _streaming_d_pobtasi(
     L_arrow_tip_block_global: ArrayLike,
     B_permutation_upper: ArrayLike,
     solver_config: SolverConfig,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     diag_blocksize = L_diagonal_blocks_local.shape[1]
     n_diag_blocks_local = L_diagonal_blocks_local.shape[0]
 
@@ -1215,9 +1259,9 @@ def _streaming_d_pobtasi(
                 compute_stream.wait_event(
                     h2d_upper_nested_dissection_buffer_events[i % 2]
                 )
-                L_upper_nested_dissection_buffer_d_i[
-                    :, :
-                ] = L_upper_nested_dissection_buffer_d[i % 2, :, :]
+                L_upper_nested_dissection_buffer_d_i[:, :] = (
+                    L_upper_nested_dissection_buffer_d[i % 2, :, :]
+                )
 
                 # X_{i+1, i} = (- X_{top, i+1}.T L_{top, i} - X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}.T L_{ndb+1, i}) L_{i, i}^{-1}
                 X_lower_diagonal_blocks_d[i % 2, :, :] = (
