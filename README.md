@@ -44,13 +44,12 @@ First, you'll need to instal the project in your current environment. You can do
     $ conda activate serinv
 
 2. Install mpi4py : (Optional)
-    $ python -m pip cache remove mpi4py
-    $ python -m pip install --no-cache-dir mpi4py
+    $ conda install -c conda-forge mpi4py mpich
 
     Please refere to https://mpi4py.readthedocs.io/en/stable/install.html for more details.
 
 3. Install CuPy : (Optional)
-    # conda install -c conda-forge cupy cuda-version=xx.x cupy-version=xx.x
+    # conda install -c conda-forge cupy cuda-version=xx.x
 
     Please refere to https://docs.cupy.dev/en/stable/install.html for more details.
 
@@ -59,5 +58,12 @@ First, you'll need to instal the project in your current environment. You can do
     $ pip install --no-dependencies -e .
 ```
 
-## Conda dependencies
-`conda install conda-forge::numpy conda-forge::scipy conda-forge::matplotlib conda-forge::pydantic conda-forge::pytest-mpi conda-forge::pytest-cov conda-forge::coverage conda-forge::black conda-forge::isort conda-forge::ruff conda-forge::pre_commit`
+## Alternative procedure
+```
+  $ conda create -n serinv python=3.11
+  $ conda activate serinv
+  $ conda install conda-forge::numpy conda-forge::scipy conda-forge::matplotlib conda-forge::pydantic conda-forge::pytest conda-forge::pytest-mpi conda-forge::pytest-cov conda-forge::coverage conda-forge::black conda-forge::isort conda-forge::ruff conda-forge::pre_commit conda-forge::pytest-xdist
+  $ conda install anaconda::sqlite
+  $ conda install -c conda-forge mpi4py mpich
+  $ conda install -c conda-forge cupy cuda-version=xx.x
+```
