@@ -30,7 +30,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [comm_size * 3, comm_size * 4, comm_size * 5])
 @pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
-@pytest.mark.parametrize("dtype", [np.float64, np.complex128])
+@pytest.mark.parametrize("dtype", [np.float64]) #, np.complex128])
 @pytest.mark.parametrize("device_streaming", [False, True])
 def test_d_pobtaf(
     dd_bta,

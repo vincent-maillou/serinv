@@ -1,5 +1,6 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 from serinv import SolverConfig
+from serinv.algs import pobtaf
 
 try:
     import cupy as cp
@@ -965,3 +966,154 @@ def _streaming_d_pobtaf(
         L_arrow_tip_block_global,
         B_permutation_upper,
     )
+
+
+def d_full_pobtaf(
+    L_diagonal_blocks_local: ArrayLike,
+    L_lower_diagonal_blocks_local: ArrayLike,
+    L_arrow_bottom_blocks_local: ArrayLike,
+    L_arrow_tip_block_global: ArrayLike,
+    L_upper_nested_dissection_buffer_local: ArrayLike,
+):
+    # Create a reduced system out of the factorized blocks
+    A_reduced_system_diagonal_blocks = np.zeros(
+        (2 * comm_size - 1, *L_diagonal_blocks_local.shape[1:]),
+        dtype=L_diagonal_blocks_local.dtype,
+    )
+    A_reduced_system_lower_diagonal_blocks = np.zeros(
+        (2 * comm_size - 2, *L_lower_diagonal_blocks_local.shape[1:]),
+        dtype=L_diagonal_blocks_local.dtype,
+    )
+    A_reduced_system_arrow_bottom_blocks = np.zeros(
+        (2 * comm_size - 1, *L_arrow_bottom_blocks_local.shape[1:]),
+        dtype=L_diagonal_blocks_local.dtype,
+    )
+    A_reduced_system_arrow_tip_block = np.zeros_like(L_arrow_tip_block_global)
+
+    if comm_rank == 0:
+        # Top process storing reduced blocks in reduced system
+        A_reduced_system_diagonal_blocks[0, :, :] = L_diagonal_blocks_local[-1, :, :]
+        A_reduced_system_lower_diagonal_blocks[0, :, :] = L_lower_diagonal_blocks_local[
+            -1, :, :
+        ]
+        A_reduced_system_arrow_bottom_blocks[0, :, :] = L_arrow_bottom_blocks_local[
+            -1, :, :
+        ]
+    else:
+        # Middle processes storing reduced blocks in reduced system
+        A_reduced_system_diagonal_blocks[
+            2 * comm_rank - 1, :, :
+        ] = L_diagonal_blocks_local[0, :, :]
+        A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = L_diagonal_blocks_local[
+            -1, :, :
+        ]
+
+        A_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+            L_upper_nested_dissection_buffer_local[-1, :, :].conj().T
+        )
+        if comm_rank < comm_size - 1:
+            A_reduced_system_lower_diagonal_blocks[
+                2 * comm_rank, :, :
+            ] = L_lower_diagonal_blocks_local[-1, :, :]
+
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank - 1, :, :
+        ] = L_arrow_bottom_blocks_local[0, :, :]
+        A_reduced_system_arrow_bottom_blocks[
+            2 * comm_rank, :, :
+        ] = L_arrow_bottom_blocks_local[-1, :, :]
+
+    A_reduced_system_arrow_tip_block[:, :] = L_arrow_tip_block_global[:, :]
+
+    MPI.COMM_WORLD.Barrier()
+
+    MPI.COMM_WORLD.Allreduce(
+        MPI.IN_PLACE,
+        A_reduced_system_diagonal_blocks,
+        op=MPI.SUM,
+    )
+    MPI.COMM_WORLD.Allreduce(
+        MPI.IN_PLACE,
+        A_reduced_system_lower_diagonal_blocks,
+        op=MPI.SUM,
+    )
+    MPI.COMM_WORLD.Allreduce(
+        MPI.IN_PLACE,
+        A_reduced_system_arrow_bottom_blocks,
+        op=MPI.SUM,
+    )
+
+    (
+        L_rs_diagonal_blocks,
+        L_rs_lower_diagonal_blocks,
+        L_rs_arrow_bottom_blocks,
+        L_rs_arrow_tip_block,
+    ) = pobtaf(
+        A_reduced_system_diagonal_blocks,
+        A_reduced_system_lower_diagonal_blocks,
+        A_reduced_system_arrow_bottom_blocks,
+        A_reduced_system_arrow_tip_block,
+    )
+
+    return (
+        L_rs_diagonal_blocks,
+        L_rs_lower_diagonal_blocks,
+        L_rs_arrow_bottom_blocks,
+        L_rs_arrow_tip_block,
+    )
+
+
+def d_logdet_pobtaf(
+    L_diagonal_blocks_local: ArrayLike,
+    L_rs_diagonal_blocks: ArrayLike,
+    L_rs_arrow_tip_block: ArrayLike,
+):
+    """
+    returns logdet of input matrix A. If CUPY_AVAIL then logdet is on GPU.
+
+    """
+
+    if CUPY_AVAIL:
+        xp = cp
+    else:
+        xp = np
+
+    logdet_local = xp.array(0.0, dtype=xp.float64)
+
+    n_diag_blocks_per_process = L_diagonal_blocks_local.shape[0]
+    diagonal_blocksize = L_diagonal_blocks_local.shape[1]
+    arrowhead_blocksize = L_rs_arrow_tip_block.shape[0]
+
+    counter = 0
+    # compute local log dets
+    if comm_rank == 0:
+        for i in range(n_diag_blocks_per_process - 1):
+            for j in range(diagonal_blocksize):
+                logdet_local += 2 * xp.log(L_diagonal_blocks_local[i, j, j])
+                counter += 1
+    else:
+        for i in range(1, n_diag_blocks_per_process - 1):
+            for j in range(diagonal_blocksize):
+                logdet_local += 2 * xp.log(L_diagonal_blocks_local[i, j, j])
+                counter += 1
+
+    if comm_rank == 0:
+        for i in range(2 * comm_size - 1):
+            for j in range(diagonal_blocksize):
+                logdet_local += 2 * xp.log(L_rs_diagonal_blocks[i, j, j])
+                counter += 1
+
+        # Tip of the arrow
+        for j in range(arrowhead_blocksize):
+            logdet_local += 2 * xp.log(L_rs_arrow_tip_block[j, j])
+            counter += 1
+
+    MPI.COMM_WORLD.Barrier()
+    # MPI sum together log determinant
+    logdet = MPI.COMM_WORLD.allreduce(logdet_local, op=MPI.SUM)
+
+    total_counter = MPI.COMM_WORLD.allreduce(counter, op=MPI.SUM)
+    if comm_rank == 0:
+        print("counter: ", total_counter)
+
+    return logdet

@@ -432,3 +432,39 @@ def _streaming_pobtaf(
         L_arrow_bottom_blocks,
         L_arrow_tip_block,
     )
+
+
+def logdet_pobtaf(
+    L_diagonal_blocks: ArrayLike,
+    L_arrow_tip_block: ArrayLike,
+):
+    """
+    Returns log-determinant of A = L * L^T given the diagonal blocks of L.
+    """
+
+    n_diag_blocks = L_diagonal_blocks.shape[0]
+    diagonal_blocksize = L_diagonal_blocks.shape[1]
+    arrowhead_blocksize = L_arrow_tip_block.shape[0]
+
+    logdet = 0.0
+
+    # initialize on GPU if CUDA available
+    if CUPY_AVAIL:
+        xp = cp
+        logdet = cp.array(logdet)
+    else:
+        xp = np
+
+    # Diagonal blocks
+    for i in range(n_diag_blocks):
+        for j in range(diagonal_blocksize):
+            logdet += 2 * xp.log(L_diagonal_blocks[i, j, j])
+    # Tip of the arrow
+    for j in range(arrowhead_blocksize):
+        logdet += 2 * xp.log(L_arrow_tip_block[j, j])
+
+    # copy to host if CUDA available
+    if CUPY_AVAIL:
+        logdet = logdet.get()
+
+    return logdet
