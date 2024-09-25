@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import os
 
-l_b = [256, 512, 1024, 2048]
+l_b = [256, 512, 1024, 2048, 4096]
 l_a = [l_b[i] // 4 for i in range(len(l_b))]
 n = 16
 
@@ -16,9 +17,10 @@ l_peak_pct_pobtaf_trsm = np.zeros_like(l_b)
 l_peak_pct_pobtaf_gemm = np.zeros_like(l_b)
 l_sutained_peak_pct_achieved_pobtaf = np.zeros_like(l_b)
 
-PATH = "/home/vincent-maillou/Documents/Repository/serinv/bench/sequential_perf_matrix/"
+home = os.environ["HOME"]
+PATH = os.path.join(home, "serinv", "bench")
 
-PEAK_FLOPS = 19.5
+PEAK_FLOPS = 67.0
 
 for i in range(len(l_b)):
     diagonal_blocksize = l_b[i]
@@ -28,7 +30,8 @@ for i in range(len(l_b)):
     n_ops_conjugate_diag = (1 / 2) * pow(diagonal_blocksize, 2)
     n_ops_conjugate_arrow = (1 / 2) * diagonal_blocksize * arrowhead_blocksize
 
-    FILE = f"{PATH}dict_timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy"
+    FILE = os.path.join(PATH, f"dict_timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy")
+    # FILE = f"{PATH}dict_timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy"
 
     dict_timings_pobtaf = np.load(
         FILE,
@@ -39,7 +42,8 @@ for i in range(len(l_b)):
     trsm_avg = np.mean(dict_timings_pobtaf["trsm"] / 1000)
     gemm_avg = np.mean(dict_timings_pobtaf["gemm"] / 1000)
 
-    FILE = f"{PATH}timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy"
+    FILE = os.path.join(PATH, f"timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy")
+    # FILE = f"{PATH}timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy"
 
     timings_pobtaf = np.load(
         FILE,
@@ -115,13 +119,13 @@ for i in range(len(l_b)):
         " sutained_peak_pct_achieved_pobtaf: ", l_sutained_peak_pct_achieved_pobtaf[i]
     )
 
-matrix_peak_pct = np.zeros((len(l_b), 4))
+matrix_peak_pct = np.zeros((4, len(l_b)))
 matrix_peak_pct[0, :] = l_peak_pct_pobtaf_potrf
 matrix_peak_pct[1, :] = l_peak_pct_pobtaf_trsm
 matrix_peak_pct[2, :] = l_peak_pct_pobtaf_gemm
 matrix_peak_pct[3, :] = l_sutained_peak_pct_achieved_pobtaf
 
-matrix_flops = np.zeros((len(l_b), 4))
+matrix_flops = np.zeros((4, len(l_b)))
 matrix_flops[0, :] = l_flops_pobtaf_potrf
 matrix_flops[1, :] = l_flops_pobtaf_trsm
 matrix_flops[2, :] = l_flops_pobtaf_gemm
@@ -135,7 +139,7 @@ cax = ax.imshow(
 
 # Add color bar
 cbar = fig.colorbar(cax, ax=ax)
-cbar.set_label("Percentage of Peak Performance\n (19.5 TFLOPS Tensor Core FP64)")
+cbar.set_label("Percentage of Peak Performance\n (67.0 TFLOPS Tensor Core FP64)")
 
 # Set axis labels
 ax.set_xticks(np.arange(len(l_b)))
@@ -163,7 +167,7 @@ fig.tight_layout()
 # Save the figure
 plt.savefig("sequential_perf_matrix_pobtaf.png")
 
-plt.show()
+# plt.show()
 
 
 # --- POBTASI ---
@@ -175,7 +179,8 @@ for i in range(len(l_b)):
     n_ops_conjugate_diag = (1 / 2) * pow(diagonal_blocksize, 2)
     n_ops_conjugate_arrow = (1 / 2) * diagonal_blocksize * arrowhead_blocksize
 
-    FILE = f"{PATH}dict_timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy"
+    FILE = os.path.join(PATH, f"dict_timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy")
+    # FILE = f"{PATH}dict_timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy"
 
     dict_timings_pobtaf = np.load(
         FILE,
@@ -185,7 +190,8 @@ for i in range(len(l_b)):
     trsm_avg = np.mean(dict_timings_pobtaf["trsm"] / 1000)
     gemm_avg = np.mean(dict_timings_pobtaf["gemm"] / 1000)
 
-    FILE = f"{PATH}timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy"
+    FILE = os.path.join(PATH, f"timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy")
+    # FILE = f"{PATH}timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy"
 
     timings_pobtaf = np.load(
         FILE,
@@ -239,12 +245,12 @@ for i in range(len(l_b)):
         " sutained_peak_pct_achieved_pobtaf: ", l_sutained_peak_pct_achieved_pobtaf[i]
     )
 
-matrix_peak_pct = np.zeros((len(l_b), 3))
+matrix_peak_pct = np.zeros((3, len(l_b)))
 matrix_peak_pct[0, :] = l_peak_pct_pobtaf_trsm
 matrix_peak_pct[1, :] = l_peak_pct_pobtaf_gemm
 matrix_peak_pct[2, :] = l_sutained_peak_pct_achieved_pobtaf
 
-matrix_flops = np.zeros((len(l_b), 3))
+matrix_flops = np.zeros((3, len(l_b)))
 matrix_flops[0, :] = l_flops_pobtaf_trsm
 matrix_flops[1, :] = l_flops_pobtaf_gemm
 matrix_flops[2, :] = l_sutained_flops_achieved_pobtaf
@@ -257,11 +263,11 @@ cax = ax.imshow(
 
 # Add color bar
 cbar = fig.colorbar(cax, ax=ax)
-cbar.set_label("Percentage of Peak Performance\n (19.5 TFLOPS Tensor Core FP64)")
+cbar.set_label("Percentage of Peak Performance\n (67.0 TFLOPS Tensor Core FP64)")
 
 # Set axis labels
 ax.set_xticks(np.arange(len(l_b)))
-ax.set_yticks(np.arange(4))
+ax.set_yticks(np.arange(3))
 ax.set_xticklabels(l_b)
 ax.set_yticklabels(["TRSM", "GEMM", "Average"])
 
@@ -285,4 +291,4 @@ fig.tight_layout()
 # Save the figure
 plt.savefig("sequential_perf_matrix_pobtasi.png")
 
-plt.show()
+# plt.show()

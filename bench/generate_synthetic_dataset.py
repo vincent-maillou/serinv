@@ -9,8 +9,11 @@ np.random.seed(SEED)
 
 from serinv.utils.check_dd import check_ddbta
 from complexity_analysis import (
+    compute_ideal_load_balancing,
     compute_flops_pobtaf,
     compute_flops_d_pobtaf,
+    compute_flops_pobtasi,
+    compute_flops_d_pobtasi,
     get_partition_size,
 )
 import argparse
@@ -94,9 +97,12 @@ def generate_distributed_synthetic_dataset_for_d_pobta(
     arrow_colsum = np.zeros((arrowhead_blocksize), dtype=dtype)
     last_process_colsum = np.zeros((diagonal_blocksize), dtype=dtype)
 
-    load_balancing_ratio = compute_flops_d_pobtaf(
-        n=n_blocks, b=diagonal_blocksize, a=arrowhead_blocksize, p=1
-    ) / compute_flops_pobtaf(n=n_blocks, b=diagonal_blocksize, a=arrowhead_blocksize)
+    # load_balancing_ratio = compute_flops_d_pobtaf(
+    #     n=n_blocks, b=diagonal_blocksize, a=arrowhead_blocksize, p=1
+    # ) / compute_flops_pobtaf(n=n_blocks, b=diagonal_blocksize, a=arrowhead_blocksize)
+    load_balancing_ratio = compute_ideal_load_balancing(
+        n=n_blocks, b=diagonal_blocksize, a=arrowhead_blocksize
+    )
 
     partition_sizes = get_partition_size(
         n=n_blocks, p=n_processes, balancing_ratio=load_balancing_ratio
@@ -220,6 +226,10 @@ if __name__ == "__main__":
     n_processes = args.n_processes
 
     PATH = os.path.join(args.path, "synthetic")
+    if args.n_processes == 1:
+        generate_synthetic_dataset_for_pobta(
+            PATH, n_blocks, diagonal_blocksize, arrowhead_blocksize
+        )
     generate_distributed_synthetic_dataset_for_d_pobta(
         PATH, n_blocks, diagonal_blocksize, arrowhead_blocksize, n_processes
     )

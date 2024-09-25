@@ -9,7 +9,9 @@ except:
 
 print("CUPY_AVAIL: ", CUPY_AVAIL)
 
-from serinv.algs import pobtaf, pobtasi
+# from serinv.algs import pobtaf, pobtasi
+from serinv.algs.pobtaf_with_timers import pobtaf_with_timers
+from serinv.algs.pobtasi_with_timers import pobtasi_with_timers
 import numpy as np
 
 import scipy.stats
@@ -78,8 +80,8 @@ if __name__ == "__main__":
 
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
 
-    device_streaming = False
-    device_array = True
+    device_streaming = True
+    device_array = False
 
     # if True: compare to reference solution
     DEBUG = False
@@ -106,15 +108,15 @@ if __name__ == "__main__":
     print(f"    A_arrow_bottom_blocks.shape", A_arrow_bottom_blocks.shape, flush=True)
     print(f"    A_arrow_tip_block.shape", A_arrow_tip_block.shape, flush=True)
 
-    # tic = time.perf_counter()
-    # # Allocate pinned memory buffers
-    # A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks)
-    # A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)
-    # A_arrow_bottom_blocks_pinned = cpx.zeros_like_pinned(A_arrow_bottom_blocks)
-    # A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block)
-    # toc = time.perf_counter()
+    tic = time.perf_counter()
+    # Allocate pinned memory buffers
+    A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks)
+    A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)
+    A_arrow_bottom_blocks_pinned = cpx.zeros_like_pinned(A_arrow_bottom_blocks)
+    A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block)
+    toc = time.perf_counter()
 
-    # print(f"Allocating pinned memory took: {toc - tic:.5f} sec", flush=True)
+    print(f"Allocating pinned memory took: {toc - tic:.5f} sec", flush=True)
     print(f"Initialization done..", flush=True)
 
     t_pobtaf = np.zeros(n_iterations)
@@ -138,18 +140,18 @@ if __name__ == "__main__":
         print(f"Iteration: {i+1}/{n_warmups+n_iterations}", flush=True)
 
         tic = time.perf_counter()
-        # A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :].copy()
-        # A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks[:, :, :].copy()
-        # A_arrow_bottom_blocks_pinned[:, :, :] = A_arrow_bottom_blocks[:, :, :].copy()
-        # A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block[:, :].copy()
-        A_diagonal_blocks_dev = cp.asarray(A_diagonal_blocks)
-        A_lower_diagonal_blocks_dev = cp.asarray(A_lower_diagonal_blocks)
-        A_arrow_bottom_blocks_dev = cp.asarray(A_arrow_bottom_blocks)
-        A_arrow_tip_block_dev = cp.asarray(A_arrow_tip_block)
+        A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :].copy()
+        A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks[:, :, :].copy()
+        A_arrow_bottom_blocks_pinned[:, :, :] = A_arrow_bottom_blocks[:, :, :].copy()
+        A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block[:, :].copy()
+        # A_diagonal_blocks_dev = cp.asarray(A_diagonal_blocks)
+        # A_lower_diagonal_blocks_dev = cp.asarray(A_lower_diagonal_blocks)
+        # A_arrow_bottom_blocks_dev = cp.asarray(A_arrow_bottom_blocks)
+        # A_arrow_tip_block_dev = cp.asarray(A_arrow_tip_block)
         toc = time.perf_counter()
 
-        # print(f"  Copying data to pinned memory took: {toc - tic:.5f} sec", flush=True)
-        print(f"  Copying data to device memory took: {toc - tic:.5f} sec", flush=True)
+        print(f"  Copying data to pinned memory took: {toc - tic:.5f} sec", flush=True)
+        # print(f"  Copying data to device memory took: {toc - tic:.5f} sec", flush=True)
 
         cp.cuda.Stream.null.synchronize()
         start_time = time.perf_counter()
@@ -158,12 +160,12 @@ if __name__ == "__main__":
             L_lower_diagonal_blocks,
             L_arrow_bottom_blocks,
             L_arrow_tip_block,
-            # dict_timings,
-        ) = pobtaf(
-            A_diagonal_blocks_dev,
-            A_lower_diagonal_blocks_dev,
-            A_arrow_bottom_blocks_dev,
-            A_arrow_tip_block_dev,
+            dict_timings,
+        ) = pobtaf_with_timers(
+            A_diagonal_blocks_pinned,
+            A_lower_diagonal_blocks_pinned,
+            A_arrow_bottom_blocks_pinned,
+            A_arrow_tip_block_pinned,
             device_streaming,
             # timing_sections,
         )
@@ -184,8 +186,8 @@ if __name__ == "__main__":
             X_lower_diagonal_blocks,
             X_arrow_bottom_blocks,
             X_arrow_tip_block,
-            # dict_timings,
-        ) = pobtasi(
+            dict_timings,
+        ) = pobtasi_with_timers(
             L_diagonal_blocks,
             L_lower_diagonal_blocks,
             L_arrow_bottom_blocks,

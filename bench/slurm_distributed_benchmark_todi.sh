@@ -1,8 +1,9 @@
 #!/bin/bash -l
-#SBATCH --job-name=serinv_distributed_gpu_test
-#SBATCH --partition=debug
+#SBATCH --job-name=serinv_distributed_gpu_test_nested_solving_08x04
+#SBATCH --output=serinv_distributed_gpu_test_nested_solving_08x04.out
+#SBATCH --partition=normal
 #SBATCH --time=00:10:00
-#SBATCH --nodes=4
+#SBATCH --nodes=8
 #SBATCH --ntasks-per-core=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=64
@@ -31,7 +32,7 @@ export PYTHONUNBUFFERED=1
 # # for Slurm version >22.05: cpus-per-task has to be set again for srun
 # export SRUN_CPUS_PER_TASK=$SLURM_CPUS_PER_TASK
 
-N_ITERATIONS=5
+N_ITERATIONS=20
 N_WARMUPS=2
 
 

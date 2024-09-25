@@ -168,6 +168,7 @@ if __name__ == "__main__":
     print(f"Initialization done.. (process {comm_rank})", flush=True)
 
     t_d_pobtaf = np.zeros(n_iterations)
+    t_d_pobtasi_rss = np.zeros(n_iterations)
     t_d_pobtasi = np.zeros(n_iterations)
 
     for i in range(n_warmups + n_iterations):
@@ -181,6 +182,7 @@ if __name__ == "__main__":
         A_arrow_bottom_blocks_local_dev = cp.asarray(A_arrow_bottom_blocks_local)
         A_arrow_tip_block_dev = cp.asarray(A_arrow_tip_block)
 
+        cp.cuda.runtime.deviceSynchronize()
         MPI.COMM_WORLD.Barrier()
 
         start_time = time.perf_counter()
@@ -200,6 +202,7 @@ if __name__ == "__main__":
             comm=comm,
         )
 
+        cp.cuda.runtime.deviceSynchronize()
         MPI.COMM_WORLD.Barrier()
 
         end_time = time.perf_counter()
@@ -229,9 +232,16 @@ if __name__ == "__main__":
             # solver_config=reduced_solver_config,
         )
 
+        end_time = time.perf_counter()
+        cp.cuda.runtime.deviceSynchronize()
         MPI.COMM_WORLD.Barrier()
-        med = time.perf_counter()
-        print(f"Process {comm_rank}: Time d_pobtasi_rss: {med - start_time:.5f} sec, shape: {L_diagonal_blocks_local.shape}", flush=True)
+
+        elapsed_time_pobtasi_rss = end_time - start_time
+
+        if i >= n_warmups:
+            t_d_pobtasi_rss[i - n_warmups] = elapsed_time_pobtasi_rss
+
+        start_time = time.perf_counter()
 
         # Inversion of the full system
         (
@@ -249,41 +259,60 @@ if __name__ == "__main__":
             comm=comm,
         )
 
+        cp.cuda.runtime.deviceSynchronize()
         MPI.COMM_WORLD.Barrier()
 
         end_time = time.perf_counter()
-        print(f"Process {comm_rank}: Time d_pobtasi: {end_time - med:.5f} sec", flush=True)
-        elapsed_time_selinv = end_time - start_time
+        elapsed_time_pobtasi = end_time - start_time
 
         if i >= n_warmups:
-            t_d_pobtasi[i - n_warmups] = elapsed_time_selinv
+            t_d_pobtasi[i - n_warmups] = elapsed_time_pobtasi
 
         if comm_rank == 0:
             if i < n_warmups:
                 print(
-                    f"Warmup iteration: {i+1}/{n_warmups}, Time d_pobtaf: {elapsed_time_pobtaf:.5f} sec, Time d_pobtasi: {elapsed_time_selinv:.5f} sec", flush=True
+                    f"Warmup iteration: {i+1}/{n_warmups}, "
+                    f"Time d_pobtaf: {elapsed_time_pobtaf:.5f} sec, "
+                    f"Time d_pobtasi: {elapsed_time_pobtasi:.5f} sec, ",
+                    f"Time d_pobtasi: {elapsed_time_pobtasi:.5f} sec", flush=True
                 )
             else:
                 print(
-                    f"Bench iteration: {i+1-n_warmups}/{n_iterations} Time d_pobtaf: {elapsed_time_pobtaf:.5f} sec. Time d_pobtasi: {elapsed_time_selinv:.5f} sec", flush=True
+                    f"Bench iteration: {i+1-n_warmups}/{n_iterations}, "
+                    f"Time d_pobtaf: {elapsed_time_pobtaf:.5f} sec, "
+                    f"Time d_pobtasi_rss: {elapsed_time_pobtasi_rss:.5f} sec, "
+                    f"Time d_pobtasi: {elapsed_time_pobtasi:.5f} sec", flush=True
                 )
 
     if comm_rank == 0:
-        np.save(
-            f"timings_d_pobtaf_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}_np{comm_size}.npy",
-            t_d_pobtaf,
-        )
+        filename = f"timings_d_pobtaf_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}_np{comm_size}"
+        if solver_config.nested_solving:
+            filename += "_nested_solving"
+        filename += ".npy"
+        np.save(filename, t_d_pobtaf,)
 
-        np.save(
-            f"timings_d_pobtasi_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}_np{comm_size}.npy",
-            t_d_pobtasi,
-        )
+        filename = f"timings_d_pobtasi_rss_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}_np{comm_size}"
+        if solver_config.nested_solving:
+            filename += "_nested_solving"
+        filename += ".npy"
+        np.save(filename, t_d_pobtasi_rss,)
+
+        filename = f"timings_d_pobtasi_bs{diagonal_blocksize}_as{arrowhead_blocksize}_nb{n_diag_blocks}_np{comm_size}"
+        if solver_config.nested_solving:
+            filename += "_nested_solving"
+        filename += ".npy"
+        np.save(filename, t_d_pobtasi,)
 
         mean_d_pobtaf, lb_mean_d_pobtaf, ub_mean_d_pobtaf = mean_confidence_interval(t_d_pobtaf)
+        mean_d_pobtasi_rss, lb_mean_d_pobtasi_rss, ub_mean_d_pobtasi_rss = mean_confidence_interval(t_d_pobtasi_rss)
         mean_d_pobtasi, lb_mean_d_pobtasi, ub_mean_d_pobtasi = mean_confidence_interval(t_d_pobtasi)
 
         print(
             f"Mean time d_pobtaf: {mean_d_pobtaf:.5f} sec, 95% CI: [{lb_mean_d_pobtaf:.5f}, {ub_mean_d_pobtaf:.5f}]", flush=True
+        )
+
+        print(
+            f"Mean time d_pobtasi_rss: {mean_d_pobtasi_rss:.5f} sec, 95% CI: [{lb_mean_d_pobtasi_rss:.5f}, {ub_mean_d_pobtasi_rss:.5f}]", flush=True
         )
 
         print(

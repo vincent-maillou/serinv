@@ -34,13 +34,15 @@ n_diag_blocks = 365
 
 # --- POBTAF Pie Chart section ---
 dict_timings_pobtaf = np.load(
-    f"dict_timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    # f"dict_timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    f"dict_timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
     allow_pickle=True,
 ).item()
 
 
 timings_pobtaf = np.load(
-    f"timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    # f"timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    f"timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
     allow_pickle=True,
 )
 
@@ -99,12 +101,14 @@ plt.show()
 
 # # --- POBTASI Pie Chart section ---
 dict_timings_pobtasi = np.load(
-    f"dict_timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    # f"dict_timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    f"dict_timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
     allow_pickle=True,
 ).item()
 
 timings_pobtasi = np.load(
-    f"timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    # f"timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    f"timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
     allow_pickle=True,
 )
 
@@ -149,4 +153,4 @@ plt.savefig(
     f"pobtasi_pie_chart_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.png",
     dpi=400,
 )
-plt.show()
+# plt.show()

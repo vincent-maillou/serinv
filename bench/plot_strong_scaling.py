@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
-from matplotlib import cm
-import seaborn as sns
+# from matplotlib import cm
+# import seaborn as sns
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -231,16 +232,20 @@ if __name__ == "__main__":
     n = 365
     b = 2865
     a = 4
+    nested_solving = True
     n_processes = [2, 4, 8, 16, 32]
+    # n_processes = [2, 4, 8, 16]
     ideal_speedup = np.array(n_processes)
 
-    path = "/home/vincent-maillou/Documents/Repository/serinv/bench/strong_scaling/"
+    home = os.environ["HOME"]
+    path = os.path.join(home, "serinv", "bench")
 
     # Factorization
     print("Factorization")
     # 1. sequential timings
-    file_name = f"save_timings_inlamat_pobtaf_b{b}_a{a}_n{n}.npy"
-    pobtaf_timings = np.load(path + file_name, allow_pickle=True)
+    # file_name = f"save_timings_inlamat_pobtaf_b{b}_a{a}_n{n}.npy"
+    file_name = f"timings_synthetic_pobtaf_b{b}_a{a}_n{n}.npy"
+    pobtaf_timings = np.load(os.path.join(path, file_name), allow_pickle=True)
 
     pobtaf_ref_mean = np.mean(pobtaf_timings)
     pobtaf_ref_ci = np.percentile(pobtaf_timings, [5, 95])
@@ -250,8 +255,12 @@ if __name__ == "__main__":
     # 2. parallel timings
     d_pobtaf_timings = []
     for p in n_processes:
-        file_name = f"timings_d_pobtaf_bs{b}_as{a}_nb{n}_np{p}.npy"
-        d_pobtaf_timings.append(np.load(path + file_name, allow_pickle=True))
+        file_name = f"timings_d_pobtaf_bs{b}_as{a}_nb{n}_np{p}"
+        if nested_solving:
+            file_name += "_nested_solving"
+        file_name += ".npy"
+        # file_name = f"timings_d_pobtaf_bs{b}_as{a}_nb{n}_np{p}.npy"
+        d_pobtaf_timings.append(np.load(os.path.join(path, file_name), allow_pickle=True))
 
     d_pobtaf_strong_scaling_mean = np.zeros(len(n_processes))
     d_pobtaf_strong_scaling_ci = np.zeros((2, len(n_processes)))
@@ -270,18 +279,31 @@ if __name__ == "__main__":
     # Selected inversion
     print("Selected inversion")
     # 1. sequential timings
-    file_name = f"save_timings_inlamat_pobtasi_b{b}_a{a}_n{n}.npy"
-    pobtasi_timings = np.load(path + file_name, allow_pickle=True)
+    # file_name = f"save_timings_inlamat_pobtasi_b{b}_a{a}_n{n}.npy"
+    file_name = f"timings_synthetic_pobtasi_b{b}_a{a}_n{n}.npy"
+    pobtasi_timings = np.load(os.path.join(path, file_name), allow_pickle=True)
 
     pobtasi_ref_mean = np.mean(pobtasi_timings)
     pobtasi_ref_ci = np.percentile(pobtasi_timings, [5, 95])
 
     print(f"    sequential, mean: {pobtasi_ref_mean}, CI: {pobtasi_ref_ci}")
 
+    # d_pobtasi_rss_timings = []
     d_pobtasi_timings = []
     for p in n_processes:
-        file_name = f"timings_d_pobtasi_bs{b}_as{a}_nb{n}_np{p}.npy"
-        d_pobtasi_timings.append(np.load(path + file_name, allow_pickle=True))
+        file_name = f"timings_d_pobtasi_rss_bs{b}_as{a}_nb{n}_np{p}"
+        if nested_solving:
+            file_name += "_nested_solving"
+        file_name += ".npy"
+        # file_name = f"timings_d_pobtasi_rss_bs{b}_as{a}_nb{n}_np{p}.npy"
+        tmp = np.load(os.path.join(path, file_name), allow_pickle=True)
+        file_name = f"timings_d_pobtasi_bs{b}_as{a}_nb{n}_np{p}"
+        if nested_solving:
+            file_name += "_nested_solving"
+        file_name += ".npy"
+        # file_name = f"timings_d_pobtasi_bs{b}_as{a}_nb{n}_np{p}.npy"
+        tmp2 = np.load(os.path.join(path, file_name), allow_pickle=True)
+        d_pobtasi_timings.append(tmp + tmp2)
 
     d_pobtasi_strong_scaling_mean = np.zeros(len(n_processes))
     d_pobtasi_strong_scaling_ci = np.zeros((2, len(n_processes)))
@@ -365,6 +387,10 @@ if __name__ == "__main__":
         axs[2],
     )
 
-    plt.savefig("strong_scaling.png", dpi=400)
+    file_name = "strong_scaling"
+    if nested_solving:
+        file_name += "_nested_solving"
+    file_name += ".png"
+    plt.savefig(file_name, dpi=400)
 
-    plt.show()
+    # plt.show()
