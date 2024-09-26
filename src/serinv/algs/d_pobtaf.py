@@ -1080,40 +1080,41 @@ def d_logdet_pobtaf(
 
     logdet_local = xp.array(0.0, dtype=xp.float64)
 
-    n_diag_blocks_per_process = L_diagonal_blocks_local.shape[0]
-    diagonal_blocksize = L_diagonal_blocks_local.shape[1]
-    arrowhead_blocksize = L_rs_arrow_tip_block.shape[0]
-
-    counter = 0
-    # compute local log dets
+    # Distributed part
     if comm_rank == 0:
-        for i in range(n_diag_blocks_per_process - 1):
-            for j in range(diagonal_blocksize):
-                logdet_local += 2 * xp.log(L_diagonal_blocks_local[i, j, j])
-                counter += 1
+        # Vectorized computation for comm_rank == 0
+        logdet_local = 2 * xp.sum(
+            xp.log(
+                xp.diagonal(
+                    L_diagonal_blocks_local[:-1],
+                    axis1=1,
+                    axis2=2,
+                )
+            )
+        )
     else:
-        for i in range(1, n_diag_blocks_per_process - 1):
-            for j in range(diagonal_blocksize):
-                logdet_local += 2 * xp.log(L_diagonal_blocks_local[i, j, j])
-                counter += 1
-
+        # Vectorized computation for other ranks
+        logdet_local = 2 * xp.sum(
+            xp.log(
+                xp.diagonal(
+                    L_diagonal_blocks_local[1:-1],
+                    axis1=1,
+                    axis2=2,
+                )
+            )
+        )
+    # Additional computation for comm_rank == 0
     if comm_rank == 0:
-        for i in range(2 * comm_size - 1):
-            for j in range(diagonal_blocksize):
-                logdet_local += 2 * xp.log(L_rs_diagonal_blocks[i, j, j])
-                counter += 1
+        # Vectorized sum over L_rs_diagonal_blocks
+        logdet_local += 2 * xp.sum(
+            xp.log(xp.diagonal(L_rs_diagonal_blocks, axis1=1, axis2=2))
+        )
 
-        # Tip of the arrow
-        for j in range(arrowhead_blocksize):
-            logdet_local += 2 * xp.log(L_rs_arrow_tip_block[j, j])
-            counter += 1
+        # Tip of the arrow (L_rs_arrow_tip_block)
+        logdet_local += 2 * xp.sum(xp.log(xp.diag(L_rs_arrow_tip_block)))
 
     MPI.COMM_WORLD.Barrier()
     # MPI sum together log determinant
     logdet = MPI.COMM_WORLD.allreduce(logdet_local, op=MPI.SUM)
-
-    total_counter = MPI.COMM_WORLD.allreduce(counter, op=MPI.SUM)
-    if comm_rank == 0:
-        print("counter: ", total_counter)
 
     return logdet
