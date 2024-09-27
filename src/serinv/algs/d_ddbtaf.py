@@ -28,7 +28,14 @@ def d_ddbtaf(
     A_arrow_right_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
     solver_config: SolverConfig = SolverConfig(),
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     """Perform the distributed LU factorization of a block tridiagonal
     with arrowhead matrix.
 
@@ -109,7 +116,13 @@ def _host_d_ddbtaf(
     A_arrow_bottom_blocks_local: ArrayLike,
     A_arrow_right_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
 
     # LU aliases
@@ -383,7 +396,13 @@ def _device_d_ddbtaf(
     A_arrow_right_blocks_local: ArrayLike,
     A_arrow_tip_block_global: ArrayLike,
     solver_config: SolverConfig,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     n_diag_blocks_local = A_diagonal_blocks_local.shape[0]
 
     # LU aliases

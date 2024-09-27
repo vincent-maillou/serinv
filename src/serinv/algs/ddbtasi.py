@@ -21,7 +21,14 @@ def ddbtasi(
     LU_arrow_bottom_blocks: ArrayLike,
     LU_arrow_right_blocks: ArrayLike,
     LU_arrow_tip_block: ArrayLike,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+) -> tuple[
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+    ArrayLike,
+]:
     """Perform a selected inversion from a lu factorized matrix using
     a sequential block algorithm.
 

@@ -268,12 +268,12 @@ def test_d_ddbtaf(
         # Top process storing reduced blocks in reduced system
         A_reduced_system_diagonal_blocks[0, :, :] = LU_diagonal_blocks_local[-1, :, :]
 
-        A_reduced_system_lower_diagonal_blocks[
-            0, :, :
-        ] = LU_lower_diagonal_blocks_local[-1, :, :]
-        A_reduced_system_upper_diagonal_blocks[
-            0, :, :
-        ] = LU_upper_diagonal_blocks_local[-1, :, :]
+        A_reduced_system_lower_diagonal_blocks[0, :, :] = (
+            LU_lower_diagonal_blocks_local[-1, :, :]
+        )
+        A_reduced_system_upper_diagonal_blocks[0, :, :] = (
+            LU_upper_diagonal_blocks_local[-1, :, :]
+        )
 
         A_reduced_system_arrow_bottom_blocks[0, :, :] = LU_arrow_bottom_blocks_local[
             -1, :, :
@@ -283,41 +283,41 @@ def test_d_ddbtaf(
         ]
     else:
         # Middle processes storing reduced blocks in reduced system
-        A_reduced_system_diagonal_blocks[
-            2 * comm_rank - 1, :, :
-        ] = LU_diagonal_blocks_local[0, :, :]
-        A_reduced_system_diagonal_blocks[
-            2 * comm_rank, :, :
-        ] = LU_diagonal_blocks_local[-1, :, :]
+        A_reduced_system_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+            LU_diagonal_blocks_local[0, :, :]
+        )
+        A_reduced_system_diagonal_blocks[2 * comm_rank, :, :] = (
+            LU_diagonal_blocks_local[-1, :, :]
+        )
 
-        A_reduced_system_lower_diagonal_blocks[
-            2 * comm_rank - 1, :, :
-        ] = B_permutation_lower[-1, :, :]
-        A_reduced_system_upper_diagonal_blocks[
-            2 * comm_rank - 1, :, :
-        ] = B_permutation_upper[-1, :, :]
+        A_reduced_system_lower_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+            B_permutation_lower[-1, :, :]
+        )
+        A_reduced_system_upper_diagonal_blocks[2 * comm_rank - 1, :, :] = (
+            B_permutation_upper[-1, :, :]
+        )
 
         if comm_rank < comm_size - 1:
-            A_reduced_system_lower_diagonal_blocks[
-                2 * comm_rank, :, :
-            ] = LU_lower_diagonal_blocks_local[-1, :, :]
-            A_reduced_system_upper_diagonal_blocks[
-                2 * comm_rank, :, :
-            ] = LU_upper_diagonal_blocks_local[-1, :, :]
+            A_reduced_system_lower_diagonal_blocks[2 * comm_rank, :, :] = (
+                LU_lower_diagonal_blocks_local[-1, :, :]
+            )
+            A_reduced_system_upper_diagonal_blocks[2 * comm_rank, :, :] = (
+                LU_upper_diagonal_blocks_local[-1, :, :]
+            )
 
-        A_reduced_system_arrow_bottom_blocks[
-            2 * comm_rank - 1, :, :
-        ] = LU_arrow_bottom_blocks_local[0, :, :]
-        A_reduced_system_arrow_bottom_blocks[
-            2 * comm_rank, :, :
-        ] = LU_arrow_bottom_blocks_local[-1, :, :]
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank - 1, :, :] = (
+            LU_arrow_bottom_blocks_local[0, :, :]
+        )
+        A_reduced_system_arrow_bottom_blocks[2 * comm_rank, :, :] = (
+            LU_arrow_bottom_blocks_local[-1, :, :]
+        )
 
-        A_reduced_system_arrow_right_blocks[
-            2 * comm_rank - 1, :, :
-        ] = LU_arrow_right_blocks_local[0, :, :]
-        A_reduced_system_arrow_right_blocks[
-            2 * comm_rank, :, :
-        ] = LU_arrow_right_blocks_local[-1, :, :]
+        A_reduced_system_arrow_right_blocks[2 * comm_rank - 1, :, :] = (
+            LU_arrow_right_blocks_local[0, :, :]
+        )
+        A_reduced_system_arrow_right_blocks[2 * comm_rank, :, :] = (
+            LU_arrow_right_blocks_local[-1, :, :]
+        )
 
     A_reduced_system_arrow_tip_block[:, :] = LU_arrow_tip_block_global[:, :]
 
