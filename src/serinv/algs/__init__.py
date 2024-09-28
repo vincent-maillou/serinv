@@ -15,6 +15,7 @@ from serinv.algs.d_pobtaf import d_pobtaf
 from serinv.algs.d_pobtasi import d_pobtasi, d_pobtasi_rss
 
 from serinv.algs.d_ddbtaf import d_ddbtaf
+from serinv.algs.d_ddbtasi import d_ddbtasi, d_ddbtasi_rss
 
 __all__ = [
     "ddbtaf",
@@ -29,4 +30,6 @@ __all__ = [
     "d_pobtasi",
     "d_pobtasi_rss",
     "d_ddbtaf",
+    "d_ddbtasi",
+    "d_ddbtasi_rss",
 ]
