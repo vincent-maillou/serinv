@@ -171,7 +171,7 @@ def test_d_pobtasi(
         L_lower_diagonal_blocks_local,
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
-        L_upper_nested_dissection_buffer_local,
+        L_permutation_upper,
     ) = d_pobtaf(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,
@@ -187,13 +187,13 @@ def test_d_pobtasi(
         L_lower_diagonal_blocks_local,
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
-        L_upper_nested_dissection_buffer_local,
+        L_permutation_upper,
     ) = d_pobtasi_rss(
         L_diagonal_blocks_local,
         L_lower_diagonal_blocks_local,
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
-        L_upper_nested_dissection_buffer_local,
+        L_permutation_upper,
         solver_config,
     )
 
@@ -208,7 +208,7 @@ def test_d_pobtasi(
         L_lower_diagonal_blocks_local,
         L_arrow_bottom_blocks_local,
         L_arrow_tip_block_global,
-        L_upper_nested_dissection_buffer_local,
+        L_permutation_upper,
         solver_config,
     )
 
