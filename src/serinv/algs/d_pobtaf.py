@@ -523,6 +523,7 @@ def _device_d_pobtaf(
     else:
         Update_arrow_tip_block_host = cpx.empty_like_pinned(Update_arrow_tip_block)
         Update_arrow_tip_block.get(out=Update_arrow_tip_block_host)
+        cp.cuda.Stream.null.synchronize()
 
     # Accumulate the distributed update of the arrow tip block
     start = time.perf_counter_ns()
