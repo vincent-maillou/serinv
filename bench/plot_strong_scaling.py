@@ -1,12 +1,9 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.ticker import ScalarFormatter
 # from matplotlib import cm
 # import seaborn as sns
 import os
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.ticker import ScalarFormatter
 
 
@@ -36,7 +33,8 @@ def plot_speedup(
         fmt="x",
         color=viridis(0.7),
         label="Measured speedup",
-        capsize=5,
+        capsize=10,
+        markersize=10,  # Increase the size of the markers
     )
 
     # Set x and y scales to log base 2
@@ -48,9 +46,9 @@ def plot_speedup(
     ax.set_ylim(1, 64)
 
     # Set x and y axis labels and title
-    ax.set_xlabel("Number of processes", fontsize=14)
-    ax.set_ylabel("Speedup", fontsize=14)
-    ax.set_title(title, fontsize=16)
+    # ax.set_xlabel("Number of processes", fontsize=14)
+    # ax.set_ylabel("Speedup", fontsize=14)
+    # ax.set_title(title, fontsize=16)
 
     # Set custom x-axis ticks and labels
     ax.xaxis.set_major_formatter(ScalarFormatter())
@@ -58,8 +56,17 @@ def plot_speedup(
     ax.set_xticks(n_processes)
     ax.set_xticklabels(n_processes)
 
+    # make the x and y tick bigger
+    ax.tick_params(axis="both", which="major", labelsize=14)
+
+    # set y_ticks
+    ax.set_yticks([1, 2, 4, 8, 16, 32, 64])
+
     # Add legend
     ax.legend(loc="upper left")
+
+    # make the legend bigger
+    ax.legend(fontsize=14)
 
     # Add horizontal grid lines for y-axis
     ax.grid(which="both", axis="y", linestyle="--", linewidth=0.5)
@@ -78,7 +85,11 @@ def plot_timings(
 
     # Plot ideal timing line
     ax.plot(
-        n_processes, ideal_timing, label="Ideal timing", color="black", linestyle="--"
+        n_processes,
+        ideal_timing,
+        label="Ideal time-to-solution",
+        color="black",
+        linestyle="--",
     )
 
     # Plot measured timing with error bars using viridis color scheme
@@ -90,22 +101,30 @@ def plot_timings(
         fmt="x",
         color=viridis(0.7),
         label="Measured timing",
-        capsize=5,
+        capsize=10,
+        markersize=10,  # Increase the size of the markers
     )
 
     # Set x and y axis labels and title
-    ax.set_xlabel("Number of processes", fontsize=14)
-    ax.set_ylabel("Time to solution (s)", fontsize=14)
-    ax.set_title(title, fontsize=16)
+    # ax.set_xlabel("Number of processes", fontsize=14)
+    # ax.set_ylabel("Time to solution (s)", fontsize=14)
+    # ax.set_title(title, fontsize=16)
 
     # Set custom x-axis ticks and labels
     ax.xaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.set_major_formatter(ScalarFormatter())
+    ax.set_xscale("log", base=2)
     ax.set_xticks(n_processes)
     ax.set_xticklabels(n_processes)
 
+    # make the x and y tick bigger
+    ax.tick_params(axis="both", which="major", labelsize=14)
+
     # Add legend
     ax.legend(loc="upper right")
+
+    # make the legend bigger
+    ax.legend(fontsize=14)
 
     # Add horizontal grid lines for y-axis
     ax.grid(which="both", axis="y", linestyle="--", linewidth=0.5)
@@ -237,8 +256,10 @@ if __name__ == "__main__":
     # n_processes = [2, 4, 8, 16]
     ideal_speedup = np.array(n_processes)
 
-    home = os.environ["HOME"]
-    path = os.path.join(home, "serinv", "bench")
+    # home = os.environ["HOME"]
+    # path = os.path.join(home, "serinv", "bench", "IDPS", "timings_bs2865_as4_nb365")
+
+    path = "/home/vmaillou/Documents/SDR/bench/IDPS/timings_bs2865_as4_nb365/"
 
     # Factorization
     print("Factorization")
@@ -260,7 +281,9 @@ if __name__ == "__main__":
             file_name += "_nested_solving"
         file_name += ".npy"
         # file_name = f"timings_d_pobtaf_bs{b}_as{a}_nb{n}_np{p}.npy"
-        d_pobtaf_timings.append(np.load(os.path.join(path, file_name), allow_pickle=True))
+        d_pobtaf_timings.append(
+            np.load(os.path.join(path, file_name), allow_pickle=True)
+        )
 
     d_pobtaf_strong_scaling_mean = np.zeros(len(n_processes))
     d_pobtaf_strong_scaling_ci = np.zeros((2, len(n_processes)))
@@ -353,9 +376,11 @@ if __name__ == "__main__":
 
     ideal_timing = np.array([a2x_ref_mean / p for p in n_processes])
 
-    fig, axs = plt.subplots(1, 3, figsize=(20, 5))
+    # fig, axs = plt.subplots(1, 3, figsize=(20, 5))
 
     # Generate the speedup plot and add it to the first subplot
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+
     plot_speedup(
         "Strong scaling d_pobtaf",
         n_processes,
@@ -363,10 +388,20 @@ if __name__ == "__main__":
         d_pobtaf_speedup,
         d_pobtaf_strong_scaling_ci,
         pobtaf_ref_mean,
-        axs[0],
+        ax,
     )
 
+    plt.tight_layout()
+
+    file_name = "pobtaf_strong_scaling"
+    if nested_solving:
+        file_name += "_nested_solving"
+    file_name += ".png"
+    plt.savefig(file_name, dpi=400)
+
     # Generate the speedup plot and add it to the first subplot
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+
     plot_speedup(
         "Strong scaling d_pobtasi",
         n_processes,
@@ -374,23 +409,35 @@ if __name__ == "__main__":
         d_pobtasi_speedup,
         d_pobtasi_strong_scaling_ci,
         pobtasi_ref_mean,
-        axs[1],
+        ax,
     )
 
+    plt.tight_layout()
+
+    file_name = "pobtasi_strong_scaling"
+    if nested_solving:
+        file_name += "_nested_solving"
+    file_name += ".png"
+    plt.savefig(file_name, dpi=400)
+
     # Generate the timings plot and add it to the second subplot
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+
     fig_timings = plot_timings(
         "Time to solution, strong scaling",
         n_processes,
         ideal_timing,
         d_a2x_strong_scaling_mean,
         d_a2x_strong_scaling_ci,
-        axs[2],
+        ax,
     )
 
-    file_name = "strong_scaling"
+    plt.tight_layout()
+
+    file_name = "a2x_strong_scaling"
     if nested_solving:
         file_name += "_nested_solving"
     file_name += ".png"
     plt.savefig(file_name, dpi=400)
 
-    # plt.show()
+    plt.show()
