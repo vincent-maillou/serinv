@@ -1,5 +1,5 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib import cm
 
 DEBUG = False
@@ -27,34 +27,28 @@ def make_autopct(sizes, flops, labels):
 plt.rcParams.update({"font.size": 12})
 
 # Load the timings
-diagonal_blocksize = 2865
-arrowhead_blocksize = 4
-n_diag_blocks = 365
+diagonal_blocksize = 1024
+arrowhead_blocksize = 256
+n_diag_blocks = 16
 
+path = "/home/vmaillou/Documents/SDR/bench/IDPS/dict_timings_pobtaX/"
 
 # --- POBTAF Pie Chart section ---
 dict_timings_pobtaf = np.load(
-    # f"dict_timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
-    f"dict_timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    # f"{path}dict_timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    f"{path}dict_timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
     allow_pickle=True,
 ).item()
-
-
-timings_pobtaf = np.load(
-    # f"timings_inlamat_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
-    f"timings_synthetic_pobtaf_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
-    allow_pickle=True,
-)
 
 # Average times
 potrf_avg = round(np.mean(dict_timings_pobtaf["potrf"] / 1000), ndigits=NDIGITS)
 trsm_avg = round(np.mean(dict_timings_pobtaf["trsm"] / 1000), ndigits=NDIGITS)
 gemm_avg = round(np.mean(dict_timings_pobtaf["gemm"] / 1000), ndigits=NDIGITS)
-total_avg = round(np.mean(timings_pobtaf), ndigits=NDIGITS)
-other_avg = round(total_avg - (potrf_avg + trsm_avg + gemm_avg), ndigits=NDIGITS)
+total_avg = potrf_avg + trsm_avg + gemm_avg
+
 
 print(
-    f"potrf_avg: {potrf_avg}, trsm_avg: {trsm_avg}, gemm_avg: {gemm_avg}, total_avg: {total_avg}, other_avg: {other_avg}"
+    f"potrf_avg: {potrf_avg}, trsm_avg: {trsm_avg}, gemm_avg: {gemm_avg}, total_avg: {total_avg}"
 )
 
 # FLOPS as measured from nsys-profile
@@ -63,14 +57,13 @@ trsm_flops = 3.54
 gemm_flops = 16.67
 
 # Pie chart, where the slices will be ordered and plotted counter-clockwise:
-labels = "POTRF", "TRSM", "GEMM", "OTHER"
-sizes = [potrf_avg, trsm_avg, gemm_avg, other_avg]
+labels = "POTRF", "TRSM", "GEMM"
+sizes = [potrf_avg, trsm_avg, gemm_avg]
 flops = [
     potrf_flops,
     trsm_flops,
     gemm_flops,
-    0,
-]  # Assuming 'OTHER' has 0 FLOPS
+]
 
 shadow = False
 labeldistance = 0
@@ -101,35 +94,27 @@ plt.show()
 
 # # --- POBTASI Pie Chart section ---
 dict_timings_pobtasi = np.load(
-    # f"dict_timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
-    f"dict_timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    # f"{path}dict_timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
+    f"{path}dict_timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
     allow_pickle=True,
 ).item()
-
-timings_pobtasi = np.load(
-    # f"timings_inlamat_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
-    f"timings_synthetic_pobtasi_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.npy",
-    allow_pickle=True,
-)
 
 # Average times
 trsm_avg = round(np.mean(dict_timings_pobtasi["trsm"] / 1000), ndigits=NDIGITS)
 gemm_avg = round(np.mean(dict_timings_pobtasi["gemm"] / 1000), ndigits=NDIGITS)
-total_avg = round(np.mean(timings_pobtasi), ndigits=NDIGITS)
-other_avg = round(total_avg - (trsm_avg + gemm_avg), ndigits=NDIGITS)
+total_avg = trsm_avg + gemm_avg
 
 # FLOPS as measured from nsys-profile
 trsm_flops = 4.53
 gemm_flops = 17.27
 
 # Pie chart, where the slices will be ordered and plotted counter-clockwise:
-labels = "TRSM", "GEMM", "OTHER"
-sizes = [trsm_avg, gemm_avg, other_avg]
+labels = "TRSM", "GEMM"
+sizes = [trsm_avg, gemm_avg]
 flops = [
     trsm_flops,
     gemm_flops,
-    0,
-]  # Assuming 'OTHER' has 0 FLOPS
+]
 
 shadow = False
 labeldistance = 0
@@ -153,4 +138,4 @@ plt.savefig(
     f"pobtasi_pie_chart_b{diagonal_blocksize}_a{arrowhead_blocksize}_n{n_diag_blocks}.png",
     dpi=400,
 )
-# plt.show()
+plt.show()
