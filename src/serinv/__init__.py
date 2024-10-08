@@ -3,6 +3,8 @@
 from serinv.__about__ import __version__
 from serinv.serinv_config import SolverConfig
 
+from serinv.algs import *
+
 __all__ = [
     "__version__",
     "SolverConfig",
