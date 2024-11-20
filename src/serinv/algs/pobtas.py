@@ -1,17 +1,6 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
-try:
-    import cupy as cp
-    import cupyx.scipy.linalg as cu_la
-
-    CUPY_AVAIL = True
-
-except ImportError:
-    CUPY_AVAIL = False
-
-import numpy as np
-import scipy.linalg as np_la
-from numpy.typing import ArrayLike
+from serinv import ArrayLike, _get_array_module
 
 
 def pobtas(
@@ -47,13 +36,7 @@ def pobtas(
         The solution of the system.
     """
 
-    la = np_la
-    if CUPY_AVAIL:
-        xp = cp.get_array_module(L_diagonal_blocks)
-        if xp == cp:
-            la = cu_la
-    else:
-        xp = np
+    xp, la = _get_array_module(L_diagonal_blocks)
 
     diag_blocksize = L_diagonal_blocks.shape[1]
     arrow_blocksize = L_arrow_bottom_blocks.shape[1]

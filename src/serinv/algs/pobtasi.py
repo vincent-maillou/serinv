@@ -1,17 +1,14 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
+import numpy as np
+
 try:
     import cupy as cp
     import cupyx.scipy.linalg as cu_la
+except:
+    ...
 
-    CUPY_AVAIL = True
-
-except ImportError:
-    CUPY_AVAIL = False
-
-import numpy as np
-import scipy.linalg as np_la
-from numpy.typing import ArrayLike
+from serinv import ArrayLike, CupyAvail, _get_array_module
 
 
 def pobtasi(
@@ -20,7 +17,7 @@ def pobtasi(
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     device_streaming: bool = False,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike]:
+):
     """Perform a selected inversion of a block tridiagonal with arrowhead matrix
     using a sequential block algorithm.
 
@@ -28,27 +25,6 @@ def pobtasi(
     -----
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
-
-    Complexity analysis:
-        Parameters:
-            n : number of diagonal blocks
-            b : diagonal block size
-            a : arrow block size
-
-        FLOPS count:
-            GEMM_b^3 : (n-1) * 8 * b^3 + 2 * b^3
-            GEMM_b^2_a : (n-1) * 10 * b^2 * a + 4 * b^2 * a
-            GEMM_a^2_b : (n-1) * 2 * a^2 * b + 2 * a^2 * b
-            GEMM_a^3 : 2 * a^3
-            TRSM_b^3 : (n-1) * b^3
-            TRSM_a_b^2 : a * b^2
-
-        Total FLOPS:
-            T_{flops_{POBTASI}} = (n-1) * (9*b^3 + 10*b^2 + 2*a^2*b) + 2*b^3 + 5*a*b^2 + 2*a^2*b + 2*a^3
-
-        Complexity:
-            By making the assumption that b >> a, the complexity of the POBTASI
-            algorithm is O(n * b^3).
 
     Parameters
     ----------
@@ -62,19 +38,10 @@ def pobtasi(
         Arrow tip block of L.
     device_streaming : bool
         Whether to use streamed GPU computation.
-
-    Returns
-    -------
-    X_diagonal_blocks : ArrayLike
-        Diagonal blocks of X.
-    X_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of X.
-    X_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of X.
-    X_arrow_tip_block : ArrayLike
-        Arrow tip block of X.
     """
-    if CUPY_AVAIL and cp.get_array_module(L_diagonal_blocks) == np and device_streaming:
+    xp, _ = _get_array_module(L_diagonal_blocks)
+
+    if CupyAvail and xp == np and device_streaming:
         return _streaming_pobtasi(
             L_diagonal_blocks,
             L_lower_diagonal_blocks,
@@ -95,14 +62,8 @@ def _pobtasi(
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike]:
-    la = np_la
-    if CUPY_AVAIL:
-        xp = cp.get_array_module(L_diagonal_blocks)
-        if xp == cp:
-            la = cu_la
-    else:
-        xp = np
+):
+    xp, la = _get_array_module(L_diagonal_blocks)
 
     diag_blocksize = L_diagonal_blocks.shape[1]
     arrow_blocksize = L_arrow_tip_block.shape[0]
@@ -179,12 +140,6 @@ def _pobtasi(
             - X_arrow_bottom_blocks[i, :, :].conj().T @ L_arrow_bottom_blocks_i[:, :]
         ) @ L_blk_inv
 
-    return (
-        X_diagonal_blocks,
-        X_lower_diagonal_blocks,
-        X_arrow_bottom_blocks,
-        X_arrow_tip_block,
-    )
 
 
 def _streaming_pobtasi(
@@ -192,7 +147,8 @@ def _streaming_pobtasi(
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+):
+    # Streams and events
     compute_stream = cp.cuda.Stream(non_blocking=True)
     h2d_stream = cp.cuda.Stream(non_blocking=True)
     d2h_stream = cp.cuda.Stream(non_blocking=True)
@@ -405,9 +361,3 @@ def _streaming_pobtasi(
 
     cp.cuda.Device().synchronize()
 
-    return (
-        X_diagonal_blocks,
-        X_lower_diagonal_blocks,
-        X_arrow_bottom_blocks,
-        X_arrow_tip_block,
-    )

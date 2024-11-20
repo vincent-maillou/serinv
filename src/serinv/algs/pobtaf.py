@@ -1,19 +1,14 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
+import numpy as np
+
 try:
     import cupy as cp
     import cupyx.scipy.linalg as cu_la
+except:
+    ...
 
-    from serinv.cupyfix.cholesky_lowerfill import cholesky_lowerfill
-
-    CUPY_AVAIL = True
-
-except ImportError:
-    CUPY_AVAIL = False
-
-import numpy as np
-import scipy.linalg as np_la
-from numpy.typing import ArrayLike
+from serinv import ArrayLike, CupyAvail, _get_array_module, _get_cholesky
 
 
 def pobtaf(
@@ -22,7 +17,7 @@ def pobtaf(
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     device_streaming: bool = False,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+):
     """Perform the Cholesky factorization of a block tridiagonal with arrowhead
     matrix using a sequential block algorithm.
 
@@ -31,28 +26,6 @@ def pobtaf(
     - The matrix, A, is assumed to be symmetric positive definite.
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
-
-    Complexity analysis:
-        Parameters:
-            n : number of diagonal blocks
-            b : diagonal block size
-            a : arrow block size
-
-        FLOPS count:
-            POTRF_b^3 : n * (1/3 * b^3 + 1/2 * b^2 + 1/6 * b)
-            POTRF_a^3 : 1/3 * a^3 + 1/2 * a^2 + 1/6 * a
-            GEMM_b^3 : (n-1) * 2 * b^3
-            GEMM_b^2_a : (n-1) * 2 * b^2 * a
-            GEMM_a^2_b : n * 2 * a^2 * b
-            TRSM_b^3 : (n-1) * b^3
-            TRSM_a_b^2 : n * a * b^2
-
-        Total FLOPS:
-            T_{flops_{POBTAF}} = n * (10/3 * b^3 + (1/2 + 3*a) * b^2 + (1/6 + 2*a^2) * b) - 3 * b^3 - 2*a*b^2 + 1/3 * a^3 + 1/2 * a^2 + 1/6 * a
-
-        Complexity:
-            By making the assumption that b >> a, the complexity of the POBTAF
-            algorithm is O(n * b^3).
 
     Parameters
     ----------
@@ -66,20 +39,10 @@ def pobtaf(
         Arrow tip block of A.
     device_streaming : bool
         Whether to use streamed GPU computation.
-
-    Returns
-    -------
-    L_diagonal_blocks : ArrayLike
-        Diagonal blocks of L.
-    L_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of L.
-    L_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of L.
-    L_arrow_tip_block : ArrayLike
-        Arrow tip block of L.
     """
+    xp, _ = _get_array_module(A_diagonal_blocks)
 
-    if CUPY_AVAIL and cp.get_array_module(A_diagonal_blocks) == np and device_streaming:
+    if CupyAvail and xp == np and device_streaming:
         return _streaming_pobtaf(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
@@ -100,18 +63,9 @@ def _pobtaf(
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
-    la = np_la
-    if CUPY_AVAIL:
-        xp = cp.get_array_module(A_diagonal_blocks)
-        if xp == cp:
-            la = cu_la
-            cholesky = cholesky_lowerfill
-        else:
-            cholesky = np.linalg.cholesky
-    else:
-        xp = np
-        cholesky = np.linalg.cholesky
+):
+    xp, la = _get_array_module(A_diagonal_blocks)
+    cholesky = _get_cholesky(xp)
 
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
@@ -190,20 +144,16 @@ def _pobtaf(
     # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
     L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
 
-    return (
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-    )
-
 
 def _streaming_pobtaf(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike,]:
+):
+    cholesky = _get_cholesky(cp)
+
+    # Streams and events
     compute_stream = cp.cuda.Stream(non_blocking=True)
     h2d_stream = cp.cuda.Stream(non_blocking=True)
     d2h_stream = cp.cuda.Stream(non_blocking=True)
@@ -273,7 +223,7 @@ def _streaming_pobtaf(
         # L_{i, i} = chol(A_{i, i})
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
-            L_diagonal_blocks_d[i % 2, :, :] = cholesky_lowerfill(
+            L_diagonal_blocks_d[i % 2, :, :] = cholesky(
                 A_diagonal_blocks_d[i % 2, :, :]
             )
             compute_diagonal_events[i % 2].record(stream=compute_stream)
@@ -376,7 +326,7 @@ def _streaming_pobtaf(
     # L_{ndb, ndb} = chol(A_{ndb, ndb})
     with compute_stream:
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
-        L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cholesky_lowerfill(
+        L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cholesky(
             A_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
         )
         compute_diagonal_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
@@ -418,17 +368,10 @@ def _streaming_pobtaf(
         )
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-        L_arrow_tip_block_d[:, :] = cholesky_lowerfill(A_arrow_tip_block_d[:, :])
+        L_arrow_tip_block_d[:, :] = cholesky(A_arrow_tip_block_d[:, :])
 
         L_arrow_tip_block_d[:, :].get(
             out=L_arrow_tip_block[:, :], stream=compute_stream
         )
 
     cp.cuda.Device().synchronize()
-
-    return (
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-    )
