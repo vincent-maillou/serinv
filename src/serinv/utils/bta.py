@@ -7,7 +7,8 @@ try:
 except:
     ...
 
-from serinv import ArrayLike, CupyAvail, _get_array_module
+from serinv import ArrayLike, CUPY_AVAIL, _get_array_module
+
 
 def diagonally_dominant_bta(
     n: int,
@@ -18,7 +19,7 @@ def diagonally_dominant_bta(
     symmetric: bool = False,
     seed: int = 63,
 ) -> tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike]:
-    if device_arr and CupyAvail:
+    if device_arr and CUPY_AVAIL:
         xp = cp
     elif device_arr:
         raise ValueError("Device array have been requested but CuPy is not available.")

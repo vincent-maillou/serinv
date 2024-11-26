@@ -8,7 +8,13 @@ try:
 except:
     ...
 
-from serinv import ArrayLike, CupyAvail, _get_array_module, _get_cholesky
+from serinv import (
+    ArrayLike,
+    CUPY_AVAIL,
+    DEVICE_STREAMING,
+    _get_array_module,
+    _get_cholesky,
+)
 
 
 def pobtaf(
@@ -16,7 +22,8 @@ def pobtaf(
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-    device_streaming: bool = False,
+    arrow_direction: str = "downward",
+    buffers: tuple = None,
 ):
     """Perform the Cholesky factorization of a block tridiagonal with arrowhead
     matrix using a sequential block algorithm.
@@ -26,39 +33,58 @@ def pobtaf(
     - The matrix, A, is assumed to be symmetric positive definite.
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
-
-    Parameters
-    ----------
-    A_diagonal_blocks : ArrayLike
-        Diagonal blocks of A.
-    A_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of A.
-    A_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of A.
-    A_arrow_tip_block : ArrayLike
-        Arrow tip block of A.
-    device_streaming : bool
-        Whether to use streamed GPU computation.
     """
     xp, _ = _get_array_module(A_diagonal_blocks)
 
-    if CupyAvail and xp == np and device_streaming:
-        return _streaming_pobtaf(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_tip_block,
-        )
+    if CUPY_AVAIL and xp == np and DEVICE_STREAMING:
+        # Call streaming codes
+        if arrow_direction == "downward":
+            return _pobtaf_streaming_downward(
+                A_diagonal_blocks,
+                A_lower_diagonal_blocks,
+                A_arrow_bottom_blocks,
+                A_arrow_tip_block,
+            )
+        elif arrow_direction == "upward":
+            raise NotImplementedError(
+                "Upward arrowhead, H2D streaming not implemented."
+            )
+        elif arrow_direction == "downward-permuted":
+            raise NotImplementedError(
+                "downward-Permuted arrowhead, H2D streaming not implemented."
+            )
+        elif arrow_direction == "upward-permuted":
+            raise NotImplementedError(
+                "downward-Permuted arrowhead, H2D streaming not implemented."
+            )
+        else:
+            raise ValueError(f"Unknown arrow direction: {arrow_direction}")
+    else:
+        # Call direct-array (non-streaming) codes
+        if arrow_direction == "downward":
+            return _pobtaf_downward(
+                A_diagonal_blocks,
+                A_lower_diagonal_blocks,
+                A_arrow_bottom_blocks,
+                A_arrow_tip_block,
+            )
+        elif arrow_direction == "upward":
+            raise NotImplementedError(
+                "Upward arrowhead, H2D streaming not implemented."
+            )
+        elif arrow_direction == "downward-permuted":
+            raise NotImplementedError(
+                "downward-Permuted arrowhead, H2D streaming not implemented."
+            )
+        elif arrow_direction == "upward-permuted":
+            raise NotImplementedError(
+                "upward-Permuted arrowhead, H2D streaming not implemented."
+            )
+        else:
+            raise ValueError(f"Unknown arrow direction: {arrow_direction}")
 
-    return _pobtaf(
-        A_diagonal_blocks,
-        A_lower_diagonal_blocks,
-        A_arrow_bottom_blocks,
-        A_arrow_tip_block,
-    )
 
-
-def _pobtaf(
+def _pobtaf_downward(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
@@ -145,7 +171,7 @@ def _pobtaf(
     L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
 
 
-def _streaming_pobtaf(
+def _pobtaf_streaming_downward(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,

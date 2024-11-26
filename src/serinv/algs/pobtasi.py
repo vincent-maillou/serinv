@@ -8,7 +8,7 @@ try:
 except:
     ...
 
-from serinv import ArrayLike, CupyAvail, _get_array_module
+from serinv import ArrayLike, CUPY_AVAIL, DEVICE_STREAMING, _get_array_module
 
 
 def pobtasi(
@@ -16,7 +16,8 @@ def pobtasi(
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
-    device_streaming: bool = False,
+    arrow_direction: str = "downward",
+    buffers: tuple = None,
 ):
     """Perform a selected inversion of a block tridiagonal with arrowhead matrix
     using a sequential block algorithm.
@@ -25,39 +26,58 @@ def pobtasi(
     -----
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
-
-    Parameters
-    ----------
-    L_diagonal_blocks : ArrayLike
-        Diagonal blocks of L.
-    L_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of L.
-    L_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of L.
-    L_arrow_tip_block : ArrayLike
-        Arrow tip block of L.
-    device_streaming : bool
-        Whether to use streamed GPU computation.
     """
     xp, _ = _get_array_module(L_diagonal_blocks)
 
-    if CupyAvail and xp == np and device_streaming:
-        return _streaming_pobtasi(
-            L_diagonal_blocks,
-            L_lower_diagonal_blocks,
-            L_arrow_bottom_blocks,
-            L_arrow_tip_block,
-        )
+    if CUPY_AVAIL and xp == np and DEVICE_STREAMING:
+        # Call streaming codes
+        if arrow_direction == "downward":
+            return _pobtasi_streaming_downward(
+                L_diagonal_blocks,
+                L_lower_diagonal_blocks,
+                L_arrow_bottom_blocks,
+                L_arrow_tip_block,
+            )
+        elif arrow_direction == "upward":
+            raise NotImplementedError(
+                "Upward arrowhead, H2D streaming not implemented."
+            )
+        elif arrow_direction == "downward-permuted":
+            raise NotImplementedError(
+                "downward-Permuted arrowhead, H2D streaming not implemented."
+            )
+        elif arrow_direction == "upward-permuted":
+            raise NotImplementedError(
+                "downward-Permuted arrowhead, H2D streaming not implemented."
+            )
+        else:
+            raise ValueError(f"Unknown arrow direction: {arrow_direction}")
+    else:
+        # Call direct-array (non-streaming) codes
+        if arrow_direction == "downward":
+            return _pobtasi_downward(
+                L_diagonal_blocks,
+                L_lower_diagonal_blocks,
+                L_arrow_bottom_blocks,
+                L_arrow_tip_block,
+            )
+        elif arrow_direction == "upward":
+            raise NotImplementedError(
+                "Upward arrowhead, H2D streaming not implemented."
+            )
+        elif arrow_direction == "downward-permuted":
+            raise NotImplementedError(
+                "downward-Permuted arrowhead, H2D streaming not implemented."
+            )
+        elif arrow_direction == "upward-permuted":
+            raise NotImplementedError(
+                "upward-Permuted arrowhead, H2D streaming not implemented."
+            )
+        else:
+            raise ValueError(f"Unknown arrow direction: {arrow_direction}")
 
-    return _pobtasi(
-        L_diagonal_blocks,
-        L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks,
-        L_arrow_tip_block,
-    )
 
-
-def _pobtasi(
+def _pobtasi_downward(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
@@ -141,8 +161,7 @@ def _pobtasi(
         ) @ L_blk_inv
 
 
-
-def _streaming_pobtasi(
+def _pobtasi_streaming_downward(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
@@ -360,4 +379,3 @@ def _streaming_pobtasi(
         )
 
     cp.cuda.Device().synchronize()
-
