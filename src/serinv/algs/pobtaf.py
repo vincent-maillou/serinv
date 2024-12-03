@@ -171,7 +171,24 @@ def _pobtaf_downward(
     L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
 
 
-def _pobtaf_streaming_downward(
+def _pobtaf_downward(
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_arrow_bottom_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+):
+    xp, la = _get_array_module(A_diagonal_blocks)
+    cholesky = _get_cholesky(xp)
+
+    n_diag_blocks = A_diagonal_blocks.shape[0]
+
+    L_diagonal_blocks = A_diagonal_blocks
+    L_lower_diagonal_blocks = A_lower_diagonal_blocks
+    L_arrow_bottom_blocks = A_arrow_bottom_blocks
+    L_arrow_tip_block = A_arrow_tip_block
+
+
+def _pobtaf_streaming_downward_permuted(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
