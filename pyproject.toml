@@ -20,12 +20,15 @@ classifiers = [
 dependencies = [
     "numpy",
     "scipy",
-    "matplotlib",
-    "pydantic",
     "pytest",
     "pytest-mpi",
     "pytest-cov",
     "coverage",
+    "black",
+    "isort",
+    "ruff",
+    "just",
+    "pre-commit",
 ]
 [project.optional-dependencies]
 cupy = ["cupy==13.2.0"]
@@ -36,6 +39,10 @@ repository = "https://github.com/vincent-maillou/serinv"
 
 [tool.setuptools.dynamic]
 version = { attr = "serinv.__about__.__version__" }
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+testpaths = ["tests"]
 
 [tool.isort]
 profile = "black"

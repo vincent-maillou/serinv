@@ -75,7 +75,6 @@ def test_pobtaf(
         A_lower_diagonal_blocks,
         A_arrow_bottom_blocks,
         A_arrow_tip_block,
-        device_streaming,
     )
 
     (

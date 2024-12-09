@@ -1,18 +1,9 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
-import numpy as np
-
-try:
-    import cupy as cp
-    import cupyx.scipy.linalg as cu_la
-except:
-    ...
-
 from serinv import (
     ArrayLike,
-    CUPY_AVAIL,
-    DEVICE_STREAMING,
-    _get_array_module,
+    _get_module_from_array,
+    _get_module_from_str,
     _get_cholesky,
 )
 
@@ -22,8 +13,8 @@ def pobtaf(
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-    arrow_direction: str = "downward",
-    buffers: tuple = None,
+    buffer: ArrayLike = None,
+    **kwargs,
 ):
     """Perform the Cholesky factorization of a block tridiagonal with arrowhead
     matrix using a sequential block algorithm.
@@ -34,66 +25,53 @@ def pobtaf(
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
     """
-    xp, _ = _get_array_module(A_diagonal_blocks)
+    device_streaming: bool = kwargs.get("device_streaming", False)
+    permuted_arrow: bool = kwargs.get("permuted_arrow", False)
 
-    if CUPY_AVAIL and xp == np and DEVICE_STREAMING:
-        # Call streaming codes
-        if arrow_direction == "downward":
-            return _pobtaf_streaming_downward(
+    # Call, if possible and requested, streaming codes
+    if device_streaming:
+        if permuted_arrow:
+            raise NotImplementedError(
+                "H2D streaming not implemented for permuted_arrow scheme."
+            )
+        else:
+            return _pobtaf_streaming(
                 A_diagonal_blocks,
                 A_lower_diagonal_blocks,
                 A_arrow_bottom_blocks,
                 A_arrow_tip_block,
             )
-        elif arrow_direction == "upward":
-            raise NotImplementedError(
-                "Upward arrowhead, H2D streaming not implemented."
-            )
-        elif arrow_direction == "downward-permuted":
-            raise NotImplementedError(
-                "downward-Permuted arrowhead, H2D streaming not implemented."
-            )
-        elif arrow_direction == "upward-permuted":
-            raise NotImplementedError(
-                "downward-Permuted arrowhead, H2D streaming not implemented."
-            )
-        else:
-            raise ValueError(f"Unknown arrow direction: {arrow_direction}")
+
+    # Call "direct-array" (non-streaming) codes
+    if permuted_arrow:
+        if buffer is None:
+            raise ValueError("Buffer for permuted_arrow must be provided.")
+        return _pobtaf_permuted(
+            A_diagonal_blocks,
+            A_lower_diagonal_blocks,
+            A_arrow_bottom_blocks,
+            A_arrow_tip_block,
+            buffer,
+        )
     else:
-        # Call direct-array (non-streaming) codes
-        if arrow_direction == "downward":
-            return _pobtaf_downward(
-                A_diagonal_blocks,
-                A_lower_diagonal_blocks,
-                A_arrow_bottom_blocks,
-                A_arrow_tip_block,
-            )
-        elif arrow_direction == "upward":
-            raise NotImplementedError(
-                "Upward arrowhead, H2D streaming not implemented."
-            )
-        elif arrow_direction == "downward-permuted":
-            raise NotImplementedError(
-                "downward-Permuted arrowhead, H2D streaming not implemented."
-            )
-        elif arrow_direction == "upward-permuted":
-            raise NotImplementedError(
-                "upward-Permuted arrowhead, H2D streaming not implemented."
-            )
-        else:
-            raise ValueError(f"Unknown arrow direction: {arrow_direction}")
+        return _pobtaf(
+            A_diagonal_blocks,
+            A_lower_diagonal_blocks,
+            A_arrow_bottom_blocks,
+            A_arrow_tip_block,
+        )
 
 
-def _pobtaf_downward(
+def _pobtaf(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
 ):
-    xp, la = _get_array_module(A_diagonal_blocks)
-    cholesky = _get_cholesky(xp)
+    xp, la = _get_module_from_array(arr=A_diagonal_blocks)
+    cholesky = _get_cholesky(module_str=xp.__name__)
 
-    n_diag_blocks = A_diagonal_blocks.shape[0]
+    n_diag_blocks: int = A_diagonal_blocks.shape[0]
 
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
@@ -171,30 +149,30 @@ def _pobtaf_downward(
     L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
 
 
-def _pobtaf_downward(
+def _pobtaf_permuted(
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_arrow_bottom_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+    buffer: ArrayLike,
+):
+    raise NotImplementedError("permuted_arrow scheme not implemented.")
+
+
+def _pobtaf_streaming(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
 ):
-    xp, la = _get_array_module(A_diagonal_blocks)
-    cholesky = _get_cholesky(xp)
+    arr_module, _ = _get_module_from_array(arr=A_diagonal_blocks)
+    if arr_module.__name__ != "numpy":
+        raise NotImplementedError(
+            "Host<->Device streaming only works when host-arrays are given."
+        )
 
-    n_diag_blocks = A_diagonal_blocks.shape[0]
-
-    L_diagonal_blocks = A_diagonal_blocks
-    L_lower_diagonal_blocks = A_lower_diagonal_blocks
-    L_arrow_bottom_blocks = A_arrow_bottom_blocks
-    L_arrow_tip_block = A_arrow_tip_block
-
-
-def _pobtaf_streaming_downward_permuted(
-    A_diagonal_blocks: ArrayLike,
-    A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
-    A_arrow_tip_block: ArrayLike,
-):
-    cholesky = _get_cholesky(cp)
+    cp, cu_la = _get_module_from_str(module_str="cupy")
+    cholesky = _get_cholesky(module_str="cupy")
 
     # Streams and events
     compute_stream = cp.cuda.Stream(non_blocking=True)
@@ -251,7 +229,7 @@ def _pobtaf_streaming_downward_permuted(
     )
     h2d_arrow_events[0].record(stream=h2d_stream)
 
-    n_diag_blocks = A_diagonal_blocks.shape[0]
+    n_diag_blocks: int = A_diagonal_blocks.shape[0]
     if n_diag_blocks > 1:
         A_lower_diagonal_blocks_d[0, :, :].set(
             arr=A_lower_diagonal_blocks[0, :, :], stream=h2d_stream

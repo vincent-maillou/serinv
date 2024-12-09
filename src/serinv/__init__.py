@@ -1,10 +1,9 @@
 # Copyright 2023-2024 ETH Zurich. All rights reserved.
 
-import os
 from warnings import warn
 
 import numpy as np
-import numpy.linalg.cholesky as np_cholesky
+from numpy.linalg import cholesky as np_cholesky
 import scipy.linalg as np_la
 
 from numpy.typing import ArrayLike
@@ -25,18 +24,11 @@ try:
     cp.abs(1)
 
     CUPY_AVAIL = True
-except ImportError as e:
-    warn(f"'CuPy' is unavailable. ({e})")
-
-# Allows user to specify the device streaming behavior via an
-# environment variable.
-DEVICE_STREAMING = os.environ.get("DEVICE_STREAMING")
-if DEVICE_STREAMING is None:
-    # Default behavior is to stream on the device.
-    DEVICE_STREAMING = True
+except ImportWarning as w:
+    warn(f"'CuPy' is unavailable. ({w})")
 
 
-def _get_array_module(arr: ArrayLike):
+def _get_module_from_array(arr: ArrayLike):
     """Return the array module of the input array.
 
     Parameters
@@ -60,7 +52,35 @@ def _get_array_module(arr: ArrayLike):
     return np, np_la
 
 
-def _get_cholesky(module):
+def _get_module_from_str(module_str: str):
+    """Return the array module of the input string.
+
+    Parameters
+    ----------
+    module_str : str
+        The array module string. ("numpy" or "cupy")
+
+    Returns
+    -------
+    module : module
+        The array module of the input string. (numpy or cupy)
+    la : module
+        The linear algebra module of the array module. (scipy.linalg or cupyx.scipy.linalg)
+    """
+    if module_str == "numpy":
+        return np, np_la
+    elif module_str == "cupy":
+        if CUPY_AVAIL:
+            return cp, cu_la
+        else:
+            raise ImportError(
+                "CuPy module have been requested but CuPy is not available."
+            )
+    else:
+        raise ValueError(f"Unknown module '{module_str}'.")
+
+
+def _get_cholesky(module_str: str):
     """Return the Cholesky factorization function of the input module.
 
     Parameters
@@ -73,19 +93,18 @@ def _get_cholesky(module):
     cholesky : function
         The Cholesky factorization function of the input module. (numpy.linalg.cholesky or serinv.cupyfix.cholesky_lowerfill)
     """
-    if module == np:
+    if module_str == "numpy":
         return np_cholesky
-    elif CUPY_AVAIL and module == cp:
+    elif CUPY_AVAIL and module_str == "cupy":
         return cu_cholesky
     else:
-        raise ValueError(f"Unknown module '{module}'.")
+        raise ValueError(f"Unknown module '{module_str}'.")
 
 
 __all__ = [
     "__version__",
     "ArrayLike",
-    "CUPY_AVAIL",
-    "DEVICE_STREAMING",
-    "_get_array_module",
+    "_get_module_from_array",
+    "_get_module_from_str",
     "_get_cholesky",
 ]
