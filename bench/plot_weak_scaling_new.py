@@ -22,12 +22,18 @@ def plot_speedup(
     x_ref_ci_lower = 1 - x_ref_mean / x_ref_ci[1]
     x_ref_ci_upper = x_ref_mean / x_ref_ci[0] - 1
 
+    d_x_speedup *= 100
+    speedup_ci_lower *= 100
+    speedup_ci_upper *= 100
+    x_ref_ci_lower *= 100
+    x_ref_ci_upper *= 100
+
     ax.set_facecolor("#F0F0F0")
 
     n_processes = [1, *n_processes]
-    ideal_speedup = np.array([p for p in n_processes])
-    d_x_speedup = [1, *d_x_speedup.tolist()]
-    speedup_ci_lower = [x_ref_ci_lower, *speedup_ci_lower.tolist()]
+    ideal_speedup = np.array([100 for _ in n_processes])
+    d_x_speedup = [100, *d_x_speedup.tolist()]
+    speedup_ci_lower = [x_ref_ci_lower, *speedup_ci_lower.tolist()] 
     speedup_ci_upper = [x_ref_ci_upper, *speedup_ci_upper.tolist()]
 
     # Plot ideal speedup line
@@ -51,15 +57,15 @@ def plot_speedup(
 
     # Set x and y scales to log base 2
     ax.set_xscale("log", base=2)
-    ax.set_yscale("log", base=2)
+    # ax.set_yscale("log", base=2)
 
     # Set x and y limits
     ax.set_xlim(0.9, 40)
-    ax.set_ylim(0.9, 40)
+    ax.set_ylim(0, 105)
 
     # Set x and y axis labels and title
     ax.set_xlabel("Number of processes $\\mathit{P}$", fontsize=36)
-    ax.set_ylabel(f"{title} speedup", fontsize=36)
+    ax.set_ylabel(f"{title} efficiency", fontsize=36)
     # ax.set_title(title, fontsize=16)
 
     # Set custom x-axis ticks and labels
@@ -72,7 +78,7 @@ def plot_speedup(
     ax.tick_params(axis="both", which="major", labelsize=36)
 
     # set y_ticks
-    ax.set_yticks([1, 2, 4, 8, 16, 32])
+    # ax.set_yticks([1, 2, 4, 8, 16, 32])
 
     # Add legend
     ax.legend(loc="upper left")
@@ -104,7 +110,7 @@ def plot_timings(
     timing_ns_ci_upper = d_x_ns_timing_ci[1, :] - d_x_ns_timing_mean
 
     n_processes = [1, *n_processes]
-    ideal_timing = np.array([x_ref_mean / p for p in n_processes])
+    ideal_timing = np.array([x_ref_mean for _ in n_processes])
     d_x_timing_mean = [x_ref_mean, *d_x_timing_mean.tolist()]
     timing_ci_lower = [ref_ci_lower, *timing_ci_lower.tolist()]
     timing_ci_upper = [ref_ci_upper, *timing_ci_upper.tolist()]
@@ -150,7 +156,7 @@ def plot_timings(
 
     # Set x and y axis labels and title
     ax.set_xlabel("Number of processes $\\mathit{P}$", fontsize=36)
-    ax.set_ylabel("Time to solution [s]", fontsize=36)
+    ax.set_ylabel("Runtime [s]", fontsize=36)
     # ax.set_title(title, fontsize=16)
 
     ax.set_ylim(0, None)
@@ -169,7 +175,7 @@ def plot_timings(
     ax.legend(loc="upper right")
 
     # make the legend bigger
-    ax.legend(fontsize=32)
+    ax.legend(fontsize=27)
 
     # Add horizontal grid lines for y-axis
     ax.grid(which="both", axis="y", linestyle="--", linewidth=0.5)
@@ -293,13 +299,13 @@ def plot_timings(
 
 
 if __name__ == "__main__":
-    n = 365
+    n = 90
     b = 2865
     a = 4
     nested_solving = False
     n_processes = [2, 4, 8, 16, 32]
     # n_processes = [2, 4, 8, 16]
-    ideal_speedup = np.array(n_processes)
+    ideal_speedup = np.array([1 for _ in n_processes])
 
     # home = os.environ["HOME"]
     # path = os.path.join(home, "serinv", "bench", "IDPS", "timings_bs2865_as4_nb365")
@@ -322,7 +328,7 @@ if __name__ == "__main__":
     # 2. parallel timings
     d_pobtaf_timings = []
     for p in n_processes:
-        file_name = f"timings_d_pobtaf_bs{b}_as{a}_nb{n}_np{p}"
+        file_name = f"timings_d_pobtaf_bs{b}_as{a}_nb{n*p}_np{p}"
         if nested_solving:
             file_name += "_nested_solving"
         file_name += ".npy"
@@ -361,13 +367,13 @@ if __name__ == "__main__":
     d_pobtasi_rss_ns_timings = []
     d_pobtasi_timings = []
     for p in n_processes:
-        file_name = f"timings_d_pobtasi_rss_bs{b}_as{a}_nb{n}_np{p}.npy"
+        file_name = f"timings_d_pobtasi_rss_bs{b}_as{a}_nb{n*p}_np{p}.npy"
         tmp = np.load(os.path.join(path, file_name), allow_pickle=True)
         d_pobtasi_rss_timings.append(tmp)
-        file_name = f"timings_d_pobtasi_rss_bs{b}_as{a}_nb{n}_np{p}_nested_solving.npy"
+        file_name = f"timings_d_pobtasi_rss_bs{b}_as{a}_nb{n*p}_np{p}_nested_solving.npy"
         tmp = np.load(os.path.join(path, file_name), allow_pickle=True)
         d_pobtasi_rss_ns_timings.append(tmp)
-        file_name = f"timings_d_pobtasi_bs{b}_as{a}_nb{n}_np{p}"
+        file_name = f"timings_d_pobtasi_bs{b}_as{a}_nb{n*p}_np{p}"
         if nested_solving:
             file_name += "_nested_solving"
         file_name += ".npy"
@@ -440,7 +446,7 @@ if __name__ == "__main__":
             f"    P: {n_processes[i]}, mean: {d_a2x_ns_strong_scaling_mean[i]}, CI: {d_a2x_ns_strong_scaling_ci[:, i]}"
         )
 
-    ideal_timing = np.array([a2x_ref_mean / p for p in n_processes])
+    ideal_timing = np.array([a2x_ref_mean for _ in n_processes])
 
     # fig, axs = plt.subplots(1, 3, figsize=(20, 5))
 
@@ -460,7 +466,7 @@ if __name__ == "__main__":
 
     plt.tight_layout()
 
-    file_name = "pobtaf_strong_scaling.pdf"
+    file_name = "pobtaf_weak_scaling.pdf"
     # if nested_solving:
     #     file_name += "_nested_solving"
     # file_name += ".png"
@@ -482,7 +488,7 @@ if __name__ == "__main__":
 
     plt.tight_layout()
 
-    file_name = "pobtasi_strong_scaling.pdf"
+    file_name = "pobtasi_weak_scaling.pdf"
     # if nested_solving:
     #     file_name += "_nested_solving"
     # file_name += ".png"
@@ -492,7 +498,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(1, 1, figsize=(10, 7))
 
     fig_timings = plot_timings(
-        "Time to solution, strong scaling",
+        "Runtime, weak scaling",
         n_processes,
         ideal_timing,
         a2x_ref_mean,
@@ -506,7 +512,7 @@ if __name__ == "__main__":
 
     plt.tight_layout()
 
-    file_name = "a2x_strong_scaling.pdf"
+    file_name = "a2x_weak_scaling.pdf"
     # if nested_solving:
     #     file_name += "_nested_solving"
     # file_name += ".png"
