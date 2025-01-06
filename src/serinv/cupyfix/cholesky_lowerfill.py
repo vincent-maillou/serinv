@@ -1,4 +1,4 @@
-# Copyright 2023-2024 ETH Zurich. All rights reserved.
+# Copyright 2023-2025 ETH Zurich. All rights reserved.
 # Forked and modified from cupy.linalg.cholesky: https://github.com/cupy/cupy/blob/main/cupy/linalg/_decomposition.py#L157
 
 import cupy
