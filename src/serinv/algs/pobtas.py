@@ -1,12 +1,9 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-import numpy as np
 
 from serinv import (
     ArrayLike,
-    CUPY_AVAIL,
-    DEVICE_STREAMING,
-    _get_array_module,
+    _get_module_from_array,
 )
 
 
@@ -16,8 +13,7 @@ def pobtas(
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
-    arrow_direction: str = "downward",
-    buffers: tuple = None,
+    **kwargs,
 ) -> ArrayLike:
     """Solve a block tridiagonal arrowhead linear system given its Cholesky factorization
     using a sequential block algorithm.
@@ -25,39 +21,44 @@ def pobtas(
     Note:
     -----
     - If a device array is given, the algorithm will run on the GPU.
-    """
-    xp, _ = _get_array_module(L_diagonal_blocks)
 
-    if CUPY_AVAIL and xp == np and DEVICE_STREAMING:
-        # Call streaming codes
-        raise NotImplementedError("H2D streaming not implemented.")
+    Currently implemented:
+    ----------------------
+    |              | Natural | Permuted |
+    | ------------ | ------- | -------- |
+    | Direct-array | x       |          |
+    | Streaming    |         |          |
+    """
+    device_streaming: bool = kwargs.get("device_streaming", False)
+    buffer = kwargs.get("buffer", None)
+
+    if buffer is not None:
+        # Permuted arrowhead
+        if device_streaming:
+            raise NotImplementedError(
+                "Streaming is not implemented for the permuted arrowhead."
+            )
+        else:
+            raise NotImplementedError(
+                "Streaming is not implemented for the permuted arrowhead."
+            )
     else:
-        # Call direct-array (non-streaming) codes
-        if arrow_direction == "downward":
-            return _pobtas_downward(
+        # Natural arrowhead
+        if device_streaming:
+            raise NotImplementedError(
+                "Streaming is not implemented for the natural arrowhead."
+            )
+        else:
+            return _pobtas(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
                 L_arrow_bottom_blocks,
                 L_arrow_tip_block,
                 B,
             )
-        elif arrow_direction == "upward":
-            raise NotImplementedError(
-                "Upward arrowhead, H2D streaming not implemented."
-            )
-        elif arrow_direction == "downward-permuted":
-            raise NotImplementedError(
-                "downward-Permuted arrowhead, H2D streaming not implemented."
-            )
-        elif arrow_direction == "upward-permuted":
-            raise NotImplementedError(
-                "upward-Permuted arrowhead, H2D streaming not implemented."
-            )
-        else:
-            raise ValueError(f"Unknown arrow direction: {arrow_direction}")
 
 
-def _pobtas_downward(
+def _pobtas(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
@@ -65,7 +66,7 @@ def _pobtas_downward(
     B: ArrayLike,
 ) -> ArrayLike:
 
-    xp, la = _get_array_module(L_diagonal_blocks)
+    xp, la = _get_module_from_array(L_diagonal_blocks)
 
     diag_blocksize = L_diagonal_blocks.shape[1]
     arrow_blocksize = L_arrow_bottom_blocks.shape[1]

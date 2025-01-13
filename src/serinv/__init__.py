@@ -104,6 +104,7 @@ def _get_cholesky(module_str: str):
 __all__ = [
     "__version__",
     "ArrayLike",
+    "CUPY_AVAIL",
     "_get_module_from_array",
     "_get_module_from_str",
     "_get_cholesky",

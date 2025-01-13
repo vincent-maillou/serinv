@@ -1,0 +1,68 @@
+# Copyright 2023-2025 ETH Zurich. All rights reserved.
+
+from mpi4py import MPI
+
+from serinv import (
+    ArrayLike,
+)
+
+from serinv.algs import pobtasi
+
+comm_rank = MPI.COMM_WORLD.Get_rank()
+comm_size = MPI.COMM_WORLD.Get_size()
+
+
+def ppobtasi(
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_arrow_bottom_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+    _L_diagonal_blocks: ArrayLike,
+    _L_lower_diagonal_blocks: ArrayLike,
+    _L_lower_arrow_blocks: ArrayLike,
+    buffer: ArrayLike,
+    **kwargs,
+):
+    device_streaming: bool = kwargs.get("device_streaming", False)
+
+    # --- Selected-inversion of the reduced system ---
+    pobtasi(
+        _L_diagonal_blocks,
+        _L_lower_diagonal_blocks,
+        _L_lower_arrow_blocks,
+        A_arrow_tip_block,
+        device_streaming=device_streaming,
+    )
+
+    # Map result of the reduced system back to the original system
+    if comm_rank == 0:
+        A_diagonal_blocks[-1] = _L_diagonal_blocks[0]
+        A_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[0]
+        A_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[0]
+    else:
+        A_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank - 1]
+        A_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
+
+        buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
+
+        A_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank - 1]
+        A_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
+
+    if comm_rank == 0:
+        pobtasi(
+            A_diagonal_blocks,
+            A_lower_diagonal_blocks,
+            A_arrow_bottom_blocks,
+            A_arrow_tip_block,
+            device_streaming=device_streaming,
+            inverse_last_block=False,
+        )
+    else:
+        pobtasi(
+            A_diagonal_blocks,
+            A_lower_diagonal_blocks,
+            A_arrow_bottom_blocks,
+            A_arrow_tip_block,
+            device_streaming=device_streaming,
+            buffer=buffer,
+        )

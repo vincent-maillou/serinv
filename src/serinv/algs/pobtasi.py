@@ -50,6 +50,7 @@ def pobtasi(
     """
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
+    inverse_last_block = kwargs.get("inverse_last_block", True)
 
     if buffer is not None:
         # Permuted arrowhead
@@ -77,6 +78,7 @@ def pobtasi(
                 L_lower_diagonal_blocks,
                 L_arrow_bottom_blocks,
                 L_arrow_tip_block,
+                inverse_last_block,
             )
         else:
             return _pobtasi(
@@ -84,6 +86,7 @@ def pobtasi(
                 L_lower_diagonal_blocks,
                 L_arrow_bottom_blocks,
                 L_arrow_tip_block,
+                inverse_last_block,
             )
 
 
@@ -92,6 +95,7 @@ def _pobtasi(
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
+    inverse_last_block: bool,
 ):
     xp, la = _get_module_from_array(L_diagonal_blocks)
 
@@ -108,31 +112,32 @@ def _pobtasi(
     L_blk_inv = xp.empty_like(L_diagonal_blocks[0, :, :])
     Identity = xp.eye(L_diagonal_blocks.shape[1])
 
-    L_last_blk_inv = la.solve_triangular(
-        L_arrow_tip_block[:, :], xp.eye(L_arrow_tip_block.shape[0]), lower=True
-    )
+    if inverse_last_block:
+        L_last_blk_inv = la.solve_triangular(
+            L_arrow_tip_block[:, :], xp.eye(L_arrow_tip_block.shape[0]), lower=True
+        )
 
-    X_arrow_tip_block[:, :] = L_last_blk_inv.conj().T @ L_last_blk_inv
+        X_arrow_tip_block[:, :] = L_last_blk_inv.conj().T @ L_last_blk_inv
 
-    # Backward block-selected inversion
-    L_arrow_bottom_blocks_i[:, :] = L_arrow_bottom_blocks[-1, :, :]
+        # Backward block-selected inversion
+        L_arrow_bottom_blocks_i[:, :] = L_arrow_bottom_blocks[-1, :, :]
 
-    L_blk_inv = la.solve_triangular(
-        L_diagonal_blocks[-1, :, :],
-        Identity,
-        lower=True,
-    )
+        L_blk_inv = la.solve_triangular(
+            L_diagonal_blocks[-1, :, :],
+            Identity,
+            lower=True,
+        )
 
-    # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
-    X_arrow_bottom_blocks[-1, :, :] = (
-        -X_arrow_tip_block[:, :] @ L_arrow_bottom_blocks_i[:, :] @ L_blk_inv
-    )
+        # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
+        X_arrow_bottom_blocks[-1, :, :] = (
+            -X_arrow_tip_block[:, :] @ L_arrow_bottom_blocks_i[:, :] @ L_blk_inv
+        )
 
-    # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
-    X_diagonal_blocks[-1, :, :] = (
-        L_blk_inv.conj().T
-        - X_arrow_bottom_blocks[-1, :, :].conj().T @ L_arrow_bottom_blocks_i[:, :]
-    ) @ L_blk_inv
+        # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
+        X_diagonal_blocks[-1, :, :] = (
+            L_blk_inv.conj().T
+            - X_arrow_bottom_blocks[-1, :, :].conj().T @ L_arrow_bottom_blocks_i[:, :]
+        ) @ L_blk_inv
 
     for i in range(n_diag_blocks - 2, -1, -1):
         L_lower_diagonal_blocks_i[:, :] = L_lower_diagonal_blocks[i, :, :]
@@ -246,6 +251,7 @@ def _pobtasi_streaming(
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
+    inverse_last_block: bool,
 ):
     arr_module, _ = _get_module_from_array(arr=L_diagonal_blocks)
     if arr_module.__name__ != "numpy":
