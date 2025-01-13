@@ -321,21 +321,27 @@ def _pobtasi_streaming(
     L_arrow_tip_block_d.set(arr=L_arrow_tip_block[:, :], stream=compute_stream)
 
     with compute_stream:
-        # X_{ndb+1, ndb+1} = L_{ndb+1, ndb}^{-T} L_{ndb+1, ndb}^{-1}
-        L_last_blk_inv_d = cu_la.solve_triangular(
-            L_arrow_tip_block_d[:, :], cp.eye(L_arrow_tip_block.shape[0]), lower=True
-        )
+        if inverse_last_block:
+            # X_{ndb+1, ndb+1} = L_{ndb+1, ndb}^{-T} L_{ndb+1, ndb}^{-1}
+            L_last_blk_inv_d = cu_la.solve_triangular(
+                L_arrow_tip_block_d[:, :],
+                cp.eye(L_arrow_tip_block.shape[0]),
+                lower=True,
+            )
 
-        X_arrow_tip_block_d[:, :] = L_last_blk_inv_d.conj().T @ L_last_blk_inv_d
+            X_arrow_tip_block_d[:, :] = L_last_blk_inv_d.conj().T @ L_last_blk_inv_d
         compute_arrow_tip_event.record(stream=compute_stream)
 
     # --- Device 2 Host transfers ---
     d2h_stream.wait_event(compute_arrow_tip_event)
-    X_arrow_tip_block_d[:, :].get(
-        out=X_arrow_tip_block,
-        stream=d2h_stream,
-        blocking=False,
-    )
+    if inverse_last_block:
+        X_arrow_tip_block_d[:, :].get(
+            out=X_arrow_tip_block,
+            stream=d2h_stream,
+            blocking=False,
+        )
+    else:
+        X_arrow_tip_block_d[:, :].set(arr=X_arrow_tip_block, stream=h2d_stream)
 
     # --- Host 2 Device transfers ---
     L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].set(
@@ -350,45 +356,62 @@ def _pobtasi_streaming(
 
     with compute_stream:
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
-        # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
-        L_blk_inv_d = cu_la.solve_triangular(
-            L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
-            Identity,
-            lower=True,
-        )
+        if inverse_last_block:
+            # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
+            L_blk_inv_d = cu_la.solve_triangular(
+                L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
+                Identity,
+                lower=True,
+            )
 
         compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
         L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[
             (n_diag_blocks - 1) % 2, :, :
         ]
 
-        X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
-            -X_arrow_tip_block_d[:, :] @ L_arrow_bottom_blocks_d_i[:, :] @ L_blk_inv_d
-        )
+        if inverse_last_block:
+            X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
+                -X_arrow_tip_block_d[:, :]
+                @ L_arrow_bottom_blocks_d_i[:, :]
+                @ L_blk_inv_d
+            )
         compute_arrow_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
-        # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
-        X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
-            L_blk_inv_d.conj().T
-            - X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
-            @ L_arrow_bottom_blocks_d_i[:, :]
-        ) @ L_blk_inv_d
+        if inverse_last_block:
+            # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
+            X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
+                L_blk_inv_d.conj().T
+                - X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
+                @ L_arrow_bottom_blocks_d_i[:, :]
+            ) @ L_blk_inv_d
         compute_diagonal_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
     # --- Device 2 Host transfers ---
     d2h_stream.wait_event(compute_arrow_events[(n_diag_blocks - 1) % 2])
-    X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-        out=X_arrow_bottom_blocks[-1, :, :],
-        stream=d2h_stream,
-        blocking=False,
-    )
+    if inverse_last_block:
+        X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
+            out=X_arrow_bottom_blocks[-1, :, :],
+            stream=d2h_stream,
+            blocking=False,
+        )
+    else:
+        X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].set(
+            arr=X_arrow_bottom_blocks[-1, :, :],
+            stream=h2d_stream,
+        )
 
     d2h_stream.wait_event(compute_diagonal_events[(n_diag_blocks - 1) % 2])
-    X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-        out=X_diagonal_blocks[-1, :, :],
-        stream=d2h_stream,
-        blocking=False,
-    )
+    if inverse_last_block:
+        X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
+            out=X_diagonal_blocks[-1, :, :],
+            stream=d2h_stream,
+            blocking=False,
+        )
+    else:
+        X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].set(
+            arr=X_diagonal_blocks[-1, :, :],
+            stream=h2d_stream,
+        )
 
     d2h_lower_events[(n_diag_blocks - 2) % 2].record(stream=d2h_stream)
 

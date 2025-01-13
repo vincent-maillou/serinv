@@ -468,27 +468,26 @@ def _pobtaf_streaming(
             )
             compute_arrow_h2d_events[i % 2].record(stream=compute_stream)
 
-    if factorize_last_block:
-        # L_{ndb, ndb} = chol(A_{ndb, ndb})
-        with compute_stream:
-            compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
+    # L_{ndb, ndb} = chol(A_{ndb, ndb})
+    with compute_stream:
+        compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
+        if factorize_last_block:
             L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = cholesky(
                 A_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :]
             )
-            compute_diagonal_events[(n_diag_blocks - 1) % 2].record(
-                stream=compute_stream
-            )
+        compute_diagonal_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
-        d2h_stream.wait_event(compute_diagonal_events[(n_diag_blocks - 1) % 2])
-        L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-            out=L_diagonal_blocks[-1, :, :],
-            stream=d2h_stream,
-            blocking=False,
-        )
+    d2h_stream.wait_event(compute_diagonal_events[(n_diag_blocks - 1) % 2])
+    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
+        out=L_diagonal_blocks[-1, :, :],
+        stream=d2h_stream,
+        blocking=False,
+    )
 
-        # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
-        with compute_stream:
-            compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
+    # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
+    with compute_stream:
+        compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
+        if factorize_last_block:
             L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
@@ -498,16 +497,17 @@ def _pobtaf_streaming(
                 .conj()
                 .T
             )
-            compute_arrow_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
+        compute_arrow_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
-        d2h_stream.wait_event(compute_arrow_events[(n_diag_blocks - 1) % 2])
-        L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-            out=L_arrow_bottom_blocks[-1, :, :],
-            stream=d2h_stream,
-            blocking=False,
-        )
+    d2h_stream.wait_event(compute_arrow_events[(n_diag_blocks - 1) % 2])
+    L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
+        out=L_arrow_bottom_blocks[-1, :, :],
+        stream=d2h_stream,
+        blocking=False,
+    )
 
-        with compute_stream:
+    with compute_stream:
+        if factorize_last_block:
             # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
             A_arrow_tip_block_d[:, :] = (
                 A_arrow_tip_block_d[:, :]
@@ -518,9 +518,9 @@ def _pobtaf_streaming(
             # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
             L_arrow_tip_block_d[:, :] = cholesky(A_arrow_tip_block_d[:, :])
 
-            L_arrow_tip_block_d[:, :].get(
-                out=L_arrow_tip_block[:, :], stream=compute_stream
-            )
+        L_arrow_tip_block_d[:, :].get(
+            out=L_arrow_tip_block[:, :], stream=compute_stream
+        )
 
     cp.cuda.Device().synchronize()
 
