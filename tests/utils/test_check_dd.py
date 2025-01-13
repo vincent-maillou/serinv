@@ -1,15 +1,10 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-try:
-    import cupy as cp
-
-    CUPY_AVAIL = True
-
-except ImportError:
-    CUPY_AVAIL = False
-
 import numpy as np
 import pytest
+
+from serinv import _get_module_from_array
+from ..testing_utils import bta_dense_to_arrays, dd_bta
 
 from serinv.utils.check_dd import check_block_dd, check_ddbta
 
@@ -21,16 +16,22 @@ from serinv.utils.check_dd import check_block_dd, check_ddbta
 @pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 def test_check_block_dd(
-    dd_bta,
-    bta_dense_to_arrays,
     diagonal_blocksize,
     arrowhead_blocksize,
     n_diag_blocks,
+    device_array,
+    dtype,
 ):
-    if CUPY_AVAIL:
-        xp = cp.get_array_module(dd_bta)
-    else:
-        xp = np
+
+    A = dd_bta(
+        diagonal_blocksize,
+        arrowhead_blocksize,
+        n_diag_blocks,
+        device_array=device_array,
+        dtype=dtype,
+    )
+
+    xp, _ = _get_module_from_array(A)
 
     (
         A_diagonal_blocks,
@@ -39,9 +40,7 @@ def test_check_block_dd(
         _,
         _,
         _,
-    ) = bta_dense_to_arrays(
-        dd_bta, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
-    )
+    ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
     block_dd = check_block_dd(A_diagonal_blocks)
 
@@ -55,16 +54,21 @@ def test_check_block_dd(
 @pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 def test_check_ddbta(
-    dd_bta,
-    bta_dense_to_arrays,
     diagonal_blocksize,
     arrowhead_blocksize,
     n_diag_blocks,
+    device_array,
+    dtype,
 ):
-    if CUPY_AVAIL:
-        xp = cp.get_array_module(dd_bta)
-    else:
-        xp = np
+    A = dd_bta(
+        diagonal_blocksize,
+        arrowhead_blocksize,
+        n_diag_blocks,
+        device_array=device_array,
+        dtype=dtype,
+    )
+
+    xp, _ = _get_module_from_array(A)
 
     (
         A_diagonal_blocks,
@@ -73,9 +77,7 @@ def test_check_ddbta(
         A_arrow_bottom_blocks,
         A_arrow_right_blocks,
         A_arrow_tip_block,
-    ) = bta_dense_to_arrays(
-        dd_bta, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
-    )
+    ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
     ddbta = check_ddbta(
         A_diagonal_blocks,

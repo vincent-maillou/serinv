@@ -6,7 +6,7 @@ import pytest
 from serinv import CUPY_AVAIL, _get_module_from_array
 from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
-from serinv.algs import pobtaf
+from serinv.algs import pobtaf, pobtasi
 
 if CUPY_AVAIL:
     import cupyx as cpx
@@ -18,7 +18,7 @@ if CUPY_AVAIL:
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3, 4])
 @pytest.mark.parametrize("array_type", ["host", "device", "streaming"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
-def test_pobtaf(
+def test_pobtasi(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
     n_diag_blocks: int,
@@ -37,7 +37,18 @@ def test_pobtaf(
 
     xp, _ = _get_module_from_array(A)
 
-    L_ref = xp.linalg.cholesky(A.copy())
+    X_ref = xp.linalg.inv(A.copy())
+
+    (
+        X_diagonal_blocks_ref,
+        X_lower_diagonal_blocks_ref,
+        _,
+        X_arrow_bottom_blocks_ref,
+        _,
+        X_arrow_tip_block_ref,
+    ) = bta_dense_to_arrays(
+        X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
+    )
 
     (
         A_diagonal_blocks,
@@ -71,19 +82,15 @@ def test_pobtaf(
         device_streaming=True if array_type == "streaming" else False,
     )
 
-    (
-        L_diagonal_blocks_ref,
-        L_lower_diagonal_blocks_ref,
-        _,
-        L_arrow_bottom_blocks_ref,
-        _,
-        L_arrow_tip_block_ref,
-    ) = bta_dense_to_arrays(
-        L_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
+    pobtasi(
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_tip_block,
+        device_streaming=True if array_type == "streaming" else False,
     )
 
-    # Check algorithm validity
-    assert xp.allclose(L_diagonal_blocks_ref, A_diagonal_blocks)
-    assert xp.allclose(L_lower_diagonal_blocks_ref, A_lower_diagonal_blocks)
-    assert xp.allclose(L_arrow_bottom_blocks_ref, A_arrow_bottom_blocks)
-    assert xp.allclose(L_arrow_tip_block_ref, A_arrow_tip_block)
+    assert xp.allclose(X_diagonal_blocks_ref, A_diagonal_blocks)
+    assert xp.allclose(X_lower_diagonal_blocks_ref, A_lower_diagonal_blocks)
+    assert xp.allclose(X_arrow_bottom_blocks_ref, A_arrow_bottom_blocks)
+    assert xp.allclose(X_arrow_tip_block_ref, A_arrow_tip_block)

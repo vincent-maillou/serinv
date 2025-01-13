@@ -1,6 +1,6 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-from serinv import ArrayLike, _get_array_module
+from serinv import ArrayLike, _get_module_from_array
 
 def check_block_dd(
     A_diagonal_blocks: ArrayLike,
@@ -21,7 +21,7 @@ def check_block_dd(
     ArrayLike
         Array of booleans indicating if the diagonal blocks are diagonally dominant.
     """
-    xp = _get_array_module(A_diagonal_blocks)
+    xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     block_dd = xp.zeros(A_diagonal_blocks.shape[0], dtype=bool)
 
@@ -74,7 +74,7 @@ def check_ddbta(
     ArrayLike
         Array of booleans indicating if the corresponding row is diagonally dominant.
     """
-    xp = _get_array_module(A_diagonal_blocks)
+    xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     diagonal_blocksize = A_diagonal_blocks.shape[1]
     arrowhead_blocksize = A_arrow_bottom_blocks.shape[1]
@@ -106,5 +106,5 @@ def check_ddbta(
         - xp.diag(A_arrow_tip_block[:, :])
         + arrow_colsum
     )
-    
+
     return ddbta
