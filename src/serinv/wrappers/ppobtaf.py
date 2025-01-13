@@ -38,6 +38,17 @@ def ppobtaf(
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the block tridiagonal with arrowhead matrix.
 
+    Returns
+    -------
+    _L_diagonal_blocks : ArrayLike
+        Diagonal blocks of the reduced system.
+    _L_lower_diagonal_blocks : ArrayLike
+        Lower diagonal blocks of the reduced system.
+    _L_lower_arrow_blocks : ArrayLike
+        Arrow bottom blocks of the reduced system.
+    buffer : ArrayLike
+        Buffer array for the permuted arrowhead.
+
     Keyword Arguments
     -----------------
     device_streaming : bool, optional
@@ -48,6 +59,13 @@ def ppobtaf(
     - The matrix, A, is assumed to be symmetric positive definite.
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
+
+    Currently implemented:
+    ----------------------
+    |              | Natural | Permuted |
+    | ------------ | ------- | -------- |
+    | Direct-array | x       | x        |
+    | Streaming    | x       | x        |
     """
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")

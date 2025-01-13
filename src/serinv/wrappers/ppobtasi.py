@@ -13,16 +13,54 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 def ppobtasi(
-    A_diagonal_blocks: ArrayLike,
-    A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
-    A_arrow_tip_block: ArrayLike,
+    L_diagonal_blocks: ArrayLike,
+    L_lower_diagonal_blocks: ArrayLike,
+    L_arrow_bottom_blocks: ArrayLike,
+    L_arrow_tip_block: ArrayLike,
     _L_diagonal_blocks: ArrayLike,
     _L_lower_diagonal_blocks: ArrayLike,
     _L_lower_arrow_blocks: ArrayLike,
     buffer: ArrayLike,
     **kwargs,
 ):
+    """Perform a selected inversion of a block tridiagonal with arrowhead matrix (pointing downward by convention).
+
+    Parameters
+    ----------
+    L_diagonal_blocks : ArrayLike
+        Diagonal blocks of the Cholesky factor of the matrix.
+    L_lower_diagonal_blocks : ArrayLike
+        Lower diagonal blocks of the Cholesky factor of the matrix.
+    L_arrow_bottom_blocks : ArrayLike
+        Arrow bottom blocks of the Cholesky factor of the matrix.
+    L_arrow_tip_block : ArrayLike
+        Arrow tip block of the Cholesky factor of the matrix.
+    _L_diagonal_blocks : ArrayLike
+        Diagonal blocks of the reduced system.
+    _L_lower_diagonal_blocks : ArrayLike
+        Lower diagonal blocks of the reduced system.
+    _L_lower_arrow_blocks : ArrayLike
+        Arrow bottom blocks of the reduced system.
+    buffer : ArrayLike
+        Buffer array for the permuted arrowhead.
+
+    Keyword Arguments
+    -----------------
+    device_streaming : bool, optional
+        If True, the algorithm will run on the GPU. (default: False)
+
+    Note:
+    -----
+    - Will overwrite the inputs and store the results in them (in-place).
+    - If a device array is given, the algorithm will run on the GPU.
+
+    Currently implemented:
+    ----------------------
+    |              | Natural | Permuted |
+    | ------------ | ------- | -------- |
+    | Direct-array | x       | x        |
+    | Streaming    | x       | x        |
+    """
     device_streaming: bool = kwargs.get("device_streaming", False)
 
     # --- Selected-inversion of the reduced system ---
@@ -30,39 +68,39 @@ def ppobtasi(
         _L_diagonal_blocks,
         _L_lower_diagonal_blocks,
         _L_lower_arrow_blocks,
-        A_arrow_tip_block,
+        L_arrow_tip_block,
         device_streaming=device_streaming,
     )
 
     # Map result of the reduced system back to the original system
     if comm_rank == 0:
-        A_diagonal_blocks[-1] = _L_diagonal_blocks[0]
-        A_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[0]
-        A_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[0]
+        L_diagonal_blocks[-1] = _L_diagonal_blocks[0]
+        L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[0]
+        L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[0]
     else:
-        A_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank - 1]
-        A_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
+        L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank - 1]
+        L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
 
         buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
 
-        A_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank - 1]
-        A_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
+        L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank - 1]
+        L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
 
     if comm_rank == 0:
         pobtasi(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_tip_block,
+            L_diagonal_blocks,
+            L_lower_diagonal_blocks,
+            L_arrow_bottom_blocks,
+            L_arrow_tip_block,
             device_streaming=device_streaming,
             inverse_last_block=False,
         )
     else:
         pobtasi(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_tip_block,
+            L_diagonal_blocks,
+            L_lower_diagonal_blocks,
+            L_arrow_bottom_blocks,
+            L_arrow_tip_block,
             device_streaming=device_streaming,
             buffer=buffer,
         )
