@@ -141,12 +141,35 @@ def ppobtaf(
         _L_lower_arrow_blocks[2 * comm_rank] = A_arrow_bottom_blocks[-1]
 
     # Can be done with AllGather (need resize of buffer, assuming P0 get 2 blocks)
-    MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_diagonal_blocks, op=MPI.SUM)
-    MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_diagonal_blocks, op=MPI.SUM)
-    MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_arrow_blocks, op=MPI.SUM)
-    MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, A_tip_update, op=MPI.SUM)
+    if xp.__name__ == "cupy":
+        # Need to move data to host, communicate and then back to device
+        _L_diagonal_blocks_h = cpx.zeros_like_pinned(_L_diagonal_blocks)
+        _L_lower_diagonal_blocks_h = cpx.zeros_like_pinned(_L_lower_diagonal_blocks)
+        _L_lower_arrow_blocks_h = cpx.zeros_like_pinned(_L_lower_arrow_blocks)
+        _L_arrow_tip_update_h = cpx.zeros_like_pinned(A_tip_update)
 
-    MPI.COMM_WORLD.Barrier()
+        _L_diagonal_blocks.get(out=_L_diagonal_blocks_h)
+        _L_lower_diagonal_blocks.get(out=_L_lower_diagonal_blocks_h)
+        _L_lower_arrow_blocks.get(out=_L_lower_arrow_blocks_h)
+        A_tip_update.get(out=_L_arrow_tip_update_h)
+
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_diagonal_blocks_h, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_diagonal_blocks_h, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_arrow_blocks_h, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_arrow_tip_update_h, op=MPI.SUM)
+
+        MPI.COMM_WORLD.Barrier()
+
+        _L_diagonal_blocks.set(arr=_L_diagonal_blocks_h)
+        _L_lower_diagonal_blocks.set(arr=_L_lower_diagonal_blocks_h)
+        _L_lower_arrow_blocks.set(arr=_L_lower_arrow_blocks_h)
+        A_tip_update.set(arr=_L_arrow_tip_update_h)
+
+    else:
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_diagonal_blocks, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_diagonal_blocks, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_arrow_blocks, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, A_tip_update, op=MPI.SUM)
 
     A_arrow_tip_block[:, :] = A_arrow_tip_block[:, :] + A_tip_update[:, :]
 
