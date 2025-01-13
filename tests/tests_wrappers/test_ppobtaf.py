@@ -9,7 +9,7 @@ from serinv import CUPY_AVAIL, _get_module_from_array
 
 from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
-from serinv.algs import pobtaf, pobtasi
+from serinv.algs import pobtasi
 from serinv.wrappers import ppobtaf
 
 if CUPY_AVAIL:
