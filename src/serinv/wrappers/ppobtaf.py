@@ -81,6 +81,7 @@ def ppobtaf(
     # Check for optional parameters
     device_streaming: bool = kwargs.get("device_streaming", False)
     strategy: str = kwargs.get("strategy", "allgather")
+    root: int = kwargs.get("root", 0)
 
     # Check for given permutation buffer
     A_permutation_buffer: ArrayLike = kwargs.get("A_permutation_buffer", None)
@@ -178,6 +179,7 @@ def ppobtaf(
             _L_lower_arrow_blocks=_L_lower_arrow_blocks_h,
             _L_tip_update=_L_tip_update_h,
             strategy=strategy,
+            root=root if strategy == "gather-scatter" else None,
         )
 
         _L_diagonal_blocks.set(arr=_L_diagonal_blocks_h)
@@ -192,23 +194,34 @@ def ppobtaf(
             _L_lower_arrow_blocks=_L_lower_arrow_blocks,
             _L_tip_update=_L_tip_update,
             strategy=strategy,
+            root=root if strategy == "gather-scatter" else None,
         )
 
     A_arrow_tip_block[:, :] = A_arrow_tip_block[:, :] + _L_tip_update[:, :]
 
-    if strategy == "allgather":
-        _L_diagonal_blocks = _L_diagonal_blocks[1:]
-        _L_lower_diagonal_blocks = _L_lower_diagonal_blocks[1:-1]
-        _L_lower_arrow_blocks = _L_lower_arrow_blocks[1:]
-
     # --- Factorize the reduced system ---
-    pobtaf(
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        A_arrow_tip_block,
-        device_streaming=device_streaming,
-    )
+    if strategy == "gather-scatter":
+        if comm_rank == root:
+            pobtaf(
+                _L_diagonal_blocks[1:],
+                _L_lower_diagonal_blocks[1:-1],
+                _L_lower_arrow_blocks[1:],
+                A_arrow_tip_block,
+                device_streaming=device_streaming,
+            )
+    else:
+        if strategy == "allgather":
+            _L_diagonal_blocks = _L_diagonal_blocks[1:]
+            _L_lower_diagonal_blocks = _L_lower_diagonal_blocks[1:-1]
+            _L_lower_arrow_blocks = _L_lower_arrow_blocks[1:]
+
+        pobtaf(
+            _L_diagonal_blocks,
+            _L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks,
+            A_arrow_tip_block,
+            device_streaming=device_streaming,
+        )
 
     return (
         _L_diagonal_blocks,

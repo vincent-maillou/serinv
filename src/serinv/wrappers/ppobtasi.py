@@ -7,7 +7,7 @@ from serinv import (
 )
 
 from serinv.algs import pobtasi
-from serinv.wrappers.ppobtars import map_ppobtars_to_ppobtax
+from serinv.wrappers.ppobtars import map_ppobtars_to_ppobtax, scatter_ppobtars
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
@@ -62,17 +62,39 @@ def ppobtasi(
     | Direct-array | x       | x        |
     | Streaming    | x       | x        |
     """
+    # Check for optional parameters
     device_streaming: bool = kwargs.get("device_streaming", False)
     strategy: str = kwargs.get("strategy", "allgather")
+    root: int = kwargs.get("root", 0)
 
     # Selected-inversion of the reduced system
-    pobtasi(
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        L_arrow_tip_block,
-        device_streaming=device_streaming,
-    )
+    if strategy == "gather-scatter":
+        if comm_rank == root:
+            pobtasi(
+                _L_diagonal_blocks[1:],
+                _L_lower_diagonal_blocks[1:-1],
+                _L_lower_arrow_blocks[1:],
+                L_arrow_tip_block,
+                device_streaming=device_streaming,
+            )
+
+        MPI.COMM_WORLD.Barrier()
+
+        scatter_ppobtars(
+            _L_diagonal_blocks,
+            _L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks,
+            L_arrow_tip_block,
+            root=root,
+        )
+    else:
+        pobtasi(
+            _L_diagonal_blocks,
+            _L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks,
+            L_arrow_tip_block,
+            device_streaming=device_streaming,
+        )
 
     # Map result of the reduced system back to the original system
     map_ppobtars_to_ppobtax(
