@@ -136,6 +136,8 @@ def ppobtaf(
         _L_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[-1]
 
         _L_lower_diagonal_blocks[2 * comm_rank - 1] = buffer[-1].conj().T
+        if comm_rank != comm_size - 1:
+            _L_lower_diagonal_blocks[2 * comm_rank] = A_lower_diagonal_blocks[-1]
 
         _L_lower_arrow_blocks[2 * comm_rank - 1] = A_arrow_bottom_blocks[0]
         _L_lower_arrow_blocks[2 * comm_rank] = A_arrow_bottom_blocks[-1]

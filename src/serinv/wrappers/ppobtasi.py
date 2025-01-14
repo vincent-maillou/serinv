@@ -82,6 +82,8 @@ def ppobtasi(
         L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
 
         buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
+        if comm_rank != comm_size - 1:
+            L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[2 * comm_rank]
 
         L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank - 1]
         L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
