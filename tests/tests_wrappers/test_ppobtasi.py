@@ -9,7 +9,12 @@ from serinv import CUPY_AVAIL, _get_module_from_array
 
 from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
-from serinv.wrappers import ppobtaf, ppobtasi
+from serinv.wrappers import (
+    ppobtaf,
+    ppobtasi,
+    allocate_permutation_buffer,
+    allocate_ppobtars,
+)
 
 if CUPY_AVAIL:
     import cupyx as cpx
@@ -29,12 +34,16 @@ comm_size = MPI.COMM_WORLD.Get_size()
 @pytest.mark.parametrize("n_diag_blocks", [comm_size * 3, comm_size * 4, comm_size * 5])
 @pytest.mark.parametrize("array_type", ["host", "device", "streaming"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
+@pytest.mark.parametrize("preallocate_permutation_buffer", [True, False])
+@pytest.mark.parametrize("preallocate_reduced_system", [True, False])
 def test_d_pobtasi(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
     n_diag_blocks: int,
     array_type: str,
     dtype: np.dtype,
+    preallocate_permutation_buffer: bool,
+    preallocate_reduced_system: bool,
 ):
     A = dd_bta(
         diagonal_blocksize,
@@ -144,6 +153,37 @@ def test_d_pobtasi(
         * n_diag_blocks_per_processes,
     ]
 
+    # Allocate permutation buffer
+    if preallocate_permutation_buffer:
+        permutation_buffer = allocate_permutation_buffer(
+            A_diagonal_blocks_local,
+            device_streaming=True if array_type == "streaming" else False,
+        )
+    else:
+        permutation_buffer = None
+
+    # Allocate reduced system
+    if preallocate_reduced_system:
+        (
+            _L_diagonal_blocks,
+            _L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks,
+            _L_tip_update,
+        ) = allocate_ppobtars(
+            A_diagonal_blocks=A_diagonal_blocks_local,
+            A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
+            A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
+            A_arrow_tip_block=A_arrow_tip_block_global,
+            comm_size=comm_size,
+            array_module=xp.__name__,
+            device_streaming=True if array_type == "streaming" else False,
+        )
+    else:
+        _L_diagonal_blocks = None
+        _L_lower_diagonal_blocks = None
+        _L_lower_arrow_blocks = None
+        _L_tip_update = None
+
     # Distributed factorization
     (
         _L_diagonal_blocks,
@@ -156,6 +196,11 @@ def test_d_pobtasi(
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
         device_streaming=True if array_type == "streaming" else False,
+        A_permutation_buffer=permutation_buffer,
+        _L_diagonal_blocks=_L_diagonal_blocks,
+        _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
+        _L_lower_arrow_blocks=_L_lower_arrow_blocks,
+        _L_tip_update=_L_tip_update,
     )
 
     # Inversion of the full system
