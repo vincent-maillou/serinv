@@ -2,11 +2,12 @@
 
 #SBATCH --job-name=cpu_pobtax
 #SBATCH --nodes=1 			#Number of Nodes desired e.g 1 node
-#SBATCH --time=00:20:00 		#Walltime: Duration for the Job to run HH:MM:SS
+#SBATCH --time=00:30:00 		#Walltime: Duration for the Job to run HH:MM:SS
 #SBATCH --error=cpu_pobtax.err 		#The .error file name
 #SBATCH --output=cpu_pobtax.out 	#The .output file name
 #SBATCH --exclusive
 #SBATCH --cpus-per-task=72
+#SBATCH --partition=spr1tb
 
 unset SLURM_EXPORT_ENV
 
