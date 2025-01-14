@@ -20,7 +20,7 @@ def allocate_permutation_buffer(
     A_diagonal_blocks: ArrayLike,
     device_streaming: bool,
 ):
-    """Allocate the buffers necessary for the parallel BTA algorithms.
+    """Allocate the (permutation) buffers necessary for the parallel BTA algorithms.
 
     Parameters
     ----------
@@ -60,6 +60,14 @@ def allocate_ppobtars(
 
     Parameters
     ----------
+    A_diagonal_blocks : ArrayLike
+        The diagonal blocks of the original system.
+    A_lower_diagonal_blocks : ArrayLike
+        The lower diagonal blocks of the original system.
+    A_arrow_bottom_blocks : ArrayLike
+        The arrow bottom blocks of the original system.
+    A_arrow_tip_block : ArrayLike
+        The arrow tip block of the original system.
     comm_size : int
         Number of MPI ranks.
     array_module : str
@@ -69,6 +77,14 @@ def allocate_ppobtars(
 
     Returns
     -------
+    _L_diagonal_blocks : ArrayLike
+        The diagonal blocks of the reduced system.
+    _L_lower_diagonal_blocks : ArrayLike
+        The lower diagonal blocks of the reduced system.
+    _L_lower_arrow_blocks : ArrayLike
+        The arrow bottom blocks of the reduced system.
+    _L_tip_update : ArrayLike
+        The arrow tip block of the reduced system.
     """
     xp, _ = _get_module_from_str(array_module)
 
