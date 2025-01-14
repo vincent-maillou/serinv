@@ -1,3 +1,7 @@
+""" 
+Run the sequential Serinv codes on CPU using the inlamat matrices.
+"""
+
 import time
 
 tic = time.perf_counter()
