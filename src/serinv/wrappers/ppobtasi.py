@@ -1,13 +1,13 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-from mpi4py import MPI
-
 from serinv import (
     ArrayLike,
 )
 
 from serinv.algs import pobtasi
 from serinv.wrappers.ppobtars import map_ppobtars_to_ppobtax
+
+from mpi4py import MPI
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()

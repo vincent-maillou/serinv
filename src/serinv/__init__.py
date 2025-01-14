@@ -24,9 +24,16 @@ try:
     cp.abs(1)
 
     CUPY_AVAIL = True
-except ImportWarning as w:
+except (ImportError, ImportWarning, ModuleNotFoundError) as w:
     warn(f"'CuPy' is unavailable. ({w})")
 
+MPI_AVAIL = False
+try:
+    from mpi4py import MPI
+
+    MPI_AVAIL = True
+except (ImportError, ImportWarning, ModuleNotFoundError) as w:
+    warn(f"'mpi4py' is unavailable. ({w})")
 
 def _get_module_from_array(arr: ArrayLike):
     """Return the array module of the input array.
@@ -103,8 +110,9 @@ def _get_cholesky(module_str: str):
 
 __all__ = [
     "__version__",
-    "ArrayLike",
     "CUPY_AVAIL",
+    "MPI_AVAIL",
+    "ArrayLike",
     "_get_module_from_array",
     "_get_module_from_str",
     "_get_cholesky",

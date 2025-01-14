@@ -1,14 +1,15 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-from mpi4py import MPI
+from serinv import MPI_AVAIL
+import pytest
+if MPI_AVAIL:
+    from mpi4py import MPI
+else:
+    pytest.skip("mpi4py is not available", allow_module_level=True)
 
 import numpy as np
-import pytest
 
-from serinv import CUPY_AVAIL, _get_module_from_array
-
-from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
-
+from serinv import CUPY_AVAIL,  _get_module_from_array
 from serinv.wrappers import (
     ppobtaf,
     ppobtasi,
@@ -16,8 +17,12 @@ from serinv.wrappers import (
     allocate_ppobtars,
 )
 
+from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
+
+array_types = ["host"]
 if CUPY_AVAIL:
     import cupyx as cpx
+    array_types += ["device", "streaming"]
 
 from os import environ
 
@@ -32,7 +37,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [comm_size * 3, comm_size * 4, comm_size * 5])
-@pytest.mark.parametrize("array_type", ["host", "device", "streaming"])
+@pytest.mark.parametrize("array_type", array_types)
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 @pytest.mark.parametrize("preallocate_permutation_buffer", [True, False])
 @pytest.mark.parametrize("preallocate_reduced_system", [True, False])

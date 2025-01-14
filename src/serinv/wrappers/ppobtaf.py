@@ -1,7 +1,5 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-from mpi4py import MPI
-
 from serinv import (
     ArrayLike,
     CUPY_AVAIL,
@@ -10,6 +8,9 @@ from serinv import (
 
 if CUPY_AVAIL:
     import cupyx as cpx
+
+from mpi4py import MPI
+
 
 from serinv.algs import pobtaf
 from .ppobtars import (

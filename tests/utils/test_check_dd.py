@@ -3,17 +3,20 @@
 import numpy as np
 import pytest
 
-from serinv import _get_module_from_array
+from serinv import CUPY_AVAIL, _get_module_from_array
 from ..testing_utils import bta_dense_to_arrays, dd_bta
 
 from serinv.utils.check_dd import check_block_dd, check_ddbta
 
+device_array = [False]
+if CUPY_AVAIL:
+    device_array += [True]
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3, 4])
-@pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
+@pytest.mark.parametrize("device_array", device_array)
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 def test_check_block_dd(
     diagonal_blocksize,
@@ -51,7 +54,7 @@ def test_check_block_dd(
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3, 4])
-@pytest.mark.parametrize("device_array", [False, True], ids=["host", "device"])
+@pytest.mark.parametrize("device_array", device_array)
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 def test_check_ddbta(
     diagonal_blocksize,

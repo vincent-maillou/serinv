@@ -8,15 +8,17 @@ from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
 from serinv.algs import pobtaf
 
+array_types = ["host"]
 if CUPY_AVAIL:
     import cupyx as cpx
+    array_types += ["device", "streaming"]
 
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("diagonal_blocksize", [2, 3])
 @pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
 @pytest.mark.parametrize("n_diag_blocks", [1, 2, 3, 4])
-@pytest.mark.parametrize("array_type", ["host", "device", "streaming"])
+@pytest.mark.parametrize("array_type", array_types)
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 def test_pobtaf(
     diagonal_blocksize: int,
