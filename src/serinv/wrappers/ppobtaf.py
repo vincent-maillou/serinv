@@ -80,7 +80,7 @@ def ppobtaf(
 
     # Check for optional parameters
     device_streaming: bool = kwargs.get("device_streaming", False)
-    strategy: str = kwargs.get("strategy", "allreduce")
+    strategy: str = kwargs.get("strategy", "allgather")
 
     # Check for given permutation buffer
     A_permutation_buffer: ArrayLike = kwargs.get("A_permutation_buffer", None)
@@ -195,6 +195,11 @@ def ppobtaf(
         )
 
     A_arrow_tip_block[:, :] = A_arrow_tip_block[:, :] + _L_tip_update[:, :]
+
+    if strategy == "allgather":
+        _L_diagonal_blocks = _L_diagonal_blocks[1:]
+        _L_lower_diagonal_blocks = _L_lower_diagonal_blocks[1:-1]
+        _L_lower_arrow_blocks = _L_lower_arrow_blocks[1:]
 
     # --- Factorize the reduced system ---
     pobtaf(

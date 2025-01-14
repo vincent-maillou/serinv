@@ -63,7 +63,7 @@ def ppobtasi(
     | Streaming    | x       | x        |
     """
     device_streaming: bool = kwargs.get("device_streaming", False)
-    strategy: str = kwargs.get("strategy", "allreduce")
+    strategy: str = kwargs.get("strategy", "allgather")
 
     # Selected-inversion of the reduced system
     pobtasi(

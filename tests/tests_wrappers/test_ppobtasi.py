@@ -36,6 +36,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 @pytest.mark.parametrize("preallocate_permutation_buffer", [True, False])
 @pytest.mark.parametrize("preallocate_reduced_system", [True, False])
+@pytest.mark.parametrize("comm_strategy", ["allreduce", "allgather"])
 def test_d_pobtasi(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
@@ -44,6 +45,7 @@ def test_d_pobtasi(
     dtype: np.dtype,
     preallocate_permutation_buffer: bool,
     preallocate_reduced_system: bool,
+    comm_strategy: str,
 ):
     A = dd_bta(
         diagonal_blocksize,
@@ -177,6 +179,7 @@ def test_d_pobtasi(
             comm_size=comm_size,
             array_module=xp.__name__,
             device_streaming=True if array_type == "streaming" else False,
+            strategy=comm_strategy,
         )
     else:
         _L_diagonal_blocks = None
@@ -201,6 +204,7 @@ def test_d_pobtasi(
         _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
         _L_lower_arrow_blocks=_L_lower_arrow_blocks,
         _L_tip_update=_L_tip_update,
+        strategy=comm_strategy,
     )
 
     # Inversion of the full system
@@ -214,6 +218,7 @@ def test_d_pobtasi(
         _L_lower_arrow_blocks,
         permutation_buffer,
         device_streaming=True if array_type == "streaming" else False,
+        strategy=comm_strategy,
     )
 
     assert xp.allclose(A_diagonal_blocks_local, X_ref_diagonal_blocks_local)

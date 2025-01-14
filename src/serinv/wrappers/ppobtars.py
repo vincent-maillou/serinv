@@ -54,7 +54,7 @@ def allocate_ppobtars(
     comm_size: int,
     array_module: str,
     device_streaming: bool = False,
-    strategy: str = "allreduce",
+    strategy: str = "allgather",
 ):
     """Allocate the buffers necessary for the reduced system of the PPOBTARX algorithms.
 
@@ -120,7 +120,7 @@ def allocate_ppobtars(
         )
     elif strategy == "allgather":
         _n: int = 2 * comm_size
-        alloc = zeros
+        alloc = empty
 
         _L_diagonal_blocks = alloc(
             (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
@@ -164,7 +164,7 @@ def map_ppobtax_to_ppobtars(
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     A_permutation_buffer: ArrayLike,
-    strategy: str = "allreduce",
+    strategy: str = "allgather",
 ):
     """Map the the boundary blocks of the PPOBTAX algorithm to the reduced system.
 
@@ -225,6 +225,7 @@ def map_ppobtax_to_ppobtars(
     else:
         raise ValueError("Unknown communication strategy.")
 
+
 def map_ppobtars_to_ppobtax(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
@@ -235,7 +236,7 @@ def map_ppobtars_to_ppobtax(
     _L_lower_diagonal_blocks: ArrayLike,
     _L_lower_arrow_blocks: ArrayLike,
     _L_tip_update: ArrayLike,
-    strategy: str = "allreduce",
+    strategy: str = "allgather",
 ):
     """Map the reduced system back to the original system.
 
@@ -282,30 +283,31 @@ def map_ppobtars_to_ppobtax(
             L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
     elif strategy == "allgather":
         if comm_rank == 0:
-            L_diagonal_blocks[-1] = _L_diagonal_blocks[1]
-            L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[1]
-            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[1]
+            L_diagonal_blocks[-1] = _L_diagonal_blocks[0]
+            L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[0]
+            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[0]
         else:
-            L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank]
-            L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank + 1]
+            L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank - 1]
+            L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
 
-            L_permutation_buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank].conj().T
-            if comm_rank < comm_size - 1:
-                L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[
-                    2 * comm_rank + 1
-                ]
+            L_permutation_buffer[-1] = (
+                _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
+            )
+            if comm_rank != comm_size - 1:
+                L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[2 * comm_rank]
 
-            L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank]
-            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank + 1]
+            L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank - 1]
+            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
     else:
         raise ValueError("Unknown communication strategy.")
+
 
 def aggregate_ppobtars(
     _L_diagonal_blocks: ArrayLike,
     _L_lower_diagonal_blocks: ArrayLike,
     _L_lower_arrow_blocks: ArrayLike,
     _L_tip_update: ArrayLike,
-    strategy: str = "allreduce",
+    strategy: str = "allgather",
 ):
     """Aggregate the reduced system.
 
