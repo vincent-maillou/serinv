@@ -88,8 +88,6 @@ def allocate_ppobtars(
     """
     xp, _ = _get_module_from_str(array_module)
 
-    _n = 2 * comm_size - 1
-
     if device_streaming:
         zeros = cpx.zeros_pinned
         empty = cpx.empty_pinned
@@ -98,9 +96,16 @@ def allocate_ppobtars(
         empty = xp.empty
 
     if strategy == "allreduce":
-        # In the case were the communication strategy perform an allreduce,
-        # the buffers need to be allocated as zeros to avoid false-reduction.
+        _n: int = 2 * comm_size - 1
+
+        # In the case of an allreduce communication strategy, the buffers needs
+        # to be allocated as zeros to avoid false-reduction.
         alloc = zeros
+    elif strategy == "allgather":
+        _n: int = 2 * comm_size
+        alloc = zeros
+    else:
+        raise ValueError("Unknown communication strategy.")
 
     _L_diagonal_blocks = alloc(
         (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
@@ -182,7 +187,25 @@ def map_ppobtax_to_ppobtars(
 
             _L_lower_arrow_blocks[2 * comm_rank - 1] = A_arrow_bottom_blocks[0]
             _L_lower_arrow_blocks[2 * comm_rank] = A_arrow_bottom_blocks[-1]
+    elif strategy == "allgather":
+        if comm_rank == 0:
+            _L_diagonal_blocks[1] = A_diagonal_blocks[-1]
+            _L_lower_diagonal_blocks[1] = A_lower_diagonal_blocks[-1]
+            _L_lower_arrow_blocks[1] = A_arrow_bottom_blocks[-1]
+        else:
+            _L_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[0]
+            _L_diagonal_blocks[2 * comm_rank + 1] = A_diagonal_blocks[-1]
 
+            _L_lower_diagonal_blocks[2 * comm_rank] = A_permutation_buffer[-1].conj().T
+            if comm_rank < comm_size - 1:
+                _L_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
+                    -1
+                ]
+
+            _L_lower_arrow_blocks[2 * comm_rank] = A_arrow_bottom_blocks[0]
+            _L_lower_arrow_blocks[2 * comm_rank + 1] = A_arrow_bottom_blocks[-1]
+    else:
+        raise ValueError("Unknown communication strategy.")
 
 def map_ppobtars_to_ppobtax(
     L_diagonal_blocks: ArrayLike,
@@ -239,7 +262,25 @@ def map_ppobtars_to_ppobtax(
 
             L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank - 1]
             L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
+    elif strategy == "allgather":
+        if comm_rank == 0:
+            L_diagonal_blocks[-1] = _L_diagonal_blocks[1]
+            L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[1]
+            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[1]
+        else:
+            L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank]
+            L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank + 1]
 
+            L_permutation_buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank].conj().T
+            if comm_rank < comm_size - 1:
+                L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[
+                    2 * comm_rank + 1
+                ]
+
+            L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank]
+            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank + 1]
+    else:
+        raise ValueError("Unknown communication strategy.")
 
 def aggregate_ppobtars(
     _L_diagonal_blocks: ArrayLike,
@@ -268,6 +309,21 @@ def aggregate_ppobtars(
         MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_diagonal_blocks, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_diagonal_blocks, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_arrow_blocks, op=MPI.SUM)
+    elif strategy == "allgather":
+        MPI.COMM_WORLD.Allgather(
+            MPI.IN_PLACE,
+            _L_diagonal_blocks,
+        )
+        MPI.COMM_WORLD.Allgather(
+            MPI.IN_PLACE,
+            _L_lower_diagonal_blocks,
+        )
+        MPI.COMM_WORLD.Allgather(
+            MPI.IN_PLACE,
+            _L_lower_arrow_blocks,
+        )
+    else:
+        raise ValueError("Unknown communication strategy.")
 
     # The tip update allways need an allreduce operation.
     MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_tip_update, op=MPI.SUM)
