@@ -101,28 +101,46 @@ def allocate_ppobtars(
         # In the case of an allreduce communication strategy, the buffers needs
         # to be allocated as zeros to avoid false-reduction.
         alloc = zeros
+
+        _L_diagonal_blocks = alloc(
+            (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
+            dtype=A_diagonal_blocks.dtype,
+        )
+        _L_lower_diagonal_blocks = alloc(
+            (
+                _n - 1,
+                A_lower_diagonal_blocks[0].shape[0],
+                A_lower_diagonal_blocks[0].shape[1],
+            ),
+            dtype=A_lower_diagonal_blocks.dtype,
+        )
+        _L_lower_arrow_blocks = alloc(
+            (_n, A_arrow_bottom_blocks[0].shape[0], A_arrow_bottom_blocks[0].shape[1]),
+            dtype=A_arrow_bottom_blocks.dtype,
+        )
     elif strategy == "allgather":
         _n: int = 2 * comm_size
         alloc = zeros
+
+        _L_diagonal_blocks = alloc(
+            (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
+            dtype=A_diagonal_blocks.dtype,
+        )
+        _L_lower_diagonal_blocks = alloc(
+            (
+                _n,
+                A_lower_diagonal_blocks[0].shape[0],
+                A_lower_diagonal_blocks[0].shape[1],
+            ),
+            dtype=A_lower_diagonal_blocks.dtype,
+        )
+        _L_lower_arrow_blocks = alloc(
+            (_n, A_arrow_bottom_blocks[0].shape[0], A_arrow_bottom_blocks[0].shape[1]),
+            dtype=A_arrow_bottom_blocks.dtype,
+        )
     else:
         raise ValueError("Unknown communication strategy.")
 
-    _L_diagonal_blocks = alloc(
-        (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
-        dtype=A_diagonal_blocks.dtype,
-    )
-    _L_lower_diagonal_blocks = alloc(
-        (
-            _n - 1,
-            A_lower_diagonal_blocks[0].shape[0],
-            A_lower_diagonal_blocks[0].shape[1],
-        ),
-        dtype=A_lower_diagonal_blocks.dtype,
-    )
-    _L_lower_arrow_blocks = alloc(
-        (_n, A_arrow_bottom_blocks[0].shape[0], A_arrow_bottom_blocks[0].shape[1]),
-        dtype=A_arrow_bottom_blocks.dtype,
-    )
     _L_tip_update = zeros(
         (A_arrow_tip_block.shape[0], A_arrow_tip_block.shape[1]),
         dtype=A_arrow_tip_block.dtype,
