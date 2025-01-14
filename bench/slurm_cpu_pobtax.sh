@@ -2,10 +2,16 @@
 
 #SBATCH --job-name=cpu_pobtax
 #SBATCH --nodes=1 			#Number of Nodes desired e.g 1 node
-#SBATCH --time=00:03:00 		#Walltime: Duration for the Job to run HH:MM:SS
+#SBATCH --time=00:20:00 		#Walltime: Duration for the Job to run HH:MM:SS
 #SBATCH --error=cpu_pobtax.err 		#The .error file name
 #SBATCH --output=cpu_pobtax.out 	#The .output file name
 #SBATCH --exclusive
+#SBATCH --cpus-per-task=72
+
+unset SLURM_EXPORT_ENV
+
+# set number of threads to requested cpus-per-task
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK 
 
 DIAGONAL_BLOCKSIZE = 2865
 ARROWHEAD_BLOCKSIZE = 4
