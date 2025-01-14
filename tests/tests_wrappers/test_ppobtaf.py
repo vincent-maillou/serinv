@@ -10,7 +10,7 @@ from serinv import CUPY_AVAIL, _get_module_from_array
 from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
 from serinv.algs import pobtasi
-from serinv.wrappers import ppobtaf
+from serinv.wrappers import ppobtaf, allocate_permutation_buffer
 
 if CUPY_AVAIL:
     import cupyx as cpx
@@ -30,12 +30,14 @@ comm_size = MPI.COMM_WORLD.Get_size()
 @pytest.mark.parametrize("n_diag_blocks", [comm_size * 3, comm_size * 4, comm_size * 5])
 @pytest.mark.parametrize("array_type", ["host", "device", "streaming"])
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
+@pytest.mark.parametrize("preallocate_permutation_buffer", [True, False])
 def test_ppobtaf(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
     n_diag_blocks: int,
     array_type: str,
     dtype: np.dtype,
+    preallocate_permutation_buffer: bool,
 ):
     A = dd_bta(
         diagonal_blocksize,
@@ -145,6 +147,15 @@ def test_ppobtaf(
         * n_diag_blocks_per_processes,
     ]
 
+    # Allocate permutation buffer
+    if preallocate_permutation_buffer:
+        permutation_buffer = allocate_permutation_buffer(
+            A_diagonal_blocks_local,
+            device_streaming=True if array_type == "streaming" else False,
+        )
+    else:
+        permutation_buffer = None
+
     # Distributed factorization
     (
         _L_diagonal_blocks,
@@ -157,6 +168,7 @@ def test_ppobtaf(
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
         device_streaming=True if array_type == "streaming" else False,
+        A_permutation_buffer=permutation_buffer,
     )
 
     pobtasi(

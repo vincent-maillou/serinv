@@ -12,6 +12,12 @@ if CUPY_AVAIL:
     import cupyx as cpx
 
 from serinv.algs import pobtaf
+from .ppobtars import (
+    allocate_permutation_buffer,
+    allocate_ppobtars,
+    map_ppobtax_to_ppobtars,
+    aggregate_ppobtars,
+)
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
@@ -73,74 +79,66 @@ def ppobtaf(
     xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
 
     device_streaming: bool = kwargs.get("device_streaming", False)
+    strategy: str = kwargs.get("strategy", "allreduce")
+    A_permutation_buffer: ArrayLike = kwargs.get("A_permutation_buffer", None)
 
-    A_tip_update = xp.zeros_like(A_arrow_tip_block)
+    # Allocate the reduced system
+    (
+        _L_diagonal_blocks,
+        _L_lower_diagonal_blocks,
+        _L_lower_arrow_blocks,
+        _L_tip_update,
+    ) = allocate_ppobtars(
+        A_diagonal_blocks=A_diagonal_blocks,
+        A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+        A_arrow_bottom_blocks=A_arrow_bottom_blocks,
+        A_arrow_tip_block=A_arrow_tip_block,
+        comm_size=comm_size,
+        array_module=xp.__name__,
+        device_streaming=device_streaming,
+        strategy=strategy,
+    )
 
-    buffer = None
-
+    # Perform the parallel factorization
     if comm_rank == 0:
         pobtaf(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
             A_arrow_bottom_blocks,
-            A_tip_update,
+            _L_tip_update,
             device_streaming=device_streaming,
             factorize_last_block=False,
         )
     else:
-        if device_streaming:
-            buffer = cpx.empty_like_pinned(A_diagonal_blocks)
+        if A_permutation_buffer is None:
+            A_permutation_buffer = allocate_permutation_buffer(
+                A_diagonal_blocks=A_diagonal_blocks,
+                device_streaming=device_streaming,
+            )
         else:
-            buffer = xp.empty_like(A_diagonal_blocks)
+            assert A_permutation_buffer.shape == A_diagonal_blocks.shape
 
         pobtaf(
             A_diagonal_blocks,
             A_lower_diagonal_blocks,
             A_arrow_bottom_blocks,
-            A_tip_update,
+            _L_tip_update,
             device_streaming=device_streaming,
-            buffer=buffer,
+            buffer=A_permutation_buffer,
         )
 
-    # Assemble the reduced system
-    _n = 2 * comm_size - 1
-
-    if device_streaming:
-        zeros = cpx.zeros_pinned
-    else:
-        zeros = xp.zeros
-
-    _L_diagonal_blocks = zeros(
-        (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
-        dtype=A_diagonal_blocks.dtype,
+    map_ppobtax_to_ppobtars(
+        _L_diagonal_blocks=_L_diagonal_blocks,
+        _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
+        _L_lower_arrow_blocks=_L_lower_arrow_blocks,
+        _L_tip_update=_L_tip_update,
+        A_diagonal_blocks=A_diagonal_blocks,
+        A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+        A_arrow_bottom_blocks=A_arrow_bottom_blocks,
+        A_arrow_tip_block=A_arrow_tip_block,
+        A_permutation_buffer=A_permutation_buffer,
+        strategy=strategy,
     )
-    _L_lower_diagonal_blocks = zeros(
-        (
-            _n - 1,
-            A_lower_diagonal_blocks[0].shape[0],
-            A_lower_diagonal_blocks[0].shape[1],
-        ),
-        dtype=A_lower_diagonal_blocks.dtype,
-    )
-    _L_lower_arrow_blocks = zeros(
-        (_n, A_arrow_bottom_blocks[0].shape[0], A_arrow_bottom_blocks[0].shape[1]),
-        dtype=A_arrow_bottom_blocks.dtype,
-    )
-
-    if comm_rank == 0:
-        _L_diagonal_blocks[0] = A_diagonal_blocks[-1]
-        _L_lower_diagonal_blocks[0] = A_lower_diagonal_blocks[-1]
-        _L_lower_arrow_blocks[0] = A_arrow_bottom_blocks[-1]
-    else:
-        _L_diagonal_blocks[2 * comm_rank - 1] = A_diagonal_blocks[0]
-        _L_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[-1]
-
-        _L_lower_diagonal_blocks[2 * comm_rank - 1] = buffer[-1].conj().T
-        if comm_rank != comm_size - 1:
-            _L_lower_diagonal_blocks[2 * comm_rank] = A_lower_diagonal_blocks[-1]
-
-        _L_lower_arrow_blocks[2 * comm_rank - 1] = A_arrow_bottom_blocks[0]
-        _L_lower_arrow_blocks[2 * comm_rank] = A_arrow_bottom_blocks[-1]
 
     # Can be done with AllGather (need resize of buffer, assuming P0 get 2 blocks)
     if xp.__name__ == "cupy":
@@ -148,32 +146,36 @@ def ppobtaf(
         _L_diagonal_blocks_h = cpx.zeros_like_pinned(_L_diagonal_blocks)
         _L_lower_diagonal_blocks_h = cpx.zeros_like_pinned(_L_lower_diagonal_blocks)
         _L_lower_arrow_blocks_h = cpx.zeros_like_pinned(_L_lower_arrow_blocks)
-        _L_arrow_tip_update_h = cpx.zeros_like_pinned(A_tip_update)
+        _L_tip_update_h = cpx.zeros_like_pinned(_L_tip_update)
 
         _L_diagonal_blocks.get(out=_L_diagonal_blocks_h)
         _L_lower_diagonal_blocks.get(out=_L_lower_diagonal_blocks_h)
         _L_lower_arrow_blocks.get(out=_L_lower_arrow_blocks_h)
-        A_tip_update.get(out=_L_arrow_tip_update_h)
+        _L_tip_update.get(out=_L_tip_update_h)
 
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_diagonal_blocks_h, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_diagonal_blocks_h, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_arrow_blocks_h, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_arrow_tip_update_h, op=MPI.SUM)
-
-        MPI.COMM_WORLD.Barrier()
+        aggregate_ppobtars(
+            _L_diagonal_blocks=_L_diagonal_blocks_h,
+            _L_lower_diagonal_blocks=_L_lower_diagonal_blocks_h,
+            _L_lower_arrow_blocks=_L_lower_arrow_blocks_h,
+            _L_tip_update=_L_tip_update_h,
+            strategy=strategy,
+        )
 
         _L_diagonal_blocks.set(arr=_L_diagonal_blocks_h)
         _L_lower_diagonal_blocks.set(arr=_L_lower_diagonal_blocks_h)
         _L_lower_arrow_blocks.set(arr=_L_lower_arrow_blocks_h)
-        A_tip_update.set(arr=_L_arrow_tip_update_h)
+        _L_tip_update.set(arr=_L_tip_update_h)
 
     else:
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_diagonal_blocks, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_diagonal_blocks, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_arrow_blocks, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, A_tip_update, op=MPI.SUM)
+        aggregate_ppobtars(
+            _L_diagonal_blocks=_L_diagonal_blocks,
+            _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks=_L_lower_arrow_blocks,
+            _L_tip_update=_L_tip_update,
+            strategy=strategy,
+        )
 
-    A_arrow_tip_block[:, :] = A_arrow_tip_block[:, :] + A_tip_update[:, :]
+    A_arrow_tip_block[:, :] = A_arrow_tip_block[:, :] + _L_tip_update[:, :]
 
     # --- Factorize the reduced system ---
     pobtaf(
@@ -188,5 +190,5 @@ def ppobtaf(
         _L_diagonal_blocks,
         _L_lower_diagonal_blocks,
         _L_lower_arrow_blocks,
-        buffer,
+        A_permutation_buffer,
     )

@@ -7,6 +7,7 @@ from serinv import (
 )
 
 from serinv.algs import pobtasi
+from serinv.wrappers.ppobtars import map_ppobtars_to_ppobtax
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
@@ -20,7 +21,7 @@ def ppobtasi(
     _L_diagonal_blocks: ArrayLike,
     _L_lower_diagonal_blocks: ArrayLike,
     _L_lower_arrow_blocks: ArrayLike,
-    buffer: ArrayLike,
+    L_permutation_buffer: ArrayLike,
     **kwargs,
 ):
     """Perform a selected inversion of a block tridiagonal with arrowhead matrix (pointing downward by convention).
@@ -41,7 +42,7 @@ def ppobtasi(
         Lower diagonal blocks of the reduced system.
     _L_lower_arrow_blocks : ArrayLike
         Arrow bottom blocks of the reduced system.
-    buffer : ArrayLike
+    L_permutation_buffer : ArrayLike
         Buffer array for the permuted arrowhead.
 
     Keyword Arguments
@@ -62,8 +63,9 @@ def ppobtasi(
     | Streaming    | x       | x        |
     """
     device_streaming: bool = kwargs.get("device_streaming", False)
+    strategy: str = kwargs.get("strategy", "allreduce")
 
-    # --- Selected-inversion of the reduced system ---
+    # Selected-inversion of the reduced system
     pobtasi(
         _L_diagonal_blocks,
         _L_lower_diagonal_blocks,
@@ -73,21 +75,20 @@ def ppobtasi(
     )
 
     # Map result of the reduced system back to the original system
-    if comm_rank == 0:
-        L_diagonal_blocks[-1] = _L_diagonal_blocks[0]
-        L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[0]
-        L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[0]
-    else:
-        L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank - 1]
-        L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
+    map_ppobtars_to_ppobtax(
+        L_diagonal_blocks=L_diagonal_blocks,
+        L_lower_diagonal_blocks=L_lower_diagonal_blocks,
+        L_arrow_bottom_blocks=L_arrow_bottom_blocks,
+        L_arrow_tip_block=L_arrow_tip_block,
+        L_permutation_buffer=L_permutation_buffer,
+        _L_diagonal_blocks=_L_diagonal_blocks,
+        _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
+        _L_lower_arrow_blocks=_L_lower_arrow_blocks,
+        _L_tip_update=L_arrow_tip_block,
+        strategy=strategy,
+    )
 
-        buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
-        if comm_rank != comm_size - 1:
-            L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[2 * comm_rank]
-
-        L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank - 1]
-        L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
-
+    # Parallel selected inversion of the original system
     if comm_rank == 0:
         pobtasi(
             L_diagonal_blocks,
@@ -104,5 +105,5 @@ def ppobtasi(
             L_arrow_bottom_blocks,
             L_arrow_tip_block,
             device_streaming=device_streaming,
-            buffer=buffer,
+            buffer=L_permutation_buffer,
         )
