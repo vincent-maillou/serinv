@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csc_matrix, coo_matrix
+from scipy.sparse import csc_matrix, coo_matrix, lil_matrix
 
 from serinv import ArrayLike, CUPY_AVAIL, _get_module_from_array, _get_module_from_str
 
@@ -157,45 +157,34 @@ def bta_to_coo(
 
     n = n_diagonal_blocks * diagonal_blocksize + arrow_blocksize
 
-    row = []
-    col = []
-    data = []
+    # initialize a zeros lil matrix
+
+    A_lil = lil_matrix((n, n), dtype=A_diagonal_blocks.dtype)
 
     print(A_diagonal_blocks.shape)
     print(A_lower_diagonal_blocks.shape)
     print(A_arrow_bottom_blocks.shape)
 
     for i in range(n_diagonal_blocks):
-        for j in range(diagonal_blocksize):
-            for k in range(diagonal_blocksize):
-                if j >= k:
-                    row.append(i * diagonal_blocksize + j)
-                    col.append(i * diagonal_blocksize + k)
-                    data.append(A_diagonal_blocks[i, j, k])
+        A_lil[
+            i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+            i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+        ] = np.tril(A_diagonal_blocks[i])
 
         if i < n_diagonal_blocks - 1:
-            for j in range(diagonal_blocksize):
-                for k in range(diagonal_blocksize):
-                    # only the upper triangular part of the lower diagonal blocks
-                    if j <= k:
-                        row.append((i + 1) * diagonal_blocksize + j)
-                        col.append(i * diagonal_blocksize + k)
-                        data.append(A_lower_diagonal_blocks[i, j, k])
+            A_lil[
+                (i + 1) * diagonal_blocksize : (i + 2) * diagonal_blocksize,
+                i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+            ] = np.triu(A_lower_diagonal_blocks[i])
 
-        for j in range(arrow_blocksize):
-            for k in range(diagonal_blocksize):
-                row.append(n - arrow_blocksize + j)
-                col.append(i * diagonal_blocksize + k)
-                data.append(A_arrow_bottom_blocks[i, j, k])
+        A_lil[
+            -arrow_blocksize:,
+            i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+        ] = A_arrow_bottom_blocks[i]
 
-    for i in range(arrow_blocksize):
-        for j in range(arrow_blocksize):
-            if i >= j:
-                row.append(n - arrow_blocksize + i)
-                col.append(n - arrow_blocksize + j)
-                data.append(A_arrow_tip_block[i, j])
+    A_lil[-arrow_blocksize:, -arrow_blocksize:] = np.tril(A_arrow_tip_block[:, :])
 
-    return coo_matrix((data, (row, col)), shape=(n, n))
+    return A_lil.tocoo()
 
 def bta_dense_to_arrays(
     bta: ArrayLike,
