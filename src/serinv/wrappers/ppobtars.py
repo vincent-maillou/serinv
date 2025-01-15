@@ -176,6 +176,49 @@ def allocate_ppobtars(
     )
 
 
+def allocate_pinned_pobtars(
+    _L_diagonal_blocks,
+    _L_lower_diagonal_blocks,
+    _L_lower_arrow_blocks,
+    _L_arrow_tip_block,
+):
+    """Allocate pinned host-arrays for the reduced system of the PPOBTARX algorithms.
+
+    Parameters
+    ----------
+    _L_diagonal_blocks : ArrayLike
+        The diagonal blocks of the reduced system.
+    _L_lower_diagonal_blocks : ArrayLike
+        The lower diagonal blocks of the reduced system.
+    _L_lower_arrow_blocks : ArrayLike
+        The arrow bottom blocks of the reduced system.
+    _L_tip_update : ArrayLike
+        The arrow tip block of the reduced system.
+
+    Returns
+    -------
+    _L_diagonal_blocks_h : ArrayLike
+        The diagonal blocks of the reduced system (host-pinned).
+    _L_lower_diagonal_blocks_h : ArrayLike
+        The lower diagonal blocks of the reduced system (host-pinned).
+    _L_lower_arrow_blocks_h : ArrayLike
+        The arrow bottom blocks of the reduced system (host-pinned).
+    _L_tip_update_h : ArrayLike
+        The arrow tip block of the reduced system (host-pinned).
+    """
+    _L_diagonal_blocks_h = cpx.zeros_like_pinned(_L_diagonal_blocks)
+    _L_lower_diagonal_blocks_h = cpx.zeros_like_pinned(_L_lower_diagonal_blocks)
+    _L_lower_arrow_blocks_h = cpx.zeros_like_pinned(_L_lower_arrow_blocks)
+    _L_tip_update_h = cpx.zeros_like_pinned(_L_arrow_tip_block)
+
+    return (
+        _L_diagonal_blocks_h,
+        _L_lower_diagonal_blocks_h,
+        _L_lower_arrow_blocks_h,
+        _L_tip_update_h,
+    )
+
+
 def map_ppobtax_to_ppobtars(
     _L_diagonal_blocks: ArrayLike,
     _L_lower_diagonal_blocks: ArrayLike,
@@ -475,8 +518,12 @@ def scatter_ppobtars(
         The arrow tip block of the reduced system.
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
-    """
 
+    Keyword Arguments
+    -----------------
+    root : int, optional
+        The root rank for the communication strategy. (default: 0)
+    """
     if strategy == "allreduce":
         ...
     elif strategy == "allgather":
@@ -492,7 +539,7 @@ def scatter_ppobtars(
             recvbuf=(
                 _L_diagonal_blocks[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
-                else None
+                else MPI.IN_PLACE
             ),
             root=root,
         )
@@ -501,7 +548,7 @@ def scatter_ppobtars(
             recvbuf=(
                 _L_lower_diagonal_blocks[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
-                else None
+                else MPI.IN_PLACE
             ),
             root=root,
         )
@@ -510,7 +557,7 @@ def scatter_ppobtars(
             recvbuf=(
                 _L_lower_arrow_blocks[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
-                else None
+                else MPI.IN_PLACE
             ),
             root=root,
         )

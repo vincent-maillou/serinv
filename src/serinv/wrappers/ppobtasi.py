@@ -4,10 +4,19 @@ from mpi4py import MPI
 
 from serinv import (
     ArrayLike,
+    CUPY_AVAIL,
+    _get_module_from_array,
 )
 
+if CUPY_AVAIL:
+    import cupyx as cpx
+
 from serinv.algs import pobtasi
-from serinv.wrappers.ppobtars import map_ppobtars_to_ppobtax, scatter_ppobtars
+from serinv.wrappers.ppobtars import (
+    map_ppobtars_to_ppobtax,
+    scatter_ppobtars,
+    allocate_pinned_pobtars,
+)
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
@@ -49,6 +58,10 @@ def ppobtasi(
     -----------------
     device_streaming : bool, optional
         If True, the algorithm will run on the GPU. (default: False)
+    strategy : str, optional
+        The communication strategy to use. (default: "allgather")
+    root : int, optional
+        The root rank for the communication strategy. (default: 0)
 
     Note:
     -----
@@ -62,6 +75,11 @@ def ppobtasi(
     | Direct-array | x       | x        |
     | Streaming    | x       | x        |
     """
+    if comm_size == 1:
+        raise ValueError("The number of MPI processes must be greater than 1.")
+
+    xp, _ = _get_module_from_array(arr=L_diagonal_blocks)
+
     # Check for optional parameters
     device_streaming: bool = kwargs.get("device_streaming", False)
     strategy: str = kwargs.get("strategy", "allgather")
@@ -80,13 +98,66 @@ def ppobtasi(
 
         MPI.COMM_WORLD.Barrier()
 
-        scatter_ppobtars(
-            _L_diagonal_blocks,
-            _L_lower_diagonal_blocks,
-            _L_lower_arrow_blocks,
-            L_arrow_tip_block,
-            root=root,
-        )
+        if xp.__name__ == "cupy":
+            # Check for given pinned memory buffers
+            _L_diagonal_blocks_h: ArrayLike = kwargs.get("_L_diagonal_blocks_h", None)
+            _L_lower_diagonal_blocks_h: ArrayLike = kwargs.get(
+                "_L_lower_diagonal_blocks_h", None
+            )
+            _L_lower_arrow_blocks_h: ArrayLike = kwargs.get(
+                "_L_lower_arrow_blocks_h", None
+            )
+            _L_tip_update_h: ArrayLike = kwargs.get("_L_tip_update_h", None)
+
+            if any(
+                buffers is None
+                for buffers in [
+                    _L_diagonal_blocks_h,
+                    _L_lower_diagonal_blocks_h,
+                    _L_lower_arrow_blocks_h,
+                    _L_tip_update_h,
+                ]
+            ):
+                (
+                    _L_diagonal_blocks_h,
+                    _L_lower_diagonal_blocks_h,
+                    _L_lower_arrow_blocks_h,
+                    _L_tip_update_h,
+                ) = allocate_pinned_pobtars(
+                    _L_diagonal_blocks,
+                    _L_lower_diagonal_blocks,
+                    _L_lower_arrow_blocks,
+                    L_arrow_tip_block,
+                )
+
+            if comm_rank == root:
+                _L_diagonal_blocks.get(out=_L_diagonal_blocks_h)
+                _L_lower_diagonal_blocks.get(out=_L_lower_diagonal_blocks_h)
+                _L_lower_arrow_blocks.get(out=_L_lower_arrow_blocks_h)
+                L_arrow_tip_block.get(out=_L_tip_update_h)
+
+            scatter_ppobtars(
+                _L_diagonal_blocks=_L_diagonal_blocks_h,
+                _L_lower_diagonal_blocks=_L_lower_diagonal_blocks_h,
+                _L_lower_arrow_blocks=_L_lower_arrow_blocks_h,
+                L_arrow_tip_block=_L_tip_update_h,
+                strategy=strategy,
+                root=root,
+            )
+
+            _L_diagonal_blocks.set(arr=_L_diagonal_blocks_h)
+            _L_lower_diagonal_blocks.set(arr=_L_lower_diagonal_blocks_h)
+            _L_lower_arrow_blocks.set(arr=_L_lower_arrow_blocks_h)
+            L_arrow_tip_block.set(arr=_L_tip_update_h)
+        else:
+            scatter_ppobtars(
+                _L_diagonal_blocks,
+                _L_lower_diagonal_blocks,
+                _L_lower_arrow_blocks,
+                L_arrow_tip_block,
+                strategy=strategy,
+                root=root,
+            )
     else:
         pobtasi(
             _L_diagonal_blocks,

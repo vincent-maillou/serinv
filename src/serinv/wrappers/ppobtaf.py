@@ -17,6 +17,7 @@ from .ppobtars import (
     allocate_ppobtars,
     map_ppobtax_to_ppobtars,
     aggregate_ppobtars,
+    allocate_pinned_pobtars,
 )
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
@@ -59,6 +60,10 @@ def ppobtaf(
     -----------------
     device_streaming : bool, optional
         If True, the algorithm will perform host-device streaming. (default: False)
+    strategy : str, optional
+        The communication strategy to use. (default: "allgather")
+    root : int, optional
+        The root rank for the communication strategy. (default: 0)
 
     Note:
     -----
@@ -160,13 +165,35 @@ def ppobtaf(
         strategy=strategy,
     )
 
-    # Can be done with AllGather (need resize of buffer, assuming P0 get 2 blocks)
     if xp.__name__ == "cupy":
-        # Need to move data to host, communicate and then back to device
-        _L_diagonal_blocks_h = cpx.zeros_like_pinned(_L_diagonal_blocks)
-        _L_lower_diagonal_blocks_h = cpx.zeros_like_pinned(_L_lower_diagonal_blocks)
-        _L_lower_arrow_blocks_h = cpx.zeros_like_pinned(_L_lower_arrow_blocks)
-        _L_tip_update_h = cpx.zeros_like_pinned(_L_tip_update)
+        # Check for given pinned memory buffers
+        _L_diagonal_blocks_h: ArrayLike = kwargs.get("_L_diagonal_blocks_h", None)
+        _L_lower_diagonal_blocks_h: ArrayLike = kwargs.get(
+            "_L_lower_diagonal_blocks_h", None
+        )
+        _L_lower_arrow_blocks_h: ArrayLike = kwargs.get("_L_lower_arrow_blocks_h", None)
+        _L_tip_update_h: ArrayLike = kwargs.get("_L_tip_update_h", None)
+
+        if any(
+            buffers is None
+            for buffers in [
+                _L_diagonal_blocks_h,
+                _L_lower_diagonal_blocks_h,
+                _L_lower_arrow_blocks_h,
+                _L_tip_update_h,
+            ]
+        ):
+            (
+                _L_diagonal_blocks_h,
+                _L_lower_diagonal_blocks_h,
+                _L_lower_arrow_blocks_h,
+                _L_tip_update_h,
+            ) = allocate_pinned_pobtars(
+                _L_diagonal_blocks,
+                _L_lower_diagonal_blocks,
+                _L_lower_arrow_blocks,
+                _L_tip_update,
+            )
 
         _L_diagonal_blocks.get(out=_L_diagonal_blocks_h)
         _L_lower_diagonal_blocks.get(out=_L_lower_diagonal_blocks_h)
