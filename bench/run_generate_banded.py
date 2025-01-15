@@ -16,6 +16,9 @@ from matutils import (
     bta_to_coo,
 )
 
+# import matplotlib.pyplot as plt
+
+
 def mean_confidence_interval(data, confidence=0.95):
     a = 1.0 * np.array(data)
     n = len(a)
@@ -45,6 +48,11 @@ if __name__ == "__main__":
         help="an integer for the number of diagonal blocks",
     )
     parser.add_argument(
+        "--density",
+        type=int,
+        default=1,
+    )
+    parser.add_argument(
         "--file_path",
         type=str,
         default="/home/x_gaedkelb/serinv/dev/matrices/",
@@ -56,12 +64,10 @@ if __name__ == "__main__":
     diagonal_blocksize = args.diagonal_blocksize
     arrowhead_blocksize = args.arrowhead_blocksize
     n_diag_blocks = args.n_diag_blocks
+    density = args.density
     file_path = args.file_path
 
-
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
-
-    density = 1
 
     # Generate BTA arrays
     if density == 1:
@@ -86,12 +92,12 @@ if __name__ == "__main__":
             (n_diag_blocks, arrowhead_blocksize, diagonal_blocksize), dtype=np.float64
         )
         A_arrow_tip_block = np.random.rand(arrowhead_blocksize, arrowhead_blocksize)
-    
+
         for i in range(n_diag_blocks):
             A_diagonal_blocks[i] = sps.random(
                 diagonal_blocksize, diagonal_blocksize, density=density, format="csr"
             ).toarray()
-            
+
             if i > 0:
                 A_lower_diagonal_blocks[i - 1] = sps.random(
                     diagonal_blocksize, diagonal_blocksize, density=density, format="csr"
@@ -129,6 +135,9 @@ if __name__ == "__main__":
         A_arrow_bottom_blocks,
         A_arrow_tip_block,
     )
+
+    """ plt.spy(A_coo.toarray())
+    plt.show() """
 
     file = (
         "Qxy_ns"
