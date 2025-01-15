@@ -5,6 +5,8 @@ from warnings import warn
 import numpy as np
 from numpy.linalg import cholesky as np_cholesky
 import scipy.linalg as np_la
+from scipy.linalg import cholesky as sp_cholesky
+from functools import partial
 
 from numpy.typing import ArrayLike
 
@@ -101,7 +103,8 @@ def _get_cholesky(module_str: str):
         The Cholesky factorization function of the input module. (numpy.linalg.cholesky or serinv.cupyfix.cholesky_lowerfill)
     """
     if module_str == "numpy":
-        return np_cholesky
+        # return np_cholesky
+        return partial(sp_cholesky, lower=True, overwrite_a=False, check_finite=False)
     elif CUPY_AVAIL and module_str == "cupy":
         return cu_cholesky
     else:
