@@ -9,6 +9,7 @@ import numpy as np
 import scipy.stats
 import argparse
 from scipy.io import mmwrite
+import scipy.sparse as sps
 
 
 from matutils import (
@@ -60,17 +61,45 @@ if __name__ == "__main__":
 
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
 
+    density = 1
+
     # Generate BTA arrays
-    A_diagonal_blocks = np.random.rand(
-        n_diag_blocks, diagonal_blocksize, diagonal_blocksize
-    )
-    A_lower_diagonal_blocks = np.random.rand(
-        n_diag_blocks - 1, diagonal_blocksize, diagonal_blocksize
-    )
-    A_arrow_bottom_blocks = np.random.rand(
-        n_diag_blocks, arrowhead_blocksize, diagonal_blocksize
-    )
-    A_arrow_tip_block = np.random.rand(arrowhead_blocksize, arrowhead_blocksize)
+    if density == 1:
+        A_diagonal_blocks = np.random.rand(
+            n_diag_blocks, diagonal_blocksize, diagonal_blocksize
+        )
+        A_lower_diagonal_blocks = np.random.rand(
+            n_diag_blocks - 1, diagonal_blocksize, diagonal_blocksize
+        )
+        A_arrow_bottom_blocks = np.random.rand(
+            n_diag_blocks, arrowhead_blocksize, diagonal_blocksize
+        )
+        A_arrow_tip_block = np.random.rand(arrowhead_blocksize, arrowhead_blocksize)
+    else:
+        A_diagonal_blocks = np.zeros(
+            (n_diag_blocks, diagonal_blocksize, diagonal_blocksize), dtype=np.float64
+        )
+        A_lower_diagonal_blocks = np.zeros(
+            (n_diag_blocks - 1, diagonal_blocksize, diagonal_blocksize), dtype=np.float64
+        )
+        A_arrow_bottom_blocks = np.zeros(
+            (n_diag_blocks, arrowhead_blocksize, diagonal_blocksize), dtype=np.float64
+        )
+        A_arrow_tip_block = np.random.rand(arrowhead_blocksize, arrowhead_blocksize)
+    
+        for i in range(n_diag_blocks):
+            A_diagonal_blocks[i] = sps.random(
+                diagonal_blocksize, diagonal_blocksize, density=density, format="csr"
+            ).toarray()
+            
+            if i > 0:
+                A_lower_diagonal_blocks[i - 1] = sps.random(
+                    diagonal_blocksize, diagonal_blocksize, density=density, format="csr"
+                ).toarray()
+
+            A_arrow_bottom_blocks[i] = sps.random(
+                arrowhead_blocksize, diagonal_blocksize, density=density, format="csr"
+            ).toarray()
 
     # Make diagonally dominante
     arrow_colsum = np.zeros((arrowhead_blocksize), dtype=A_diagonal_blocks.dtype)
