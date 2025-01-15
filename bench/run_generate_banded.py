@@ -13,9 +13,7 @@ from scipy.io import mmwrite
 
 
 from matutils import (
-    dd_bta,
-    bta_symmetrize,
-    bta_to_csc,
+    bta_to_coo,
 )
 
 
@@ -65,17 +63,46 @@ if __name__ == "__main__":
 
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
 
+    # Generate BTA arrays
+    A_diagonal_blocks = np.random.rand(
+        n_diag_blocks, diagonal_blocksize, diagonal_blocksize
+    )
+    A_lower_diagonal_blocks = np.random.rand(
+        n_diag_blocks - 1, diagonal_blocksize, diagonal_blocksize
+    )
+    A_arrow_bottom_blocks = np.random.rand(
+        n_diag_blocks, arrowhead_blocksize, diagonal_blocksize
+    )
+    A_arrow_tip_block = np.random.rand(arrowhead_blocksize, arrowhead_blocksize)
 
-    # Generate the matrix
-    A = dd_bta(
-        diagonal_blocksize=diagonal_blocksize,
-        arrowhead_blocksize=arrowhead_blocksize,
-        n_diag_blocks=n_diag_blocks,
-        device_array=False,
-        dtype=np.float64,
+    # Make diagonally dominante
+    arrow_colsum = np.zeros((arrowhead_blocksize), dtype=A_diagonal_blocks.dtype)
+    for i in range(A_diagonal_blocks.shape[0]):
+        colsum = np.sum(A_diagonal_blocks[i, :, :], axis=1) - np.diag(
+            A_diagonal_blocks[i, :, :]
+        )
+        if i > 0:
+            colsum += np.sum(A_lower_diagonal_blocks[i - 1, :, :], axis=1)
+
+        A_diagonal_blocks[i, :, :] += np.diag(colsum)
+
+        arrow_colsum[:] += np.sum(A_arrow_bottom_blocks[i, :, :], axis=1)
+
+    A_arrow_tip_block[:, :] += np.diag(
+        arrow_colsum + np.sum(A_arrow_tip_block[:, :], axis=1)
     )
 
+    # Make symmetric
+    for i in range(n_diag_blocks):
+        A_diagonal_blocks[i] += A_diagonal_blocks[i].T
+    A_arrow_tip_block += A_arrow_tip_block.T
 
 
+    A_coo = bta_to_coo(
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_tip_block,
+    )
 
-    mmwrite("matrix.mtx", A)
+    mmwrite("matrix.mtx", A_coo, symmetry="symmetric")

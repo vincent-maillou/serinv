@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csc_matrix
+from scipy.sparse import csc_matrix, coo_matrix
 
 from serinv import ArrayLike, CUPY_AVAIL, _get_module_from_array, _get_module_from_str
 
@@ -145,61 +145,53 @@ def csc_to_sparse_bta(
         A_arrow_tip_block_csc,
     )
 
-def bta_to_csc(
-    arr: ArrayLike,
-    diagonal_blocksize: int,
-    arrowhead_blocksize: int,
-    n_diag_blocks: int,
-):
-    """Converts a block tridiagonal arrowhead matrix to a CSC representation."""
+def bta_to_coo(
+    A_diagonal_blocks,
+    A_lower_diagonal_blocks,
+    A_arrow_bottom_blocks,
+    A_arrow_tip_block,
+) -> coo_matrix:
+    n_diagonal_blocks = A_diagonal_blocks.shape[0]
+    diagonal_blocksize = A_diagonal_blocks.shape[1]
+    arrow_blocksize = A_arrow_bottom_blocks.shape[2]
 
-    n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
+    n = n_diagonal_blocks * diagonal_blocksize + arrow_blocksize
 
-    inner_indices = []
-    outer_index_ptr = [0]
-    values = []
+    row = []
+    col = []
+    data = []
 
-    for i in range(n_diag_blocks):
+    for i in range(n_diagonal_blocks):
         for j in range(diagonal_blocksize):
-            inner_indices.extend(
-                list(range(i * diagonal_blocksize, (i + 1) * diagonal_blocksize))
-            )
-            values.extend(list(arr[j, :, i].flatten()))
+            for k in range(diagonal_blocksize):
+                if j <= k:
+                    row.append(i * diagonal_blocksize + j)
+                    col.append(i * diagonal_blocksize + k)
+                    data.append(A_diagonal_blocks[i, j, k])
 
-        outer_index_ptr.append(len(inner_indices))
-
-        if i < n_diag_blocks - 1:
+        if i < n_diagonal_blocks - 1:
             for j in range(diagonal_blocksize):
-                inner_indices.extend(
-                    list(range((i + 1) * diagonal_blocksize, (i + 2) * diagonal_blocksize))
-                )
-                values.extend(list(arr[j, :, i + 1].flatten()))
+                for k in range(diagonal_blocksize):
+                    # only the upper triangular part of the lower diagonal blocks
+                    if j >= k:
+                        row.append((i + 1) * diagonal_blocksize + j)
+                        col.append(i * diagonal_blocksize + k)
+                        data.append(A_lower_diagonal_blocks[i, j, k])
 
-            outer_index_ptr.append(len(inner_indices))
+        for j in range(arrow_blocksize):
+            for k in range(diagonal_blocksize):
+                row.append(n - arrow_blocksize + j)
+                col.append(i * diagonal_blocksize + k)
+                data.append(A_arrow_bottom_blocks[i, j, k])
 
-    for i in range(n_diag_blocks):
-        for j in range(arrowhead_blocksize):
-            inner_indices.extend(
-                list(range(n - arrowhead_blocksize, n))
-            )
-            values.extend(list(arr[j, :, i].flatten()))
+    for i in range(arrow_blocksize):
+        for j in range(arrow_blocksize):
+            if i >= j:
+                row.append(n - arrow_blocksize + i)
+                col.append(n - arrow_blocksize + j)
+                data.append(A_arrow_tip_block[i, j])
 
-        outer_index_ptr.append(len(inner_indices))
-
-    for i in range(arrowhead_blocksize):
-        inner_indices.extend(
-            list(range(n - arrowhead_blocksize, n))
-        )
-        values.extend(list(arr[i, :, -1].flatten())
-
-    outer_index_ptr.append(len(inner_indices))
-
-    inner_indices = xp.array(inner_indices, dtype=int)
-    outer_index_ptr = xp.array(outer_index_ptr, dtype=int)
-    values = xp.array(values, dtype=arr.dtype)
-
-    return csc_matrix((values, inner_indices, outer_index_ptr), shape=(n, n))
-
+    return coo_matrix((data, (row, col)), shape=(n, n))
 
 def bta_dense_to_arrays(
     bta: ArrayLike,

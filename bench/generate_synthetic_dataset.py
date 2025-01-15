@@ -75,7 +75,7 @@ def generate_synthetic_dataset_for_pobta(
     )
 
 
-def generate_distributed_synthetic_dataset_for_d_pobta(
+""" def generate_distributed_synthetic_dataset_for_d_pobta(
     path: str,
     n_blocks: int,
     diagonal_blocksize: int,
@@ -219,3 +219,4 @@ if __name__ == "__main__":
         generate_distributed_synthetic_dataset_for_d_pobta(
             PATH, n_blocks, diagonal_blocksize, arrowhead_blocksize, n_processes
         )
+ """
