@@ -6,8 +6,8 @@
 #SBATCH --error=%x.%j.err        #The .error file name
 #SBATCH --output=%x.%j.out     #The .output file name
 #SBATCH --exclusive
-#SBATCH --cpus-per-task=52
-####SBATCH --partition=spr1tb
+#SBATCH --cpus-per-task=104
+#SBATCH --partition=spr1tb
 
 unset SLURM_EXPORT_ENV
 

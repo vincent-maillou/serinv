@@ -49,8 +49,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--density",
-        type=int,
-        default=1,
+        type=float,
+        default=1.,
     )
     parser.add_argument(
         "--file_path",
@@ -148,6 +148,8 @@ if __name__ == "__main__":
         + str(arrowhead_blocksize)
         + "_n"
         + str(n)
+        + "_density"
+        + str(density)
         + ".mtx"
     )
 
