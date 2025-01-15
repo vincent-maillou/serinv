@@ -91,7 +91,7 @@ if __name__ == "__main__":
         ).toarray() + np.eye(diagonal_blocksize)
         _A_lower_diagonal_block = sps.random(
             diagonal_blocksize, diagonal_blocksize, density=density, format="csr"
-        ).toarray()
+        ).toarray() + np.eye(diagonal_blocksize)
         _A_arrow_bottom_block = sps.random(
             arrowhead_blocksize, diagonal_blocksize, density=density, format="csr"
         ).toarray()
