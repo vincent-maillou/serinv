@@ -50,7 +50,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--density",
         type=float,
-        default=0.1,
+        default=0.01,
     )
     parser.add_argument(
         "--file_path",
@@ -96,13 +96,18 @@ if __name__ == "__main__":
     else:
         _A_diagonal_block = sps.random(
             diagonal_blocksize, diagonal_blocksize, density=density, format="csr"
-        ).toarray()
+        ).toarray() + np.eye(diagonal_blocksize)
         _A_lower_diagonal_block = sps.random(
             diagonal_blocksize, diagonal_blocksize, density=density, format="csr"
         ).toarray()
         _A_arrow_bottom_block = sps.random(
             arrowhead_blocksize, diagonal_blocksize, density=density, format="csr"
         ).toarray()
+        
+        # check that diagonal elements all nonzero
+        diagonal_elements = _A_diagonal_block.diagonal()
+        if not np.all(diagonal_elements != 0):
+            raise ValueError("There are zero elements on the diagonal of the matrix.")
 
     for i in range(n_diag_blocks):
         A_diagonal_blocks[i, :, :] = _A_diagonal_block.copy()
@@ -144,6 +149,9 @@ if __name__ == "__main__":
 
     """ plt.spy(A_coo.toarray())
     plt.show() """
+    
+    # print("A")
+    # print(A_coo.toarray())
 
     tic = time.time()
     file = (
