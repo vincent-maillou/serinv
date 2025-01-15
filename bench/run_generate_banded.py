@@ -16,7 +16,7 @@ from matutils import (
     bta_to_coo,
 )
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 def mean_confidence_interval(data, confidence=0.95):
@@ -136,10 +136,10 @@ if __name__ == "__main__":
         A_arrow_tip_block,
     )
 
-    plt.spy(A_coo.toarray())
-    plt.show()
+    """ plt.spy(A_coo.toarray())
+    plt.show() """
 
-    """ file = (
+    file = (
         "Qxy_ns"
         + str(diagonal_blocksize)
         + "_nt"
@@ -155,4 +155,4 @@ if __name__ == "__main__":
 
     storing_path = file_path + file
 
-    mmwrite(storing_path, A_coo, symmetry="symmetric") """
+    mmwrite(storing_path, A_coo, symmetry="symmetric")
