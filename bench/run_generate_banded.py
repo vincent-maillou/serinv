@@ -32,7 +32,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--diagonal_blocksize",
         type=int,
-        default=10,
+        default=2865,
         help="an integer for the diagonal block size",
     )
     parser.add_argument(
@@ -44,18 +44,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_diag_blocks",
         type=int,
-        default=10,
+        default=60,
         help="an integer for the number of diagonal blocks",
     )
     parser.add_argument(
         "--density",
         type=float,
-        default=1.,
+        default=0.1,
     )
     parser.add_argument(
         "--file_path",
         type=str,
-        default="/home/x_gaedkelb/serinv/dev/matrices/",
+        default="/home/hpc/ihpc/ihpc060h/share/serinv/",
+        #default="/home/vault/j101df/j101df10/inla_matrices/INLA_paper_examples",
         help="a string for the file path",
     )
 
@@ -70,6 +71,8 @@ if __name__ == "__main__":
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
 
     # Generate BTA arrays
+    tic = time.time()
+
     if density == 1:
         A_diagonal_blocks = np.random.rand(
             n_diag_blocks, diagonal_blocksize, diagonal_blocksize
@@ -106,7 +109,9 @@ if __name__ == "__main__":
             A_arrow_bottom_blocks[i] = sps.random(
                 arrowhead_blocksize, diagonal_blocksize, density=density, format="csr"
             ).toarray()
-
+    toc = time.time()
+    print("Time to random arrays: ", toc - tic)
+    
     # Make diagonally dominante
     arrow_colsum = np.zeros((arrowhead_blocksize), dtype=A_diagonal_blocks.dtype)
     for i in range(A_diagonal_blocks.shape[0]):
@@ -129,17 +134,21 @@ if __name__ == "__main__":
         A_diagonal_blocks[i] += A_diagonal_blocks[i].T
     A_arrow_tip_block += A_arrow_tip_block.T
 
+    tic = time.time()
     A_coo = bta_to_coo(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_arrow_bottom_blocks,
         A_arrow_tip_block,
     )
+    toc = time.time()
+    print("Time to convert to COO: ", toc - tic)
 
-    plt.spy(A_coo.toarray())
-    plt.show()
+    # plt.spy(A_coo.toarray())
+    # plt.show()
 
-    """ file = (
+    tic = time.time()
+    file = (
         "Qxy_ns"
         + str(diagonal_blocksize)
         + "_nt"
@@ -155,4 +164,8 @@ if __name__ == "__main__":
 
     storing_path = file_path + file
 
-    mmwrite(storing_path, A_coo, symmetry="symmetric") """
+    mmwrite(storing_path, A_coo, symmetry="symmetric") 
+    toc = time.time()
+    print("Time to write matrix: ", toc - tic)
+    
+    print("Matrix written to " + storing_path)
