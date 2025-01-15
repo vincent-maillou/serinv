@@ -180,25 +180,7 @@ if __name__ == "__main__":
     A_arrow_tip_block_local = np.zeros_like(A_arrow_tip_block_init)
     toc = time.perf_counter()
 
-    permutation_buffer = allocate_permutation_buffer(
-        A_diagonal_blocks_local,
-        device_streaming=False,
-    )
-
-    (
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        _L_tip_update,
-    ) = allocate_ppobtars(
-        A_diagonal_blocks=A_diagonal_blocks_local,
-        A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
-        A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
-        A_arrow_tip_block=A_arrow_tip_block_local,
-        comm_size=comm_size,
-        array_module="numpy",
-        strategy=comm_strategy,
-    )
+    
 
     print(f"Allocating testing buffers: {toc - tic:.5f} sec", flush=True)
     print("Initialization done..", flush=True)
@@ -220,14 +202,34 @@ if __name__ == "__main__":
         A_arrow_bottom_blocks_local[:, :, :] = A_arrow_bottom_blocks_init[starting_idx[comm_rank]:starting_idx[comm_rank]+n_locals[comm_rank], :, :].copy()
         A_arrow_tip_block_local[:, :] = A_arrow_tip_block_init[:, :].copy()
         
-        # Reset permutation buffer
+        """ # Reset permutation buffer
         permutation_buffer.fill(0)
 
         # Reset reduced system
         _L_diagonal_blocks.fill(0)
         _L_lower_diagonal_blocks.fill(0)
         _L_lower_arrow_blocks.fill(0)
-        _L_tip_update.fill(0)
+        _L_tip_update.fill(0) """
+
+        permutation_buffer = allocate_permutation_buffer(
+            A_diagonal_blocks_local,
+            device_streaming=False,
+        )
+
+        (
+            _L_diagonal_blocks,
+            _L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks,
+            _L_tip_update,
+        ) = allocate_ppobtars(
+            A_diagonal_blocks=A_diagonal_blocks_local,
+            A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
+            A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
+            A_arrow_tip_block=A_arrow_tip_block_local,
+            comm_size=comm_size,
+            array_module="numpy",
+            strategy=comm_strategy,
+        )
         toc = time.perf_counter()
 
         print(
