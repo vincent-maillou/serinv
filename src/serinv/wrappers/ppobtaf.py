@@ -18,6 +18,7 @@ from .ppobtars import (
     allocate_ppobtars,
     map_ppobtax_to_ppobtars,
     aggregate_ppobtars,
+    allocate_pinned_pobtars,
 )
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
@@ -60,6 +61,10 @@ def ppobtaf(
     -----------------
     device_streaming : bool, optional
         If True, the algorithm will perform host-device streaming. (default: False)
+    strategy : str, optional
+        The communication strategy to use. (default: "allgather")
+    root : int, optional
+        The root rank for the communication strategy. (default: 0)
 
     Note:
     -----
@@ -82,6 +87,7 @@ def ppobtaf(
     # Check for optional parameters
     device_streaming: bool = kwargs.get("device_streaming", False)
     strategy: str = kwargs.get("strategy", "allgather")
+    root: int = kwargs.get("root", 0)
 
     # Check for given permutation buffer
     A_permutation_buffer: ArrayLike = kwargs.get("A_permutation_buffer", None)
@@ -160,13 +166,35 @@ def ppobtaf(
         strategy=strategy,
     )
 
-    # Can be done with AllGather (need resize of buffer, assuming P0 get 2 blocks)
     if xp.__name__ == "cupy":
-        # Need to move data to host, communicate and then back to device
-        _L_diagonal_blocks_h = cpx.zeros_like_pinned(_L_diagonal_blocks)
-        _L_lower_diagonal_blocks_h = cpx.zeros_like_pinned(_L_lower_diagonal_blocks)
-        _L_lower_arrow_blocks_h = cpx.zeros_like_pinned(_L_lower_arrow_blocks)
-        _L_tip_update_h = cpx.zeros_like_pinned(_L_tip_update)
+        # Check for given pinned memory buffers
+        _L_diagonal_blocks_h: ArrayLike = kwargs.get("_L_diagonal_blocks_h", None)
+        _L_lower_diagonal_blocks_h: ArrayLike = kwargs.get(
+            "_L_lower_diagonal_blocks_h", None
+        )
+        _L_lower_arrow_blocks_h: ArrayLike = kwargs.get("_L_lower_arrow_blocks_h", None)
+        _L_tip_update_h: ArrayLike = kwargs.get("_L_tip_update_h", None)
+
+        if any(
+            buffers is None
+            for buffers in [
+                _L_diagonal_blocks_h,
+                _L_lower_diagonal_blocks_h,
+                _L_lower_arrow_blocks_h,
+                _L_tip_update_h,
+            ]
+        ):
+            (
+                _L_diagonal_blocks_h,
+                _L_lower_diagonal_blocks_h,
+                _L_lower_arrow_blocks_h,
+                _L_tip_update_h,
+            ) = allocate_pinned_pobtars(
+                _L_diagonal_blocks,
+                _L_lower_diagonal_blocks,
+                _L_lower_arrow_blocks,
+                _L_tip_update,
+            )
 
         _L_diagonal_blocks.get(out=_L_diagonal_blocks_h)
         _L_lower_diagonal_blocks.get(out=_L_lower_diagonal_blocks_h)
@@ -179,6 +207,7 @@ def ppobtaf(
             _L_lower_arrow_blocks=_L_lower_arrow_blocks_h,
             _L_tip_update=_L_tip_update_h,
             strategy=strategy,
+            root=root if strategy == "gather-scatter" else None,
         )
 
         _L_diagonal_blocks.set(arr=_L_diagonal_blocks_h)
@@ -193,23 +222,34 @@ def ppobtaf(
             _L_lower_arrow_blocks=_L_lower_arrow_blocks,
             _L_tip_update=_L_tip_update,
             strategy=strategy,
+            root=root if strategy == "gather-scatter" else None,
         )
 
     A_arrow_tip_block[:, :] = A_arrow_tip_block[:, :] + _L_tip_update[:, :]
 
-    if strategy == "allgather":
-        _L_diagonal_blocks = _L_diagonal_blocks[1:]
-        _L_lower_diagonal_blocks = _L_lower_diagonal_blocks[1:-1]
-        _L_lower_arrow_blocks = _L_lower_arrow_blocks[1:]
-
     # --- Factorize the reduced system ---
-    pobtaf(
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        A_arrow_tip_block,
-        device_streaming=device_streaming,
-    )
+    if strategy == "gather-scatter":
+        if comm_rank == root:
+            pobtaf(
+                _L_diagonal_blocks[1:],
+                _L_lower_diagonal_blocks[1:-1],
+                _L_lower_arrow_blocks[1:],
+                A_arrow_tip_block,
+                device_streaming=device_streaming,
+            )
+    else:
+        if strategy == "allgather":
+            _L_diagonal_blocks = _L_diagonal_blocks[1:]
+            _L_lower_diagonal_blocks = _L_lower_diagonal_blocks[1:-1]
+            _L_lower_arrow_blocks = _L_lower_arrow_blocks[1:]
+
+        pobtaf(
+            _L_diagonal_blocks,
+            _L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks,
+            A_arrow_tip_block,
+            device_streaming=device_streaming,
+        )
 
     return (
         _L_diagonal_blocks,

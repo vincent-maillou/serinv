@@ -11,7 +11,11 @@ import numpy as np
 
 from serinv import CUPY_AVAIL, _get_module_from_array
 from serinv.algs import pobtasi
-from serinv.wrappers import ppobtaf, allocate_permutation_buffer, allocate_ppobtars
+from serinv.wrappers import (
+    ppobtaf,
+    allocate_permutation_buffer,
+    allocate_ppobtars,
+)
 
 from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
@@ -38,7 +42,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 @pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 @pytest.mark.parametrize("preallocate_permutation_buffer", [True, False])
 @pytest.mark.parametrize("preallocate_reduced_system", [True, False])
-@pytest.mark.parametrize("comm_strategy", ["allreduce", "allgather"])
+@pytest.mark.parametrize("comm_strategy", ["allreduce", "allgather", "gather-scatter"])
 def test_ppobtaf(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
@@ -209,52 +213,75 @@ def test_ppobtaf(
         strategy=comm_strategy,
     )
 
-    pobtasi(
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        A_arrow_tip_block_global,
-        device_streaming=True if array_type == "streaming" else False,
-        strategy=comm_strategy,
-    )
-
-    if comm_rank == 0:
-        assert xp.allclose(
-            _L_diagonal_blocks[0],
-            X_ref_diagonal_blocks_local[-1],
-        )
-        assert xp.allclose(
-            _L_lower_diagonal_blocks[0],
-            X_ref_lower_diagonal_blocks_local[-1],
-        )
-        assert xp.allclose(
-            _L_lower_arrow_blocks[0],
-            X_ref_arrow_bottom_blocks_local[-1],
-        )
-        assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
-    else:
-        assert xp.allclose(
-            _L_diagonal_blocks[2 * comm_rank - 1],
-            X_ref_diagonal_blocks_local[0],
-        )
-        assert xp.allclose(
-            _L_diagonal_blocks[2 * comm_rank],
-            X_ref_diagonal_blocks_local[-1],
-        )
-
-        if comm_rank < comm_size - 1:
-            assert xp.allclose(
-                _L_lower_diagonal_blocks[2 * comm_rank],
-                X_ref_lower_diagonal_blocks_local[-1],
+    if comm_strategy == "gather-scatter":
+        if comm_rank == 0:
+            pobtasi(
+                _L_diagonal_blocks[1:],
+                _L_lower_diagonal_blocks[1:-1],
+                _L_lower_arrow_blocks[1:],
+                A_arrow_tip_block_global,
+                device_streaming=True if array_type == "streaming" else False,
             )
 
-        assert xp.allclose(
-            _L_lower_arrow_blocks[2 * comm_rank - 1],
-            X_ref_arrow_bottom_blocks_local[0],
-        )
-        assert xp.allclose(
-            _L_lower_arrow_blocks[2 * comm_rank],
-            X_ref_arrow_bottom_blocks_local[-1],
+            assert xp.allclose(
+                _L_diagonal_blocks[1],
+                X_ref_diagonal_blocks_local[-1],
+            )
+            assert xp.allclose(
+                _L_lower_diagonal_blocks[1],
+                X_ref_lower_diagonal_blocks_local[-1],
+            )
+            assert xp.allclose(
+                _L_lower_arrow_blocks[1],
+                X_ref_arrow_bottom_blocks_local[-1],
+            )
+            assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+    else:
+        pobtasi(
+            _L_diagonal_blocks,
+            _L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks,
+            A_arrow_tip_block_global,
+            device_streaming=True if array_type == "streaming" else False,
         )
 
-        assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+        if comm_rank == 0:
+            assert xp.allclose(
+                _L_diagonal_blocks[0],
+                X_ref_diagonal_blocks_local[-1],
+            )
+            assert xp.allclose(
+                _L_lower_diagonal_blocks[0],
+                X_ref_lower_diagonal_blocks_local[-1],
+            )
+            assert xp.allclose(
+                _L_lower_arrow_blocks[0],
+                X_ref_arrow_bottom_blocks_local[-1],
+            )
+            assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+        else:
+            assert xp.allclose(
+                _L_diagonal_blocks[2 * comm_rank - 1],
+                X_ref_diagonal_blocks_local[0],
+            )
+            assert xp.allclose(
+                _L_diagonal_blocks[2 * comm_rank],
+                X_ref_diagonal_blocks_local[-1],
+            )
+
+            if comm_rank < comm_size - 1:
+                assert xp.allclose(
+                    _L_lower_diagonal_blocks[2 * comm_rank],
+                    X_ref_lower_diagonal_blocks_local[-1],
+                )
+
+            assert xp.allclose(
+                _L_lower_arrow_blocks[2 * comm_rank - 1],
+                X_ref_arrow_bottom_blocks_local[0],
+            )
+            assert xp.allclose(
+                _L_lower_arrow_blocks[2 * comm_rank],
+                X_ref_arrow_bottom_blocks_local[-1],
+            )
+
+            assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)

@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csc_matrix
+from scipy.sparse import csc_matrix, coo_matrix
 
 from serinv import ArrayLike, CUPY_AVAIL, _get_module_from_array, _get_module_from_str
 
@@ -145,6 +145,57 @@ def csc_to_sparse_bta(
         A_arrow_tip_block_csc,
     )
 
+def bta_to_coo(
+    A_diagonal_blocks,
+    A_lower_diagonal_blocks,
+    A_arrow_bottom_blocks,
+    A_arrow_tip_block,
+) -> coo_matrix:
+    n_diagonal_blocks = A_diagonal_blocks.shape[0]
+    diagonal_blocksize = A_diagonal_blocks.shape[1]
+    arrow_blocksize = A_arrow_bottom_blocks.shape[1]
+
+    n = n_diagonal_blocks * diagonal_blocksize + arrow_blocksize
+
+    row = []
+    col = []
+    data = []
+
+    print(A_diagonal_blocks.shape)
+    print(A_lower_diagonal_blocks.shape)
+    print(A_arrow_bottom_blocks.shape)
+
+    for i in range(n_diagonal_blocks):
+        for j in range(diagonal_blocksize):
+            for k in range(diagonal_blocksize):
+                if j >= k:
+                    row.append(i * diagonal_blocksize + j)
+                    col.append(i * diagonal_blocksize + k)
+                    data.append(A_diagonal_blocks[i, j, k])
+
+        if i < n_diagonal_blocks - 1:
+            for j in range(diagonal_blocksize):
+                for k in range(diagonal_blocksize):
+                    # only the upper triangular part of the lower diagonal blocks
+                    if j <= k:
+                        row.append((i + 1) * diagonal_blocksize + j)
+                        col.append(i * diagonal_blocksize + k)
+                        data.append(A_lower_diagonal_blocks[i, j, k])
+
+        for j in range(arrow_blocksize):
+            for k in range(diagonal_blocksize):
+                row.append(n - arrow_blocksize + j)
+                col.append(i * diagonal_blocksize + k)
+                data.append(A_arrow_bottom_blocks[i, j, k])
+
+    for i in range(arrow_blocksize):
+        for j in range(arrow_blocksize):
+            if i >= j:
+                row.append(n - arrow_blocksize + i)
+                col.append(n - arrow_blocksize + j)
+                data.append(A_arrow_tip_block[i, j])
+
+    return coo_matrix((data, (row, col)), shape=(n, n))
 
 def bta_dense_to_arrays(
     bta: ArrayLike,
