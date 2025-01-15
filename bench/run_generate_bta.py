@@ -16,7 +16,7 @@ from matutils import (
     bta_to_coo,
 )
 
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 if __name__ == "__main__":
@@ -24,25 +24,25 @@ if __name__ == "__main__":
     parser.add_argument(
         "--diagonal_blocksize",
         type=int,
-        default=2865,
+        default=100,
         help="an integer for the diagonal block size",
     )
     parser.add_argument(
         "--arrowhead_blocksize",
         type=int,
-        default=4,
+        default=10,
         help="an integer for the arrowhead block size",
     )
     parser.add_argument(
         "--n_diag_blocks",
         type=int,
-        default=60,
+        default=10,
         help="an integer for the number of diagonal blocks",
     )
     parser.add_argument(
         "--density",
         type=float,
-        default=0.01,
+        default=0.5,
     )
     parser.add_argument(
         "--file_path",
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         _A_arrow_bottom_block = sps.random(
             arrowhead_blocksize, diagonal_blocksize, density=density, format="csr"
         ).toarray()
-        
+
         # check that diagonal elements all nonzero
         diagonal_elements = _A_diagonal_block.diagonal()
         if not np.all(diagonal_elements != 0):
@@ -140,13 +140,13 @@ if __name__ == "__main__":
     toc = time.time()
     print("Time to convert to COO: ", toc - tic)
 
-    """ plt.spy(A_coo.toarray())
-    plt.show() """
-    
+    plt.spy(A_coo.toarray())
+    plt.show()
+
     # print("A")
     # print(A_coo.toarray())
 
-    tic = time.time()
+    """ tic = time.time()
     file = (
         "Qxy_ns"
         + str(diagonal_blocksize)
@@ -167,4 +167,4 @@ if __name__ == "__main__":
     toc = time.time()
     print("Time to write matrix: ", toc - tic)
     
-    print("Matrix written to " + storing_path)
+    print("Matrix written to " + storing_path) """
