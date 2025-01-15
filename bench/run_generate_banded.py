@@ -15,8 +15,6 @@ from matutils import (
     bta_to_coo,
 )
 
-import matplotlib.pyplot as plt
-
 def mean_confidence_interval(data, confidence=0.95):
     a = 1.0 * np.array(data)
     n = len(a)
@@ -58,6 +56,7 @@ if __name__ == "__main__":
     arrowhead_blocksize = args.arrowhead_blocksize
     n_diag_blocks = args.n_diag_blocks
     file_path = args.file_path
+
 
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
 
@@ -102,4 +101,18 @@ if __name__ == "__main__":
         A_arrow_tip_block,
     )
 
-    mmwrite("matrix.mtx", A_coo, symmetry="symmetric")
+    file = (
+        "Qxy_ns"
+        + str(diagonal_blocksize)
+        + "_nt"
+        + str(n_diag_blocks)
+        + "_nss0_nb"
+        + str(arrowhead_blocksize)
+        + "_n"
+        + str(n)
+        + ".mtx"
+    )
+
+    storing_path = file_path + file
+
+    mmwrite(storing_path, A_coo, symmetry="symmetric")

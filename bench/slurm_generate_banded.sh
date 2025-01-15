@@ -7,7 +7,7 @@
 #SBATCH --output=%x.%j.out     #The .output file name
 #SBATCH --exclusive
 #SBATCH --cpus-per-task=52
-#SBATCH --partition=spr1tb
+####SBATCH --partition=spr1tb
 
 unset SLURM_EXPORT_ENV
 
@@ -23,9 +23,9 @@ FILE_PATH=/home/vault/j101df/j101df10/inla_matrices/INLA_paper_examples/
 # ARROWHEAD_BLOCKSIZE=4
 # N_DIAG_BLOCKS=365
 
-DIAGONAL_BLOCKSIZE=60
-ARROWHEAD_BLOCKSIZE=10
-N_DIAG_BLOCKS=10
+DIAGONAL_BLOCKSIZE=2865
+ARROWHEAD_BLOCKSIZE=4
+N_DIAG_BLOCKS=365
 
-cd ${HOME}/serinv/bench
+cd ${HOME}/codes/serinv/bench
 srun --cpu-bind=socket python run_generate_banded.py --diagonal_blocksize $DIAGONAL_BLOCKSIZE --arrowhead_blocksize $ARROWHEAD_BLOCKSIZE --n_diag_blocks $N_DIAG_BLOCKS --file_path $FILE_PATH
