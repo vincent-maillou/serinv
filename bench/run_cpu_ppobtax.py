@@ -58,6 +58,12 @@ if __name__ == "__main__":
         help="an integer for the number of diagonal blocks",
     )
     parser.add_argument(
+        "--density",
+        type=float,
+        default=0,
+        help="an integer for the number of diagonal blocks",
+    )
+    parser.add_argument(
         "--file_path",
         type=str,
         default="/home/x_gaedkelb/serinv/dev/matrices/",
@@ -77,7 +83,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--strategy",
-        type=int,
+        type=str,
         default="allgather",
         help="communication strategy",
     )
@@ -89,6 +95,7 @@ if __name__ == "__main__":
     diagonal_blocksize = args.diagonal_blocksize
     arrowhead_blocksize = args.arrowhead_blocksize
     n_diag_blocks = args.n_diag_blocks
+    density = args.density
     file_path = args.file_path
     n_iterations = args.n_iterations
     n_warmups = args.n_warmups
@@ -97,17 +104,32 @@ if __name__ == "__main__":
     n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
 
     # read in file
-    file = (
-        "Qxy_ns"
-        + str(diagonal_blocksize)
-        + "_nt"
-        + str(n_diag_blocks)
-        + "_nss0_nb"
-        + str(arrowhead_blocksize)
-        + "_n"
-        + str(n)
-        + ".dat"
-    )
+    if density == 0:
+        file = (
+            "Qxy_ns"
+            + str(diagonal_blocksize)
+            + "_nt"
+            + str(n_diag_blocks)
+            + "_nss0_nb"
+            + str(arrowhead_blocksize)
+            + "_n"
+            + str(n)
+            + ".dat"
+        )
+    else:
+        file = (
+            "Qxy_ns"
+            + str(diagonal_blocksize)
+            + "_nt"
+            + str(n_diag_blocks)
+            + "_nss0_nb"
+            + str(arrowhead_blocksize)
+            + "_n"
+            + str(n)
+            + "_density"
+            + str(density)
+            + ".mtx"
+        )
 
     filename = file_path + file
 
@@ -143,17 +165,40 @@ if __name__ == "__main__":
     remainder = n_diag_blocks % comm_size
     for i in range(remainder):
         n_locals[i] += 1
-    starting_idx = [sum(n_locals[:i]) for i in range(comm_rank)]
+    starting_idx = [sum(n_locals[0:i]) for i in range(comm_size+1)]
+
+    print(f"n_locals: {n_locals}", flush=True)
+    print(f"Starting idx: {starting_idx}", flush=True)
 
     tic = time.perf_counter()
-    A_diagonal_blocks = np.zeros((n_locals[comm_rank], diagonal_blocksize, diagonal_blocksize), dtype=A_diagonal_blocks_init.dtype)
+    A_diagonal_blocks_local = np.zeros((n_locals[comm_rank], diagonal_blocksize, diagonal_blocksize), dtype=A_diagonal_blocks_init.dtype)
     if comm_rank != comm_size - 1:
-        A_lower_diagonal_blocks = np.zeros((n_locals[comm_rank], diagonal_blocksize, diagonal_blocksize), dtype=A_diagonal_blocks_init.dtype)
+        A_lower_diagonal_blocks_local = np.zeros((n_locals[comm_rank], diagonal_blocksize, diagonal_blocksize), dtype=A_diagonal_blocks_init.dtype)
     else:
-        A_lower_diagonal_blocks = np.zeros((n_locals[comm_rank]-1, diagonal_blocksize, diagonal_blocksize), dtype=A_diagonal_blocks_init.dtype)
-    A_arrow_bottom_blocks = np.zeros((n_locals[comm_rank], diagonal_blocksize, arrowhead_blocksize), dtype=A_arrow_bottom_blocks_init.dtype)
-    A_arrow_tip_block = np.zeros_like(A_arrow_tip_block_init)
+        A_lower_diagonal_blocks_local = np.zeros((n_locals[comm_rank]-1, diagonal_blocksize, diagonal_blocksize), dtype=A_diagonal_blocks_init.dtype)
+    A_arrow_bottom_blocks_local = np.zeros((n_locals[comm_rank], arrowhead_blocksize, diagonal_blocksize), dtype=A_arrow_bottom_blocks_init.dtype)
+    A_arrow_tip_block_local = np.zeros_like(A_arrow_tip_block_init)
     toc = time.perf_counter()
+
+    permutation_buffer = allocate_permutation_buffer(
+        A_diagonal_blocks_local,
+        device_streaming=False,
+    )
+
+    (
+        _L_diagonal_blocks,
+        _L_lower_diagonal_blocks,
+        _L_lower_arrow_blocks,
+        _L_tip_update,
+    ) = allocate_ppobtars(
+        A_diagonal_blocks=A_diagonal_blocks_local,
+        A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
+        A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
+        A_arrow_tip_block=A_arrow_tip_block_local,
+        comm_size=comm_size,
+        array_module="numpy",
+        strategy=comm_strategy,
+    )
 
     print(f"Allocating testing buffers: {toc - tic:.5f} sec", flush=True)
     print("Initialization done..", flush=True)
@@ -164,11 +209,25 @@ if __name__ == "__main__":
     for i in range(n_warmups + n_iterations):
         print(f"Iteration: {i+1}/{n_warmups+n_iterations}", flush=True)
 
+        print("comm_rank: ", comm_rank, flush=True)
+
         tic = time.perf_counter()
-        A_diagonal_blocks[:, :, :] = A_diagonal_blocks_init[:, :, :].copy()
-        A_lower_diagonal_blocks[:, :, :] = A_lower_diagonal_blocks_init[:, :, :].copy()
-        A_arrow_bottom_blocks[:, :, :] = A_arrow_bottom_blocks_init[:, :, :].copy()
-        A_arrow_tip_block[:, :] = A_arrow_tip_block_init[:, :].copy()
+        A_diagonal_blocks_local[:, :, :] = A_diagonal_blocks_init[starting_idx[comm_rank]:starting_idx[comm_rank]+n_locals[comm_rank], :, :].copy()
+        if comm_rank != comm_size - 1:
+            A_lower_diagonal_blocks_local[:, :, :] = A_lower_diagonal_blocks_init[starting_idx[comm_rank]:starting_idx[comm_rank]+n_locals[comm_rank], :, :].copy()
+        else:
+            A_lower_diagonal_blocks_local[:, :, :] = A_lower_diagonal_blocks_init[starting_idx[comm_rank]:starting_idx[comm_rank]+n_locals[comm_rank]-1, :, :].copy()
+        A_arrow_bottom_blocks_local[:, :, :] = A_arrow_bottom_blocks_init[starting_idx[comm_rank]:starting_idx[comm_rank]+n_locals[comm_rank], :, :].copy()
+        A_arrow_tip_block_local[:, :] = A_arrow_tip_block_init[:, :].copy()
+        
+        # Reset permutation buffer
+        permutation_buffer.fill(0)
+
+        # Reset reduced system
+        _L_diagonal_blocks.fill(0)
+        _L_lower_diagonal_blocks.fill(0)
+        _L_lower_arrow_blocks.fill(0)
+        _L_tip_update.fill(0)
         toc = time.perf_counter()
 
         print(
@@ -177,11 +236,22 @@ if __name__ == "__main__":
         )
 
         start_time = time.perf_counter()
-        pobtaf(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_tip_block,
+        (
+            _L_diagonal_blocks,
+            _L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks,
+            permutation_buffer,
+        ) = ppobtaf(
+            A_diagonal_blocks_local,
+            A_lower_diagonal_blocks_local,
+            A_arrow_bottom_blocks_local,
+            A_arrow_tip_block_local,
+            A_permutation_buffer=permutation_buffer,
+            _L_diagonal_blocks=_L_diagonal_blocks,
+            _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks=_L_lower_arrow_blocks,
+            _L_tip_update=_L_tip_update,
+            strategy=comm_strategy,
         )
         end_time = time.perf_counter()
         elapsed_time_pobtaf = end_time - start_time
@@ -190,11 +260,16 @@ if __name__ == "__main__":
             t_pobtaf[i - n_warmups] = elapsed_time_pobtaf
 
         start_time = time.perf_counter()
-        pobtasi(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            A_arrow_tip_block,
+        ppobtasi(
+            A_diagonal_blocks_local,
+            A_lower_diagonal_blocks_local,
+            A_arrow_bottom_blocks_local,
+            A_arrow_tip_block_local,
+            _L_diagonal_blocks,
+            _L_lower_diagonal_blocks,
+            _L_lower_arrow_blocks,
+            permutation_buffer,
+            strategy=comm_strategy,
         )
         end_time = time.perf_counter()
         elapsed_time_pobtasi = end_time - start_time

@@ -18,7 +18,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 def allocate_permutation_buffer(
     A_diagonal_blocks: ArrayLike,
-    device_streaming: bool,
+    device_streaming: bool = False,
 ):
     """Allocate the (permutation) buffers necessary for the parallel BTA algorithms.
 
