@@ -145,6 +145,61 @@ def csc_to_sparse_bta(
         A_arrow_tip_block_csc,
     )
 
+def bta_to_csc(
+    arr: ArrayLike,
+    diagonal_blocksize: int,
+    arrowhead_blocksize: int,
+    n_diag_blocks: int,
+):
+    """Converts a block tridiagonal arrowhead matrix to a CSC representation."""
+
+    n = diagonal_blocksize * n_diag_blocks + arrowhead_blocksize
+
+    inner_indices = []
+    outer_index_ptr = [0]
+    values = []
+
+    for i in range(n_diag_blocks):
+        for j in range(diagonal_blocksize):
+            inner_indices.extend(
+                list(range(i * diagonal_blocksize, (i + 1) * diagonal_blocksize))
+            )
+            values.extend(list(arr[j, :, i].flatten()))
+
+        outer_index_ptr.append(len(inner_indices))
+
+        if i < n_diag_blocks - 1:
+            for j in range(diagonal_blocksize):
+                inner_indices.extend(
+                    list(range((i + 1) * diagonal_blocksize, (i + 2) * diagonal_blocksize))
+                )
+                values.extend(list(arr[j, :, i + 1].flatten()))
+
+            outer_index_ptr.append(len(inner_indices))
+
+    for i in range(n_diag_blocks):
+        for j in range(arrowhead_blocksize):
+            inner_indices.extend(
+                list(range(n - arrowhead_blocksize, n))
+            )
+            values.extend(list(arr[j, :, i].flatten()))
+
+        outer_index_ptr.append(len(inner_indices))
+
+    for i in range(arrowhead_blocksize):
+        inner_indices.extend(
+            list(range(n - arrowhead_blocksize, n))
+        )
+        values.extend(list(arr[i, :, -1].flatten())
+
+    outer_index_ptr.append(len(inner_indices))
+
+    inner_indices = xp.array(inner_indices, dtype=int)
+    outer_index_ptr = xp.array(outer_index_ptr, dtype=int)
+    values = xp.array(values, dtype=arr.dtype)
+
+    return csc_matrix((values, inner_indices, outer_index_ptr), shape=(n, n))
+
 
 def bta_dense_to_arrays(
     bta: ArrayLike,
