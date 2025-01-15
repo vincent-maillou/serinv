@@ -153,7 +153,7 @@ def bta_to_coo(
 ) -> coo_matrix:
     n_diagonal_blocks = A_diagonal_blocks.shape[0]
     diagonal_blocksize = A_diagonal_blocks.shape[1]
-    arrow_blocksize = A_arrow_bottom_blocks.shape[2]
+    arrow_blocksize = A_arrow_bottom_blocks.shape[1]
 
     n = n_diagonal_blocks * diagonal_blocksize + arrow_blocksize
 
@@ -161,10 +161,14 @@ def bta_to_coo(
     col = []
     data = []
 
+    print(A_diagonal_blocks.shape)
+    print(A_lower_diagonal_blocks.shape)
+    print(A_arrow_bottom_blocks.shape)
+
     for i in range(n_diagonal_blocks):
         for j in range(diagonal_blocksize):
             for k in range(diagonal_blocksize):
-                if j <= k:
+                if j >= k:
                     row.append(i * diagonal_blocksize + j)
                     col.append(i * diagonal_blocksize + k)
                     data.append(A_diagonal_blocks[i, j, k])
@@ -173,7 +177,7 @@ def bta_to_coo(
             for j in range(diagonal_blocksize):
                 for k in range(diagonal_blocksize):
                     # only the upper triangular part of the lower diagonal blocks
-                    if j >= k:
+                    if j <= k:
                         row.append((i + 1) * diagonal_blocksize + j)
                         col.append(i * diagonal_blocksize + k)
                         data.append(A_lower_diagonal_blocks[i, j, k])

@@ -4,7 +4,6 @@ Run the sequential Serinv codes on CPU using the inlamat matrices.
 
 import time
 
-tic = time.perf_counter()
 
 import numpy as np
 import scipy.stats
@@ -16,6 +15,7 @@ from matutils import (
     bta_to_coo,
 )
 
+import matplotlib.pyplot as plt
 
 def mean_confidence_interval(data, confidence=0.95):
     a = 1.0 * np.array(data)
@@ -53,8 +53,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    toc = time.perf_counter()
-    print(f"Import and parsing took: {toc - tic:.5f} sec", flush=True)
 
     diagonal_blocksize = args.diagonal_blocksize
     arrowhead_blocksize = args.arrowhead_blocksize
@@ -96,7 +94,6 @@ if __name__ == "__main__":
     for i in range(n_diag_blocks):
         A_diagonal_blocks[i] += A_diagonal_blocks[i].T
     A_arrow_tip_block += A_arrow_tip_block.T
-
 
     A_coo = bta_to_coo(
         A_diagonal_blocks,
