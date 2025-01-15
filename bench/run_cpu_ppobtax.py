@@ -84,6 +84,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--strategy",
         type=str,
+        choices=["allgather", "reduce_scatter"],
         default="allgather",
         help="communication strategy",
     )
@@ -237,6 +238,7 @@ if __name__ == "__main__":
             flush=True,
         )
 
+        MPI.COMM_WORLD.Barrier()
         start_time = time.perf_counter()
         (
             _L_diagonal_blocks,
@@ -255,12 +257,14 @@ if __name__ == "__main__":
             _L_tip_update=_L_tip_update,
             strategy=comm_strategy,
         )
+        MPI.COMM_WORLD.Barrier()
         end_time = time.perf_counter()
         elapsed_time_pobtaf = end_time - start_time
 
         if i >= n_warmups:
             t_pobtaf[i - n_warmups] = elapsed_time_pobtaf
 
+        MPI.COMM_WORLD.Barrier()
         start_time = time.perf_counter()
         ppobtasi(
             A_diagonal_blocks_local,
@@ -273,6 +277,7 @@ if __name__ == "__main__":
             permutation_buffer,
             strategy=comm_strategy,
         )
+        MPI.COMM_WORLD.Barrier()
         end_time = time.perf_counter()
         elapsed_time_pobtasi = end_time - start_time
 
