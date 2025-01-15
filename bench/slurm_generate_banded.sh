@@ -26,6 +26,7 @@ FILE_PATH=/home/vault/j101df/j101df10/inla_matrices/INLA_paper_examples/
 DIAGONAL_BLOCKSIZE=2865
 ARROWHEAD_BLOCKSIZE=4
 N_DIAG_BLOCKS=365
+DENSITY=1
 
 cd ${HOME}/codes/serinv/bench
-srun --cpu-bind=socket python run_generate_banded.py --diagonal_blocksize $DIAGONAL_BLOCKSIZE --arrowhead_blocksize $ARROWHEAD_BLOCKSIZE --n_diag_blocks $N_DIAG_BLOCKS --file_path $FILE_PATH
+srun --cpu-bind=socket python run_generate_banded.py --diagonal_blocksize $DIAGONAL_BLOCKSIZE --arrowhead_blocksize $ARROWHEAD_BLOCKSIZE --n_diag_blocks $N_DIAG_BLOCKS --density $DENSITY --file_path $FILE_PATH
