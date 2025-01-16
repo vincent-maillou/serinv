@@ -17,6 +17,7 @@ from serinv import (
 )
 
 if CUPY_AVAIL:
+    import cupy as cp
     import cupyx as cpx
 
 from mpi4py import MPI
@@ -31,8 +32,8 @@ from .ppobtars import (
     allocate_pinned_pobtars,
 )
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
+# comm_rank = MPI.COMM_WORLD.Get_rank()
+# comm_size = MPI.COMM_WORLD.Get_size()
 
 
 def ppobtaf(
@@ -91,6 +92,11 @@ def ppobtaf(
     """
 
     start, index = time.perf_counter(), 0
+
+    # Communication
+    comm = kwargs.get("comm", MPI.COMM_WORLD)
+    comm_rank = kwargs.get("comm_rank", MPI.COMM_WORLD.Get_rank())
+    comm_size = kwargs.get("comm_size", MPI.COMM_WORLD.Get_size())
 
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
@@ -187,7 +193,7 @@ def ppobtaf(
 
     # start, index = print_time(comm_rank, start, index)
 
-    if xp.__name__ == "cupy":
+    if xp.__name__ == "cupy" and device_streaming:
         # Check for given pinned memory buffers
         _L_diagonal_blocks_h: ArrayLike = kwargs.get("_L_diagonal_blocks_h", None)
         _L_lower_diagonal_blocks_h: ArrayLike = kwargs.get(
@@ -244,6 +250,7 @@ def ppobtaf(
             _L_tip_update=_L_tip_update,
             strategy=strategy,
             root=root if strategy == "gather-scatter" else None,
+            comm=comm, comm_rank=comm_rank, comm_size=comm_size,
         )
     
     start, index = print_time(comm_rank, start, index)

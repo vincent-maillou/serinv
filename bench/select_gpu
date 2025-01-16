@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo $SLURM_LOCALID
+export CUDA_VISIBLE_DEVICES=$SLURM_LOCALID
+exec $*
