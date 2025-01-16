@@ -84,7 +84,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--strategy",
         type=str,
-        choices=["allgather", "reduce_scatter"],
+        choices=["allgather", "gather-scatter"],
         default="allgather",
         help="communication strategy",
     )
@@ -161,13 +161,22 @@ if __name__ == "__main__":
     )
 
     # Compute local n_blocks size
-    n_diag_blocks_per_processes = n_diag_blocks // comm_size
-    n_locals = [n_diag_blocks_per_processes for i in range(comm_size)]
-    remainder = n_diag_blocks % comm_size
+    factor = 2.1
+    alpha = n_diag_blocks / (factor + comm_size - 1)
+    top_partition_blocks = int(alpha * factor)
+    n_diag_blocks_per_processes = (n_diag_blocks - top_partition_blocks) // (comm_size - 1)
+    n_locals = [top_partition_blocks] + [n_diag_blocks_per_processes for i in range(comm_size-1)]
+    remainder = (n_diag_blocks - top_partition_blocks) % (comm_size - 1)
     for i in range(remainder):
-        n_locals[i] += 1
+        n_locals[i+1] += 1
+    # n_diag_blocks_per_processes = n_diag_blocks // comm_size
+    # n_locals = [n_diag_blocks_per_processes for i in range(comm_size)]
+    # remainder = n_diag_blocks % comm_size
+    # for i in range(remainder):
+    #     n_locals[i] += 1
     starting_idx = [sum(n_locals[0:i]) for i in range(comm_size+1)]
 
+    print(f"factor: {factor}", flush=True)
     print(f"n_locals: {n_locals}", flush=True)
     print(f"Starting idx: {starting_idx}", flush=True)
 

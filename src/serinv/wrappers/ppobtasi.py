@@ -1,5 +1,15 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import time
+
+
+def print_time(rank, start, index):
+    end = time.perf_counter()
+    print(f"Rank {rank} ({index}) {end - start:.5f} sec", flush=True)
+    index += 1
+    return end, index
+
+
 from serinv import (
     ArrayLike,
     CUPY_AVAIL,
@@ -75,6 +85,9 @@ def ppobtasi(
     | Direct-array | x       | x        |
     | Streaming    | x       | x        |
     """
+
+    start, index = time.perf_counter(), 0
+
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
@@ -166,6 +179,8 @@ def ppobtasi(
             L_arrow_tip_block,
             device_streaming=device_streaming,
         )
+    
+    start, index = print_time(comm_rank, start, index)
 
     # Map result of the reduced system back to the original system
     map_ppobtars_to_ppobtax(
@@ -180,6 +195,8 @@ def ppobtasi(
         _L_tip_update=L_arrow_tip_block,
         strategy=strategy,
     )
+
+    start, index= print_time(comm_rank, start, index)
 
     # Parallel selected inversion of the original system
     if comm_rank == 0:
@@ -200,3 +217,5 @@ def ppobtasi(
             device_streaming=device_streaming,
             buffer=L_permutation_buffer,
         )
+    
+    start, index = print_time(comm_rank, start, index)

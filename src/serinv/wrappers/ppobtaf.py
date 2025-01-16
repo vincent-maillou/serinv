@@ -1,5 +1,15 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import time
+
+
+def print_time(rank, start, index):
+    end = time.perf_counter()
+    print(f"Rank {rank} ({index}) {end - start:.5f} sec", flush=True)
+    index += 1
+    return end, index
+
+
 from serinv import (
     ArrayLike,
     CUPY_AVAIL,
@@ -79,6 +89,9 @@ def ppobtaf(
     | Direct-array | x       | x        |
     | Streaming    | x       | x        |
     """
+
+    start, index = time.perf_counter(), 0
+
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
@@ -100,6 +113,8 @@ def ppobtaf(
             )
         else:
             assert A_permutation_buffer.shape == A_diagonal_blocks.shape
+
+    # start, index = print_time(comm_rank, start, index)
 
     # Check for given reduced system buffers
     _L_diagonal_blocks: ArrayLike = kwargs.get("_L_diagonal_blocks", None)
@@ -132,6 +147,8 @@ def ppobtaf(
             device_streaming=device_streaming,
             strategy=strategy,
         )
+    
+    # start, index = print_time(comm_rank, start, index)
 
     # Perform the parallel factorization
     if comm_rank == 0:
@@ -153,6 +170,8 @@ def ppobtaf(
             buffer=A_permutation_buffer,
         )
 
+    start, index = print_time(comm_rank, start, index)
+
     map_ppobtax_to_ppobtars(
         _L_diagonal_blocks=_L_diagonal_blocks,
         _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
@@ -165,6 +184,8 @@ def ppobtaf(
         A_permutation_buffer=A_permutation_buffer,
         strategy=strategy,
     )
+
+    # start, index = print_time(comm_rank, start, index)
 
     if xp.__name__ == "cupy":
         # Check for given pinned memory buffers
@@ -224,6 +245,8 @@ def ppobtaf(
             strategy=strategy,
             root=root if strategy == "gather-scatter" else None,
         )
+    
+    start, index = print_time(comm_rank, start, index)
 
     A_arrow_tip_block[:, :] = A_arrow_tip_block[:, :] + _L_tip_update[:, :]
 
@@ -250,6 +273,8 @@ def ppobtaf(
             A_arrow_tip_block,
             device_streaming=device_streaming,
         )
+    
+    start, index = print_time(comm_rank, start, index)
 
     return (
         _L_diagonal_blocks,

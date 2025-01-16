@@ -10,6 +10,8 @@ import numpy as np
 import scipy.stats
 import argparse
 
+np.show_config()
+
 
 from serinv.algs import pobtaf, pobtasi
 
@@ -96,6 +98,7 @@ if __name__ == "__main__":
 
     tic = time.perf_counter()
     A = read_sym_CSC(filename)
+    print(f"Matrix has shape {A.shape}, nnz {A.nnz}", flush=True)
     (
         A_diagonal_blocks_init,
         A_lower_diagonal_blocks_init,
