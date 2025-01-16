@@ -10,7 +10,7 @@ import scipy.stats
 import argparse
 from scipy.io import mmwrite
 import scipy.sparse as sps
-
+import matplotlib.pyplot as plt
 
 from matutils import (
     bta_to_coo,
@@ -32,25 +32,25 @@ if __name__ == "__main__":
     parser.add_argument(
         "--diagonal_blocksize",
         type=int,
-        default=2865,
+        default=5,
         help="an integer for the diagonal block size",
     )
     parser.add_argument(
         "--arrowhead_blocksize",
         type=int,
-        default=4,
+        default=1,
         help="an integer for the arrowhead block size",
     )
     parser.add_argument(
         "--n_diag_blocks",
         type=int,
-        default=60,
+        default=8,
         help="an integer for the number of diagonal blocks",
     )
     parser.add_argument(
         "--density",
         type=float,
-        default=0.01,
+        default=0.1,
     )
     parser.add_argument(
         "--file_path",
@@ -99,21 +99,26 @@ if __name__ == "__main__":
         ).toarray() + np.eye(diagonal_blocksize)
         _A_lower_diagonal_block = sps.random(
             diagonal_blocksize, diagonal_blocksize, density=density, format="csr"
-        ).toarray()
-        _A_arrow_bottom_block = sps.random(
-            arrowhead_blocksize, diagonal_blocksize, density=density, format="csr"
-        ).toarray()
+        ).toarray() + np.eye(diagonal_blocksize)
+        # assume arrowhead block is dense (very typical when only a few rows)
+        _A_arrow_bottom_block = np.random.rand(
+            arrowhead_blocksize, diagonal_blocksize
+        )
         
         # check that diagonal elements all nonzero
         diagonal_elements = _A_diagonal_block.diagonal()
         if not np.all(diagonal_elements != 0):
             raise ValueError("There are zero elements on the diagonal of the matrix.")
 
+        diagonal_elements = _A_lower_diagonal_block.diagonal()
+        if not np.all(diagonal_elements != 0):
+            raise ValueError("There are zero elements on the diagonal of the offdiagonal blocks.")
+
     for i in range(n_diag_blocks):
         A_diagonal_blocks[i, :, :] = _A_diagonal_block.copy()
         if i > 0:
             A_lower_diagonal_blocks[i - 1, :, :] = _A_lower_diagonal_block.copy()
-        A_arrow_bottom_blocks[i, :, :] = _A_arrow_bottom_block.copy()
+        A_arrow_bottom_blocks[i, :, :] = _A_arrow_bottom_block.copy()       
 
     # Make diagonally dominante
     arrow_colsum = np.zeros((arrowhead_blocksize), dtype=A_diagonal_blocks.dtype)
@@ -146,10 +151,18 @@ if __name__ == "__main__":
     )
     toc = time.time()
     print("Time to convert to COO: ", toc - tic)
-
-    """ plt.spy(A_coo.toarray())
-    plt.show() """
     
+    A_csr = A_coo.tocsr()
+    
+    # iterate through off-diagonal to check that its not zero
+    for i in range(diagonal_blocksize - 1):
+        if A_csr[i+diagonal_blocksize, i] == 0:
+            print(f"A_csr[{i+diagonal_blocksize}, {i}] = 0")            
+            raise ValueError("There are zero elements in the off-diagonal blocks.")
+
+    # plt.spy(A_coo.toarray())
+    # plt.savefig("spy_plot.png")  # Save the plot as a PNG file
+    # plt.show()    
     # print("A")
     # print(A_coo.toarray())
 
@@ -165,7 +178,7 @@ if __name__ == "__main__":
         + str(n)
         + "_density"
         + str(density)
-        + ".mtx"
+        + "_with_offdiag.mtx"
     )
 
     storing_path = file_path + file

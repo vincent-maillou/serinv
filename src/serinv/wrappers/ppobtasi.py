@@ -196,7 +196,7 @@ def ppobtasi(
         strategy=strategy,
     )
 
-    start, index= print_time(comm_rank, start, index)
+    # start, index= print_time(comm_rank, start, index)
 
     # Parallel selected inversion of the original system
     if comm_rank == 0:
