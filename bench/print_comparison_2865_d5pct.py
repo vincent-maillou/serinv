@@ -7,13 +7,18 @@ import numpy as np
 from matplotlib.ticker import ScalarFormatter
 
 if __name__ == "__main__":
+    # Other parameters
+    n_processes = [1, 2, 4, 8, 16]
+    fontsize = 12
+    viridis = plt.get_cmap("viridis")
+
     # PARDISO timings
-    pardiso_analysis_mean = 22.52604
-    pardiso_analysis_ci = [22.45823, 22.59385]
-    pardiso_factorization_mean = 9.60548
-    pardiso_factorization_ci = [9.55302, 9.65794]
-    pardiso_sellinv_mean = 56.78813
-    pardiso_sellinv_ci = [52.39210, 61.18416]
+    pardiso_analysis_mean = 154.06736
+    pardiso_analysis_ci = [152.68448, 155.45025]
+    pardiso_factorization_mean = 61.60185
+    pardiso_factorization_ci = [60.53969, 62.66400]
+    pardiso_sellinv_mean = 225.16645
+    pardiso_sellinv_ci = [196.68438, 253.64853]
 
     pardiso_a2x_mean = pardiso_factorization_mean + pardiso_sellinv_mean
     pardiso_a2x_ci = [
@@ -22,29 +27,29 @@ if __name__ == "__main__":
     ]
 
     # MUMPS timings
-    mumps_analysis_mean = [22, 18, 10.7, 7.7, 6.5]
+    mumps_analysis_mean = [137.359827, 126.326724, 81.934029, 51.536856, 51.082372]
     mumps_analysis_ci = [
-        [0, 0],
-        [0, 0],
-        [0, 0],
-        [0, 0],
-        [0, 0],
+        [137.359827, 137.458724],
+        [126.262346, 126.431899],
+        [81.923481, 82.130227],
+        [51.435951, 51.53853],
+        [50.993882, 51.225979],
     ]
-    mumps_factorization_mean = [11.8, 6.5, 7, 3.6, 4.2]
+    mumps_factorization_mean = [38.581357, 40.081410, 27.049463, 17.963536, 18.624930]
     mumps_factorization_ci = [
-        [0, 0],
-        [0, 0],
-        [0, 0],
-        [0, 0],
-        [0, 0],
+        [38.581357, 38.755972],
+        [39.393201, 40.369052],
+        [27.006295, 29.001502],
+        [17.842745, 18.364568],
+        [18.276191, 18.645041],
     ]
-    mumps_sellinv_mean = [450, 497, 413, 362, 483]
+    mumps_sellinv_mean = [1766.510641, 897.651438, 841.216716, 622.927269, 723.880556]
     mumps_sellinv_ci = [
-        [0, 0],
-        [0, 0],
-        [0, 0],
-        [0, 0],
-        [0, 0],
+        [1766.510641, 1766.510641],
+        [895.383524, 901.799116],
+        [841.026371, 844.019168],
+        [617.23098, 631.621537],
+        [722.243672, 772.270123],
     ]
 
     mumps_a2x_mean = [
@@ -153,42 +158,39 @@ if __name__ == "__main__":
         for i in range(len(serinv_gpu_factorization_mean))
     ]
 
-    # Other parameters
-    n_processes = [1, 2, 4, 8, 16]
-
     # We look at relative performance w.r.t fastest PARDISO
     # MUMPS RELATIVE PERFORMANCE
     mumps_factorization_mean_rel = [
         pardiso_factorization_mean / mumps_factorization_mean[i]
         for i in range(len(n_processes))
     ]
-    """ mumps_factorization_ci_rel = [
+    mumps_factorization_ci_rel = [
         [
             pardiso_factorization_ci[0] / mumps_factorization_ci[i][1],
             pardiso_factorization_ci[1] / mumps_factorization_ci[i][0],
         ]
         for i in range(len(n_processes))
-    ] """
+    ]
     mumps_sellinv_mean_rel = [
         pardiso_sellinv_mean / mumps_sellinv_mean[i] for i in range(len(n_processes))
     ]
-    """ mumps_sellinv_ci_rel = [
+    mumps_sellinv_ci_rel = [
         [
             pardiso_sellinv_ci[0] / mumps_sellinv_ci[i][1],
             pardiso_sellinv_ci[1] / mumps_sellinv_ci[i][0],
         ]
         for i in range(len(n_processes))
-    ] """
+    ]
     mumps_a2x_mean_rel = [
         pardiso_a2x_mean / mumps_a2x_mean[i] for i in range(len(n_processes))
     ]
-    """ mumps_a2x_ci_rel = [
+    mumps_a2x_ci_rel = [
         [
             pardiso_a2x_ci[0] / mumps_a2x_ci[i][1],
             pardiso_a2x_ci[1] / mumps_a2x_ci[i][0],
         ]
         for i in range(len(n_processes))
-    ] """
+    ]
 
     # SERINV CPU RELATIVE PERFORMANCE
     serinv_cpu_factorization_mean_rel = [
@@ -299,35 +301,35 @@ if __name__ == "__main__":
         pardiso_factorization_mean / mumps_factorization_mean[i]
         for i in range(len(n_processes))
     ]
-    """ mumps_factorization_ci_rel = [
+    mumps_factorization_ci_rel = [
         [
             pardiso_factorization_ci[0] / mumps_factorization_ci[i][1],
             pardiso_factorization_ci[1] / mumps_factorization_ci[i][0],
         ]
         for i in range(len(n_processes))
-    ] """
+    ]
     mumps_sellinv_mean_rel = [
         pardiso_sellinv_mean / mumps_sellinv_mean[i] for i in range(len(n_processes))
     ]
-    """ mumps_sellinv_ci_rel = [
+    mumps_sellinv_ci_rel = [
         [
             pardiso_sellinv_ci[0] / mumps_sellinv_ci[i][1],
             pardiso_sellinv_ci[1] / mumps_sellinv_ci[i][0],
         ]
         for i in range(len(n_processes))
-    ] """
+    ]
     mumps_a2x_mean_rel = [
         pardiso_a2x_mean / mumps_a2x_mean[i] for i in range(len(n_processes))
     ]
-    """ mumps_a2x_ci_rel = [
+    mumps_a2x_ci_rel = [
         [
             pardiso_a2x_ci[0] / mumps_a2x_ci[i][1],
             pardiso_a2x_ci[1] / mumps_a2x_ci[i][0],
         ]
         for i in range(len(n_processes))
-    ] """
+    ]
 
-    """ print("MUMPS factorization relative performance")
+    print("MUMPS factorization relative performance")
     for i in range(len(n_processes)):
         print(
             f"n_processes={n_processes[i]}, mean={mumps_factorization_mean_rel[i]:.5f}, ci=[{mumps_factorization_ci_rel[i][0]:.5f}, {mumps_factorization_ci_rel[i][1]:.5f}]"
@@ -343,10 +345,35 @@ if __name__ == "__main__":
     for i in range(len(n_processes)):
         print(
             f"n_processes={n_processes[i]}, mean={mumps_a2x_mean_rel[i]:.5f}, ci=[{mumps_a2x_ci_rel[i][0]:.5f}, {mumps_a2x_ci_rel[i][1]:.5f}]"
-        ) """
+        )
 
     # Make an error bar plot for relative performances of serinv. 100% is pardiso
     fig, ax = plt.subplots()
+    # Plot pardiso reference line at 1
+    ax.axhline(y=1, color="r", linestyle="--", label="PARDISO Reference")
+    # Plot MUMPS
+    yerr_mumps = np.array(
+        [
+            [
+                mumps_a2x_mean_rel[i] - mumps_a2x_ci_rel[i][0]
+                for i in range(len(n_processes))
+            ],
+            [
+                mumps_a2x_ci_rel[i][1] - mumps_a2x_mean_rel[i]
+                for i in range(len(n_processes))
+            ],
+        ]
+    )
+    ax.errorbar(
+        n_processes,
+        mumps_a2x_mean_rel,
+        yerr=yerr_mumps,
+        capsize=3,
+        capthick=1,
+        fmt="x-",
+        label="MUMPS",
+        color=viridis(0.7),
+    )
     # Plot SERINV CPU
     yerr_cpu = np.array(
         [
@@ -368,6 +395,7 @@ if __name__ == "__main__":
         capthick=1,
         fmt="x-",
         label="Serinv-CPU",
+        color=viridis(0.1),
     )
     # Plot SERINV GPU
     yerr_gpu = np.array(
@@ -390,33 +418,34 @@ if __name__ == "__main__":
         capthick=1,
         fmt="x--",
         label="Serinv-GPU",
+        color=viridis(0.1),
+        alpha=0.5,
     )
-    # Plot MUMPS
-
-    ax.errorbar(
-        n_processes,
-        mumps_a2x_mean_rel,
-        capsize=3,
-        capthick=1,
-        fmt="x--",
-        label="MUMPS",
-    )
-
-    # Plot pardiso reference line at 1
-    ax.axhline(y=1, color="r", linestyle="--", label="PARDISO")
 
     ax.set_xscale("log", base=2)
     ax.set_yscale("log", base=10)
     ax.set_xticks(n_processes)
     ax.get_xaxis().set_major_formatter(ScalarFormatter())
-    ax.grid(True, which="both", linestyle="--", linewidth=0.5)
+    ax.grid(True, which="both", axis="y", linestyle="--", linewidth=0.5)
     # set the y scale from 0 to 2
-    # ax.set_ylim(0, 100)
+    ax.set_ylim(0.1, 400)
 
-    ax.set_xlabel("Number of processes")
-    ax.set_ylabel("Relative performance to PARDISO")
-    ax.set_title("Relative performance of SERINV and MUMPS \n compared to PARDISO")
-    ax.legend(loc="upper left")
-    ax.yaxis.set_major_formatter(ScalarFormatter())
+    ax.set_xlabel("Number of processes $\\mathit{P}$", fontsize=fontsize)
+    # ax.set_ylabel("Performances comparison to PARDISO-multithreaded", fontsize=fontsize)
+    # ax.set_title("Relative performance of SERINV and MUMPS \n compared to PARDISO")
+    # ax.yaxis.set_major_formatter(ScalarFormatter())
+    ax.get_yaxis().set_major_formatter(ScalarFormatter())
+    # Modify the y ticks by 0.1, 1, 10, 100
+    ax.set_yticks([0.1, 1, 10, 100])
+
+    ax.tick_params(axis="both", which="major", labelsize=fontsize)
+
+    # ax.legend(fontsize=fontsize, loc="upper left")
+
+    ax.set_facecolor("#F0F0F0")
+
+    plt.tight_layout()
+
+    fig.savefig("relative_performance_2865_d5.png", dpi=450)
 
     plt.show()
