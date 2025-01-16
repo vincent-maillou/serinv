@@ -150,6 +150,7 @@ def bta_to_coo(
     A_lower_diagonal_blocks,
     A_arrow_bottom_blocks,
     A_arrow_tip_block,
+    banded: bool = False,
 ) -> coo_matrix:
     n_diagonal_blocks = A_diagonal_blocks.shape[0]
     diagonal_blocksize = A_diagonal_blocks.shape[1]
@@ -172,10 +173,16 @@ def bta_to_coo(
         ] = np.tril(A_diagonal_blocks[i])
 
         if i < n_diagonal_blocks - 1:
-            A_lil[
-                (i + 1) * diagonal_blocksize : (i + 2) * diagonal_blocksize,
-                i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
-            ] = np.triu(A_lower_diagonal_blocks[i])
+            if banded:
+                A_lil[
+                    (i + 1) * diagonal_blocksize : (i + 2) * diagonal_blocksize,
+                    i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+                ] = np.triu(A_lower_diagonal_blocks[i])
+            else:
+                A_lil[
+                    (i + 1) * diagonal_blocksize : (i + 2) * diagonal_blocksize,
+                    i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
+                ] = A_lower_diagonal_blocks[i]
 
         A_lil[
             -arrow_blocksize:,
