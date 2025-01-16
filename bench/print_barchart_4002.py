@@ -9,7 +9,8 @@ from matplotlib.ticker import ScalarFormatter
 if __name__ == "__main__":
     # Other parameters
     n_processes = [1, 2, 4, 8, 16]
-    fontsize = 12
+    fontsize = 16
+    ticsize = fontsize - 2
     viridis = plt.get_cmap("viridis")
 
     # PARDISO timings
@@ -185,7 +186,7 @@ if __name__ == "__main__":
         error_kw=dict(ecolor="black", capsize=5, capthick=1, alpha=0.75),
         width=bar_width,
         color=viridis(0.1),
-        label="SERINV-CPU",
+        label="Serinv-CPU",
         zorder=3,
     )
 
@@ -219,7 +220,7 @@ if __name__ == "__main__":
         width=bar_width,
         color=viridis(0.1),
         alpha=0.5,
-        label="SERINV-GPU",
+        label="Serinv-GPU",
         zorder=3,
     )
 
@@ -230,16 +231,18 @@ if __name__ == "__main__":
     ax.set_xticklabels(n_processes)
     ax.set_xlabel("Number of processes $\\mathit{P}$", fontsize=fontsize)
 
+    ax.tick_params(axis="both", which="major", labelsize=ticsize)
+
     # set y axis in log scale
     ax.set_ylim(0.1, 1000)
     ax.set_yscale("log", base=10)
-    # ax.set_ylabel("Time (s)", fontsize=fontsize)
+    ax.set_ylabel("Runtime (s)", fontsize=fontsize)
     ax.yaxis.set_major_formatter(plt.ScalarFormatter())
     ax.grid(True, which="both", axis="y", linestyle="--", linewidth=0.5, zorder=1)
 
     ax.set_facecolor("#F0F0F0")
 
-    ax.legend()
+    ax.legend(fontsize=ticsize, loc="upper right")
 
     plt.tight_layout()
 
@@ -266,7 +269,7 @@ if __name__ == "__main__":
         y=pardiso_sellinv_mean,
         color="r",
         linestyle="--",
-        label="PARDISO Reference",
+        label="PARDISO",
     )
     # MUMPS
     yerr_mumps = np.array(
@@ -289,7 +292,7 @@ if __name__ == "__main__":
         error_kw=dict(ecolor="black", capsize=5, capthick=1, alpha=0.75),
         width=bar_width,
         color=viridis(0.7),
-        label="MUMPS sellinv",
+        label="MUMPS",
         zorder=3,
     )
 
@@ -314,7 +317,7 @@ if __name__ == "__main__":
         error_kw=dict(ecolor="black", capsize=5, capthick=1, alpha=0.75),
         width=bar_width,
         color=viridis(0.1),
-        label="SERINV CPU sellinv",
+        label="Serinv-CPU",
         zorder=3,
     )
 
@@ -347,7 +350,7 @@ if __name__ == "__main__":
         width=bar_width,
         color=viridis(0.1),
         alpha=0.5,
-        label="SERINV GPU sellinv",
+        label="Serinv-GPU",
         zorder=3,
     )
 
@@ -360,6 +363,8 @@ if __name__ == "__main__":
 
     ax.grid(True, which="both", axis="y", linestyle="--", linewidth=0.5, zorder=1)
 
+    ax.tick_params(axis="both", which="major", labelsize=ticsize)
+
     # set y axis in log scale
     ax.set_ylim(0.1, 1000)
     ax.set_yscale("log", base=10)
@@ -367,6 +372,8 @@ if __name__ == "__main__":
     ax.yaxis.set_major_formatter(plt.ScalarFormatter())
 
     ax.set_facecolor("#F0F0F0")
+
+    # ax.legend(fontsize=ticsize, loc="lower left")
 
     plt.tight_layout()
 
@@ -389,27 +396,27 @@ if __name__ == "__main__":
     bar_width = 0.2
     bar_adjustment = 0.02
 
-    hatches_factorization = "oo"
-    hatches_sellinv = "//"
+    # hatches_factorization = "oo"
+    # hatches_sellinv = "//"
 
     # PARDISO
-    ax.axhline(y=pardiso_a2x_mean, color="r", linestyle="--")
+    ax.axhline(y=pardiso_a2x_mean, color="r", linestyle="--", label="PARDISO")
 
     # Fake bars for legend
-    ax.bar(
-        1,
-        0,
-        color="white",
-        label="Selected inversion",
-        hatch=hatches_sellinv,
-    )
-    ax.bar(
-        1,
-        0,
-        color="white",
-        label="Factorization",
-        hatch=hatches_factorization,
-    )
+    # ax.bar(
+    #     1,
+    #     0,
+    #     color="white",
+    #     label="Selected inversion",
+    #     # hatch=hatches_sellinv,
+    # )
+    # ax.bar(
+    #     1,
+    #     0,
+    #     color="white",
+    #     label="Factorization",
+    #     # hatch=hatches_factorization,
+    # )
 
     # MUMPS
     ax.bar(
@@ -418,7 +425,7 @@ if __name__ == "__main__":
         width=bar_width,
         color=viridis(0.7),
         zorder=3,
-        hatch=hatches_factorization,
+        # hatch=hatches_factorization,
     )
     ax.bar(
         x_positions,
@@ -427,7 +434,8 @@ if __name__ == "__main__":
         bottom=mumps_factorization_mean,
         color=viridis(0.7),
         zorder=3,
-        hatch=hatches_sellinv,
+        # hatch=hatches_sellinv,
+        label="MUMPS",
     )
 
     # Serinv-CPU
@@ -437,7 +445,7 @@ if __name__ == "__main__":
         width=bar_width,
         color=viridis(0.1),
         zorder=3,
-        hatch=hatches_factorization,
+        # hatch=hatches_factorization,
     )
     ax.bar(
         x_positions + bar_width + bar_adjustment,
@@ -446,7 +454,8 @@ if __name__ == "__main__":
         bottom=serinv_cpu_factorization_mean,
         color=viridis(0.1),
         zorder=3,
-        hatch=hatches_sellinv,
+        # hatch=hatches_sellinv,
+        label="Serinv-CPU",
     )
 
     # Serinv-GPU
@@ -472,7 +481,7 @@ if __name__ == "__main__":
         color=viridis(0.1),
         alpha=0.5,
         zorder=3,
-        hatch=hatches_factorization,
+        # hatch=hatches_factorization,
     )
     ax.bar(
         x_positions + 2 * (bar_width + bar_adjustment),
@@ -482,7 +491,8 @@ if __name__ == "__main__":
         color=viridis(0.1),
         alpha=0.5,
         zorder=3,
-        hatch=hatches_sellinv,
+        # hatch=hatches_sellinv,
+        label="Serinv-GPU",
     )
 
     # ax.set_title("A2X time", fontsize=fontsize)
@@ -494,6 +504,8 @@ if __name__ == "__main__":
 
     ax.grid(True, which="both", axis="y", linestyle="--", linewidth=0.5, zorder=1)
 
+    ax.tick_params(axis="both", which="major", labelsize=ticsize)
+
     # set y axis in log scale
     ax.set_ylim(0.1, 1000)
     ax.set_yscale("log", base=10)
@@ -503,7 +515,9 @@ if __name__ == "__main__":
     ax.set_facecolor("#F0F0F0")
 
     # put legend on bottom left and with an alpha of 1
-    ax.legend(loc="lower left", fontsize=fontsize, framealpha=0.95)
+    # ax.legend(loc="lower left", fontsize=fontsize, framealpha=0.95)
+
+    # ax.legend(fontsize=ticsize, loc="lower left")
 
     plt.tight_layout()
 

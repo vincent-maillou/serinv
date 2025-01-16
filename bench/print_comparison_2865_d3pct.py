@@ -9,7 +9,8 @@ from matplotlib.ticker import ScalarFormatter
 if __name__ == "__main__":
     # Other parameters
     n_processes = [1, 2, 4, 8, 16]
-    fontsize = 12
+    fontsize = 18
+    ticsize = fontsize - 2
     viridis = plt.get_cmap("viridis")
 
     # PARDISO timings
@@ -95,65 +96,32 @@ if __name__ == "__main__":
     ]
 
     # SERINV GPU timings
-    serinv_gpu_factorization_mean = [
-        2.34213,
-        1.55993,
-        0.93301,
-        0.49508,
-        0.23080,
-    ]
+    serinv_gpu_factorization_mean = [2.4856, 1.6249, 0.97540, 0.61214, 0.50339]
     serinv_gpu_factorization_ci = [
-        [2.34195, 2.34231],
-        [1.55977, 1.56010],
-        [0.93294, 0.93309],
-        [0.49471, 0.49545],
-        [0.23068, 0.23093],
+        [2.41606, 2.55513],
+        [1.62393, 1.62587],
+        [0.97330, 0.97750],
+        [0.62426, 0.62871],
+        [0.50311, 0.50367],
     ]
 
-    serinv_gpu_sellinv_mean = [
-        3.07213,
-        2.00457,
-        1.19332,
-        0.63325,
-        0.30589,
-    ]
+    serinv_gpu_sellinv_mean = [2.78955, 1.81765, 1.09637, 0.67208, 0.51710]
     serinv_gpu_sellinv_ci = [
-        [3.05504, 3.08921],
-        [2.00362, 2.00551],
-        [1.19257, 1.19407],
-        [0.63276, 0.63375],
-        [0.30571, 0.30607],
-    ]
-
-    serinv_gpu_rss_mean = [
-        0,
-        0.03913,
-        0.09712,
-        0.23255,
-        0.49242,
-    ]
-    serinv_gpu_rss_ci = [
-        [0, 0],
-        [0.03910, 0.03915],
-        [0.09700, 0.09724],
-        [0.23224, 0.23286],
-        [0.49184, 0.49300],
+        [2.7893, 2.78979],
+        [1.81745, 1.81784],
+        [1.09624, 1.09651],
+        [0.67204, 0.67212],
+        [0.51698, 0.51722],
     ]
 
     serinv_gpu_a2x_mean = [
-        serinv_gpu_factorization_mean[i]
-        + serinv_gpu_sellinv_mean[i]
-        + serinv_gpu_rss_mean[i]
+        serinv_gpu_factorization_mean[i] + serinv_gpu_sellinv_mean[i]
         for i in range(len(serinv_gpu_factorization_mean))
     ]
     serinv_gpu_a2x_ci = [
         [
-            serinv_gpu_factorization_ci[i][0]
-            + serinv_gpu_sellinv_ci[i][0]
-            + serinv_gpu_rss_ci[i][0],
-            serinv_gpu_factorization_ci[i][1]
-            + serinv_gpu_sellinv_ci[i][1]
-            + serinv_gpu_rss_ci[i][1],
+            serinv_gpu_factorization_ci[i][0] + serinv_gpu_sellinv_ci[i][0],
+            serinv_gpu_factorization_ci[i][1] + serinv_gpu_sellinv_ci[i][1],
         ]
         for i in range(len(serinv_gpu_factorization_mean))
     ]
