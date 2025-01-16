@@ -29,6 +29,16 @@ try:
 except (ImportError, ImportWarning, ModuleNotFoundError) as w:
     warn(f"'CuPy' is unavailable. ({w})")
 
+NCCL_AVAIL = False
+if CUPY_AVAIL:
+    try:
+        from cupy.cuda import nccl
+        nccl.get_version()  # Check if NCCL is available
+
+        NCCL_AVAIL = True
+    except (AttributeError, ImportError, ModuleNotFoundError):
+        pass
+
 MPI_AVAIL = False
 try:
     from mpi4py import MPI

@@ -3,12 +3,20 @@
 from serinv import (
     ArrayLike,
     CUPY_AVAIL,
+    NCCL_AVAIL,
     _get_module_from_str,
     _get_module_from_array,
 )
 
 if CUPY_AVAIL:
+    import cupy as cp
     import cupyx as cpx
+
+if NCCL_AVAIL:
+    from cupy.cuda import nccl
+    import numpy as np
+    nccl_datatype = {np.float32: nccl.NCCL_FLOAT, cp.float32: nccl.NCCL_FLOAT, cp.complex64: nccl.NCCL_FLOAT,
+                     np.float64: nccl.NCCL_DOUBLE, cp.float64: nccl.NCCL_DOUBLE, cp.complex128: nccl.NCCL_DOUBLE}
 
 from mpi4py import MPI
 
@@ -437,19 +445,57 @@ def aggregate_ppobtars(
         MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_arrow_blocks, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_tip_update, op=MPI.SUM)
     elif strategy == "allgather":
-        MPI.COMM_WORLD.Allgather(
-            MPI.IN_PLACE,
-            _L_diagonal_blocks,
-        )
-        MPI.COMM_WORLD.Allgather(
-            MPI.IN_PLACE,
-            _L_lower_diagonal_blocks,
-        )
-        MPI.COMM_WORLD.Allgather(
-            MPI.IN_PLACE,
-            _L_lower_arrow_blocks,
-        )
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_tip_update, op=MPI.SUM)
+
+        comm = kwargs.get("comm", MPI.COMM_WORLD)
+        comm_rank = kwargs.get("comm_rank", MPI.COMM_WORLD.Get_rank())
+        comm_size = kwargs.get("comm_size", MPI.COMM_WORLD.Get_size())
+
+        if NCCL_AVAIL and isinstance(comm, nccl.NcclCommunicator):
+            
+            for data in (_L_diagonal_blocks, _L_lower_diagonal_blocks, _L_lower_arrow_blocks):
+                sz = data.size // comm_size
+                datatype = nccl_datatype[data.dtype.type]
+                itemsize = data.dtype.itemsize
+                disp = sz * comm_rank * itemsize
+                if np.iscomplexobj(data):
+                    size *= 2
+                comm.allGather(
+                    data.data.ptr + disp,
+                    data.data.ptr,
+                    sz,
+                    datatype,
+                    cp.cuda.Stream.null.ptr)
+                cp.cuda.Stream.null.synchronize()
+
+            data = _L_tip_update
+            sz = data.size
+            if np.iscomplexobj(data):
+                sz *= 2
+            datatype = nccl_datatype[data.dtype.type]
+            comm.allReduce(
+                data.data.ptr,
+                data.data.ptr,
+                sz,
+                datatype,
+                nccl.NCCL_SUM,
+                cp.cuda.Stream.null.ptr)
+            cp.cuda.Stream.null.synchronize()
+
+        else:
+
+            MPI.COMM_WORLD.Allgather(
+                MPI.IN_PLACE,
+                _L_diagonal_blocks,
+            )
+            MPI.COMM_WORLD.Allgather(
+                MPI.IN_PLACE,
+                _L_lower_diagonal_blocks,
+            )
+            MPI.COMM_WORLD.Allgather(
+                MPI.IN_PLACE,
+                _L_lower_arrow_blocks,
+            )
+            MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_tip_update, op=MPI.SUM)
     elif strategy == "gather-scatter":
         root = kwargs.get("root", None)
         if root is None:
