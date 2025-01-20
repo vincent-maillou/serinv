@@ -10,11 +10,6 @@ from serinv.algs import pobtaf, pobtas
 
 
 @pytest.mark.mpi_skip()
-@pytest.mark.parametrize("diagonal_blocksize", [2, 3])
-@pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
-@pytest.mark.parametrize("n_diag_blocks", [1, 2, 3, 4])
-@pytest.mark.parametrize("array_type", ["host", "device"])
-@pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 @pytest.mark.parametrize("n_rhs", [1, 2, 3])
 def test_pobtas(
     n_rhs: int,

@@ -13,11 +13,6 @@ if CUPY_AVAIL:
 
 
 @pytest.mark.mpi_skip()
-@pytest.mark.parametrize("diagonal_blocksize", [2, 3])
-@pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
-@pytest.mark.parametrize("n_diag_blocks", [1, 2, 3, 4])
-@pytest.mark.parametrize("array_type", ["host", "device", "streaming"])
-@pytest.mark.parametrize("dtype", [np.float64, np.complex128])
 def test_pobtaf(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,

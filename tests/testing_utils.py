@@ -336,7 +336,7 @@ def rhs(
     else:
         xp = np
 
-    rc = (1.0 + 1.0j) if dtype == np.complex128 else 1.0
+    rc = (1.0 + 1.0j) if dtype == "complex128" else 1.0
 
     B = rc * xp.random.rand(
         diagonal_blocksize * n_diag_blocks + arrowhead_blocksize, n_rhs

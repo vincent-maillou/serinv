@@ -29,24 +29,18 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
-@pytest.mark.parametrize("diagonal_blocksize", [2, 3])
-@pytest.mark.parametrize("arrowhead_blocksize", [2, 3])
-@pytest.mark.parametrize("n_diag_blocks", [comm_size * 3, comm_size * 4, comm_size * 5])
-@pytest.mark.parametrize("array_type", ["host", "device", "streaming"])
-@pytest.mark.parametrize("dtype", [np.float64, np.complex128])
-@pytest.mark.parametrize("preallocate_permutation_buffer", [True, False])
-@pytest.mark.parametrize("preallocate_reduced_system", [True, False])
-@pytest.mark.parametrize("comm_strategy", ["allreduce", "allgather", "gather-scatter"])
 def test_d_pobtasi(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
-    n_diag_blocks: int,
+    partition_size: int,
     array_type: str,
     dtype: np.dtype,
     preallocate_permutation_buffer: bool,
     preallocate_reduced_system: bool,
     comm_strategy: str,
 ):
+    n_diag_blocks = partition_size * comm_size
+
     A = dd_bta(
         diagonal_blocksize,
         arrowhead_blocksize,
