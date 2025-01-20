@@ -64,6 +64,12 @@ if __name__ == "__main__":
         help="an integer for the number of diagonal blocks",
     )
     parser.add_argument(
+        "--density",
+        type=float,
+        default=0,
+        help="an integer for the number of diagonal blocks",
+    )
+    parser.add_argument(
         "--file_path",
         type=str,
         default="/home/x_gaedkelb/serinv/dev/matrices/",
@@ -189,8 +195,6 @@ if __name__ == "__main__":
     A_arrow_bottom_blocks_local = np.zeros((n_locals[comm_rank], arrowhead_blocksize, diagonal_blocksize), dtype=A_arrow_bottom_blocks_init.dtype)
     A_arrow_tip_block_local = np.zeros_like(A_arrow_tip_block_init)
     toc = time.perf_counter()
-
-    
 
     print(f"Allocating testing buffers: {toc - tic:.5f} sec", flush=True)
     print("Initialization done..", flush=True)
