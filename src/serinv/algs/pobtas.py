@@ -1,17 +1,10 @@
-# Copyright 2023-2024 ETH Zurich. All rights reserved.
+# Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-try:
-    import cupy as cp
-    import cupyx.scipy.linalg as cu_la
 
-    CUPY_AVAIL = True
-
-except ImportError:
-    CUPY_AVAIL = False
-
-import numpy as np
-import scipy.linalg as np_la
-from numpy.typing import ArrayLike
+from serinv import (
+    ArrayLike,
+    _get_module_from_array,
+)
 
 
 def pobtas(
@@ -20,6 +13,7 @@ def pobtas(
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
+    **kwargs,
 ) -> ArrayLike:
     """Solve a block tridiagonal arrowhead linear system given its Cholesky factorization
     using a sequential block algorithm.
@@ -28,32 +22,51 @@ def pobtas(
     -----
     - If a device array is given, the algorithm will run on the GPU.
 
-    Parameters
-    ----------
-    L_diagonal_blocks : ArrayLike
-        Diagonal blocks of the cholesky factorization.
-    L_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of the cholesky factorization.
-    L_arrow_bottom_blocks : ArrayLike
-        Arrow bottom blocks of the cholesky factorization.
-    L_arrow_tip_block : ArrayLike
-        Arrow tip block of the cholesky factorization.
-    B : ArrayLike
-        Right-hand side of the linear system.
-
-    Returns
-    -------
-    X : ArrayLike
-        The solution of the system.
+    Currently implemented:
+    ----------------------
+    |              | Natural | Permuted |
+    | ------------ | ------- | -------- |
+    | Direct-array | x       |          |
+    | Streaming    |         |          |
     """
+    device_streaming: bool = kwargs.get("device_streaming", False)
+    buffer = kwargs.get("buffer", None)
 
-    la = np_la
-    if CUPY_AVAIL:
-        xp = cp.get_array_module(L_diagonal_blocks)
-        if xp == cp:
-            la = cu_la
+    if buffer is not None:
+        # Permuted arrowhead
+        if device_streaming:
+            raise NotImplementedError(
+                "Streaming is not implemented for the permuted arrowhead."
+            )
+        else:
+            raise NotImplementedError(
+                "Streaming is not implemented for the permuted arrowhead."
+            )
     else:
-        xp = np
+        # Natural arrowhead
+        if device_streaming:
+            raise NotImplementedError(
+                "Streaming is not implemented for the natural arrowhead."
+            )
+        else:
+            return _pobtas(
+                L_diagonal_blocks,
+                L_lower_diagonal_blocks,
+                L_arrow_bottom_blocks,
+                L_arrow_tip_block,
+                B,
+            )
+
+
+def _pobtas(
+    L_diagonal_blocks: ArrayLike,
+    L_lower_diagonal_blocks: ArrayLike,
+    L_arrow_bottom_blocks: ArrayLike,
+    L_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
+) -> ArrayLike:
+
+    xp, la = _get_module_from_array(L_diagonal_blocks)
 
     diag_blocksize = L_diagonal_blocks.shape[1]
     arrow_blocksize = L_arrow_bottom_blocks.shape[1]

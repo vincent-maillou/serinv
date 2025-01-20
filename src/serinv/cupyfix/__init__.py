@@ -1,4 +1,4 @@
-# Copyright 2023-2024 ETH Zurich. All rights reserved.
+# Copyright 2023-2025 ETH Zurich. All rights reserved.
 
 from serinv.cupyfix.cholesky_lowerfill import cholesky_lowerfill
 

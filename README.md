@@ -14,7 +14,7 @@ SerinV bundle implementations of several factorization, selected-inversion and s
 We have adopted a LAPACK-like naming convention for the routines. The naming convention is as follows:
 
 ## Computation scheme:
-	D_: Distributed algorithm using a nested dissection scheme
+	P: Distributed algorithm using a nested dissection scheme
 ## Types of matrices:
 	PO: Symmetric or Hermitian positive definite matrix
 	DD: General, square, diagonally dominante matrix
@@ -25,15 +25,15 @@ We have adopted a LAPACK-like naming convention for the routines. The naming con
 	BBA: Block-Banded with Arrowhead, by convention the arrowhead is pointing down.
 ## Operations performed:
 	F: Factorization
-	S: Solve a linear system given a decomposition of the system matrix and a right-hand side.
-	SI: Compute a Selected Inversion given a decomposition of the system matrix.
-    SSI: Compute a Schur-complement based Selected Inversion. Do not explicit the factorization but perform a Schur-complement and a selected inversion.
+    SC: Schur-complement
+	SI: Selected Inversion
+    S: Solve
 ## Others:
-    _RSS: reduced-system solve. Solve a reduced system constructed from the distributed factorization of a matrix.
+    RS: Reduced system
 
 ## Examples:
   - pobtaf: Perform the factorization of a block-tridiagonal with arrowhead, symmetric positive definite, matrix.
-  - d_pobtasi: Compute the selected inversion of a block-tridiagonal with arrowhead, matrix given its Cholesky factorization, using a distributed algorithm.
+  - ppobtasi: Compute the selected inversion of a block-tridiagonal with arrowhead, matrix given its Cholesky factorization, using a distributed algorithm.
 
 # How to install
 First, you'll need to instal the project in your current environment. You can do this by running the following commands:

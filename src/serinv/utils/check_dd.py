@@ -1,15 +1,6 @@
-# Copyright 2023-2024 ETH Zurich. All rights reserved.
+# Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-try:
-    import cupy as cp
-
-    CUPY_AVAIL = True
-
-except ImportError:
-    CUPY_AVAIL = False
-
-import numpy as np
-from numpy.typing import ArrayLike
+from serinv import ArrayLike, _get_module_from_array
 
 
 def check_block_dd(
@@ -31,10 +22,7 @@ def check_block_dd(
     ArrayLike
         Array of booleans indicating if the diagonal blocks are diagonally dominant.
     """
-    if CUPY_AVAIL:
-        xp = cp.get_array_module(A_diagonal_blocks)
-    else:
-        xp = np
+    xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     block_dd = xp.zeros(A_diagonal_blocks.shape[0], dtype=bool)
 
@@ -87,18 +75,11 @@ def check_ddbta(
     ArrayLike
         Array of booleans indicating if the corresponding row is diagonally dominant.
     """
-    if CUPY_AVAIL:
-        xp = cp.get_array_module(A_diagonal_blocks)
-    else:
-        xp = np
+    xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     diagonal_blocksize = A_diagonal_blocks.shape[1]
     arrowhead_blocksize = A_arrow_bottom_blocks.shape[1]
     n_diag_blocks = A_diagonal_blocks.shape[0]
-
-    print("n_diag_blocks", n_diag_blocks, flush=True)
-    print("diagonal_blocksize", diagonal_blocksize, flush=True)
-    print("arrowhead_blocksize", arrowhead_blocksize, flush=True)
 
     matrix_size = n_diag_blocks * diagonal_blocksize + arrowhead_blocksize
 
@@ -126,4 +107,5 @@ def check_ddbta(
         - xp.diag(A_arrow_tip_block[:, :])
         + arrow_colsum
     )
+
     return ddbta
