@@ -2,6 +2,7 @@
 
 from serinv import ArrayLike, _get_module_from_array
 
+
 def check_block_dd(
     A_diagonal_blocks: ArrayLike,
 ) -> ArrayLike:

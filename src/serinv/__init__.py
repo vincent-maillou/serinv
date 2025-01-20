@@ -3,12 +3,14 @@
 from warnings import warn
 
 import numpy as np
-from numpy.linalg import cholesky as np_cholesky
 import scipy.linalg as np_la
+from scipy.linalg import cholesky as sp_cholesky
 
 from numpy.typing import ArrayLike
+from functools import partial
 
 from serinv.__about__ import __version__
+
 
 CUPY_AVAIL = False
 try:
@@ -24,8 +26,17 @@ try:
     cp.abs(1)
 
     CUPY_AVAIL = True
-except ImportWarning as w:
+except (ImportError, ImportWarning, ModuleNotFoundError) as w:
     warn(f"'CuPy' is unavailable. ({w})")
+
+
+MPI_AVAIL = False
+try:
+    from mpi4py import MPI
+
+    MPI_AVAIL = True
+except (ImportError, ImportWarning, ModuleNotFoundError) as w:
+    warn(f"'mpi4py' is unavailable. ({w})")
 
 
 def _get_module_from_array(arr: ArrayLike):
@@ -94,7 +105,7 @@ def _get_cholesky(module_str: str):
         The Cholesky factorization function of the input module. (numpy.linalg.cholesky or serinv.cupyfix.cholesky_lowerfill)
     """
     if module_str == "numpy":
-        return np_cholesky
+        return partial(sp_cholesky, lower=True, overwrite_a=False, check_finite=False)
     elif CUPY_AVAIL and module_str == "cupy":
         return cu_cholesky
     else:

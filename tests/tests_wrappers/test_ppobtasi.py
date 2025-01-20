@@ -1,9 +1,14 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-from mpi4py import MPI
+from serinv import MPI_AVAIL
+import pytest
+
+if MPI_AVAIL:
+    from mpi4py import MPI
+else:
+    pytest.skip("mpi4py is not available", allow_module_level=True)
 
 import numpy as np
-import pytest
 
 from serinv import CUPY_AVAIL, _get_module_from_array
 

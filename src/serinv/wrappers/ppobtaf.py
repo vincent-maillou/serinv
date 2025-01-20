@@ -4,12 +4,8 @@ from mpi4py import MPI
 
 from serinv import (
     ArrayLike,
-    CUPY_AVAIL,
     _get_module_from_array,
 )
-
-if CUPY_AVAIL:
-    import cupyx as cpx
 
 from serinv.algs import pobtaf
 from .ppobtars import (

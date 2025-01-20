@@ -3,11 +3,19 @@
 
 import pytest
 
+from serinv import CUPY_AVAIL
+
 ARRAY_TYPE = [
     pytest.param("host", id="host"),
-    pytest.param("device", id="device"),
-    pytest.param("streaming", id="streaming"),
 ]
+if CUPY_AVAIL:
+    ARRAY_TYPE.extend(
+        [
+            pytest.param("device", id="device"),
+            pytest.param("streaming", id="streaming"),
+        ]
+    )
+
 
 DTYPE = [
     pytest.param("float64", id="float64"),
