@@ -1,16 +1,14 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-from serinv import MPI_AVAIL
+from serinv import backend_flags, _get_module_from_array
 import pytest
 
-if MPI_AVAIL:
+if backend_flags["mpi_avail"]:
     from mpi4py import MPI
 else:
     pytest.skip("mpi4py is not available", allow_module_level=True)
 
 import numpy as np
-
-from serinv import CUPY_AVAIL, _get_module_from_array
 
 from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
@@ -21,7 +19,7 @@ from serinv.wrappers import (
     allocate_ppobtars,
 )
 
-if CUPY_AVAIL:
+if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
 from os import environ
@@ -92,7 +90,7 @@ def test_ppobtaf(
         * n_diag_blocks_per_processes,
     ]
 
-    if CUPY_AVAIL and array_type == "streaming":
+    if backend_flags["cupy_avail"] and array_type == "streaming":
         A_diagonal_blocks_local_pinned = cpx.zeros_like_pinned(A_diagonal_blocks_local)
         A_diagonal_blocks_local_pinned[:, :, :] = A_diagonal_blocks_local[:, :, :]
         A_lower_diagonal_blocks_local_pinned = cpx.zeros_like_pinned(

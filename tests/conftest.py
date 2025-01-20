@@ -3,12 +3,12 @@
 
 import pytest
 
-from serinv import CUPY_AVAIL
+from serinv import backend_flags
 
 ARRAY_TYPE = [
     pytest.param("host", id="host"),
 ]
-if CUPY_AVAIL:
+if backend_flags["cupy_avail"]:
     ARRAY_TYPE.extend(
         [
             pytest.param("device", id="device"),

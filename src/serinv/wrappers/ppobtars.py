@@ -4,12 +4,12 @@ from mpi4py import MPI
 
 from serinv import (
     ArrayLike,
-    CUPY_AVAIL,
+    backend_flags,
     _get_module_from_str,
     _get_module_from_array,
 )
 
-if CUPY_AVAIL:
+if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
 comm_rank = MPI.COMM_WORLD.Get_rank()

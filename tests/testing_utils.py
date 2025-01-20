@@ -1,6 +1,6 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-from serinv import ArrayLike, CUPY_AVAIL, _get_module_from_array
+from serinv import ArrayLike, backend_flags, _get_module_from_array
 
 import numpy as np
 
@@ -8,7 +8,7 @@ SEED = 63
 
 np.random.seed(SEED)
 
-if CUPY_AVAIL:
+if backend_flags["cupy_avail"]:
     import cupy as cp
 
     cp.random.seed(cp.uint64(63))

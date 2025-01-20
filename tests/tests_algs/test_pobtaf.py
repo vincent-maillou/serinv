@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
-from serinv import CUPY_AVAIL, _get_module_from_array
+from serinv import backend_flags, _get_module_from_array
 from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
 from serinv.algs import pobtaf
 
-if CUPY_AVAIL:
+if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
 
@@ -43,7 +43,7 @@ def test_pobtaf(
         A_arrow_tip_block,
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
-    if CUPY_AVAIL and array_type == "streaming":
+    if backend_flags["cupy_avail"] and array_type == "streaming":
         A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks)
         A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :]
         A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)

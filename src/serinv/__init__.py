@@ -11,8 +11,11 @@ from functools import partial
 
 from serinv.__about__ import __version__
 
+backend_flags = {
+    "cupy_avail": False,
+    "mpi_avail": False,
+}
 
-CUPY_AVAIL = False
 try:
     import cupy as cp
     import cupyx.scipy.linalg as cu_la
@@ -25,16 +28,15 @@ try:
     # a cudaErrorInsufficientDriver error or something.
     cp.abs(1)
 
-    CUPY_AVAIL = True
+    backend_flags["cupy_avail"] = True
 except (ImportError, ImportWarning, ModuleNotFoundError) as w:
     warn(f"'CuPy' is unavailable. ({w})")
 
 
-MPI_AVAIL = False
 try:
     from mpi4py import MPI
 
-    MPI_AVAIL = True
+    backend_flags["mpi_avail"] = True
 except (ImportError, ImportWarning, ModuleNotFoundError) as w:
     warn(f"'mpi4py' is unavailable. ({w})")
 
@@ -54,7 +56,7 @@ def _get_module_from_array(arr: ArrayLike):
     la : module
         The linear algebra module of the array module. (scipy.linalg or cupyx.scipy.linalg)
     """
-    if CUPY_AVAIL:
+    if backend_flags["cupy_avail"]:
         xp = cp.get_array_module(arr)
 
         if xp == cp:
@@ -81,7 +83,7 @@ def _get_module_from_str(module_str: str):
     if module_str == "numpy":
         return np, np_la
     elif module_str == "cupy":
-        if CUPY_AVAIL:
+        if backend_flags["cupy_avail"]:
             return cp, cu_la
         else:
             raise ImportError(
@@ -106,7 +108,7 @@ def _get_cholesky(module_str: str):
     """
     if module_str == "numpy":
         return partial(sp_cholesky, lower=True, overwrite_a=False, check_finite=False)
-    elif CUPY_AVAIL and module_str == "cupy":
+    elif backend_flags["cupy_avail"] and module_str == "cupy":
         return cu_cholesky
     else:
         raise ValueError(f"Unknown module '{module_str}'.")
@@ -115,7 +117,7 @@ def _get_cholesky(module_str: str):
 __all__ = [
     "__version__",
     "ArrayLike",
-    "CUPY_AVAIL",
+    "backend_flags",
     "_get_module_from_array",
     "_get_module_from_str",
     "_get_cholesky",
