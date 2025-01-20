@@ -5,16 +5,13 @@ on: [pull_request, workflow_dispatch]
 jobs:
   tests:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        mpi: ['openmpi' ]
-    name: ${{ matrix.mpi }} test
+    name: serinv tests
     steps:
       - uses: actions/checkout@v3
 
       - uses: mpi4py/setup-mpi@v1
         with:
-          mpi: ${{ matrix.mpi }}
+          mpi: openmpi
 
       - uses: actions/setup-python@v4
         with:
