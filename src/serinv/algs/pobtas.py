@@ -31,6 +31,7 @@ def pobtas(
     """
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
+    solve_last_rhs = kwargs.get("solve_last_rhs", True)
 
     if buffer is not None:
         # Permuted arrowhead
@@ -39,8 +40,13 @@ def pobtas(
                 "Streaming is not implemented for the permuted arrowhead."
             )
         else:
-            raise NotImplementedError(
-                "Streaming is not implemented for the permuted arrowhead."
+            return _pobtas_permuted(
+                L_diagonal_blocks,
+                L_lower_diagonal_blocks,
+                L_arrow_bottom_blocks,
+                L_arrow_tip_block,
+                B,
+                buffer,
             )
     else:
         # Natural arrowhead
@@ -64,7 +70,7 @@ def _pobtas(
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
-) -> ArrayLike:
+):
 
     xp, la = _get_module_from_array(L_diagonal_blocks)
 
@@ -132,4 +138,17 @@ def _pobtas(
             trans="C",
         )
 
-    return B
+
+
+def _pobtas_permuted(
+    L_diagonal_blocks: ArrayLike,
+    L_lower_diagonal_blocks: ArrayLike,
+    L_arrow_bottom_blocks: ArrayLike,
+    L_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
+    buffer: ArrayLike,
+):
+    xp, la = _get_module_from_array(arr=L_diagonal_blocks)
+
+    diag_blocksize = L_diagonal_blocks.shape[1]
+    n_diag_blocks = L_diagonal_blocks.shape[0]
