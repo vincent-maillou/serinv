@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from serinv import backend_flags, _get_module_from_array
-from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
+from ...testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
 from serinv.algs import pobtaf
 
