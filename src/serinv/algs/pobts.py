@@ -44,7 +44,7 @@ def pobts(
                 "Streaming is not implemented for the natural arrowhead."
             )
         else:
-            return _pobts(
+            _pobts(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
                 B,
