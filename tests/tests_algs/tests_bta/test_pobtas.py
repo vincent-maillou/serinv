@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from serinv import _get_module_from_array
-from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize, rhs
+from ...testing_utils import bta_dense_to_arrays, dd_bta, symmetrize, rhs
 
 from serinv.algs import pobtaf, pobtas
 
@@ -58,7 +58,7 @@ def test_pobtas(
         A_arrow_tip_block,
     )
 
-    X_serinv = pobtas(
+    pobtas(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_arrow_bottom_blocks,
@@ -66,4 +66,4 @@ def test_pobtas(
         B,
     )
 
-    assert xp.allclose(X_serinv, X_ref)
+    assert xp.allclose(B, X_ref)

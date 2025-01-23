@@ -9,10 +9,13 @@ from serinv.wrappers.ppobtars import (
     allocate_pinned_pobtars,
 )
 
+from serinv.wrappers.ppobtas import ppobtas
+
 __all__ = [
     "ppobtaf",
     "ppobtasi",
     "allocate_permutation_buffer",
     "allocate_ppobtars",
     "allocate_pinned_pobtars",
+    "ppobtas",
 ]

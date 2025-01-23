@@ -10,7 +10,7 @@ else:
 
 import numpy as np
 
-from ..testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
+from ...testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
 from serinv.wrappers import (
     ppobtaf,

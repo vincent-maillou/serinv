@@ -27,11 +27,6 @@ DIAGONAL_BLOCKSIZE = [
     pytest.param(3, id="diagonal_blocksize=3"),
 ]
 
-ARROWHEAD_BLOCKSIZE = [
-    pytest.param(2, id="arrowhead_blocksize=2"),
-    pytest.param(3, id="arrowhead_blocksize=3"),
-]
-
 
 @pytest.fixture(params=ARRAY_TYPE, autouse=True)
 def array_type(request: pytest.FixtureRequest) -> str:
@@ -45,9 +40,4 @@ def dtype(request: pytest.FixtureRequest) -> str:
 
 @pytest.fixture(params=DIAGONAL_BLOCKSIZE, autouse=True)
 def diagonal_blocksize(request: pytest.FixtureRequest) -> int:
-    return request.param
-
-
-@pytest.fixture(params=ARROWHEAD_BLOCKSIZE, autouse=True)
-def arrowhead_blocksize(request: pytest.FixtureRequest) -> int:
     return request.param
