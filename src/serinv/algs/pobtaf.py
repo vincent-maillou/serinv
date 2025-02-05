@@ -16,7 +16,7 @@ def pobtaf(
     **kwargs,
 ):
     """Perform the Cholesky factorization of a block tridiagonal with arrowhead
-    matrix (pointing downward by convention) using a sequential block algorithm.
+    matrix.
 
     Parameters
     ----------

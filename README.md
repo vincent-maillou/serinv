@@ -45,6 +45,11 @@ By convention arrowheads matrices are pointing downwards.
     SC: Schur-complement
     SCI: Schur-complement Inversion (selected inversion of the Schur complement)
 
+### Note:
+The schur-complement `SC` operation can conjointly perform the schur-complement of a matrix equation of the forms:
+- $AX = B$, if a `rhs` is provided.
+- $AXA^T = B$, if a `rhs` is provided and the keyword `quadratric` is set to `True`.
+
 ## Others:
     RS: Reduced system
 
