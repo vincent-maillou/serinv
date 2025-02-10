@@ -6,7 +6,6 @@ from serinv import (
 )
 
 
-
 def ddbtsc(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
@@ -14,7 +13,7 @@ def ddbtsc(
     **kwargs,
 ):
     """Perform the Schur-complement for a block tridiagonal with arrowhead matrix.
-    
+
     Parameters
     ----------
     A_diagonal_blocks : ArrayLike
@@ -23,7 +22,7 @@ def ddbtsc(
         The lower diagonal blocks of the block tridiagonal with arrowhead matrix.
     A_upper_diagonal_blocks : ArrayLike
         The upper diagonal blocks of the block tridiagonal with arrowhead matrix.
-    
+
     Keyword Arguments
     -----------------
     rhs : dict
@@ -39,7 +38,7 @@ def ddbtsc(
         If True, and a rhs is given, the Schur-complement is performed for the equation AXA^T=B.
         If False, and a rhs is given, the Schur-complement is performed for the equation AX=B.
     buffers : dict
-        The buffers to use in the permuted Schur-complement algorithm. If buffers are given, the 
+        The buffers to use in the permuted Schur-complement algorithm. If buffers are given, the
         Schur-complement is performed using the permuted Schur-complement algorithm.
         In the case of the `AX=I` equation the following buffers are required:
         - A_lower_buffer_blocks : ArrayLike
@@ -107,12 +106,20 @@ def ddbtsc(
                 # Perform a permuted Schur-complement ("quadratic")
                 A_lower_buffer_blocks = buffers.get("A_lower_buffer_blocks", None)
                 A_upper_buffer_blocks = buffers.get("A_upper_buffer_blocks", None)
-                if any(x is None for x in [A_lower_buffer_blocks, A_upper_buffer_blocks]):
-                    raise ValueError("buffers does not contain the correct arrays for A")
+                if any(
+                    x is None for x in [A_lower_buffer_blocks, A_upper_buffer_blocks]
+                ):
+                    raise ValueError(
+                        "buffers does not contain the correct arrays for A"
+                    )
                 B_lower_buffer_blocks = buffers.get("B_lower_buffer_blocks", None)
                 B_upper_buffer_blocks = buffers.get("B_upper_buffer_blocks", None)
-                if any(x is None for x in [B_lower_buffer_blocks, B_upper_buffer_blocks]):
-                    raise ValueError("buffers does not contain the correct arrays for B")
+                if any(
+                    x is None for x in [B_lower_buffer_blocks, B_upper_buffer_blocks]
+                ):
+                    raise ValueError(
+                        "buffers does not contain the correct arrays for B"
+                    )
                 _ddbtsc_quadratic_permuted(
                     A_diagonal_blocks,
                     A_lower_diagonal_blocks,
@@ -128,6 +135,7 @@ def ddbtsc(
         else:
             # Perform the schur-complement for AX=B
             ...
+
 
 def _ddbtsc(
     A_diagonal_blocks: ArrayLike,
@@ -147,6 +155,7 @@ def _ddbtsc(
         )
 
     A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
+
 
 def _ddbtsc_permuted(
     A_diagonal_blocks: ArrayLike,
@@ -194,6 +203,7 @@ def _ddbtsc_permuted(
             @ A_upper_buffer_blocks[n_i - 1]
         )
 
+
 def _ddbtsc_quadratic(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
@@ -233,6 +243,7 @@ def _ddbtsc_quadratic(
     B_diagonal_blocks[-1] = (
         A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].T
     )
+
 
 def _ddbtsc_quadratic_permuted(
     A_diagonal_blocks: ArrayLike,
