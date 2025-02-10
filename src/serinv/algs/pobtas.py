@@ -99,8 +99,7 @@ def _pobtas(
     B_tip_rhs = B[-arrow_blocksize:]
     for i in range(0, n_diag_blocks):
         B_tip_rhs -= (
-            L_arrow_bottom_blocks[i]
-            @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            L_arrow_bottom_blocks[i] @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
         )
 
     # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
@@ -137,7 +136,6 @@ def _pobtas(
             lower=True,
             trans="C",
         )
-
 
 
 def _pobtas_permuted(

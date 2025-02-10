@@ -4,11 +4,12 @@ import numpy as np
 import pytest
 
 from serinv import backend_flags, _get_module_from_array
-from ...testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
+from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
 
 from serinv.algs import ddbtsc, ddbtsci
 
 # @pytest.mark.parametrize("type_of_equation", ["AX=I", "AX=B", "AXA.T=B"])
+
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("type_of_equation", ["AX=I", "AXA.T=B"])
@@ -50,7 +51,7 @@ def test_ddbtsci(
             B_lower_diagonal_blocks,
             B_upper_diagonal_blocks,
         ) = bt_dense_to_arrays(B, diagonal_blocksize, n_diag_blocks)
-        
+
         rhs = {
             "B_diagonal_blocks": B_diagonal_blocks,
             "B_lower_diagonal_blocks": B_lower_diagonal_blocks,
@@ -84,15 +85,13 @@ def test_ddbtsci(
         X_diagonal_blocks_ref,
         X_lower_diagonal_blocks_ref,
         X_upper_diagonal_blocks_ref,
-    ) = bt_dense_to_arrays(
-        X_ref, diagonal_blocksize, n_diag_blocks
-    )
+    ) = bt_dense_to_arrays(X_ref, diagonal_blocksize, n_diag_blocks)
 
     # Check algorithm validity
     assert xp.allclose(X_diagonal_blocks_ref, A_diagonal_blocks)
     assert xp.allclose(X_lower_diagonal_blocks_ref, A_lower_diagonal_blocks)
     assert xp.allclose(X_upper_diagonal_blocks_ref, A_upper_diagonal_blocks)
-        
+
     if type_of_equation == "AX=B":
         ...
     elif type_of_equation == "AXA.T=B":

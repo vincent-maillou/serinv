@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from serinv import backend_flags, _get_module_from_array
-from ...testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
+from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
 
 from serinv.algs import pobtf, pobtsi
 
@@ -36,9 +36,7 @@ def test_pobtsi(
         X_diagonal_blocks_ref,
         X_lower_diagonal_blocks_ref,
         _,
-    ) = bt_dense_to_arrays(
-        X_ref, diagonal_blocksize, n_diag_blocks
-    )
+    ) = bt_dense_to_arrays(X_ref, diagonal_blocksize, n_diag_blocks)
 
     (
         A_diagonal_blocks,

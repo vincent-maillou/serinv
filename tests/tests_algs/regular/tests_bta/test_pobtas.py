@@ -4,22 +4,24 @@ import numpy as np
 import pytest
 
 from serinv import _get_module_from_array
-from ...testing_utils import bt_dense_to_arrays, dd_bt, symmetrize, rhs
+from ....testing_utils import bta_dense_to_arrays, dd_bta, symmetrize, rhs
 
-from serinv.algs import pobtf, pobts
+from serinv.algs import pobtaf, pobtas
 
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("n_rhs", [1, 2, 3])
-def test_pobts(
+def test_pobtas(
     n_rhs: int,
     diagonal_blocksize: int,
+    arrowhead_blocksize: int,
     n_diag_blocks: int,
     array_type: str,
     dtype: np.dtype,
 ):
-    A = dd_bt(
+    A = dd_bta(
         diagonal_blocksize,
+        arrowhead_blocksize,
         n_diag_blocks,
         device_array=True if array_type == "device" else False,
         dtype=dtype,
@@ -29,7 +31,6 @@ def test_pobts(
 
     xp, _ = _get_module_from_array(A)
 
-    arrowhead_blocksize = 0
     B = rhs(
         n_rhs,
         diagonal_blocksize,
@@ -45,16 +46,23 @@ def test_pobts(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         _,
-    ) = bt_dense_to_arrays(A, diagonal_blocksize, n_diag_blocks)
+        A_arrow_bottom_blocks,
+        _,
+        A_arrow_tip_block,
+    ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
-    pobtf(
+    pobtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_tip_block,
     )
 
-    pobts(
+    pobtas(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
+        A_arrow_bottom_blocks,
+        A_arrow_tip_block,
         B,
     )
 

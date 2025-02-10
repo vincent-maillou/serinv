@@ -46,6 +46,7 @@ except (ImportError, ImportWarning, ModuleNotFoundError) as w:
 try:
     # Check if mpi4py is available
     from mpi4py import MPI
+
     backend_flags["mpi_avail"] = True
 
     if backend_flags["cupy_avail"]:
