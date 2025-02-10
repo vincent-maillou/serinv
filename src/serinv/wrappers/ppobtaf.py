@@ -8,11 +8,11 @@ from serinv import (
 )
 
 from serinv.algs import pobtaf
-from .ppobtars import (
+from .pobtars import (
     allocate_permutation_buffer,
-    allocate_ppobtars,
-    map_ppobtax_to_ppobtars,
-    aggregate_ppobtars,
+    allocate_pobtars,
+    map_ppobtax_to_pobtars,
+    aggregate_pobtars,
     allocate_pinned_pobtars,
 )
 
@@ -117,7 +117,7 @@ def ppobtaf(
             _L_lower_diagonal_blocks,
             _L_lower_arrow_blocks,
             _L_tip_update,
-        ) = allocate_ppobtars(
+        ) = allocate_pobtars(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,
             A_arrow_bottom_blocks=A_arrow_bottom_blocks,
@@ -148,7 +148,7 @@ def ppobtaf(
             buffer=A_permutation_buffer,
         )
 
-    map_ppobtax_to_ppobtars(
+    map_ppobtax_to_pobtars(
         _L_diagonal_blocks=_L_diagonal_blocks,
         _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
         _L_lower_arrow_blocks=_L_lower_arrow_blocks,
@@ -196,7 +196,7 @@ def ppobtaf(
         _L_lower_arrow_blocks.get(out=_L_lower_arrow_blocks_h)
         _L_tip_update.get(out=_L_tip_update_h)
 
-        aggregate_ppobtars(
+        aggregate_pobtars(
             _L_diagonal_blocks=_L_diagonal_blocks_h,
             _L_lower_diagonal_blocks=_L_lower_diagonal_blocks_h,
             _L_lower_arrow_blocks=_L_lower_arrow_blocks_h,
@@ -211,7 +211,7 @@ def ppobtaf(
         _L_tip_update.set(arr=_L_tip_update_h)
 
     else:
-        aggregate_ppobtars(
+        aggregate_pobtars(
             _L_diagonal_blocks=_L_diagonal_blocks,
             _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
             _L_lower_arrow_blocks=_L_lower_arrow_blocks,

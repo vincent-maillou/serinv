@@ -3,7 +3,7 @@
 
 from serinv.wrappers.ppobtaf import ppobtaf
 from serinv.wrappers.ppobtasi import ppobtasi
-from serinv.wrappers.ppobtars import (
+from serinv.wrappers.pobtars import (
     allocate_permutation_buffer,
     allocate_ppobtars,
     allocate_pinned_pobtars,

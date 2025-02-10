@@ -8,9 +8,9 @@ from serinv import (
 )
 
 from serinv.algs import pobtasi
-from serinv.wrappers.ppobtars import (
-    map_ppobtars_to_ppobtax,
-    scatter_ppobtars,
+from serinv.wrappers.pobtars import (
+    map_pobtars_to_ppobtax,
+    scatter_pobtars,
     allocate_pinned_pobtars,
 )
 
@@ -132,7 +132,7 @@ def ppobtasi(
                 _L_lower_arrow_blocks.get(out=_L_lower_arrow_blocks_h)
                 L_arrow_tip_block.get(out=_L_tip_update_h)
 
-            scatter_ppobtars(
+            scatter_pobtars(
                 _L_diagonal_blocks=_L_diagonal_blocks_h,
                 _L_lower_diagonal_blocks=_L_lower_diagonal_blocks_h,
                 _L_lower_arrow_blocks=_L_lower_arrow_blocks_h,
@@ -146,7 +146,7 @@ def ppobtasi(
             _L_lower_arrow_blocks.set(arr=_L_lower_arrow_blocks_h)
             L_arrow_tip_block.set(arr=_L_tip_update_h)
         else:
-            scatter_ppobtars(
+            scatter_pobtars(
                 _L_diagonal_blocks,
                 _L_lower_diagonal_blocks,
                 _L_lower_arrow_blocks,
@@ -164,7 +164,7 @@ def ppobtasi(
         )
 
     # Map result of the reduced system back to the original system
-    map_ppobtars_to_ppobtax(
+    map_pobtars_to_ppobtax(
         L_diagonal_blocks=L_diagonal_blocks,
         L_lower_diagonal_blocks=L_lower_diagonal_blocks,
         L_arrow_bottom_blocks=L_arrow_bottom_blocks,
