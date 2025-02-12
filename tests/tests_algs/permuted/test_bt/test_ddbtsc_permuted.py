@@ -7,6 +7,7 @@ from serinv import backend_flags, _get_module_from_array
 from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
 
 from serinv.algs import ddbtsc
+from serinv.utils import allocate_ddbtx_permutation_buffers
 
 
 @pytest.mark.mpi_skip()
@@ -33,13 +34,6 @@ def test_ddbtsc_permuted(
         A_upper_diagonal_blocks,
     ) = bt_dense_to_arrays(A, diagonal_blocksize, n_diag_blocks)
 
-    A_lower_buffer_blocks = xp.zeros_like(A_lower_diagonal_blocks)
-    A_upper_buffer_blocks = xp.zeros_like(A_upper_diagonal_blocks)
-    buffers: dict = {
-        "A_lower_buffer_blocks": A_lower_buffer_blocks,
-        "A_upper_buffer_blocks": A_upper_buffer_blocks,
-    }
-
     X_ref = xp.linalg.inv(A.copy())
 
     if type_of_equation == "AX=I":
@@ -63,11 +57,6 @@ def test_ddbtsc_permuted(
             B_upper_diagonal_blocks,
         ) = bt_dense_to_arrays(B, diagonal_blocksize, n_diag_blocks)
 
-        B_lower_buffer_blocks = xp.zeros_like(B_lower_diagonal_blocks)
-        B_upper_buffer_blocks = xp.zeros_like(B_upper_diagonal_blocks)
-        buffers["B_lower_buffer_blocks"] = B_lower_buffer_blocks
-        buffers["B_upper_buffer_blocks"] = B_upper_buffer_blocks
-
         rhs = {
             "B_diagonal_blocks": B_diagonal_blocks,
             "B_lower_diagonal_blocks": B_lower_diagonal_blocks,
@@ -75,6 +64,11 @@ def test_ddbtsc_permuted(
         }
 
         quadratic = True
+
+    buffers: dict = allocate_ddbtx_permutation_buffers(
+        A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+        quadratic=True if type_of_equation == "AXA.T=B" else False,
+    )
 
     ddbtsc(
         A_diagonal_blocks,
@@ -99,16 +93,16 @@ def test_ddbtsc_permuted(
     # Map blocks to the reduced system
     A_reduced[:diagonal_blocksize, :diagonal_blocksize] = A_diagonal_blocks[0]
     A_reduced[-diagonal_blocksize:, -diagonal_blocksize:] = A_diagonal_blocks[-1]
-    A_reduced[:diagonal_blocksize, -diagonal_blocksize:] = A_lower_buffer_blocks[-1]
-    A_reduced[-diagonal_blocksize:, :diagonal_blocksize] = A_upper_buffer_blocks[-1]
+    A_reduced[:diagonal_blocksize, -diagonal_blocksize:] = buffers["A_lower_buffer_blocks"][-1]
+    A_reduced[-diagonal_blocksize:, :diagonal_blocksize] = buffers["A_upper_buffer_blocks"][-1]
 
     X_reduced = xp.linalg.inv(A_reduced)
 
     # Map back to the original system
     A_diagonal_blocks[0] = X_reduced[:diagonal_blocksize, :diagonal_blocksize]
     A_diagonal_blocks[-1] = X_reduced[-diagonal_blocksize:, -diagonal_blocksize:]
-    A_upper_buffer_blocks[-1] = X_reduced[-diagonal_blocksize:, :diagonal_blocksize]
-    A_lower_buffer_blocks[-1] = X_reduced[:diagonal_blocksize, -diagonal_blocksize:]
+    buffers["A_upper_buffer_blocks"][-1] = X_reduced[-diagonal_blocksize:, :diagonal_blocksize]
+    buffers["A_lower_buffer_blocks"][-1] = X_reduced[:diagonal_blocksize, -diagonal_blocksize:]
 
     assert xp.allclose(X_diagonal_blocks_ref[-1], A_diagonal_blocks[-1])
     assert xp.allclose(X_diagonal_blocks_ref[0], A_diagonal_blocks[0])
@@ -131,18 +125,18 @@ def test_ddbtsc_permuted(
         # Map blocks to the reduced system
         B_reduced[:diagonal_blocksize, :diagonal_blocksize] = B_diagonal_blocks[0]
         B_reduced[-diagonal_blocksize:, -diagonal_blocksize:] = B_diagonal_blocks[-1]
-        B_reduced[:diagonal_blocksize, -diagonal_blocksize:] = B_lower_buffer_blocks[-1]
-        B_reduced[-diagonal_blocksize:, :diagonal_blocksize] = B_upper_buffer_blocks[-1]
+        B_reduced[:diagonal_blocksize, -diagonal_blocksize:] = buffers["B_lower_buffer_blocks"][-1]
+        B_reduced[-diagonal_blocksize:, :diagonal_blocksize] = buffers["B_upper_buffer_blocks"][-1]
 
         Xl_reduced = X_reduced @ B_reduced @ X_reduced.conj().T
 
         # Map back to the original system
         B_diagonal_blocks[0] = Xl_reduced[:diagonal_blocksize, :diagonal_blocksize]
         B_diagonal_blocks[-1] = Xl_reduced[-diagonal_blocksize:, -diagonal_blocksize:]
-        B_upper_buffer_blocks[-1] = Xl_reduced[
+        buffers["B_upper_buffer_blocks"][-1] = Xl_reduced[
             -diagonal_blocksize:, :diagonal_blocksize
         ]
-        B_lower_buffer_blocks[-1] = Xl_reduced[
+        buffers["B_lower_buffer_blocks"][-1] = Xl_reduced[
             :diagonal_blocksize, -diagonal_blocksize:
         ]
 
