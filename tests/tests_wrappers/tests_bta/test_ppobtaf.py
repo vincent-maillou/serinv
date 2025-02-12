@@ -16,7 +16,7 @@ from serinv.algs import pobtasi
 from serinv.wrappers import (
     ppobtaf,
     allocate_permutation_buffer,
-    allocate_ppobtars,
+    allocate_pobtars,
 )
 
 if backend_flags["cupy_avail"]:
@@ -168,7 +168,7 @@ def test_ppobtaf(
             _L_lower_diagonal_blocks,
             _L_lower_arrow_blocks,
             _L_tip_update,
-        ) = allocate_ppobtars(
+        ) = allocate_pobtars(
             A_diagonal_blocks=A_diagonal_blocks_local,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
             A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
