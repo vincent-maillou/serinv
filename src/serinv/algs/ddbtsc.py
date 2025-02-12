@@ -54,6 +54,7 @@ def ddbtsc(
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)
+    invert_last_block: bool = kwargs.get("invert_last_block", True)
 
     if rhs is None:
         if buffers is None:
@@ -62,6 +63,7 @@ def ddbtsc(
                 A_diagonal_blocks,
                 A_lower_diagonal_blocks,
                 A_upper_diagonal_blocks,
+                invert_last_block=invert_last_block,
             )
         else:
             # Perform a permuted Schur-complement
@@ -101,6 +103,7 @@ def ddbtsc(
                     B_diagonal_blocks,
                     B_lower_diagonal_blocks,
                     B_upper_diagonal_blocks,
+                    invert_last_block=invert_last_block,
                 )
             else:
                 # Perform a permuted Schur-complement ("quadratic")
@@ -141,6 +144,7 @@ def _ddbtsc(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
+    invert_last_block: bool,
 ):
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
@@ -154,7 +158,8 @@ def _ddbtsc(
             @ A_upper_diagonal_blocks[n_i]
         )
 
-    A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
+    if invert_last_block:
+        A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
 
 
 def _ddbtsc_permuted(
@@ -211,6 +216,7 @@ def _ddbtsc_quadratic(
     B_diagonal_blocks: ArrayLike,
     B_lower_diagonal_blocks: ArrayLike,
     B_upper_diagonal_blocks: ArrayLike,
+    invert_last_block: bool,
 ):
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
@@ -239,10 +245,11 @@ def _ddbtsc_quadratic(
             - temp_1[:, :] @ B_upper_diagonal_blocks[n_i]
         )
 
-    A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
-    B_diagonal_blocks[-1] = (
-        A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].T
-    )
+    if invert_last_block:
+        A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
+        B_diagonal_blocks[-1] = (
+            A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].T
+        )
 
 
 def _ddbtsc_quadratic_permuted(
