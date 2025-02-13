@@ -9,17 +9,10 @@ from serinv.wrappers.pobtars import (
     allocate_pinned_pobtars,
 )
 
-from serinv.wrappers.pddbtsc import pddbtsc
-from serinv.wrappers.ddbtrs import (
-    allocate_ddbtrs,
-)
-
 __all__ = [
     "ppobtaf",
     "ppobtasi",
     "allocate_permutation_buffer",
     "allocate_pobtars",
     "allocate_pinned_pobtars",
-    "pddbtsc",
-    "allocate_ddbtrs",
 ]
