@@ -50,21 +50,36 @@ def ddbtsc(
             The lower buffer blocks of the matrix B.
         - B_upper_buffer_blocks : ArrayLike
             The upper buffer blocks of the matrix B.
+    direction : str
+        The direction in which to perform the Schur-complement. Can be either "downward" (default) or "upward".
+        This doesn't matter for performances but it is usefull in the case of the parallel implementation which last
+        process needs to perform the Schur complement upward.
     """
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)
     invert_last_block: bool = kwargs.get("invert_last_block", True)
+    direction: str = kwargs.get("direction", "downward")
 
     if rhs is None:
         if buffers is None:
             # Perform a regular Schur-complement
-            _ddbtsc(
-                A_diagonal_blocks,
-                A_lower_diagonal_blocks,
-                A_upper_diagonal_blocks,
-                invert_last_block=invert_last_block,
-            )
+            if direction == "downward":
+                _ddbtsc(
+                    A_diagonal_blocks,
+                    A_lower_diagonal_blocks,
+                    A_upper_diagonal_blocks,
+                    invert_last_block=invert_last_block,
+                )
+            elif direction == "upward":
+                _ddbtsc_upward(
+                    A_diagonal_blocks,
+                    A_lower_diagonal_blocks,
+                    A_upper_diagonal_blocks,
+                    invert_last_block=invert_last_block,
+                )
+            else:
+                raise ValueError("Optional keyword argument `direction` must be either 'downward' or 'upward'")
         else:
             # Perform a permuted Schur-complement
             A_lower_buffer_blocks = buffers.get("A_lower_buffer_blocks", None)
@@ -96,15 +111,28 @@ def ddbtsc(
             # Perform the schur-complement for AXA^T=B
             if buffers is None:
                 # Perform a regular Schur-complement ("quadratic")
-                _ddbtsc_quadratic(
-                    A_diagonal_blocks,
-                    A_lower_diagonal_blocks,
-                    A_upper_diagonal_blocks,
-                    B_diagonal_blocks,
-                    B_lower_diagonal_blocks,
-                    B_upper_diagonal_blocks,
-                    invert_last_block=invert_last_block,
-                )
+                if direction == "downward":
+                    _ddbtsc_quadratic(
+                        A_diagonal_blocks,
+                        A_lower_diagonal_blocks,
+                        A_upper_diagonal_blocks,
+                        B_diagonal_blocks,
+                        B_lower_diagonal_blocks,
+                        B_upper_diagonal_blocks,
+                        invert_last_block=invert_last_block,
+                    )
+                elif direction == "upward":
+                    _ddbtsc_upward_quadratic(
+                        A_diagonal_blocks,
+                        A_lower_diagonal_blocks,
+                        A_upper_diagonal_blocks,
+                        B_diagonal_blocks,
+                        B_lower_diagonal_blocks,
+                        B_upper_diagonal_blocks,
+                        invert_last_block=invert_last_block,
+                    )
+                else:
+                    raise ValueError("Optional keyword argument `direction` must be either 'downward' or 'upward'")
             else:
                 # Perform a permuted Schur-complement ("quadratic")
                 A_lower_buffer_blocks = buffers.get("A_lower_buffer_blocks", None)
@@ -160,6 +188,29 @@ def _ddbtsc(
 
     if invert_last_block:
         A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
+
+
+def _ddbtsc_upward(
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_upper_diagonal_blocks: ArrayLike,
+    invert_last_block: bool,
+):
+    xp, _ = _get_module_from_array(A_diagonal_blocks)
+
+    for n_i in range(A_diagonal_blocks.shape[0] - 1, 0, -1):
+        A_diagonal_blocks[n_i] = xp.linalg.inv(A_diagonal_blocks[n_i])
+
+        A_diagonal_blocks[n_i - 1] = (
+            A_diagonal_blocks[n_i - 1]
+            - A_upper_diagonal_blocks[n_i - 1]
+            @ A_diagonal_blocks[n_i]
+            @ A_lower_diagonal_blocks[n_i - 1]
+        )
+
+    if invert_last_block:
+        A_diagonal_blocks[0] = xp.linalg.inv(A_diagonal_blocks[0])
+
 
 
 def _ddbtsc_permuted(
@@ -250,6 +301,50 @@ def _ddbtsc_quadratic(
         B_diagonal_blocks[-1] = (
             A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].T
         )
+
+
+def _ddbtsc_upward_quadratic(
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_upper_diagonal_blocks: ArrayLike,
+    B_diagonal_blocks: ArrayLike,
+    B_lower_diagonal_blocks: ArrayLike,
+    B_upper_diagonal_blocks: ArrayLike,
+    invert_last_block: bool,
+):
+    xp, _ = _get_module_from_array(A_diagonal_blocks)
+
+    temp_1 = xp.empty_like(A_diagonal_blocks[0])
+    temp_2 = xp.empty_like(A_diagonal_blocks[0])
+
+    for n_i in range(A_diagonal_blocks.shape[0] - 1, 0, -1):
+        A_diagonal_blocks[n_i] = xp.linalg.inv(A_diagonal_blocks[n_i])
+        B_diagonal_blocks[n_i] = (
+            A_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i].T
+        )
+
+        temp_1[:, :] = A_upper_diagonal_blocks[n_i - 1] @ A_diagonal_blocks[n_i]
+        temp_2[:, :] = A_diagonal_blocks[n_i].T @ A_upper_diagonal_blocks[n_i - 1].T
+
+        A_diagonal_blocks[n_i - 1] = (
+            A_diagonal_blocks[n_i - 1] - temp_1[:, :] @ A_lower_diagonal_blocks[n_i - 1]
+        )
+
+        B_diagonal_blocks[n_i - 1] = (
+            B_diagonal_blocks[n_i - 1]
+            + A_upper_diagonal_blocks[n_i - 1]
+            @ B_diagonal_blocks[n_i]
+            @ A_upper_diagonal_blocks[n_i - 1].T
+            - B_upper_diagonal_blocks[n_i - 1] @ temp_2[:, :]
+            - temp_1[:, :] @ B_lower_diagonal_blocks[n_i - 1]
+        )
+
+    if invert_last_block:
+        A_diagonal_blocks[0] = xp.linalg.inv(A_diagonal_blocks[0])
+        B_diagonal_blocks[0] = (
+            A_diagonal_blocks[0] @ B_diagonal_blocks[0] @ A_diagonal_blocks[0].T
+        )
+
 
 
 def _ddbtsc_quadratic_permuted(

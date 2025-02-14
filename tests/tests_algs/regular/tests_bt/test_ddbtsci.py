@@ -8,17 +8,17 @@ from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
 
 from serinv.algs import ddbtsc, ddbtsci
 
-# @pytest.mark.parametrize("type_of_equation", ["AX=I", "AX=B", "AXA.T=B"])
-
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("type_of_equation", ["AX=I", "AXA.T=B"])
+@pytest.mark.parametrize("direction", ["downward", "upward"])
 def test_ddbtsci(
     diagonal_blocksize: int,
     n_diag_blocks: int,
     array_type: str,
     dtype: np.dtype,
     type_of_equation: str,
+    direction: str,
 ):
     A = dd_bt(
         diagonal_blocksize,
@@ -71,6 +71,7 @@ def test_ddbtsci(
         A_upper_diagonal_blocks,
         rhs=rhs,
         quadratic=quadratic,
+        direction=direction,
     )
 
     ddbtsci(
@@ -79,6 +80,7 @@ def test_ddbtsci(
         A_upper_diagonal_blocks,
         rhs=rhs,
         quadratic=quadratic,
+        direction=direction,
     )
 
     (

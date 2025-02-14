@@ -11,12 +11,14 @@ from serinv.algs import ddbtsc
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("type_of_equation", ["AX=I", "AXA.T=B"])
+@pytest.mark.parametrize("direction", ["downward", "upward"])
 def test_ddbtsc(
     diagonal_blocksize: int,
     n_diag_blocks: int,
     array_type: str,
     dtype: np.dtype,
     type_of_equation: str,
+    direction: str,
 ):
     A = dd_bt(
         diagonal_blocksize,
@@ -69,6 +71,7 @@ def test_ddbtsc(
         A_upper_diagonal_blocks,
         rhs=rhs,
         quadratic=quadratic,
+        direction=direction,
     )
 
     (
@@ -78,7 +81,10 @@ def test_ddbtsc(
     ) = bt_dense_to_arrays(X_ref, diagonal_blocksize, n_diag_blocks)
 
     # Check algorithm validity
-    assert xp.allclose(X_diagonal_blocks_ref[-1], A_diagonal_blocks[-1])
+    if direction == "downward":
+        assert xp.allclose(X_diagonal_blocks_ref[-1], A_diagonal_blocks[-1])
+    else:
+        assert xp.allclose(X_diagonal_blocks_ref[0], A_diagonal_blocks[0])
 
     if type_of_equation == "AX=B":
         ...
@@ -91,4 +97,7 @@ def test_ddbtsc(
             Xl_upper_diagonal_blocks_ref,
         ) = bt_dense_to_arrays(Xl_ref, diagonal_blocksize, n_diag_blocks)
 
-        assert xp.allclose(Xl_diagonal_blocks_ref[-1], B_diagonal_blocks[-1])
+        if direction == "downward":
+            assert xp.allclose(Xl_diagonal_blocks_ref[-1], B_diagonal_blocks[-1])
+        else:
+            assert xp.allclose(Xl_diagonal_blocks_ref[0], B_diagonal_blocks[0])

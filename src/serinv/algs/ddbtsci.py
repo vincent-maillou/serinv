@@ -36,10 +36,10 @@ def ddbtsci(
         - B_upper_diagonal_blocks : ArrayLike
             The upper diagonal blocks of the right-hand side.
     quadratic : bool
-        If True, and a rhs is given, the Schur-complement is performed for the equation AXA^T=B.
-        If False, and a rhs is given, the Schur-complement is performed for the equation AX=B.
+        If True, and a rhs is given, the SCI is performed for the equation AXA^T=B.
+        If False, and a rhs is given, the SCI is performed for the equation AX=B.
     buffers : dict
-        The buffers to use in the permuted Schur-complement Selected Inversion (SCI) algorithm.
+        The buffers to use in the permuted SCI algorithm.
         If buffers are given, the SCI is performed using the permuted SCI algorithm.
         In the case of the `AX=I` equation the following buffers are required:
         - A_lower_buffer_blocks : ArrayLike
@@ -51,19 +51,33 @@ def ddbtsci(
             The lower buffer blocks of the matrix B.
         - B_upper_buffer_blocks : ArrayLike
             The upper buffer blocks of the matrix B.
+    direction : str
+        The direction in which to perform the SCI. Can be either "downward" (default) or "upward".
+        This doesn't matter for performances but it is usefull in the case of the parallel implementation which last
+        process needs to perform the Schur complement upward.
     """
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)
+    direction: str = kwargs.get("direction", "downward")
 
     if rhs is None:
         if buffers is None:
             # Perform a regular SCI
-            return _ddbtsci(
-                A_diagonal_blocks,
-                A_lower_diagonal_blocks,
-                A_upper_diagonal_blocks,
-            )
+            if direction == "downward":
+                _ddbtsci(
+                    A_diagonal_blocks,
+                    A_lower_diagonal_blocks,
+                    A_upper_diagonal_blocks,
+                )
+            elif direction == "upward":
+                _ddbtsci_upward(
+                    A_diagonal_blocks,
+                    A_lower_diagonal_blocks,
+                    A_upper_diagonal_blocks,
+                )
+            else:
+                raise ValueError("Optional keyword argument `direction` must be either 'downward' or 'upward'")
         else:
             # Perform a permuted SCI
             A_lower_buffer_blocks = buffers.get("A_lower_buffer_blocks", None)
@@ -95,14 +109,26 @@ def ddbtsci(
             # Perform the SCI for AXA^T=B
             if buffers is None:
                 # Perform a regular SCI ("quadratic")
-                _ddbtsci_quadratic(
-                    A_diagonal_blocks,
-                    A_lower_diagonal_blocks,
-                    A_upper_diagonal_blocks,
-                    B_diagonal_blocks,
-                    B_lower_diagonal_blocks,
-                    B_upper_diagonal_blocks,
-                )
+                if direction == "downward":
+                    _ddbtsci_quadratic(
+                        A_diagonal_blocks,
+                        A_lower_diagonal_blocks,
+                        A_upper_diagonal_blocks,
+                        B_diagonal_blocks,
+                        B_lower_diagonal_blocks,
+                        B_upper_diagonal_blocks,
+                    )
+                elif direction == "upward":
+                    _ddbtsci_upward_quadratic(
+                        A_diagonal_blocks,
+                        A_lower_diagonal_blocks,
+                        A_upper_diagonal_blocks,
+                        B_diagonal_blocks,
+                        B_lower_diagonal_blocks,
+                        B_upper_diagonal_blocks,
+                    )
+                else:
+                    raise ValueError("Optional keyword argument `direction` must be either 'downward' or 'upward'")
             else:
                 # Perform a permuted SCI ("quadratic")
                 A_lower_buffer_blocks = buffers.get("A_lower_buffer_blocks", None)
@@ -167,6 +193,38 @@ def _ddbtsci(
         A_diagonal_blocks[n_i] = (
             A_diagonal_blocks[n_i]
             - A_upper_diagonal_blocks[n_i] @ temp_lower @ A_diagonal_blocks[n_i]
+        )
+
+
+def _ddbtsci_upward(
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_upper_diagonal_blocks: ArrayLike,
+):
+    xp, _ = _get_module_from_array(A_diagonal_blocks)
+
+    if A_diagonal_blocks.shape[0] > 1:
+        # If there is only a single diagonal block, we don't need these buffers.
+        temp_upper = xp.empty_like(A_upper_diagonal_blocks[0])
+
+    for n_i in range(1, A_diagonal_blocks.shape[0]):
+        temp_upper[:, :] = A_upper_diagonal_blocks[n_i - 1]
+
+        A_lower_diagonal_blocks[n_i - 1] = (
+            -A_diagonal_blocks[n_i]
+            @ A_lower_diagonal_blocks[n_i - 1]
+            @ A_diagonal_blocks[n_i - 1]
+        )
+
+        A_upper_diagonal_blocks[n_i - 1] = (
+            -A_diagonal_blocks[n_i - 1]
+            @ A_upper_diagonal_blocks[n_i - 1]
+            @ A_diagonal_blocks[n_i]
+        )
+
+        A_diagonal_blocks[n_i] = (
+            A_diagonal_blocks[n_i]
+            - A_lower_diagonal_blocks[n_i - 1] @ temp_upper @ A_diagonal_blocks[n_i]
         )
 
 
@@ -298,6 +356,80 @@ def _ddbtsci_quadratic(
             A_diagonal_blocks[n_i]
             - A_upper_diagonal_blocks[n_i]
             @ temp_lower_retarded[:, :]
+            @ A_diagonal_blocks[n_i]
+        )
+
+
+def _ddbtsci_upward_quadratic(
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_upper_diagonal_blocks: ArrayLike,
+    B_diagonal_blocks: ArrayLike,
+    B_lower_diagonal_blocks: ArrayLike,
+    B_upper_diagonal_blocks: ArrayLike,
+):
+    xp, _ = _get_module_from_array(A_diagonal_blocks)
+
+    if A_diagonal_blocks.shape[0] > 1:
+        # If there is only a single diagonal block, we don't need these buffers.
+        temp_upper_retarded = xp.empty_like(A_lower_diagonal_blocks[0])
+        temp_lower_lesser = xp.empty_like(A_lower_diagonal_blocks[0])
+        temp_upper_lesser = xp.empty_like(A_upper_diagonal_blocks[0])
+
+    temp_1 = xp.empty_like(A_diagonal_blocks[0])
+    temp_2 = xp.empty_like(A_diagonal_blocks[0])
+    temp_3 = xp.empty_like(A_diagonal_blocks[0])
+    temp_4 = xp.empty_like(A_diagonal_blocks[0])
+
+    for n_i in range(1, A_diagonal_blocks.shape[0]):
+
+        temp_upper_lesser[:, :] = B_upper_diagonal_blocks[n_i - 1]
+        temp_1[:, :] = A_diagonal_blocks[n_i - 1] @ A_upper_diagonal_blocks[n_i - 1]
+        temp_4[:, :] = A_lower_diagonal_blocks[n_i - 1].T @ A_diagonal_blocks[n_i].T
+
+        B_upper_diagonal_blocks[n_i - 1] = (
+            -temp_1[:, :] @ B_diagonal_blocks[n_i]
+            - B_diagonal_blocks[n_i - 1] @ temp_4[:, :]
+            + A_diagonal_blocks[n_i - 1]
+            @ B_upper_diagonal_blocks[n_i - 1]
+            @ A_diagonal_blocks[n_i].T
+        )
+
+        temp_lower_lesser[:, :] = B_lower_diagonal_blocks[n_i - 1]
+        temp_2[:, :] = A_upper_diagonal_blocks[n_i - 1].T @ A_diagonal_blocks[n_i - 1].T
+        temp_3[:, :] = A_diagonal_blocks[n_i] @ A_lower_diagonal_blocks[n_i - 1]
+
+        B_lower_diagonal_blocks[n_i - 1] = (
+            -B_diagonal_blocks[n_i] @ temp_2[:, :]
+            - temp_3[:, :] @ B_diagonal_blocks[n_i - 1]
+            + A_diagonal_blocks[n_i]
+            @ B_lower_diagonal_blocks[n_i - 1]
+            @ A_diagonal_blocks[n_i - 1].T
+        )
+
+        B_diagonal_blocks[n_i] = (
+            B_diagonal_blocks[n_i]
+            + temp_3[:, :] @ B_diagonal_blocks[n_i - 1] @ temp_4[:, :]
+            + temp_3[:, :] @ temp_1[:, :] @ B_diagonal_blocks[n_i]
+            + B_diagonal_blocks[n_i].T @ temp_2[:, :] @ temp_4[:, :]
+            - temp_3[:, :]
+            @ A_diagonal_blocks[n_i - 1]
+            @ temp_upper_lesser[:, :]
+            @ A_diagonal_blocks[n_i].T
+            - A_diagonal_blocks[n_i]
+            @ temp_lower_lesser[:, :]
+            @ A_diagonal_blocks[n_i - 1].T
+            @ temp_4[:, :]
+        )
+
+        temp_upper_retarded[:, :] = A_upper_diagonal_blocks[n_i - 1]
+
+        A_lower_diagonal_blocks[n_i - 1] = -temp_3[:, :] @ A_diagonal_blocks[n_i - 1]
+        A_upper_diagonal_blocks[n_i - 1] = -temp_1[:, :] @ A_diagonal_blocks[n_i]
+        A_diagonal_blocks[n_i] = (
+            A_diagonal_blocks[n_i]
+            - A_lower_diagonal_blocks[n_i - 1]
+            @ temp_upper_retarded[:, :]
             @ A_diagonal_blocks[n_i]
         )
 
