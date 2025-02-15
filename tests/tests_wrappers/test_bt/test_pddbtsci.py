@@ -12,10 +12,10 @@ import numpy as np
 
 from ...testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
 
-from serinv.algs import ddbtsci
 from serinv.utils import allocate_ddbtx_permutation_buffers
 from serinv.wrappers import (
     pddbtsc,
+    pddbtsci,
     allocate_ddbtrs,
 )
 
@@ -92,8 +92,8 @@ def test_pddbtsc(
 
     (
         X_ref_diagonal_blocks,
-        _,
-        _,
+        X_ref_lower_diagonal_blocks,
+        X_ref_upper_diagonal_blocks,
     ) = bt_dense_to_arrays(
         X_ref, diagonal_blocksize, n_diag_blocks
     )
@@ -103,6 +103,25 @@ def test_pddbtsc(
         * n_diag_blocks_per_processes : (comm_rank + 1)
         * n_diag_blocks_per_processes,
     ]
+
+    if comm_rank == comm_size - 1:
+        X_ref_lower_diagonal_blocks_local = X_ref_lower_diagonal_blocks[
+            comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+        ]
+        X_ref_upper_diagonal_blocks_local = X_ref_upper_diagonal_blocks[
+            comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+        ]
+    else:
+        X_ref_lower_diagonal_blocks_local = X_ref_lower_diagonal_blocks[
+            comm_rank
+            * n_diag_blocks_per_processes : (comm_rank + 1)
+            * n_diag_blocks_per_processes,
+        ]
+        X_ref_upper_diagonal_blocks_local = X_ref_upper_diagonal_blocks[
+            comm_rank
+            * n_diag_blocks_per_processes : (comm_rank + 1)
+            * n_diag_blocks_per_processes,
+        ]
 
     if type_of_equation == "AX=I":
         rhs = None
@@ -183,21 +202,30 @@ def test_pddbtsc(
         ddbtrs=ddbtrs,
     )
 
-    ddbtsci(
-        A_diagonal_blocks=ddbtrs["A_diagonal_blocks"],
-        A_lower_diagonal_blocks=ddbtrs["A_lower_diagonal_blocks"],
-        A_upper_diagonal_blocks=ddbtrs["A_upper_diagonal_blocks"],
-        rhs=ddbtrs.get("_rhs", None),
+    pddbtsci(
+        A_diagonal_blocks=A_diagonal_blocks_local,
+        A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
+        A_upper_diagonal_blocks=A_upper_diagonal_blocks_local,
+        rhs=rhs,
         quadratic=quadratic,
+        buffers=buffers,
+        ddbtrs=ddbtrs,
     )
 
-    if type_of_equation == "AXA.T=B":
+    # Check algorithm validity
+    assert xp.allclose(X_ref_diagonal_blocks_local, A_diagonal_blocks_local)
+    assert xp.allclose(X_ref_lower_diagonal_blocks_local, A_lower_diagonal_blocks_local)
+    assert xp.allclose(X_ref_upper_diagonal_blocks_local, A_upper_diagonal_blocks_local)
+
+    if type_of_equation == "AX=B":
+        ...
+    elif type_of_equation == "AXA.T=B":
         Xl_ref = X_ref @ B @ X_ref.conj().T
 
         (
             Xl_diagonal_blocks_ref,
-            _,
-            _,
+            Xl_lower_diagonal_blocks_ref,
+            Xl_upper_diagonal_blocks_ref,
         ) = bt_dense_to_arrays(Xl_ref, diagonal_blocksize, n_diag_blocks)
 
         Xl_ref_diagonal_blocks_local = Xl_diagonal_blocks_ref[
@@ -206,47 +234,25 @@ def test_pddbtsc(
             * n_diag_blocks_per_processes,
         ]
 
-        _rhs = ddbtrs["_rhs"]
-        
+        if comm_rank == comm_size - 1:
+            Xl_ref_lower_diagonal_blocks_local = Xl_lower_diagonal_blocks_ref[
+                comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+            ]
+            Xl_ref_upper_diagonal_blocks_local = Xl_upper_diagonal_blocks_ref[
+                comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+            ]
+        else:
+            Xl_ref_lower_diagonal_blocks_local = Xl_lower_diagonal_blocks_ref[
+                comm_rank
+                * n_diag_blocks_per_processes : (comm_rank + 1)
+                * n_diag_blocks_per_processes,
+            ]
+            Xl_ref_upper_diagonal_blocks_local = Xl_upper_diagonal_blocks_ref[
+                comm_rank
+                * n_diag_blocks_per_processes : (comm_rank + 1)
+                * n_diag_blocks_per_processes,
+            ]
 
-    if comm_rank == 0:
-        assert xp.allclose(
-            X_ref_diagonal_blocks_local[-1],
-            ddbtrs["A_diagonal_blocks"][0],
-        )
-
-        if type_of_equation == "AXA.T=B":
-            assert xp.allclose(
-                Xl_ref_diagonal_blocks_local[-1],
-                _rhs["B_diagonal_blocks"][0],
-            )
-    elif comm_rank == comm_size - 1:
-        assert xp.allclose(
-            X_ref_diagonal_blocks_local[0],
-            ddbtrs["A_diagonal_blocks"][-1],
-        )
-
-        if type_of_equation == "AXA.T=B":
-            assert xp.allclose(
-                Xl_ref_diagonal_blocks_local[0],
-                _rhs["B_diagonal_blocks"][-1],
-            )
-    else:
-        assert xp.allclose(
-            X_ref_diagonal_blocks_local[0],
-            ddbtrs["A_diagonal_blocks"][2*comm_rank-1],
-        )
-        assert xp.allclose(
-            X_ref_diagonal_blocks_local[-1],
-            ddbtrs["A_diagonal_blocks"][2*comm_rank],
-        )
-
-        if type_of_equation == "AXA.T=B":
-            assert xp.allclose(
-                Xl_ref_diagonal_blocks_local[0],
-                _rhs["B_diagonal_blocks"][2*comm_rank-1],
-            )
-            assert xp.allclose(
-                Xl_ref_diagonal_blocks_local[-1],
-                _rhs["B_diagonal_blocks"][2*comm_rank],
-            )
+        assert xp.allclose(Xl_ref_diagonal_blocks_local, B_diagonal_blocks_local)
+        assert xp.allclose(Xl_ref_lower_diagonal_blocks_local, B_lower_diagonal_blocks_local)
+        assert xp.allclose(Xl_ref_upper_diagonal_blocks_local, B_upper_diagonal_blocks_local)

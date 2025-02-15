@@ -10,6 +10,7 @@ from serinv.wrappers.pobtars import (
 )
 
 from serinv.wrappers.pddbtsc import pddbtsc
+from serinv.wrappers.pddbtsci import pddbtsci
 from serinv.wrappers.ddbtrs import (
     allocate_ddbtrs,
 )
@@ -21,5 +22,6 @@ __all__ = [
     "allocate_pobtars",
     "allocate_pinned_pobtars",
     "pddbtsc",
+    "pddbtsci",
     "allocate_ddbtrs",
 ]

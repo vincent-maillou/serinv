@@ -7,32 +7,33 @@ from serinv import (
     _get_module_from_array,
 )
 
-from serinv.algs import ddbtsc
+from serinv.algs import ddbtsci
 from .ddbtrs import (
-    map_ddbtsc_to_ddbtrs,
-    aggregate_ddbtrs,
+    map_ddbtrs_to_ddbtsci,
+    scatter_ddbtrs,
 )
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
 
 
-def pddbtsc(
+def pddbtsci(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
     **kwargs,
 ) -> ArrayLike:
-    """Perform the parallel Schur-complement of a block tridiagonal matrix.
+    """Perform the parallel selected-inversion of the Schur-complement of a block tridiagonal matrix.
+    This routine is refered to as Schur-complement Selected Inversion (SCI).
 
     Parameters
     ----------
     A_diagonal_blocks : ArrayLike
-        The diagonal blocks of the block tridiagonal with arrowhead matrix.
+        The diagonal blocks of the block tridiagonal matrix.
     A_lower_diagonal_blocks : ArrayLike
-        The lower diagonal blocks of the block tridiagonal with arrowhead matrix.
+        The lower diagonal blocks of the block tridiagonal matrix.
     A_upper_diagonal_blocks : ArrayLike
-        The upper diagonal blocks of the block tridiagonal with arrowhead matrix.
+        The upper diagonal blocks of the block tridiagonal matrix.
 
     Keyword Arguments
     -----------------
@@ -100,43 +101,20 @@ def pddbtsc(
     if any(x is None for x in [_A_diagonal_blocks, _A_lower_diagonal_blocks, _A_upper_diagonal_blocks]):
                 raise ValueError("To run the distributed solvers, the reduced system `ddbtrs` need to contain the required arrays.")
     
-    
-    # Perform distributed Schur complement
-    if comm_rank == 0:
-        # Perform Schur-downward
-        ddbtsc(
-            A_diagonal_blocks=A_diagonal_blocks,
-            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
-            rhs=rhs,
-            quadratic=quadratic,
-            invert_last_block=False,
-            direction="downward",
-        )
-    elif comm_rank == comm_size - 1:
-        # Perform Schur-upward
-        ddbtsc(
-            A_diagonal_blocks=A_diagonal_blocks,
-            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
-            rhs=rhs,
-            quadratic=quadratic,
-            invert_last_block=False,
-            direction="upward",
-        )
-    else:
-        # Perform Schur on permuted partition
-        ddbtsc(
-            A_diagonal_blocks=A_diagonal_blocks,
-            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
-            rhs=rhs,
-            quadratic=quadratic,
-            buffers=buffers,
-            invert_last_block=False,
-        )
+    ddbtsci(
+        A_diagonal_blocks=ddbtrs["A_diagonal_blocks"],
+        A_lower_diagonal_blocks=ddbtrs["A_lower_diagonal_blocks"],
+        A_upper_diagonal_blocks=ddbtrs["A_upper_diagonal_blocks"],
+        rhs=ddbtrs.get("_rhs", None),
+        quadratic=quadratic,
+    )
 
-    map_ddbtsc_to_ddbtrs(
+    scatter_ddbtrs(
+        ddbtrs=ddbtrs,
+        quadratic=quadratic,
+    )
+
+    map_ddbtrs_to_ddbtsci(
         A_diagonal_blocks=A_diagonal_blocks,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks,
         A_upper_diagonal_blocks=A_upper_diagonal_blocks,
@@ -148,17 +126,38 @@ def pddbtsc(
         buffers=buffers,
         _rhs=ddbtrs.get("_rhs", None),
     )
-
-    aggregate_ddbtrs(
-        ddbtrs=ddbtrs,
-        quadratic=quadratic,
-    )
-
-    # Perform Schur complement on the reduced system
-    ddbtsc(
-        A_diagonal_blocks=ddbtrs["A_diagonal_blocks"],
-        A_lower_diagonal_blocks=ddbtrs["A_lower_diagonal_blocks"],
-        A_upper_diagonal_blocks=ddbtrs["A_upper_diagonal_blocks"],
-        rhs=ddbtrs.get("_rhs", None),
-        quadratic=quadratic,
-    )
+    
+    # Perform distributed SCI
+    if comm_rank == 0:
+        # Perform SCI-downward
+        ddbtsci(
+            A_diagonal_blocks=A_diagonal_blocks,
+            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
+            rhs=rhs,
+            quadratic=quadratic,
+            invert_last_block=False,
+            direction="downward",
+        )
+    elif comm_rank == comm_size - 1:
+        # Perform SCI-upward
+        ddbtsci(
+            A_diagonal_blocks=A_diagonal_blocks,
+            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
+            rhs=rhs,
+            quadratic=quadratic,
+            invert_last_block=False,
+            direction="upward",
+        )
+    else:
+        # Perform SCI on permuted partition
+        ddbtsci(
+            A_diagonal_blocks=A_diagonal_blocks,
+            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
+            rhs=rhs,
+            quadratic=quadratic,
+            buffers=buffers,
+            invert_last_block=False,
+        )

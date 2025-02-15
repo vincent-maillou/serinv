@@ -12,17 +12,17 @@ def ddbtsci(
     A_upper_diagonal_blocks: ArrayLike,
     **kwargs,
 ):
-    """Perform the selected-inversion of the Schur-complement of a block tridiagonal with arrowhead matrix.
+    """Perform the selected-inversion of the Schur-complement of a block tridiagonal.
     This routine is refered to as Schur-complement Selected Inversion (SCI).
 
     Parameters
     ----------
     A_diagonal_blocks : ArrayLike
-        The diagonal blocks of the block tridiagonal with arrowhead matrix.
+        The diagonal blocks of the block tridiagonal.
     A_lower_diagonal_blocks : ArrayLike
-        The lower diagonal blocks of the block tridiagonal with arrowhead matrix.
+        The lower diagonal blocks of the block tridiagonal.
     A_upper_diagonal_blocks : ArrayLike
-        The upper diagonal blocks of the block tridiagonal with arrowhead matrix.
+        The upper diagonal blocks of the block tridiagonal.
 
     Keyword Arguments
     -----------------
