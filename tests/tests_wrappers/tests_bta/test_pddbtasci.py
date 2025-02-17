@@ -16,6 +16,7 @@ from serinv.algs import ddbtasci
 from serinv.utils import allocate_ddbtax_permutation_buffers
 from serinv.wrappers import (
     pddbtasc,
+    pddbtasci,
     allocate_ddbtars,
 )
 
@@ -109,14 +110,49 @@ def test_pddbtasc(
 
     (
         X_ref_diagonal_blocks,
-        _,
-        _,
-        _,
-        _,
+        X_ref_lower_diagonal_blocks,
+        X_ref_upper_diagonal_blocks,
+        X_ref_lower_arrow_blocks,
+        X_ref_upper_arrow_blocks,
         X_ref_arrow_tip_block,
     ) = bta_dense_to_arrays(
         X_ref.copy(), diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
     )
+
+    X_ref_diagonal_blocks_local = X_ref_diagonal_blocks[
+        comm_rank
+        * n_diag_blocks_per_processes : (comm_rank + 1)
+        * n_diag_blocks_per_processes,
+    ]
+    X_ref_lower_arrow_blocks_local = X_ref_lower_arrow_blocks[
+        comm_rank
+        * n_diag_blocks_per_processes : (comm_rank + 1)
+        * n_diag_blocks_per_processes,
+    ]
+    X_ref_upper_arrow_blocks_local = X_ref_upper_arrow_blocks[
+        comm_rank
+        * n_diag_blocks_per_processes : (comm_rank + 1)
+        * n_diag_blocks_per_processes,
+    ]
+
+    if comm_rank == comm_size - 1:
+        X_ref_lower_diagonal_blocks_local = X_ref_lower_diagonal_blocks[
+            comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+        ]
+        X_ref_upper_diagonal_blocks_local = X_ref_upper_diagonal_blocks[
+            comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+        ]
+    else:
+        X_ref_lower_diagonal_blocks_local = X_ref_lower_diagonal_blocks[
+            comm_rank
+            * n_diag_blocks_per_processes : (comm_rank + 1)
+            * n_diag_blocks_per_processes,
+        ]
+        X_ref_upper_diagonal_blocks_local = X_ref_upper_diagonal_blocks[
+            comm_rank
+            * n_diag_blocks_per_processes : (comm_rank + 1)
+            * n_diag_blocks_per_processes,
+        ]
 
     if type_of_equation == "AX=I":
         rhs = None
@@ -224,20 +260,42 @@ def test_pddbtasc(
         ddbtars=ddbtars,
     )
 
-    ddbtasci(
-        A_diagonal_blocks=ddbtars["A_diagonal_blocks"],
-        A_lower_diagonal_blocks=ddbtars["A_lower_diagonal_blocks"],
-        A_upper_diagonal_blocks=ddbtars["A_upper_diagonal_blocks"],
-        A_lower_arrow_blocks=ddbtars["A_lower_arrow_blocks"],
-        A_upper_arrow_blocks=ddbtars["A_upper_arrow_blocks"],
-        A_arrow_tip_block=ddbtars["A_arrow_tip_block"],
-        rhs=ddbtars.get("_rhs", None),
+    pddbtasci(
+        A_diagonal_blocks=A_diagonal_blocks_local,
+        A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
+        A_upper_diagonal_blocks=A_upper_diagonal_blocks_local,
+        A_lower_arrow_blocks=A_lower_arrow_blocks_local,
+        A_upper_arrow_blocks=A_upper_arrow_blocks_local,
+        A_arrow_tip_block=A_arrow_tip_block,
+        rhs=rhs,
         quadratic=quadratic,
+        buffers=buffers,
+        ddbtars=ddbtars,
     )
 
     assert xp.allclose(
         X_ref_arrow_tip_block,
-        ddbtars["A_arrow_tip_block"],
+        A_arrow_tip_block,
+    )
+    assert xp.allclose(
+        X_ref_diagonal_blocks_local,
+        A_diagonal_blocks_local,
+    )
+    assert xp.allclose(
+        X_ref_lower_diagonal_blocks_local,
+        A_lower_diagonal_blocks_local,
+    )
+    assert xp.allclose(
+        X_ref_upper_diagonal_blocks_local,
+        A_upper_diagonal_blocks_local,
+    )
+    assert xp.allclose(
+        X_ref_lower_arrow_blocks_local,
+        A_lower_arrow_blocks_local,
+    )
+    assert xp.allclose(
+        X_ref_upper_arrow_blocks_local,
+        A_upper_arrow_blocks_local,
     )
 
     if type_of_equation == "AX=B":
@@ -246,17 +304,72 @@ def test_pddbtasc(
         Xl_ref = X_ref @ B @ X_ref.conj().T
 
         (
-            _,
-            _,
-            _,
-            _,
-            _,
-            Xl_arrow_tip_block_ref,
+            Xl_ref_diagonal_blocks,
+            Xl_ref_lower_diagonal_blocks,
+            Xl_ref_upper_diagonal_blocks,
+            Xl_ref_lower_arrow_blocks,
+            Xl_ref_upper_arrow_blocks,
+            Xl_ref_arrow_tip_block,
         ) = bta_dense_to_arrays(
             Xl_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
         )
 
+        Xl_ref_diagonal_blocks_local = Xl_ref_diagonal_blocks[
+            comm_rank
+            * n_diag_blocks_per_processes : (comm_rank + 1)
+            * n_diag_blocks_per_processes,
+        ]
+        Xl_ref_lower_arrow_blocks_local = Xl_ref_lower_arrow_blocks[
+            comm_rank
+            * n_diag_blocks_per_processes : (comm_rank + 1)
+            * n_diag_blocks_per_processes,
+        ]
+        Xl_ref_upper_arrow_blocks_local = Xl_ref_upper_arrow_blocks[
+            comm_rank
+            * n_diag_blocks_per_processes : (comm_rank + 1)
+            * n_diag_blocks_per_processes,
+        ]
+
+        if comm_rank == comm_size - 1:
+            Xl_ref_lower_diagonal_blocks_local = Xl_ref_lower_diagonal_blocks[
+                comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+            ]
+            Xl_ref_upper_diagonal_blocks_local = Xl_ref_upper_diagonal_blocks[
+                comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
+            ]
+        else:
+            Xl_ref_lower_diagonal_blocks_local = Xl_ref_lower_diagonal_blocks[
+                comm_rank
+                * n_diag_blocks_per_processes : (comm_rank + 1)
+                * n_diag_blocks_per_processes,
+            ]
+            Xl_ref_upper_diagonal_blocks_local = Xl_ref_upper_diagonal_blocks[
+                comm_rank
+                * n_diag_blocks_per_processes : (comm_rank + 1)
+                * n_diag_blocks_per_processes,
+            ]
+
         assert xp.allclose(
-            Xl_arrow_tip_block_ref,
-            ddbtars["_rhs"]["B_arrow_tip_block"],
+            Xl_ref_arrow_tip_block,
+            A_arrow_tip_block,
+        )
+        assert xp.allclose(
+            Xl_ref_diagonal_blocks_local,
+            A_diagonal_blocks_local,
+        )
+        assert xp.allclose(
+            Xl_ref_lower_diagonal_blocks_local,
+            A_lower_diagonal_blocks_local,
+        )
+        assert xp.allclose(
+            Xl_ref_upper_diagonal_blocks_local,
+            A_upper_diagonal_blocks_local,
+        )
+        assert xp.allclose(
+            Xl_ref_lower_arrow_blocks_local,
+            A_lower_arrow_blocks_local,
+        )
+        assert xp.allclose(
+            Xl_ref_upper_arrow_blocks_local,
+            A_upper_arrow_blocks_local,
         )

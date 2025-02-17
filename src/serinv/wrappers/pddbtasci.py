@@ -7,17 +7,17 @@ from serinv import (
     _get_module_from_array,
 )
 
-from serinv.algs import ddbtasc
+from serinv.algs import ddbtasci
 from .ddbtars import (
-    map_ddbtasc_to_ddbtars,
-    aggregate_ddbtars,
+    map_ddbtars_to_ddbtasci,
+    scatter_ddbtars,
 )
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
 
 
-def pddbtasc(
+def pddbtasci(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
@@ -26,7 +26,8 @@ def pddbtasc(
     A_arrow_tip_block: ArrayLike,
     **kwargs,
 ) -> ArrayLike:
-    """Perform the parallel Schur-complement of a block tridiagonal matrix.
+    """Perform the parallel selected-inversion of the Schur-complement of a block tridiagonal matrix.
+    This routine is refered to as Schur-complement Selected Inversion (SCI).
 
     Parameters
     ----------
@@ -61,11 +62,11 @@ def pddbtasc(
         - B_arrow_tip_block : ArrayLike
             The arrow tip block of the right-hand side.
     quadratic : bool
-        If True, and a rhs is given, the Schur-complement is performed for the equation AXA^T=B.
-        If False, and a rhs is given, the Schur-complement is performed for the equation AX=B.
+        If True, and a rhs is given, the SCI is performed for the equation AXA^T=B.
+        If False, and a rhs is given, the SCI is performed for the equation AX=B.
     buffers : dict
-        The buffers to use in the permuted Schur-complement algorithm. If buffers are given, the
-        Schur-complement is performed using the permuted Schur-complement algorithm.
+        The buffers to use in the permuted SCI algorithm. If buffers are given, the
+        SCI is performed using the permuted SCI algorithm.
         In the case of the `AX=I` equation the following buffers are required:
         - A_lower_buffer_blocks : ArrayLike
             The lower buffer blocks of the matrix A.
@@ -77,7 +78,7 @@ def pddbtasc(
         - B_upper_buffer_blocks : ArrayLike
             The upper buffer blocks of the matrix B.
     ddbtars : dict
-        The reduced system to use in the parallel implementation of the Schur-complement
+        The reduced system to use in the parallel implementation of the SCI
         algorithm.
         The ddbtars dictionary must contain the following arrays:
         - _A_diagonal_blocks : ArrayLike
@@ -142,43 +143,23 @@ def pddbtasc(
             "To run the distributed solvers, the reduced system `ddbtars` need to contain the required arrays."
         )
 
-    # Store the value of the tip of the arrow and reset the local arrow tip block to zero
-    # in order to correctly accumulate the updates from the distributed Schur complement.
-    A_arrow_tip_initial = A_arrow_tip_block.copy()
-    A_arrow_tip_block[:] = 0.0
-    if quadratic:
-        B_arrow_tip_initial = rhs["B_arrow_tip_block"].copy()
-        rhs["B_arrow_tip_block"][:] = 0.0
+    ddbtasci(
+        A_diagonal_blocks=ddbtars["A_diagonal_blocks"],
+        A_lower_diagonal_blocks=ddbtars["A_lower_diagonal_blocks"],
+        A_upper_diagonal_blocks=ddbtars["A_upper_diagonal_blocks"],
+        A_lower_arrow_blocks=ddbtars["A_lower_arrow_blocks"],
+        A_upper_arrow_blocks=ddbtars["A_upper_arrow_blocks"],
+        A_arrow_tip_block=ddbtars["A_arrow_tip_block"],
+        rhs=ddbtars.get("_rhs", None),
+        quadratic=quadratic,
+    )
 
-    # Perform distributed Schur complement
-    if comm_rank == 0:
-        # Perform Schur-downward
-        ddbtasc(
-            A_diagonal_blocks=A_diagonal_blocks,
-            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
-            A_lower_arrow_blocks=A_lower_arrow_blocks,
-            A_upper_arrow_blocks=A_upper_arrow_blocks,
-            A_arrow_tip_block=A_arrow_tip_block,
-            rhs=rhs,
-            quadratic=quadratic,
-            invert_last_block=False,
-        )
-    else:
-        # Perform Schur on permuted partition
-        ddbtasc(
-            A_diagonal_blocks=A_diagonal_blocks,
-            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
-            A_lower_arrow_blocks=A_lower_arrow_blocks,
-            A_upper_arrow_blocks=A_upper_arrow_blocks,
-            A_arrow_tip_block=A_arrow_tip_block,
-            rhs=rhs,
-            quadratic=quadratic,
-            buffers=buffers,
-        )
+    scatter_ddbtars(
+        ddbtars=ddbtars,
+        quadratic=quadratic,
+    )
 
-    map_ddbtasc_to_ddbtars(
+    map_ddbtars_to_ddbtasci(
         A_diagonal_blocks=A_diagonal_blocks,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks,
         A_upper_diagonal_blocks=A_upper_diagonal_blocks,
@@ -197,27 +178,29 @@ def pddbtasc(
         _rhs=ddbtars.get("_rhs", None),
     )
 
-    aggregate_ddbtars(
-        ddbtars=ddbtars,
-        quadratic=quadratic,
-    )
-
-    print(f"Rank {comm_rank} quadratic:", quadratic)
-
-    ddbtars["A_arrow_tip_block"][:] += A_arrow_tip_initial
-    if quadratic:
-        ddbtars["_rhs"]["B_arrow_tip_block"][:] += B_arrow_tip_initial
-
-    # Perform Schur complement on the reduced system
-    ddbtasc(
-        A_diagonal_blocks=ddbtars["A_diagonal_blocks"],
-        A_lower_diagonal_blocks=ddbtars["A_lower_diagonal_blocks"],
-        A_upper_diagonal_blocks=ddbtars["A_upper_diagonal_blocks"],
-        A_lower_arrow_blocks=ddbtars["A_lower_arrow_blocks"],
-        A_upper_arrow_blocks=ddbtars["A_upper_arrow_blocks"],
-        A_arrow_tip_block=ddbtars["A_arrow_tip_block"],
-        rhs=ddbtars.get("_rhs", None),
-        quadratic=quadratic,
-    )
-
-    MPI.COMM_WORLD.Barrier()
+    # Perform distributed SCI
+    if comm_rank == 0:
+        # Perform SCI-downward
+        ddbtasci(
+            A_diagonal_blocks=A_diagonal_blocks,
+            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
+            A_lower_arrow_blocks=A_lower_arrow_blocks,
+            A_upper_arrow_blocks=A_upper_arrow_blocks,
+            A_arrow_tip_block=A_arrow_tip_block,
+            rhs=rhs,
+            quadratic=quadratic,
+        )
+    else:
+        # Perform SCI on permuted partition
+        ddbtasci(
+            A_diagonal_blocks=A_diagonal_blocks,
+            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+            A_upper_diagonal_blocks=A_upper_diagonal_blocks,
+            A_lower_arrow_blocks=A_lower_arrow_blocks,
+            A_upper_arrow_blocks=A_upper_arrow_blocks,
+            A_arrow_tip_block=A_arrow_tip_block,
+            rhs=rhs,
+            quadratic=quadratic,
+            buffers=buffers,
+        )

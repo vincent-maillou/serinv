@@ -14,6 +14,7 @@ from serinv.wrappers.pddbtsci import pddbtsci
 from serinv.wrappers.ddbtrs import allocate_ddbtrs
 
 from serinv.wrappers.pddbtasc import pddbtasc
+from serinv.wrappers.pddbtasci import pddbtasci
 from serinv.wrappers.ddbtars import allocate_ddbtars
 
 __all__ = [
@@ -26,5 +27,6 @@ __all__ = [
     "pddbtsci",
     "allocate_ddbtrs",
     "pddbtasc",
+    "pddbtasci",
     "allocate_ddbtars",
 ]

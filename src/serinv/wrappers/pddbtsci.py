@@ -98,9 +98,18 @@ def pddbtsci(
     _A_diagonal_blocks: ArrayLike = ddbtrs.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtrs.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtrs.get("A_upper_diagonal_blocks", None)
-    if any(x is None for x in [_A_diagonal_blocks, _A_lower_diagonal_blocks, _A_upper_diagonal_blocks]):
-                raise ValueError("To run the distributed solvers, the reduced system `ddbtrs` need to contain the required arrays.")
-    
+    if any(
+        x is None
+        for x in [
+            _A_diagonal_blocks,
+            _A_lower_diagonal_blocks,
+            _A_upper_diagonal_blocks,
+        ]
+    ):
+        raise ValueError(
+            "To run the distributed solvers, the reduced system `ddbtrs` need to contain the required arrays."
+        )
+
     ddbtsci(
         A_diagonal_blocks=ddbtrs["A_diagonal_blocks"],
         A_lower_diagonal_blocks=ddbtrs["A_lower_diagonal_blocks"],
@@ -126,7 +135,7 @@ def pddbtsci(
         buffers=buffers,
         _rhs=ddbtrs.get("_rhs", None),
     )
-    
+
     # Perform distributed SCI
     if comm_rank == 0:
         # Perform SCI-downward

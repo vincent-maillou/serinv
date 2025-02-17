@@ -535,12 +535,18 @@ def map_ddbtars_to_ddbtasci(
             A_diagonal_blocks[0] = _A_diagonal_blocks[2 * comm_rank - 1]
             A_diagonal_blocks[-1] = _A_diagonal_blocks[2 * comm_rank]
 
-            A_upper_buffer_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank - 1]
-            A_lower_buffer_blocks[-1] = _A_upper_diagonal_blocks[2 * comm_rank - 1]
-
             if comm_rank < comm_size - 1:
+                # Warning: The size of the upper/lower buffer follow the shape
+                # of the lower_diagonal_blocks slicing. That mean that the indexing
+                # is different between the last and the "middle" processes.
+                A_upper_buffer_blocks[-2] = _A_lower_diagonal_blocks[2 * comm_rank - 1]
+                A_lower_buffer_blocks[-2] = _A_upper_diagonal_blocks[2 * comm_rank - 1]
+
                 A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank]
                 A_upper_diagonal_blocks[-1] = _A_upper_diagonal_blocks[2 * comm_rank]
+            else:
+                A_upper_buffer_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank - 1]
+                A_lower_buffer_blocks[-1] = _A_upper_diagonal_blocks[2 * comm_rank - 1]
 
             A_lower_arrow_blocks[0] = _A_lower_arrow_blocks[2 * comm_rank - 1]
             A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[2 * comm_rank]
@@ -552,15 +558,29 @@ def map_ddbtars_to_ddbtasci(
                 B_diagonal_blocks[0] = _B_diagonal_blocks[2 * comm_rank - 1]
                 B_diagonal_blocks[-1] = _B_diagonal_blocks[2 * comm_rank]
 
-                B_upper_buffer_blocks[-1] = _B_lower_diagonal_blocks[2 * comm_rank - 1]
-                B_lower_buffer_blocks[-1] = _B_upper_diagonal_blocks[2 * comm_rank - 1]
-
                 if comm_rank < comm_size - 1:
-                    B_lower_diagonal_blocks[-1] = _B_lower_diagonal_blocks[
+                    # Warning: The size of the upper/lower buffer follow the shape
+                    # of the lower_diagonal_blocks slicing. That mean that the indexing
+                    # is different between the last and the "middle" processes.
+                    B_upper_buffer_blocks[-2] = _B_lower_diagonal_blocks[
+                        2 * comm_rank - 1
+                    ]
+                    B_lower_buffer_blocks[-2] = _B_upper_diagonal_blocks[
+                        2 * comm_rank - 1
+                    ]
+
+                    (B_lower_diagonal_blocks[-1]) = _B_lower_diagonal_blocks[
                         2 * comm_rank
                     ]
-                    B_upper_diagonal_blocks[-1] = _B_upper_diagonal_blocks[
+                    (B_upper_diagonal_blocks[-1]) = _B_upper_diagonal_blocks[
                         2 * comm_rank
+                    ]
+                else:
+                    B_upper_buffer_blocks[-1] = _B_lower_diagonal_blocks[
+                        2 * comm_rank - 1
+                    ]
+                    B_lower_buffer_blocks[-1] = _B_upper_diagonal_blocks[
+                        2 * comm_rank - 1
                     ]
 
                 B_lower_arrow_blocks[0] = _B_lower_arrow_blocks[2 * comm_rank - 1]
@@ -568,5 +588,9 @@ def map_ddbtars_to_ddbtasci(
 
                 B_upper_arrow_blocks[0] = _B_upper_arrow_blocks[2 * comm_rank - 1]
                 B_upper_arrow_blocks[-1] = _B_upper_arrow_blocks[2 * comm_rank]
+
+        A_arrow_tip_block[:] = _A_arrow_tip_block[:]
+        if quadratic:
+            B_arrow_tip_block[:] = _B_arrow_tip_block[:]
     else:
         raise ValueError("Unknown communication strategy.")
