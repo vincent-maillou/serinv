@@ -42,7 +42,7 @@ def pddbtasc(
         The arrow top blocks of the block tridiagonal with arrowhead matrix.
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the block tridiagonal with arrowhead matrix.
-        
+
     Keyword Arguments
     -----------------
     rhs : dict
@@ -127,10 +127,22 @@ def pddbtasc(
     _A_lower_arrow_blocks: ArrayLike = ddbtars.get("A_lower_arrow_blocks", None)
     _A_upper_arrow_blocks: ArrayLike = ddbtars.get("A_upper_arrow_blocks", None)
     _A_arrow_tip_block: ArrayLike = ddbtars.get("A_arrow_tip_block", None)
-    if any(x is None for x in [_A_diagonal_blocks, _A_lower_diagonal_blocks, _A_upper_diagonal_blocks, _A_lower_arrow_blocks, _A_upper_arrow_blocks, _A_arrow_tip_block]):
-                raise ValueError("To run the distributed solvers, the reduced system `ddbtars` need to contain the required arrays.")
-    
-    # Store the value of the tip of the arrow and reset the local arrow tip block to zero 
+    if any(
+        x is None
+        for x in [
+            _A_diagonal_blocks,
+            _A_lower_diagonal_blocks,
+            _A_upper_diagonal_blocks,
+            _A_lower_arrow_blocks,
+            _A_upper_arrow_blocks,
+            _A_arrow_tip_block,
+        ]
+    ):
+        raise ValueError(
+            "To run the distributed solvers, the reduced system `ddbtars` need to contain the required arrays."
+        )
+
+    # Store the value of the tip of the arrow and reset the local arrow tip block to zero
     # in order to correctly accumulate the updates from the distributed Schur complement.
     A_arrow_tip_initial = A_arrow_tip_block.copy()
     A_arrow_tip_block[:] = 0.0
@@ -138,11 +150,10 @@ def pddbtasc(
         B_arrow_tip_initial = rhs["B_arrow_tip_block"].copy()
         rhs["B_arrow_tip_block"][:] = 0.0
 
-    quadratic = False
-
     # Perform distributed Schur complement
     if comm_rank == 0:
         # Perform Schur-downward
+        print("rhs:", rhs, flush=True)
         ddbtasc(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,
@@ -154,6 +165,7 @@ def pddbtasc(
             quadratic=quadratic,
             invert_last_block=False,
         )
+        print("A_arrow_tip_block:", A_arrow_tip_block, flush=True)
     else:
         # Perform Schur on permuted partition
         ddbtasc(
@@ -191,6 +203,8 @@ def pddbtasc(
         ddbtars=ddbtars,
         quadratic=quadratic,
     )
+
+    print(f"Rank {comm_rank} quadratic:", quadratic)
 
     ddbtars["A_arrow_tip_block"][:] += A_arrow_tip_initial
     if quadratic:

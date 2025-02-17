@@ -440,31 +440,34 @@ def _ddbtasc_quadratic(
             @ B_upper_arrow_blocks[n_i - 1]
         )
 
-    A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
-    B_diagonal_blocks[-1] = (
-        A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].T
-    )
+    if invert_last_block:
+        A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
+        B_diagonal_blocks[-1] = (
+            A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].T
+        )
 
-    A_arrow_tip_block[:] = xp.linalg.inv(
-        A_arrow_tip_block[:]
-        - A_lower_arrow_blocks[-1] @ A_diagonal_blocks[-1] @ A_upper_arrow_blocks[-1]
-    )
-    B_arrow_tip_block[:] = (
-        A_arrow_tip_block[:]
-        @ (
-            B_arrow_tip_block[:]
-            + A_lower_arrow_blocks[-1]
-            @ B_diagonal_blocks[-1]
-            @ A_lower_arrow_blocks[-1].T
-            - B_lower_arrow_blocks[-1]
-            @ A_diagonal_blocks[-1].T
-            @ A_lower_arrow_blocks[-1].T
+        A_arrow_tip_block[:] = xp.linalg.inv(
+            A_arrow_tip_block[:]
             - A_lower_arrow_blocks[-1]
             @ A_diagonal_blocks[-1]
-            @ B_upper_arrow_blocks[-1]
+            @ A_upper_arrow_blocks[-1]
         )
-        @ A_arrow_tip_block[:].T
-    )
+        B_arrow_tip_block[:] = (
+            A_arrow_tip_block[:]
+            @ (
+                B_arrow_tip_block[:]
+                + A_lower_arrow_blocks[-1]
+                @ B_diagonal_blocks[-1]
+                @ A_lower_arrow_blocks[-1].T
+                - B_lower_arrow_blocks[-1]
+                @ A_diagonal_blocks[-1].T
+                @ A_lower_arrow_blocks[-1].T
+                - A_lower_arrow_blocks[-1]
+                @ A_diagonal_blocks[-1]
+                @ B_upper_arrow_blocks[-1]
+            )
+            @ A_arrow_tip_block[:].T
+        )
 
 
 def _ddbtasc_quadratic_permuted(

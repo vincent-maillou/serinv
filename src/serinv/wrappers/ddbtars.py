@@ -15,7 +15,6 @@ comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
 
 
-
 def allocate_ddbtars(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
@@ -93,12 +92,12 @@ def allocate_ddbtars(
                 dtype=A_upper_diagonal_blocks.dtype,
             )
             _B_lower_arrow_blocks = xp.empty(
-            (
-                _n,
-                A_lower_arrow_blocks[0].shape[0],
-                A_lower_arrow_blocks[0].shape[1],
-            ),
-            dtype=A_lower_arrow_blocks.dtype,
+                (
+                    _n,
+                    A_lower_arrow_blocks[0].shape[0],
+                    A_lower_arrow_blocks[0].shape[1],
+                ),
+                dtype=A_lower_arrow_blocks.dtype,
             )
             _B_upper_arrow_blocks = xp.empty(
                 (
@@ -182,7 +181,7 @@ def map_ddbtasc_to_ddbtars(
             raise ValueError("rhs does not contain the correct arrays")
         B_lower_buffer_blocks = buffers.get("B_lower_buffer_blocks", None)
         B_upper_buffer_blocks = buffers.get("B_upper_buffer_blocks", None)
-        
+
         # Then check for the reduced system of the RHS
         _B_diagonal_blocks: ArrayLike = _rhs.get("B_diagonal_blocks", None)
         _B_lower_diagonal_blocks: ArrayLike = _rhs.get("B_lower_diagonal_blocks", None)
@@ -202,7 +201,6 @@ def map_ddbtasc_to_ddbtars(
             ]
         ):
             raise ValueError("_rhs does not contain the correct arrays")
-
 
     if strategy == "allgather":
         if comm_rank == 0:
@@ -224,7 +222,7 @@ def map_ddbtasc_to_ddbtars(
 
             if comm_rank < comm_size - 1:
                 # Warning: The size of the upper/lower buffer follow the shape
-                # of the lower_diagonal_blocks slicing. That mean that the indexing 
+                # of the lower_diagonal_blocks slicing. That mean that the indexing
                 # is different between the last and the "middle" processes.
                 _A_lower_diagonal_blocks[2 * comm_rank] = A_upper_buffer_blocks[-2]
                 _A_upper_diagonal_blocks[2 * comm_rank] = A_lower_buffer_blocks[-2]
@@ -239,7 +237,6 @@ def map_ddbtasc_to_ddbtars(
                 _A_lower_diagonal_blocks[2 * comm_rank] = A_upper_buffer_blocks[-1]
                 _A_upper_diagonal_blocks[2 * comm_rank] = A_lower_buffer_blocks[-1]
 
-
             _A_lower_arrow_blocks[2 * comm_rank] = A_lower_arrow_blocks[0]
             _A_lower_arrow_blocks[2 * comm_rank + 1] = A_lower_arrow_blocks[-1]
 
@@ -252,17 +249,17 @@ def map_ddbtasc_to_ddbtars(
 
                 if comm_rank < comm_size - 1:
                     # Warning: The size of the upper/lower buffer follow the shape
-                    # of the lower_diagonal_blocks slicing. That mean that the indexing 
+                    # of the lower_diagonal_blocks slicing. That mean that the indexing
                     # is different between the last and the "middle" processes.
                     _B_lower_diagonal_blocks[2 * comm_rank] = B_upper_buffer_blocks[-2]
                     _B_upper_diagonal_blocks[2 * comm_rank] = B_lower_buffer_blocks[-2]
 
-                    _B_lower_diagonal_blocks[2 * comm_rank + 1] = B_lower_diagonal_blocks[
-                        -1
-                    ]
-                    _B_upper_diagonal_blocks[2 * comm_rank + 1] = B_upper_diagonal_blocks[
-                        -1
-                    ]
+                    _B_lower_diagonal_blocks[2 * comm_rank + 1] = (
+                        B_lower_diagonal_blocks[-1]
+                    )
+                    _B_upper_diagonal_blocks[2 * comm_rank + 1] = (
+                        B_upper_diagonal_blocks[-1]
+                    )
                 else:
                     _B_lower_diagonal_blocks[2 * comm_rank] = B_upper_buffer_blocks[-1]
                     _B_upper_diagonal_blocks[2 * comm_rank] = B_lower_buffer_blocks[-1]
@@ -272,7 +269,7 @@ def map_ddbtasc_to_ddbtars(
 
                 _B_upper_arrow_blocks[2 * comm_rank] = B_upper_arrow_blocks[0]
                 _B_upper_arrow_blocks[2 * comm_rank + 1] = B_upper_arrow_blocks[-1]
-        
+
         _A_arrow_tip_block[:] = A_arrow_tip_block[:]
         if quadratic:
             _B_arrow_tip_block[:] = B_arrow_tip_block[:]
@@ -302,7 +299,9 @@ def aggregate_ddbtars(
             _A_arrow_tip_block,
         ]
     ):
-        raise ValueError("The reduced system `ddbtars` doesn't contain the required arrays.")
+        raise ValueError(
+            "The reduced system `ddbtars` doesn't contain the required arrays."
+        )
 
     if quadratic:
         _rhs: dict = ddbtars.get("_rhs", None)
@@ -323,7 +322,9 @@ def aggregate_ddbtars(
                 _B_arrow_tip_block,
             ]
         ):
-            raise ValueError("The reduced system `ddbtars` doesn't contain the required arrays for the quadratic equation.")
+            raise ValueError(
+                "The reduced system `ddbtars` doesn't contain the required arrays for the quadratic equation."
+            )
 
     if strategy == "allgather":
         MPI.COMM_WORLD.Allgather(
@@ -346,11 +347,7 @@ def aggregate_ddbtars(
             MPI.IN_PLACE,
             _A_upper_arrow_blocks,
         )
-        MPI.COMM_WORLD.Allreduce(
-            MPI.IN_PLACE,
-            _A_arrow_tip_block, 
-            op=MPI.SUM
-        )
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block, op=MPI.SUM)
 
         ddbtars["A_diagonal_blocks"] = _A_diagonal_blocks[1:]
         ddbtars["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks[1:-1]
@@ -380,11 +377,7 @@ def aggregate_ddbtars(
                 MPI.IN_PLACE,
                 _B_upper_arrow_blocks,
             )
-            MPI.COMM_WORLD.Allreduce(
-                MPI.IN_PLACE,
-                _B_arrow_tip_block, 
-                op=MPI.SUM
-            )
+            MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _B_arrow_tip_block, op=MPI.SUM)
 
             _rhs["B_diagonal_blocks"] = _B_diagonal_blocks[1:]
             _rhs["B_lower_diagonal_blocks"] = _B_lower_diagonal_blocks[1:-1]
@@ -421,7 +414,9 @@ def scatter_ddbtars(
             _A_arrow_tip_block,
         ]
     ):
-        raise ValueError("The reduced system `ddbtars` doesn't contain the required arrays.")
+        raise ValueError(
+            "The reduced system `ddbtars` doesn't contain the required arrays."
+        )
 
     if quadratic:
         _rhs: dict = ddbtars.get("_rhs", None)
@@ -442,15 +437,18 @@ def scatter_ddbtars(
                 _B_arrow_tip_block,
             ]
         ):
-            raise ValueError("The reduced system `ddbtars` doesn't contain the required arrays for the quadratic equation.")
+            raise ValueError(
+                "The reduced system `ddbtars` doesn't contain the required arrays for the quadratic equation."
+            )
 
     if strategy == "allgather":
         # In the case of the allgather strategy, nothing to be done.
-        # > The solution of the reduced system is already distributed across 
+        # > The solution of the reduced system is already distributed across
         #   all MPI processes.
         ...
     else:
         raise ValueError("Unknown communication strategy.")
+
 
 def map_ddbtars_to_ddbtasci(
     A_diagonal_blocks: ArrayLike,
@@ -498,7 +496,7 @@ def map_ddbtars_to_ddbtasci(
             raise ValueError("rhs does not contain the correct arrays")
         B_lower_buffer_blocks = buffers.get("B_lower_buffer_blocks", None)
         B_upper_buffer_blocks = buffers.get("B_upper_buffer_blocks", None)
-        
+
         # Then check for the reduced system of the RHS
         _B_diagonal_blocks: ArrayLike = _rhs.get("B_diagonal_blocks", None)
         _B_lower_diagonal_blocks: ArrayLike = _rhs.get("B_lower_diagonal_blocks", None)
@@ -518,7 +516,7 @@ def map_ddbtars_to_ddbtasci(
             ]
         ):
             raise ValueError("_rhs does not contain the correct arrays")
-        
+
     if strategy == "allgather":
         if comm_rank == 0:
             A_diagonal_blocks[-1] = _A_diagonal_blocks[0]
@@ -539,14 +537,14 @@ def map_ddbtars_to_ddbtasci(
 
             A_upper_buffer_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank - 1]
             A_lower_buffer_blocks[-1] = _A_upper_diagonal_blocks[2 * comm_rank - 1]
-            
+
             if comm_rank < comm_size - 1:
                 A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank]
                 A_upper_diagonal_blocks[-1] = _A_upper_diagonal_blocks[2 * comm_rank]
-            
+
             A_lower_arrow_blocks[0] = _A_lower_arrow_blocks[2 * comm_rank - 1]
             A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[2 * comm_rank]
-            
+
             A_upper_arrow_blocks[0] = _A_upper_arrow_blocks[2 * comm_rank - 1]
             A_upper_arrow_blocks[-1] = _A_upper_arrow_blocks[2 * comm_rank]
 
@@ -558,8 +556,12 @@ def map_ddbtars_to_ddbtasci(
                 B_lower_buffer_blocks[-1] = _B_upper_diagonal_blocks[2 * comm_rank - 1]
 
                 if comm_rank < comm_size - 1:
-                    B_lower_diagonal_blocks[-1] = _B_lower_diagonal_blocks[2 * comm_rank]
-                    B_upper_diagonal_blocks[-1] = _B_upper_diagonal_blocks[2 * comm_rank]
+                    B_lower_diagonal_blocks[-1] = _B_lower_diagonal_blocks[
+                        2 * comm_rank
+                    ]
+                    B_upper_diagonal_blocks[-1] = _B_upper_diagonal_blocks[
+                        2 * comm_rank
+                    ]
 
                 B_lower_arrow_blocks[0] = _B_lower_arrow_blocks[2 * comm_rank - 1]
                 B_lower_arrow_blocks[-1] = _B_lower_arrow_blocks[2 * comm_rank]

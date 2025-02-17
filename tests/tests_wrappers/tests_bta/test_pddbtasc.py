@@ -62,7 +62,9 @@ def test_pddbtasc(
         A_lower_arrow_blocks,
         A_upper_arrow_blocks,
         A_arrow_tip_block,
-    ) = bta_dense_to_arrays(A.copy(), diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
+    ) = bta_dense_to_arrays(
+        A.copy(), diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
+    )
 
     # Save the local slice of the array for each MPI process
     n_diag_blocks_per_processes = n_diag_blocks // comm_size
@@ -139,7 +141,9 @@ def test_pddbtasc(
             B_lower_arrow_blocks,
             B_upper_arrow_blocks,
             B_arrow_tip_block,
-        ) = bta_dense_to_arrays(B, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
+        ) = bta_dense_to_arrays(
+            B, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
+        )
 
         B_diagonal_blocks_local = B_diagonal_blocks[
             comm_rank
@@ -187,6 +191,7 @@ def test_pddbtasc(
 
         quadratic = True
 
+    # print(f"{comm_rank}, quadratic: {quadratic}, rhs: {rhs}")
 
     buffers: dict = allocate_ddbtax_permutation_buffers(
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
@@ -230,20 +235,10 @@ def test_pddbtasc(
         quadratic=quadratic,
     )
 
-    # inv_A_2_arrow_tip_block = xp.linalg.inv(A_2_arrow_tip_block)
-    # inv_ddbtars_A_arrow_tip_block = xp.linalg.inv(ddbtars["A_arrow_tip_block"])
-
-    # print(f"cr: {comm_rank}, inv_A_2_arrow_tip_block:", inv_A_2_arrow_tip_block)
-    # print(f"cr: {comm_rank}, inv_ddbtars_A_arrow_tip_block:", inv_ddbtars_A_arrow_tip_block)
-
-    # assert xp.allclose(
-    #     A_2_arrow_tip_block,
-    #     ddbtars["A_arrow_tip_block"],
-    # )
-
-    print(f"{comm_rank}, X_ref_arrow_tip_block:", X_ref_arrow_tip_block)
-    print(f"{comm_rank}, ddbtars['A_arrow_tip_block']:", ddbtars["A_arrow_tip_block"])
-
+    assert xp.allclose(
+        X_ref_arrow_tip_block,
+        ddbtars["A_arrow_tip_block"],
+    )
 
     if type_of_equation == "AX=B":
         ...
@@ -251,41 +246,17 @@ def test_pddbtasc(
         Xl_ref = X_ref @ B @ X_ref.conj().T
 
         (
-            Xl_diagonal_blocks_ref,
-            Xl_lower_diagonal_blocks_ref,
-            Xl_upper_diagonal_blocks_ref,
-            Xl_lower_arrow_blocks_ref,
-            Xl_upper_arrow_blocks_ref,
+            _,
+            _,
+            _,
+            _,
+            _,
             Xl_arrow_tip_block_ref,
         ) = bta_dense_to_arrays(
             Xl_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
         )
 
-        # print(f"{comm_rank}, Xl_arrow_tip_block_ref:", Xl_arrow_tip_block_ref)
-        # print(f"{comm_rank}, ddbtars['_rhs']['B_arrow_tip_block']:", ddbtars["_rhs"]["B_arrow_tip_block"])
-
-
-        # assert xp.allclose(
-        #     Xl_arrow_tip_block_ref,
-        #     ddbtars["_rhs"]["B_arrow_tip_block"],
-        # )
-
-    assert xp.allclose(
-        X_ref_arrow_tip_block,
-        ddbtars["A_arrow_tip_block"],
-    )
-
-    # if comm_rank == 0:
-    #     assert xp.allclose(
-    #         X_ref_diagonal_blocks_local[-1],
-    #         ddbtars["A_diagonal_blocks"][0],
-    #     )
-    # else:
-    #     assert xp.allclose(
-    #         X_ref_diagonal_blocks_local[0],
-    #         ddbtars["A_diagonal_blocks"][2*comm_rank-1],
-    #     )
-    #     assert xp.allclose(
-    #         X_ref_diagonal_blocks_local[-1],
-    #         ddbtars["A_diagonal_blocks"][2*comm_rank],
-    #     )
+        assert xp.allclose(
+            Xl_arrow_tip_block_ref,
+            ddbtars["_rhs"]["B_arrow_tip_block"],
+        )
