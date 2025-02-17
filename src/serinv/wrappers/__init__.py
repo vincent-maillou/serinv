@@ -11,9 +11,10 @@ from serinv.wrappers.pobtars import (
 
 from serinv.wrappers.pddbtsc import pddbtsc
 from serinv.wrappers.pddbtsci import pddbtsci
-from serinv.wrappers.ddbtrs import (
-    allocate_ddbtrs,
-)
+from serinv.wrappers.ddbtrs import allocate_ddbtrs
+
+from serinv.wrappers.pddbtasc import pddbtasc
+from serinv.wrappers.ddbtars import allocate_ddbtars
 
 __all__ = [
     "ppobtaf",
@@ -24,4 +25,6 @@ __all__ = [
     "pddbtsc",
     "pddbtsci",
     "allocate_ddbtrs",
+    "pddbtasc",
+    "allocate_ddbtars",
 ]

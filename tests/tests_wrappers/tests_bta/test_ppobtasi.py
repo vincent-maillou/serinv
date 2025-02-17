@@ -32,6 +32,9 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
+@pytest.mark.parametrize("preallocate_permutation_buffer", [True, False])
+@pytest.mark.parametrize("preallocate_reduced_system", [True, False])
+@pytest.mark.parametrize("comm_strategy", ["allreduce", "allgather", "gather-scatter"])
 def test_d_pobtasi(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,

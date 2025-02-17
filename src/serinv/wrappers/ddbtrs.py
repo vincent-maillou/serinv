@@ -87,6 +87,8 @@ def allocate_ddbtrs(
             "A_upper_diagonal_blocks": _A_upper_diagonal_blocks,
             "_rhs": _rhs,
         }
+    else:
+        raise ValueError("Unknown communication strategy.")
 
     return ddbtrs
 
@@ -162,13 +164,13 @@ def map_ddbtsc_to_ddbtrs(
 
             _A_lower_diagonal_blocks[2 * comm_rank] = A_upper_buffer_blocks[-2]
             _A_upper_diagonal_blocks[2 * comm_rank] = A_lower_buffer_blocks[-2]
-            if comm_rank < comm_size - 1:
-                _A_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
-                    -1
-                ]
-                _A_upper_diagonal_blocks[2 * comm_rank + 1] = A_upper_diagonal_blocks[
-                    -1
-                ]
+
+            _A_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
+                -1
+            ]
+            _A_upper_diagonal_blocks[2 * comm_rank + 1] = A_upper_diagonal_blocks[
+                -1
+            ]
 
             if quadratic:
                 _B_diagonal_blocks[2 * comm_rank] = B_diagonal_blocks[0]
@@ -176,13 +178,13 @@ def map_ddbtsc_to_ddbtrs(
 
                 _B_lower_diagonal_blocks[2 * comm_rank] = B_upper_buffer_blocks[-2]
                 _B_upper_diagonal_blocks[2 * comm_rank] = B_lower_buffer_blocks[-2]
-                if comm_rank < comm_size - 1:
-                    _B_lower_diagonal_blocks[2 * comm_rank + 1] = B_lower_diagonal_blocks[
-                        -1
-                    ]
-                    _B_upper_diagonal_blocks[2 * comm_rank + 1] = B_upper_diagonal_blocks[
-                        -1
-                    ]
+
+                _B_lower_diagonal_blocks[2 * comm_rank + 1] = B_lower_diagonal_blocks[
+                    -1
+                ]
+                _B_upper_diagonal_blocks[2 * comm_rank + 1] = B_upper_diagonal_blocks[
+                    -1
+                ]
     else:
         raise ValueError("Unknown communication strategy.")
 
@@ -373,9 +375,9 @@ def map_ddbtrs_to_ddbtsci(
 
             A_upper_buffer_blocks[-2] = _A_lower_diagonal_blocks[2 * comm_rank - 1]
             A_lower_buffer_blocks[-2] = _A_upper_diagonal_blocks[2 * comm_rank - 1]
-            if comm_rank < comm_size - 1:
-                A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank]
-                A_upper_diagonal_blocks[-1] = _A_upper_diagonal_blocks[2 * comm_rank]
+
+            A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank]
+            A_upper_diagonal_blocks[-1] = _A_upper_diagonal_blocks[2 * comm_rank]
 
             if quadratic:
                 B_diagonal_blocks[0] = _B_diagonal_blocks[2 * comm_rank - 1]
@@ -383,8 +385,8 @@ def map_ddbtrs_to_ddbtsci(
 
                 B_upper_buffer_blocks[-2] = _B_lower_diagonal_blocks[2 * comm_rank - 1]
                 B_lower_buffer_blocks[-2] = _B_upper_diagonal_blocks[2 * comm_rank - 1]
-                if comm_rank < comm_size - 1:
-                    B_lower_diagonal_blocks[-1] = _B_lower_diagonal_blocks[2 * comm_rank]
-                    B_upper_diagonal_blocks[-1] = _B_upper_diagonal_blocks[2 * comm_rank]
+
+                B_lower_diagonal_blocks[-1] = _B_lower_diagonal_blocks[2 * comm_rank]
+                B_upper_diagonal_blocks[-1] = _B_upper_diagonal_blocks[2 * comm_rank]
     else:
         raise ValueError("Unknown communication strategy.")
