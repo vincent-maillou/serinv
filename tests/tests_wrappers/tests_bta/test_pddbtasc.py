@@ -66,6 +66,7 @@ def test_pddbtasc(
 
     # Save the local slice of the array for each MPI process
     n_diag_blocks_per_processes = n_diag_blocks // comm_size
+
     A_diagonal_blocks_local = A_diagonal_blocks[
         comm_rank
         * n_diag_blocks_per_processes : (comm_rank + 1)
@@ -112,7 +113,7 @@ def test_pddbtasc(
         _,
         X_ref_arrow_tip_block,
     ) = bta_dense_to_arrays(
-        X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
+        X_ref.copy(), diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
     )
 
     if type_of_equation == "AX=I":
@@ -186,9 +187,10 @@ def test_pddbtasc(
 
         quadratic = True
 
+
     buffers: dict = allocate_ddbtax_permutation_buffers(
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
-        quadratic=True if type_of_equation == "AXA.T=B" else False,
+        quadratic=quadratic,
     )
 
     ddbtars: dict = allocate_ddbtars(
@@ -239,10 +241,9 @@ def test_pddbtasc(
     #     ddbtars["A_arrow_tip_block"],
     # )
 
-    assert xp.allclose(
-        X_ref_arrow_tip_block,
-        ddbtars["A_arrow_tip_block"],
-    )
+    print(f"{comm_rank}, X_ref_arrow_tip_block:", X_ref_arrow_tip_block)
+    print(f"{comm_rank}, ddbtars['A_arrow_tip_block']:", ddbtars["A_arrow_tip_block"])
+
 
     if type_of_equation == "AX=B":
         ...
@@ -260,11 +261,19 @@ def test_pddbtasc(
             Xl_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
         )
 
+        # print(f"{comm_rank}, Xl_arrow_tip_block_ref:", Xl_arrow_tip_block_ref)
+        # print(f"{comm_rank}, ddbtars['_rhs']['B_arrow_tip_block']:", ddbtars["_rhs"]["B_arrow_tip_block"])
+
+
         # assert xp.allclose(
         #     Xl_arrow_tip_block_ref,
         #     ddbtars["_rhs"]["B_arrow_tip_block"],
         # )
 
+    assert xp.allclose(
+        X_ref_arrow_tip_block,
+        ddbtars["A_arrow_tip_block"],
+    )
 
     # if comm_rank == 0:
     #     assert xp.allclose(

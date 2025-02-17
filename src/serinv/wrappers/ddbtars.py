@@ -108,7 +108,7 @@ def allocate_ddbtars(
                 ),
                 dtype=A_upper_arrow_blocks.dtype,
             )
-            _B_arrow_tip_block = xp.zeros_like(_B_arrow_tip_block)
+            _B_arrow_tip_block = xp.zeros_like(A_arrow_tip_block)
 
             _rhs = {
                 "B_diagonal_blocks": _B_diagonal_blocks,
