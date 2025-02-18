@@ -270,6 +270,7 @@ def bta_arrays_to_dense(
 
     return A
 
+
 def bta_arrays_to_dense(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
@@ -326,6 +327,7 @@ def bta_arrays_to_dense(
             ] = A_upper_diagonal_blocks[i]
 
     return A
+
 
 def symmetrize(
     A: ArrayLike,
@@ -424,6 +426,7 @@ def dd_bta(
         A[i, i] = 1 + xp.sum(A[i, :])
 
     return A
+
 
 def dd_bt(
     diagonal_blocksize: int,

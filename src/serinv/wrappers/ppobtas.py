@@ -59,7 +59,7 @@ def ppobtas(
     else:
         # Other ranks map their first and last blocks
         _B[(2 * comm_rank - 1) * b : 2 * comm_rank * b] = B[:b]
-        _B[2 * comm_rank * b : (2 * comm_rank + 1) * b] = B[-b - a :-a]
+        _B[2 * comm_rank * b : (2 * comm_rank + 1) * b] = B[-b - a : -a]
 
     # 2. Communicate the reduced RHS
     MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _B, op=MPI.SUM)
@@ -84,7 +84,7 @@ def ppobtas(
     else:
         # Other ranks map their first and last blocks
         B[:b] = _B[(2 * comm_rank - 1) * b : 2 * comm_rank * b]
-        B[-b - a :-a] = _B[2 * comm_rank * b : (2 * comm_rank + 1) * b]
+        B[-b - a : -a] = _B[2 * comm_rank * b : (2 * comm_rank + 1) * b]
     B[-a:] = _B[-a:]
 
     return _B

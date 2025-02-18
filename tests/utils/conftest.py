@@ -22,6 +22,7 @@ ARROWHEAD_BLOCKSIZE = [
 def n_diag_blocks(request: pytest.FixtureRequest) -> int:
     return request.param
 
+
 @pytest.fixture(params=ARROWHEAD_BLOCKSIZE, autouse=True)
 def arrowhead_blocksize(request: pytest.FixtureRequest) -> int:
     return request.param

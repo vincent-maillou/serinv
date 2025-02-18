@@ -1,12 +1,11 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-import numpy as np
 import pytest
 
 from serinv import _get_module_from_array
 from ..testing_utils import bta_dense_to_arrays, dd_bta
 
-from serinv.utils.check_dd import check_block_dd, check_ddbta
+from serinv.utils import check_block_dd, check_ddbta
 
 
 @pytest.mark.mpi_skip()

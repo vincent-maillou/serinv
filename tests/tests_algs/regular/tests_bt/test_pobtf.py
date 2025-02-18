@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from serinv import backend_flags, _get_module_from_array
-from ...testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
+from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
 
 from serinv.algs import pobtf
 
@@ -47,7 +47,6 @@ def test_pobtf(
         A_diagonal_blocks = A_diagonal_blocks_pinned
         A_lower_diagonal_blocks = A_lower_diagonal_blocks_pinned
 
-
     pobtf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -58,9 +57,7 @@ def test_pobtf(
         L_diagonal_blocks_ref,
         L_lower_diagonal_blocks_ref,
         _,
-    ) = bt_dense_to_arrays(
-        L_ref, diagonal_blocksize, n_diag_blocks
-    )
+    ) = bt_dense_to_arrays(L_ref, diagonal_blocksize, n_diag_blocks)
 
     # Check algorithm validity
     assert xp.allclose(L_diagonal_blocks_ref, A_diagonal_blocks)

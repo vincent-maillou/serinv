@@ -46,7 +46,7 @@ def allocate_permutation_buffer(
     return A_permutation_buffer
 
 
-def allocate_ppobtars(
+def allocate_pobtars(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
@@ -219,7 +219,7 @@ def allocate_pinned_pobtars(
     )
 
 
-def map_ppobtax_to_ppobtars(
+def map_ppobtax_to_pobtars(
     _L_diagonal_blocks: ArrayLike,
     _L_lower_diagonal_blocks: ArrayLike,
     _L_lower_arrow_blocks: ArrayLike,
@@ -308,7 +308,7 @@ def map_ppobtax_to_ppobtars(
         raise ValueError("Unknown communication strategy.")
 
 
-def map_ppobtars_to_ppobtax(
+def map_pobtars_to_ppobtax(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
@@ -401,7 +401,7 @@ def map_ppobtars_to_ppobtax(
         raise ValueError("Unknown communication strategy.")
 
 
-def aggregate_ppobtars(
+def aggregate_pobtars(
     _L_diagonal_blocks: ArrayLike,
     _L_lower_diagonal_blocks: ArrayLike,
     _L_lower_arrow_blocks: ArrayLike,
@@ -496,7 +496,7 @@ def aggregate_ppobtars(
     MPI.COMM_WORLD.Barrier()
 
 
-def scatter_ppobtars(
+def scatter_pobtars(
     _L_diagonal_blocks: ArrayLike,
     _L_lower_diagonal_blocks: ArrayLike,
     _L_lower_arrow_blocks: ArrayLike,
