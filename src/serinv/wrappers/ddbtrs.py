@@ -4,8 +4,13 @@ from mpi4py import MPI
 
 from serinv import (
     ArrayLike,
+    backend_flags,
     _get_module_from_str,
+    _get_module_from_array,
 )
+
+if backend_flags["cupy_avail"]:
+    import cupyx as cpx
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
@@ -46,6 +51,17 @@ def allocate_ddbtrs(
             dtype=A_upper_diagonal_blocks.dtype,
         )
 
+        if xp.__name__ == 'cupy':
+            # In this case we also need to allocate a pinned-memory
+            # reduced system on the host side.
+            _A_diagonal_blocks_comm = cpx.empty_like_pinned(_A_diagonal_blocks)
+            _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_A_lower_diagonal_blocks)
+            _A_upper_diagonal_blocks_comm = cpx.empty_like_pinned(_A_upper_diagonal_blocks)
+        else:
+            _A_diagonal_blocks_comm = _A_diagonal_blocks
+            _A_lower_diagonal_blocks_comm = _A_lower_diagonal_blocks
+            _A_upper_diagonal_blocks_comm = _A_upper_diagonal_blocks
+
         if quadratic:
             _B_diagonal_blocks = xp.empty(
                 (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
@@ -68,10 +84,25 @@ def allocate_ddbtrs(
                 dtype=A_upper_diagonal_blocks.dtype,
             )
 
+            if xp.__name__ == 'cupy':
+                # In this case we also need to allocate a pinned-memory
+                # reduced system on the host side.
+
+                _B_diagonal_blocks_comm = cpx.empty_like_pinned(_B_diagonal_blocks)
+                _B_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_B_lower_diagonal_blocks)
+                _B_upper_diagonal_blocks_comm = cpx.empty_like_pinned(_B_upper_diagonal_blocks)
+            else:
+                _B_diagonal_blocks_comm = _B_diagonal_blocks
+                _B_lower_diagonal_blocks_comm = _B_lower_diagonal_blocks
+                _B_upper_diagonal_blocks_comm = _B_upper_diagonal_blocks  
+
             _rhs = {
                 "B_diagonal_blocks": _B_diagonal_blocks,
                 "B_lower_diagonal_blocks": _B_lower_diagonal_blocks,
                 "B_upper_diagonal_blocks": _B_upper_diagonal_blocks,
+                "B_diagonal_blocks_comm": _B_diagonal_blocks_comm,
+                "B_lower_diagonal_blocks_comm": _B_lower_diagonal_blocks_comm,
+                "B_upper_diagonal_blocks_comm": _B_upper_diagonal_blocks_comm,
             }
         else:
             _rhs = None
@@ -80,6 +111,9 @@ def allocate_ddbtrs(
             "A_diagonal_blocks": _A_diagonal_blocks,
             "A_lower_diagonal_blocks": _A_lower_diagonal_blocks,
             "A_upper_diagonal_blocks": _A_upper_diagonal_blocks,
+            "A_diagonal_blocks_comm": _A_diagonal_blocks_comm,
+            "A_lower_diagonal_blocks_comm": _A_lower_diagonal_blocks_comm,
+            "A_upper_diagonal_blocks_comm": _A_upper_diagonal_blocks_comm,
             "_rhs": _rhs,
         }
     else:
@@ -187,12 +221,19 @@ def aggregate_ddbtrs(
     _A_diagonal_blocks: ArrayLike = ddbtrs.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtrs.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtrs.get("A_upper_diagonal_blocks", None)
+    
+    _A_diagonal_blocks_comm: ArrayLike = ddbtrs.get("A_diagonal_blocks_comm", None)
+    _A_lower_diagonal_blocks_comm: ArrayLike = ddbtrs.get("A_lower_diagonal_blocks_comm", None)
+    _A_upper_diagonal_blocks_comm: ArrayLike = ddbtrs.get("A_upper_diagonal_blocks_comm", None)
     if any(
         x is None
         for x in [
             _A_diagonal_blocks,
             _A_lower_diagonal_blocks,
             _A_upper_diagonal_blocks,
+            _A_diagonal_blocks_comm,
+            _A_lower_diagonal_blocks_comm,
+            _A_upper_diagonal_blocks_comm,
         ]
     ):
         raise ValueError(
@@ -204,31 +245,56 @@ def aggregate_ddbtrs(
         _B_diagonal_blocks: ArrayLike = _rhs.get("B_diagonal_blocks", None)
         _B_lower_diagonal_blocks: ArrayLike = _rhs.get("B_lower_diagonal_blocks", None)
         _B_upper_diagonal_blocks: ArrayLike = _rhs.get("B_upper_diagonal_blocks", None)
+        
+        _B_diagonal_blocks_comm: ArrayLike = _rhs.get("B_diagonal_blocks_comm", None)
+        _B_lower_diagonal_blocks_comm: ArrayLike = _rhs.get("B_lower_diagonal_blocks_comm", None)
+        _B_upper_diagonal_blocks_comm: ArrayLike = _rhs.get("B_upper_diagonal_blocks_comm", None)
         if any(
             x is None
             for x in [
                 _B_diagonal_blocks,
                 _B_lower_diagonal_blocks,
                 _B_upper_diagonal_blocks,
+                _B_diagonal_blocks_comm,
+                _B_lower_diagonal_blocks_comm,
+                _B_upper_diagonal_blocks_comm,
             ]
         ):
             raise ValueError(
                 "The reduced system `ddbtrs` doesn't contain the required arrays for the quadratic equation."
             )
 
+    xp, _ = _get_module_from_array(arr=_A_diagonal_blocks)
+
+    if xp.__name__ == 'cupy':
+        # We need to move the data of the reduced system from the GPU to the HOST
+        # pinned arrays.
+        _A_diagonal_blocks.get(out=_A_diagonal_blocks_comm)
+        _A_lower_diagonal_blocks.get(out=_A_lower_diagonal_blocks_comm)
+        _A_upper_diagonal_blocks.get(out=_A_upper_diagonal_blocks_comm)
+
+        if quadratic:
+            _B_diagonal_blocks.get(out=_B_diagonal_blocks_comm)
+            _B_lower_diagonal_blocks.get(out=_B_lower_diagonal_blocks_comm)
+            _B_upper_diagonal_blocks.get(out=_B_upper_diagonal_blocks_comm)
+
     if strategy == "allgather":
         MPI.COMM_WORLD.Allgather(
             MPI.IN_PLACE,
-            _A_diagonal_blocks,
+            _A_diagonal_blocks_comm,
         )
         MPI.COMM_WORLD.Allgather(
             MPI.IN_PLACE,
-            _A_lower_diagonal_blocks,
+            _A_lower_diagonal_blocks_comm,
         )
         MPI.COMM_WORLD.Allgather(
             MPI.IN_PLACE,
-            _A_upper_diagonal_blocks,
+            _A_upper_diagonal_blocks_comm,
         )
+
+        ddbtrs["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:-1]
+        ddbtrs["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-2]
+        ddbtrs["A_upper_diagonal_blocks_comm"] = _A_upper_diagonal_blocks_comm[1:-2]
 
         ddbtrs["A_diagonal_blocks"] = _A_diagonal_blocks[1:-1]
         ddbtrs["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks[1:-2]
@@ -237,17 +303,21 @@ def aggregate_ddbtrs(
         if quadratic:
             MPI.COMM_WORLD.Allgather(
                 MPI.IN_PLACE,
-                _B_diagonal_blocks,
+                _B_diagonal_blocks_comm,
             )
             MPI.COMM_WORLD.Allgather(
                 MPI.IN_PLACE,
-                _B_lower_diagonal_blocks,
+                _B_lower_diagonal_blocks_comm,
             )
             MPI.COMM_WORLD.Allgather(
                 MPI.IN_PLACE,
-                _B_upper_diagonal_blocks,
+                _B_upper_diagonal_blocks_comm,
             )
 
+            _rhs["B_diagonal_blocks_comm"] = _B_diagonal_blocks_comm[1:-1]
+            _rhs["B_lower_diagonal_blocks_comm"] = _B_lower_diagonal_blocks_comm[1:-2]
+            _rhs["B_upper_diagonal_blocks_comm"] = _B_upper_diagonal_blocks_comm[1:-2]
+            
             _rhs["B_diagonal_blocks"] = _B_diagonal_blocks[1:-1]
             _rhs["B_lower_diagonal_blocks"] = _B_lower_diagonal_blocks[1:-2]
             _rhs["B_upper_diagonal_blocks"] = _B_upper_diagonal_blocks[1:-2]
@@ -256,6 +326,17 @@ def aggregate_ddbtrs(
         raise ValueError("Unknown communication strategy.")
 
     MPI.COMM_WORLD.Barrier()
+
+    if xp.__name__ == 'cupy':
+        # Need to put back the reduced system on the GPU
+        _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
+        _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)
+        _A_upper_diagonal_blocks.set(arr=_A_upper_diagonal_blocks_comm)
+
+        if quadratic:   
+            _B_diagonal_blocks.set(arr=_B_diagonal_blocks_comm)
+            _B_lower_diagonal_blocks.set(arr=_B_lower_diagonal_blocks_comm)
+            _B_upper_diagonal_blocks.set(arr=_B_upper_diagonal_blocks_comm)
 
 
 def scatter_ddbtrs(

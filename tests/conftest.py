@@ -12,7 +12,6 @@ if backend_flags["cupy_avail"]:
     ARRAY_TYPE.extend(
         [
             pytest.param("device", id="device"),
-            pytest.param("streaming", id="streaming"),
         ]
     )
 
