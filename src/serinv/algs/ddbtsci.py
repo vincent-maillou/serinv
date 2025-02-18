@@ -77,7 +77,9 @@ def ddbtsci(
                     A_upper_diagonal_blocks,
                 )
             else:
-                raise ValueError("Optional keyword argument `direction` must be either 'downward' or 'upward'")
+                raise ValueError(
+                    "Optional keyword argument `direction` must be either 'downward' or 'upward'"
+                )
         else:
             # Perform a permuted SCI
             A_lower_buffer_blocks = buffers.get("A_lower_buffer_blocks", None)
@@ -128,7 +130,9 @@ def ddbtsci(
                         B_upper_diagonal_blocks,
                     )
                 else:
-                    raise ValueError("Optional keyword argument `direction` must be either 'downward' or 'upward'")
+                    raise ValueError(
+                        "Optional keyword argument `direction` must be either 'downward' or 'upward'"
+                    )
             else:
                 # Perform a permuted SCI ("quadratic")
                 A_lower_buffer_blocks = buffers.get("A_lower_buffer_blocks", None)

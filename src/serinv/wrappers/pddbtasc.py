@@ -206,7 +206,6 @@ def pddbtasc(
     if quadratic:
         ddbtars["_rhs"]["B_arrow_tip_block"][:] += B_arrow_tip_initial
 
-    
     # Perform Schur complement on the reduced system
     ddbtasc(
         A_diagonal_blocks=ddbtars["A_diagonal_blocks"],

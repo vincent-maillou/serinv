@@ -8,12 +8,8 @@ from serinv import (
     _get_module_from_str,
 )
 
-if backend_flags["cupy_avail"]:
-    import cupyx as cpx
-
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
-
 
 
 def allocate_ddbtrs(
@@ -127,7 +123,7 @@ def map_ddbtsc_to_ddbtrs(
             raise ValueError("rhs does not contain the correct arrays")
         B_lower_buffer_blocks = buffers.get("B_lower_buffer_blocks", None)
         B_upper_buffer_blocks = buffers.get("B_upper_buffer_blocks", None)
-        
+
         # Then check for the reduced system of the RHS
         _B_diagonal_blocks: ArrayLike = _rhs.get("B_diagonal_blocks", None)
         _B_lower_diagonal_blocks: ArrayLike = _rhs.get("B_lower_diagonal_blocks", None)
@@ -141,7 +137,6 @@ def map_ddbtsc_to_ddbtrs(
             ]
         ):
             raise ValueError("_rhs does not contain the correct arrays")
-
 
     if strategy == "allgather":
         if comm_rank == 0:
@@ -165,12 +160,8 @@ def map_ddbtsc_to_ddbtrs(
             _A_lower_diagonal_blocks[2 * comm_rank] = A_upper_buffer_blocks[-2]
             _A_upper_diagonal_blocks[2 * comm_rank] = A_lower_buffer_blocks[-2]
 
-            _A_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
-                -1
-            ]
-            _A_upper_diagonal_blocks[2 * comm_rank + 1] = A_upper_diagonal_blocks[
-                -1
-            ]
+            _A_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[-1]
+            _A_upper_diagonal_blocks[2 * comm_rank + 1] = A_upper_diagonal_blocks[-1]
 
             if quadratic:
                 _B_diagonal_blocks[2 * comm_rank] = B_diagonal_blocks[0]
@@ -205,7 +196,9 @@ def aggregate_ddbtrs(
             _A_upper_diagonal_blocks,
         ]
     ):
-        raise ValueError("The reduced system `ddbtrs` doesn't contain the required arrays.")
+        raise ValueError(
+            "The reduced system `ddbtrs` doesn't contain the required arrays."
+        )
 
     if quadratic:
         _rhs: dict = ddbtrs.get("_rhs", None)
@@ -220,7 +213,9 @@ def aggregate_ddbtrs(
                 _B_upper_diagonal_blocks,
             ]
         ):
-            raise ValueError("The reduced system `ddbtrs` doesn't contain the required arrays for the quadratic equation.")
+            raise ValueError(
+                "The reduced system `ddbtrs` doesn't contain the required arrays for the quadratic equation."
+            )
 
     if strategy == "allgather":
         MPI.COMM_WORLD.Allgather(
@@ -280,7 +275,9 @@ def scatter_ddbtrs(
             _A_upper_diagonal_blocks,
         ]
     ):
-        raise ValueError("The reduced system `ddbtrs` doesn't contain the required arrays.")
+        raise ValueError(
+            "The reduced system `ddbtrs` doesn't contain the required arrays."
+        )
 
     if quadratic:
         _rhs: dict = ddbtrs.get("_rhs", None)
@@ -295,15 +292,18 @@ def scatter_ddbtrs(
                 _B_upper_diagonal_blocks,
             ]
         ):
-            raise ValueError("The reduced system `ddbtrs` doesn't contain the required arrays for the quadratic equation.")
+            raise ValueError(
+                "The reduced system `ddbtrs` doesn't contain the required arrays for the quadratic equation."
+            )
 
     if strategy == "allgather":
         # In the case of the allgather strategy, nothing to be done.
-        # > The solution of the reduced system is already distributed across 
+        # > The solution of the reduced system is already distributed across
         #   all MPI processes.
         ...
     else:
         raise ValueError("Unknown communication strategy.")
+
 
 def map_ddbtrs_to_ddbtsci(
     A_diagonal_blocks: ArrayLike,
@@ -339,7 +339,7 @@ def map_ddbtrs_to_ddbtsci(
             raise ValueError("rhs does not contain the correct arrays")
         B_lower_buffer_blocks = buffers.get("B_lower_buffer_blocks", None)
         B_upper_buffer_blocks = buffers.get("B_upper_buffer_blocks", None)
-        
+
         # Then check for the reduced system of the RHS
         _B_diagonal_blocks: ArrayLike = _rhs.get("B_diagonal_blocks", None)
         _B_lower_diagonal_blocks: ArrayLike = _rhs.get("B_lower_diagonal_blocks", None)
@@ -353,7 +353,7 @@ def map_ddbtrs_to_ddbtsci(
             ]
         ):
             raise ValueError("_rhs does not contain the correct arrays")
-        
+
     if strategy == "allgather":
         if comm_rank == 0:
             A_diagonal_blocks[-1] = _A_diagonal_blocks[0]

@@ -19,9 +19,6 @@ from serinv.wrappers import (
     allocate_ddbtars,
 )
 
-if backend_flags["cupy_avail"]:
-    import cupyx as cpx
-
 from os import environ
 
 environ["OMP_NUM_THREADS"] = "1"

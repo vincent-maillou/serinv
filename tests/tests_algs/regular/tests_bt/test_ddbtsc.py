@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from serinv import backend_flags, _get_module_from_array
+from serinv import _get_module_from_array
 from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
 
 from serinv.algs import ddbtsc

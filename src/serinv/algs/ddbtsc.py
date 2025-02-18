@@ -79,7 +79,9 @@ def ddbtsc(
                     invert_last_block=invert_last_block,
                 )
             else:
-                raise ValueError("Optional keyword argument `direction` must be either 'downward' or 'upward'")
+                raise ValueError(
+                    "Optional keyword argument `direction` must be either 'downward' or 'upward'"
+                )
         else:
             # Perform a permuted Schur-complement
             A_lower_buffer_blocks = buffers.get("A_lower_buffer_blocks", None)
@@ -132,7 +134,9 @@ def ddbtsc(
                         invert_last_block=invert_last_block,
                     )
                 else:
-                    raise ValueError("Optional keyword argument `direction` must be either 'downward' or 'upward'")
+                    raise ValueError(
+                        "Optional keyword argument `direction` must be either 'downward' or 'upward'"
+                    )
             else:
                 # Perform a permuted Schur-complement ("quadratic")
                 A_lower_buffer_blocks = buffers.get("A_lower_buffer_blocks", None)
@@ -210,7 +214,6 @@ def _ddbtsc_upward(
 
     if invert_last_block:
         A_diagonal_blocks[0] = xp.linalg.inv(A_diagonal_blocks[0])
-
 
 
 def _ddbtsc_permuted(
@@ -344,7 +347,6 @@ def _ddbtsc_upward_quadratic(
         B_diagonal_blocks[0] = (
             A_diagonal_blocks[0] @ B_diagonal_blocks[0] @ A_diagonal_blocks[0].T
         )
-
 
 
 def _ddbtsc_quadratic_permuted(

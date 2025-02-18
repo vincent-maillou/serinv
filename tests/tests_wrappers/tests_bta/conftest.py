@@ -9,6 +9,7 @@ ARROWHEAD_BLOCKSIZE = [
     pytest.param(3, id="arrowhead_blocksize=3"),
 ]
 
+
 @pytest.fixture(params=ARROWHEAD_BLOCKSIZE, autouse=True)
 def arrowhead_blocksize(request: pytest.FixtureRequest) -> int:
     return request.param

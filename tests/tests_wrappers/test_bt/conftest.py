@@ -7,6 +7,7 @@ COMM_STRATEGY = [
     pytest.param("allgather", id="comm_strategy=allgather"),
 ]
 
+
 @pytest.fixture(params=COMM_STRATEGY, autouse=True)
 def comm_strategy(request: pytest.FixtureRequest) -> str:
     return request.param

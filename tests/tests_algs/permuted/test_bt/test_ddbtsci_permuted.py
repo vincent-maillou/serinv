@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from serinv import backend_flags, _get_module_from_array
+from serinv import _get_module_from_array
 from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
 
 from serinv.algs import ddbtsc, ddbtsci
@@ -87,16 +87,24 @@ def test_ddbtsc_permuted(
     # Map blocks to the reduced system
     A_reduced[:diagonal_blocksize, :diagonal_blocksize] = A_diagonal_blocks[0]
     A_reduced[-diagonal_blocksize:, -diagonal_blocksize:] = A_diagonal_blocks[-1]
-    A_reduced[:diagonal_blocksize, -diagonal_blocksize:] = buffers["A_lower_buffer_blocks"][-1]
-    A_reduced[-diagonal_blocksize:, :diagonal_blocksize] = buffers["A_upper_buffer_blocks"][-1]
+    A_reduced[:diagonal_blocksize, -diagonal_blocksize:] = buffers[
+        "A_lower_buffer_blocks"
+    ][-1]
+    A_reduced[-diagonal_blocksize:, :diagonal_blocksize] = buffers[
+        "A_upper_buffer_blocks"
+    ][-1]
 
     X_reduced = xp.linalg.inv(A_reduced)
 
     # Map back to the original system
     A_diagonal_blocks[0] = X_reduced[:diagonal_blocksize, :diagonal_blocksize]
     A_diagonal_blocks[-1] = X_reduced[-diagonal_blocksize:, -diagonal_blocksize:]
-    buffers["A_upper_buffer_blocks"][-1] = X_reduced[-diagonal_blocksize:, :diagonal_blocksize]
-    buffers["A_lower_buffer_blocks"][-1] = X_reduced[:diagonal_blocksize, -diagonal_blocksize:]
+    buffers["A_upper_buffer_blocks"][-1] = X_reduced[
+        -diagonal_blocksize:, :diagonal_blocksize
+    ]
+    buffers["A_lower_buffer_blocks"][-1] = X_reduced[
+        :diagonal_blocksize, -diagonal_blocksize:
+    ]
 
     if type_of_equation == "AX=B":
         ...
@@ -116,8 +124,12 @@ def test_ddbtsc_permuted(
         # Map blocks to the reduced system
         B_reduced[:diagonal_blocksize, :diagonal_blocksize] = B_diagonal_blocks[0]
         B_reduced[-diagonal_blocksize:, -diagonal_blocksize:] = B_diagonal_blocks[-1]
-        B_reduced[:diagonal_blocksize, -diagonal_blocksize:] = buffers["B_lower_buffer_blocks"][-1]
-        B_reduced[-diagonal_blocksize:, :diagonal_blocksize] = buffers["B_upper_buffer_blocks"][-1]
+        B_reduced[:diagonal_blocksize, -diagonal_blocksize:] = buffers[
+            "B_lower_buffer_blocks"
+        ][-1]
+        B_reduced[-diagonal_blocksize:, :diagonal_blocksize] = buffers[
+            "B_upper_buffer_blocks"
+        ][-1]
 
         Xl_reduced = X_reduced @ B_reduced @ X_reduced.conj().T
 

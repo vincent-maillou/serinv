@@ -19,9 +19,6 @@ from serinv.wrappers import (
     allocate_ddbtrs,
 )
 
-if backend_flags["cupy_avail"]:
-    import cupyx as cpx
-
 from os import environ
 
 environ["OMP_NUM_THREADS"] = "1"
@@ -94,9 +91,7 @@ def test_pddbtsc(
         X_ref_diagonal_blocks,
         _,
         _,
-    ) = bt_dense_to_arrays(
-        X_ref, diagonal_blocksize, n_diag_blocks
-    )
+    ) = bt_dense_to_arrays(X_ref, diagonal_blocksize, n_diag_blocks)
 
     X_ref_diagonal_blocks_local = X_ref_diagonal_blocks[
         comm_rank
@@ -207,7 +202,6 @@ def test_pddbtsc(
         ]
 
         _rhs = ddbtrs["_rhs"]
-        
 
     if comm_rank == 0:
         assert xp.allclose(
@@ -234,19 +228,19 @@ def test_pddbtsc(
     else:
         assert xp.allclose(
             X_ref_diagonal_blocks_local[0],
-            ddbtrs["A_diagonal_blocks"][2*comm_rank-1],
+            ddbtrs["A_diagonal_blocks"][2 * comm_rank - 1],
         )
         assert xp.allclose(
             X_ref_diagonal_blocks_local[-1],
-            ddbtrs["A_diagonal_blocks"][2*comm_rank],
+            ddbtrs["A_diagonal_blocks"][2 * comm_rank],
         )
 
         if type_of_equation == "AXA.T=B":
             assert xp.allclose(
                 Xl_ref_diagonal_blocks_local[0],
-                _rhs["B_diagonal_blocks"][2*comm_rank-1],
+                _rhs["B_diagonal_blocks"][2 * comm_rank - 1],
             )
             assert xp.allclose(
                 Xl_ref_diagonal_blocks_local[-1],
-                _rhs["B_diagonal_blocks"][2*comm_rank],
+                _rhs["B_diagonal_blocks"][2 * comm_rank],
             )

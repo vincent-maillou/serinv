@@ -8,9 +8,6 @@ from serinv import (
     _get_module_from_str,
 )
 
-if backend_flags["cupy_avail"]:
-    import cupyx as cpx
-
 comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
 

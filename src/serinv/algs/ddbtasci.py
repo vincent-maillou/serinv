@@ -209,7 +209,9 @@ def _ddbtasci(
 
         A_upper_arrow_blocks[-1] = -B2[:, :] @ A_arrow_tip_block[:]
 
-        A_diagonal_blocks[-1] = A_diagonal_blocks[-1] - B2[:, :] @ A_lower_arrow_blocks[-1]
+        A_diagonal_blocks[-1] = (
+            A_diagonal_blocks[-1] - B2[:, :] @ A_lower_arrow_blocks[-1]
+        )
 
     for n_i in range(A_diagonal_blocks.shape[0] - 2, -1, -1):
         B1[:, :] = (
@@ -379,14 +381,20 @@ def _ddbtasci_quadratic(
 
         B_upper_arrow_blocks[-1] = (
             -B2[:, :] @ B_arrow_tip_block[:, :]
-            - B_diagonal_blocks[-1] @ A_lower_arrow_blocks[-1].T @ A_arrow_tip_block[:, :].T
-            + A_diagonal_blocks[-1] @ B_upper_arrow_blocks[-1] @ A_arrow_tip_block[:, :].T
+            - B_diagonal_blocks[-1]
+            @ A_lower_arrow_blocks[-1].T
+            @ A_arrow_tip_block[:, :].T
+            + A_diagonal_blocks[-1]
+            @ B_upper_arrow_blocks[-1]
+            @ A_arrow_tip_block[:, :].T
         )
 
         B_lower_arrow_blocks[-1] = (
             -B_arrow_tip_block[:, :] @ C2[:, :]
             - D2[:, :]
-            + A_arrow_tip_block[:, :] @ B_lower_arrow_blocks[-1] @ A_diagonal_blocks[-1].T
+            + A_arrow_tip_block[:, :]
+            @ B_lower_arrow_blocks[-1]
+            @ A_diagonal_blocks[-1].T
         )
 
         B_diagonal_blocks[-1] = (
@@ -397,8 +405,14 @@ def _ddbtasci_quadratic(
             @ A_lower_arrow_blocks[-1].T
             @ A_arrow_tip_block[:, :].T
             @ C2[:, :]
-            - B2[:, :] @ A_arrow_tip_block[:, :] @ temp_B_31[:, :] @ A_diagonal_blocks[-1].T
-            - A_diagonal_blocks[-1] @ temp_B_13[:, :] @ A_arrow_tip_block[:, :].T @ C2[:, :]
+            - B2[:, :]
+            @ A_arrow_tip_block[:, :]
+            @ temp_B_31[:, :]
+            @ A_diagonal_blocks[-1].T
+            - A_diagonal_blocks[-1]
+            @ temp_B_13[:, :]
+            @ A_arrow_tip_block[:, :].T
+            @ C2[:, :]
         )
 
         # --- Xr ---
@@ -406,7 +420,9 @@ def _ddbtasci_quadratic(
             -A_arrow_tip_block[:] @ A_lower_arrow_blocks[-1] @ A_diagonal_blocks[-1]
         )
         A_upper_arrow_blocks[-1] = -B2[:, :] @ A_arrow_tip_block[:]
-        A_diagonal_blocks[-1] = A_diagonal_blocks[-1] - B2[:, :] @ A_lower_arrow_blocks[-1]
+        A_diagonal_blocks[-1] = (
+            A_diagonal_blocks[-1] - B2[:, :] @ A_lower_arrow_blocks[-1]
+        )
 
     for n_i in range(A_diagonal_blocks.shape[0] - 2, -1, -1):
         B1[:, :] = (

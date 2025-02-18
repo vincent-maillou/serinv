@@ -177,7 +177,7 @@ def pddbtasci(
         buffers=buffers,
         _rhs=ddbtars.get("_rhs", None),
     )
-    
+
     # Perform distributed SCI
     if comm_rank == 0:
         # Perform SCI-downward

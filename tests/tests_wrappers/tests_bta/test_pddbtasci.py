@@ -19,9 +19,6 @@ from serinv.wrappers import (
     allocate_ddbtars,
 )
 
-if backend_flags["cupy_avail"]:
-    import cupyx as cpx
-
 from os import environ
 
 environ["OMP_NUM_THREADS"] = "1"
@@ -244,9 +241,6 @@ def test_pddbtasci(
         quadratic=quadratic,
     )
 
-
-    
-
     pddbtasc(
         A_diagonal_blocks=A_diagonal_blocks_local,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
@@ -272,7 +266,7 @@ def test_pddbtasci(
         buffers=buffers,
         ddbtars=ddbtars,
     )
-    
+
     assert xp.allclose(
         X_ref_diagonal_blocks_local,
         A_diagonal_blocks_local,
@@ -293,7 +287,7 @@ def test_pddbtasci(
         X_ref_upper_arrow_blocks_local,
         A_upper_arrow_blocks_local,
     )
-    
+
     if type_of_equation == "AX=B":
         ...
     elif type_of_equation == "AXA.T=B":
@@ -344,7 +338,7 @@ def test_pddbtasci(
                 * n_diag_blocks_per_processes : (comm_rank + 1)
                 * n_diag_blocks_per_processes,
             ]
-        
+
         assert xp.allclose(
             Xl_ref_arrow_tip_block,
             B_arrow_tip_block,

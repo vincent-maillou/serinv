@@ -6,6 +6,7 @@ from serinv import (
 
 from .ddbtx import allocate_ddbtx_permutation_buffers
 
+
 def allocate_ddbtax_permutation_buffers(
     A_lower_diagonal_blocks: ArrayLike,
     quadratic: bool = False,

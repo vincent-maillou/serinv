@@ -5,6 +5,7 @@ from serinv import (
     _get_module_from_array,
 )
 
+
 def allocate_ddbtx_permutation_buffers(
     A_lower_diagonal_blocks: ArrayLike,
     quadratic: bool = False,
@@ -17,7 +18,7 @@ def allocate_ddbtx_permutation_buffers(
 
         B_lower_buffer_blocks = xp.zeros_like(A_lower_diagonal_blocks)
         B_upper_buffer_blocks = xp.zeros_like(A_lower_diagonal_blocks)
-        
+
         buffers = {
             "A_lower_buffer_blocks": A_lower_buffer_blocks,
             "A_upper_buffer_blocks": A_upper_buffer_blocks,
@@ -27,7 +28,7 @@ def allocate_ddbtx_permutation_buffers(
     else:
         A_lower_buffer_blocks = xp.zeros_like(A_lower_diagonal_blocks)
         A_upper_buffer_blocks = xp.zeros_like(A_lower_diagonal_blocks)
-        
+
         buffers = {
             "A_lower_buffer_blocks": A_lower_buffer_blocks,
             "A_upper_buffer_blocks": A_upper_buffer_blocks,
