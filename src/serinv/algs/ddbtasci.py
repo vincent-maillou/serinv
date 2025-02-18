@@ -69,6 +69,7 @@ def ddbtasci(
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)
+    invert_last_block: bool = kwargs.get("invert_last_block", True)
 
     if rhs is None:
         if buffers is None:
@@ -80,6 +81,7 @@ def ddbtasci(
                 A_lower_arrow_blocks,
                 A_upper_arrow_blocks,
                 A_arrow_tip_block,
+                invert_last_block=invert_last_block,
             )
         else:
             # Perform a permuted SCI
@@ -134,6 +136,7 @@ def ddbtasci(
                     B_lower_arrow_blocks,
                     B_upper_arrow_blocks,
                     B_arrow_tip_block,
+                    invert_last_block=invert_last_block,
                 )
             else:
                 # Perform a permuted SCI ("quadratic")
@@ -183,6 +186,7 @@ def _ddbtasci(
     A_lower_arrow_blocks: ArrayLike,
     A_upper_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
+    invert_last_block: bool,
 ):
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
@@ -196,18 +200,20 @@ def _ddbtasci(
     C2 = xp.empty_like(A_lower_arrow_blocks[0])
     D2 = xp.empty_like(A_lower_arrow_blocks[0])
 
-    B2[:, :] = A_diagonal_blocks[-1] @ A_upper_arrow_blocks[-1]
+    if invert_last_block:
+        B2[:, :] = A_diagonal_blocks[-1] @ A_upper_arrow_blocks[-1]
 
-    A_lower_arrow_blocks[-1] = (
-        -A_arrow_tip_block[:] @ A_lower_arrow_blocks[-1] @ A_diagonal_blocks[-1]
-    )
+        A_lower_arrow_blocks[-1] = (
+            -A_arrow_tip_block[:] @ A_lower_arrow_blocks[-1] @ A_diagonal_blocks[-1]
+        )
 
-    A_upper_arrow_blocks[-1] = -B2[:, :] @ A_arrow_tip_block[:]
+        A_upper_arrow_blocks[-1] = -B2[:, :] @ A_arrow_tip_block[:]
 
-    A_diagonal_blocks[-1] = A_diagonal_blocks[-1] - B2[:, :] @ A_lower_arrow_blocks[-1]
+        A_diagonal_blocks[-1] = (
+            A_diagonal_blocks[-1] - B2[:, :] @ A_lower_arrow_blocks[-1]
+        )
 
     for n_i in range(A_diagonal_blocks.shape[0] - 2, -1, -1):
-        print(n_i, flush=True)
         B1[:, :] = (
             A_upper_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i + 1]
             + A_upper_arrow_blocks[n_i] @ A_lower_arrow_blocks[n_i + 1]
@@ -342,6 +348,7 @@ def _ddbtasci_quadratic(
     B_lower_arrow_blocks: ArrayLike,
     B_upper_arrow_blocks: ArrayLike,
     B_arrow_tip_block: ArrayLike,
+    invert_last_block: bool,
 ):
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
@@ -362,45 +369,60 @@ def _ddbtasci_quadratic(
     temp_B_31 = xp.empty_like(A_lower_arrow_blocks[0])
 
     # --- Xl ---
-    B2[:, :] = A_diagonal_blocks[-1] @ A_upper_arrow_blocks[-1]
-    C2[:, :] = A_upper_arrow_blocks[-1].T @ A_diagonal_blocks[-1].T
-    D2[:, :] = (
-        A_arrow_tip_block[:, :] @ A_lower_arrow_blocks[-1] @ B_diagonal_blocks[-1]
-    )
+    if invert_last_block:
+        B2[:, :] = A_diagonal_blocks[-1] @ A_upper_arrow_blocks[-1]
+        C2[:, :] = A_upper_arrow_blocks[-1].T @ A_diagonal_blocks[-1].T
+        D2[:, :] = (
+            A_arrow_tip_block[:, :] @ A_lower_arrow_blocks[-1] @ B_diagonal_blocks[-1]
+        )
 
-    temp_B_13[:, :] = B_upper_arrow_blocks[-1]
-    temp_B_31[:, :] = B_lower_arrow_blocks[-1]
+        temp_B_13[:, :] = B_upper_arrow_blocks[-1]
+        temp_B_31[:, :] = B_lower_arrow_blocks[-1]
 
-    B_upper_arrow_blocks[-1] = (
-        -B2[:, :] @ B_arrow_tip_block[:, :]
-        - B_diagonal_blocks[-1] @ A_lower_arrow_blocks[-1].T @ A_arrow_tip_block[:, :].T
-        + A_diagonal_blocks[-1] @ B_upper_arrow_blocks[-1] @ A_arrow_tip_block[:, :].T
-    )
+        B_upper_arrow_blocks[-1] = (
+            -B2[:, :] @ B_arrow_tip_block[:, :]
+            - B_diagonal_blocks[-1]
+            @ A_lower_arrow_blocks[-1].T
+            @ A_arrow_tip_block[:, :].T
+            + A_diagonal_blocks[-1]
+            @ B_upper_arrow_blocks[-1]
+            @ A_arrow_tip_block[:, :].T
+        )
 
-    B_lower_arrow_blocks[-1] = (
-        -B_arrow_tip_block[:, :] @ C2[:, :]
-        - D2[:, :]
-        + A_arrow_tip_block[:, :] @ B_lower_arrow_blocks[-1] @ A_diagonal_blocks[-1].T
-    )
+        B_lower_arrow_blocks[-1] = (
+            -B_arrow_tip_block[:, :] @ C2[:, :]
+            - D2[:, :]
+            + A_arrow_tip_block[:, :]
+            @ B_lower_arrow_blocks[-1]
+            @ A_diagonal_blocks[-1].T
+        )
 
-    B_diagonal_blocks[-1] = (
-        B_diagonal_blocks[-1]
-        + B2[:, :] @ B_arrow_tip_block[:, :] @ C2[:, :]
-        + B2[:, :] @ D2[:, :]
-        + B_diagonal_blocks[-1].T
-        @ A_lower_arrow_blocks[-1].T
-        @ A_arrow_tip_block[:, :].T
-        @ C2[:, :]
-        - B2[:, :] @ A_arrow_tip_block[:, :] @ temp_B_31[:, :] @ A_diagonal_blocks[-1].T
-        - A_diagonal_blocks[-1] @ temp_B_13[:, :] @ A_arrow_tip_block[:, :].T @ C2[:, :]
-    )
+        B_diagonal_blocks[-1] = (
+            B_diagonal_blocks[-1]
+            + B2[:, :] @ B_arrow_tip_block[:, :] @ C2[:, :]
+            + B2[:, :] @ D2[:, :]
+            + B_diagonal_blocks[-1].T
+            @ A_lower_arrow_blocks[-1].T
+            @ A_arrow_tip_block[:, :].T
+            @ C2[:, :]
+            - B2[:, :]
+            @ A_arrow_tip_block[:, :]
+            @ temp_B_31[:, :]
+            @ A_diagonal_blocks[-1].T
+            - A_diagonal_blocks[-1]
+            @ temp_B_13[:, :]
+            @ A_arrow_tip_block[:, :].T
+            @ C2[:, :]
+        )
 
-    # --- Xr ---
-    A_lower_arrow_blocks[-1] = (
-        -A_arrow_tip_block[:] @ A_lower_arrow_blocks[-1] @ A_diagonal_blocks[-1]
-    )
-    A_upper_arrow_blocks[-1] = -B2[:, :] @ A_arrow_tip_block[:]
-    A_diagonal_blocks[-1] = A_diagonal_blocks[-1] - B2[:, :] @ A_lower_arrow_blocks[-1]
+        # --- Xr ---
+        A_lower_arrow_blocks[-1] = (
+            -A_arrow_tip_block[:] @ A_lower_arrow_blocks[-1] @ A_diagonal_blocks[-1]
+        )
+        A_upper_arrow_blocks[-1] = -B2[:, :] @ A_arrow_tip_block[:]
+        A_diagonal_blocks[-1] = (
+            A_diagonal_blocks[-1] - B2[:, :] @ A_lower_arrow_blocks[-1]
+        )
 
     for n_i in range(A_diagonal_blocks.shape[0] - 2, -1, -1):
         B1[:, :] = (

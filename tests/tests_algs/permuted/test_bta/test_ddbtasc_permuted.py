@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from serinv import backend_flags, _get_module_from_array
+from serinv import _get_module_from_array
 from ....testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
 from serinv.algs import ddbtasc
@@ -104,10 +104,10 @@ def test_ddbtasc_permuted(
 
     (
         X_diagonal_blocks_ref,
-        X_lower_diagonal_blocks_ref,
-        X_upper_diagonal_blocks_ref,
-        X_lower_arrow_blocks_ref,
-        X_upper_arrow_blocks_ref,
+        _,
+        _,
+        _,
+        _,
         X_arrow_tip_block_ref,
     ) = bta_dense_to_arrays(
         X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks

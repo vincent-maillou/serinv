@@ -1,6 +1,5 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
-import numpy as np
 import pytest
 
 from serinv import _get_module_from_array
