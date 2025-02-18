@@ -4,7 +4,6 @@ from mpi4py import MPI
 
 from serinv import (
     ArrayLike,
-    backend_flags,
     _get_module_from_str,
 )
 
