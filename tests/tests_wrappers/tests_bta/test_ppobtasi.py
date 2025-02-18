@@ -157,12 +157,12 @@ def test_d_pobtasi(
 
     # Allocate permutation buffer
     if preallocate_permutation_buffer:
-        permutation_buffer = allocate_pobtax_permutation_buffers(
+        buffer = allocate_pobtax_permutation_buffers(
             A_diagonal_blocks_local,
             device_streaming=True if array_type == "streaming" else False,
         )
     else:
-        permutation_buffer = None
+        buffer = None
 
     # Allocate reduced system
     if preallocate_reduced_system:
@@ -192,14 +192,14 @@ def test_d_pobtasi(
         _L_diagonal_blocks,
         _L_lower_diagonal_blocks,
         _L_lower_arrow_blocks,
-        permutation_buffer,
+        buffer,
     ) = ppobtaf(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
         device_streaming=True if array_type == "streaming" else False,
-        A_permutation_buffer=permutation_buffer,
+        buffer=buffer,
         _L_diagonal_blocks=_L_diagonal_blocks,
         _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
         _L_lower_arrow_blocks=_L_lower_arrow_blocks,
@@ -216,7 +216,7 @@ def test_d_pobtasi(
         _L_diagonal_blocks,
         _L_lower_diagonal_blocks,
         _L_lower_arrow_blocks,
-        permutation_buffer,
+        buffer,
         device_streaming=True if array_type == "streaming" else False,
         strategy=comm_strategy,
     )

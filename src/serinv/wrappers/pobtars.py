@@ -198,7 +198,7 @@ def map_ppobtax_to_pobtars(
     A_lower_diagonal_blocks: ArrayLike,
     A_arrow_bottom_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-    A_permutation_buffer: ArrayLike,
+    buffer: ArrayLike,
     strategy: str = "allgather",
 ):
     """Map the the boundary blocks of the PPOBTAX algorithm to the reduced system.
@@ -232,9 +232,7 @@ def map_ppobtax_to_pobtars(
             _L_diagonal_blocks[2 * comm_rank - 1] = A_diagonal_blocks[0]
             _L_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[-1]
 
-            _L_lower_diagonal_blocks[2 * comm_rank - 1] = (
-                A_permutation_buffer[-1].conj().T
-            )
+            _L_lower_diagonal_blocks[2 * comm_rank - 1] = buffer[-1].conj().T
             if comm_rank != comm_size - 1:
                 _L_lower_diagonal_blocks[2 * comm_rank] = A_lower_diagonal_blocks[-1]
 
@@ -249,7 +247,7 @@ def map_ppobtax_to_pobtars(
             _L_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[0]
             _L_diagonal_blocks[2 * comm_rank + 1] = A_diagonal_blocks[-1]
 
-            _L_lower_diagonal_blocks[2 * comm_rank] = A_permutation_buffer[-1].conj().T
+            _L_lower_diagonal_blocks[2 * comm_rank] = buffer[-1].conj().T
             if comm_rank < comm_size - 1:
                 _L_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
                     -1
@@ -266,7 +264,7 @@ def map_ppobtax_to_pobtars(
             _L_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[0]
             _L_diagonal_blocks[2 * comm_rank + 1] = A_diagonal_blocks[-1]
 
-            _L_lower_diagonal_blocks[2 * comm_rank] = A_permutation_buffer[-1].conj().T
+            _L_lower_diagonal_blocks[2 * comm_rank] = buffer[-1].conj().T
             if comm_rank < comm_size - 1:
                 _L_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
                     -1
@@ -283,7 +281,7 @@ def map_pobtars_to_ppobtax(
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
-    L_permutation_buffer: ArrayLike,
+    buffer: ArrayLike,
     _L_diagonal_blocks: ArrayLike,
     _L_lower_diagonal_blocks: ArrayLike,
     _L_lower_arrow_blocks: ArrayLike,
@@ -302,7 +300,7 @@ def map_pobtars_to_ppobtax(
         The arrow bottom blocks of the original system.
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the original system.
-    A_permutation_buffer : ArrayLike
+    buffer : ArrayLike
         The permutation buffer of the original system.
     _L_diagonal_blocks : ArrayLike
         The diagonal blocks of the reduced system.
@@ -325,9 +323,7 @@ def map_pobtars_to_ppobtax(
             L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank - 1]
             L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
 
-            L_permutation_buffer[-1] = (
-                _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
-            )
+            buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
             if comm_rank != comm_size - 1:
                 L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[2 * comm_rank]
 
@@ -342,9 +338,7 @@ def map_pobtars_to_ppobtax(
             L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank - 1]
             L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
 
-            L_permutation_buffer[-1] = (
-                _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
-            )
+            buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
             if comm_rank != comm_size - 1:
                 L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[2 * comm_rank]
 
@@ -359,7 +353,7 @@ def map_pobtars_to_ppobtax(
             L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank]
             L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank + 1]
 
-            L_permutation_buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank].conj().T
+            buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank].conj().T
             if comm_rank < comm_size - 1:
                 L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[
                     2 * comm_rank + 1

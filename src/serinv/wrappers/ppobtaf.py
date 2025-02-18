@@ -85,16 +85,16 @@ def ppobtaf(
     root: int = kwargs.get("root", 0)
 
     # Check for given permutation buffer
-    A_permutation_buffer: ArrayLike = kwargs.get("A_permutation_buffer", None)
+    buffer: ArrayLike = kwargs.get("buffer", None)
 
     if comm_rank != 0:
-        if A_permutation_buffer is None:
-            A_permutation_buffer = allocate_pobtax_permutation_buffers(
+        if buffer is None:
+            buffer = allocate_pobtax_permutation_buffers(
                 A_diagonal_blocks=A_diagonal_blocks,
                 device_streaming=device_streaming,
             )
         else:
-            assert A_permutation_buffer.shape == A_diagonal_blocks.shape
+            assert buffer.shape == A_diagonal_blocks.shape
 
     # Check for given reduced system buffers
     _L_diagonal_blocks: ArrayLike = kwargs.get("_L_diagonal_blocks", None)
@@ -145,7 +145,7 @@ def ppobtaf(
             A_arrow_bottom_blocks,
             _L_tip_update,
             device_streaming=device_streaming,
-            buffer=A_permutation_buffer,
+            buffer=buffer,
         )
 
     map_ppobtax_to_pobtars(
@@ -157,7 +157,7 @@ def ppobtaf(
         A_lower_diagonal_blocks=A_lower_diagonal_blocks,
         A_arrow_bottom_blocks=A_arrow_bottom_blocks,
         A_arrow_tip_block=A_arrow_tip_block,
-        A_permutation_buffer=A_permutation_buffer,
+        buffer=buffer,
         strategy=strategy,
     )
 
@@ -250,5 +250,5 @@ def ppobtaf(
         _L_diagonal_blocks,
         _L_lower_diagonal_blocks,
         _L_lower_arrow_blocks,
-        A_permutation_buffer,
+        buffer,
     )

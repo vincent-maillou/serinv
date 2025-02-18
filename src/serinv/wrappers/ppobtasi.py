@@ -26,7 +26,7 @@ def ppobtasi(
     _L_diagonal_blocks: ArrayLike,
     _L_lower_diagonal_blocks: ArrayLike,
     _L_lower_arrow_blocks: ArrayLike,
-    L_permutation_buffer: ArrayLike,
+    buffer: ArrayLike,
     **kwargs,
 ):
     """Perform a selected inversion of a block tridiagonal with arrowhead matrix (pointing downward by convention).
@@ -47,7 +47,7 @@ def ppobtasi(
         Lower diagonal blocks of the reduced system.
     _L_lower_arrow_blocks : ArrayLike
         Arrow bottom blocks of the reduced system.
-    L_permutation_buffer : ArrayLike
+    buffer : ArrayLike
         Buffer array for the permuted arrowhead.
 
     Keyword Arguments
@@ -169,7 +169,7 @@ def ppobtasi(
         L_lower_diagonal_blocks=L_lower_diagonal_blocks,
         L_arrow_bottom_blocks=L_arrow_bottom_blocks,
         L_arrow_tip_block=L_arrow_tip_block,
-        L_permutation_buffer=L_permutation_buffer,
+        buffer=buffer,
         _L_diagonal_blocks=_L_diagonal_blocks,
         _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
         _L_lower_arrow_blocks=_L_lower_arrow_blocks,
@@ -194,5 +194,5 @@ def ppobtasi(
             L_arrow_bottom_blocks,
             L_arrow_tip_block,
             device_streaming=device_streaming,
-            buffer=L_permutation_buffer,
+            buffer=buffer,
         )
