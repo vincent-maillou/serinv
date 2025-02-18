@@ -12,10 +12,10 @@ import numpy as np
 
 from ...testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
+from serinv.utils import allocate_pobtax_permutation_buffers
 from serinv.wrappers import (
     ppobtaf,
     ppobtasi,
-    allocate_permutation_buffer,
     allocate_pobtars,
 )
 
@@ -157,7 +157,7 @@ def test_d_pobtasi(
 
     # Allocate permutation buffer
     if preallocate_permutation_buffer:
-        permutation_buffer = allocate_permutation_buffer(
+        permutation_buffer = allocate_pobtax_permutation_buffers(
             A_diagonal_blocks_local,
             device_streaming=True if array_type == "streaming" else False,
         )

@@ -8,8 +8,8 @@ from serinv import (
 )
 
 from serinv.algs import pobtaf
+from serinv.utils import allocate_pobtax_permutation_buffers
 from .pobtars import (
-    allocate_permutation_buffer,
     allocate_pobtars,
     map_ppobtax_to_pobtars,
     aggregate_pobtars,
@@ -89,7 +89,7 @@ def ppobtaf(
 
     if comm_rank != 0:
         if A_permutation_buffer is None:
-            A_permutation_buffer = allocate_permutation_buffer(
+            A_permutation_buffer = allocate_pobtax_permutation_buffers(
                 A_diagonal_blocks=A_diagonal_blocks,
                 device_streaming=device_streaming,
             )

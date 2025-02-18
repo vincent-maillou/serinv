@@ -16,36 +16,6 @@ comm_rank = MPI.COMM_WORLD.Get_rank()
 comm_size = MPI.COMM_WORLD.Get_size()
 
 
-def allocate_permutation_buffer(
-    A_diagonal_blocks: ArrayLike,
-    device_streaming: bool,
-):
-    """Allocate the (permutation) buffers necessary for the parallel BTA algorithms.
-
-    Parameters
-    ----------
-    A_diagonal_blocks : ArrayLike
-        The diagonal blocks of the original system.
-    device_streaming : bool
-        If True, pinned host-arrays will be allocated
-
-    Returns
-    -------
-    A_permutation_buffer : ArrayLike
-        The permutation buffer needed for the parallel BTA algorithms.
-    """
-    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
-
-    if device_streaming:
-        empty_like = cpx.empty_like_pinned
-    else:
-        empty_like = xp.empty_like
-
-    A_permutation_buffer = empty_like(A_diagonal_blocks)
-
-    return A_permutation_buffer
-
-
 def allocate_pobtars(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
