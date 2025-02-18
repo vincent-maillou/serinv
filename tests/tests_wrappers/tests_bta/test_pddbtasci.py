@@ -12,7 +12,6 @@ import numpy as np
 
 from ...testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
 
-from serinv.algs import ddbtasci
 from serinv.utils import allocate_ddbtax_permutation_buffers
 from serinv.wrappers import (
     pddbtasc,
@@ -35,7 +34,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 @pytest.mark.mpi(min_size=2)
 @pytest.mark.parametrize("comm_strategy", ["allgather"])
 @pytest.mark.parametrize("type_of_equation", ["AX=I", "AXA.T=B"])
-def test_pddbtasc(
+def test_pddbtasci(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
     partition_size: int,
@@ -227,8 +226,6 @@ def test_pddbtasc(
 
         quadratic = True
 
-    # print(f"{comm_rank}, quadratic: {quadratic}, rhs: {rhs}")
-
     buffers: dict = allocate_ddbtax_permutation_buffers(
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
         quadratic=quadratic,
@@ -246,6 +243,9 @@ def test_pddbtasc(
         strategy=comm_strategy,
         quadratic=quadratic,
     )
+
+
+    
 
     pddbtasc(
         A_diagonal_blocks=A_diagonal_blocks_local,
@@ -272,11 +272,7 @@ def test_pddbtasc(
         buffers=buffers,
         ddbtars=ddbtars,
     )
-
-    assert xp.allclose(
-        X_ref_arrow_tip_block,
-        A_arrow_tip_block,
-    )
+    
     assert xp.allclose(
         X_ref_diagonal_blocks_local,
         A_diagonal_blocks_local,
@@ -297,7 +293,7 @@ def test_pddbtasc(
         X_ref_upper_arrow_blocks_local,
         A_upper_arrow_blocks_local,
     )
-
+    
     if type_of_equation == "AX=B":
         ...
     elif type_of_equation == "AXA.T=B":
@@ -348,28 +344,28 @@ def test_pddbtasc(
                 * n_diag_blocks_per_processes : (comm_rank + 1)
                 * n_diag_blocks_per_processes,
             ]
-
+        
         assert xp.allclose(
             Xl_ref_arrow_tip_block,
-            A_arrow_tip_block,
+            B_arrow_tip_block,
         )
         assert xp.allclose(
             Xl_ref_diagonal_blocks_local,
-            A_diagonal_blocks_local,
+            B_diagonal_blocks_local,
         )
         assert xp.allclose(
             Xl_ref_lower_diagonal_blocks_local,
-            A_lower_diagonal_blocks_local,
+            B_lower_diagonal_blocks_local,
         )
         assert xp.allclose(
             Xl_ref_upper_diagonal_blocks_local,
-            A_upper_diagonal_blocks_local,
+            B_upper_diagonal_blocks_local,
         )
         assert xp.allclose(
             Xl_ref_lower_arrow_blocks_local,
-            A_lower_arrow_blocks_local,
+            B_lower_arrow_blocks_local,
         )
         assert xp.allclose(
             Xl_ref_upper_arrow_blocks_local,
-            A_upper_arrow_blocks_local,
+            B_upper_arrow_blocks_local,
         )

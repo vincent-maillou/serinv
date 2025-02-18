@@ -191,8 +191,6 @@ def test_pddbtasc(
 
         quadratic = True
 
-    # print(f"{comm_rank}, quadratic: {quadratic}, rhs: {rhs}")
-
     buffers: dict = allocate_ddbtax_permutation_buffers(
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
         quadratic=quadratic,

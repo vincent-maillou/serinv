@@ -177,7 +177,7 @@ def pddbtasci(
         buffers=buffers,
         _rhs=ddbtars.get("_rhs", None),
     )
-
+    
     # Perform distributed SCI
     if comm_rank == 0:
         # Perform SCI-downward
@@ -190,6 +190,7 @@ def pddbtasci(
             A_arrow_tip_block=A_arrow_tip_block,
             rhs=rhs,
             quadratic=quadratic,
+            invert_last_block=False,
         )
     else:
         # Perform SCI on permuted partition
