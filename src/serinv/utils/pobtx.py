@@ -14,7 +14,7 @@ def allocate_pobtx_permutation_buffers(
     A_diagonal_blocks: ArrayLike,
     device_streaming: bool,
 ):
-    """Allocate the (permutation) buffers necessary for the parallel BTA algorithms.
+    """Allocate the (permutation) buffers necessary for the parallel BT algorithms.
 
     Parameters
     ----------
@@ -26,7 +26,7 @@ def allocate_pobtx_permutation_buffers(
     Returns
     -------
     buffer : ArrayLike
-        The permutation buffer needed for the parallel BTA algorithms.
+        The permutation buffer needed for the parallel BT algorithms.
     """
     xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
 
