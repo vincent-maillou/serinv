@@ -265,20 +265,28 @@ def aggregate_ddbtrs(
             )
 
     xp, _ = _get_module_from_array(arr=_A_diagonal_blocks)
-
-    if xp.__name__ == 'cupy':
-        # We need to move the data of the reduced system from the GPU to the HOST
-        # pinned arrays.
-        _A_diagonal_blocks.get(out=_A_diagonal_blocks_comm)
-        _A_lower_diagonal_blocks.get(out=_A_lower_diagonal_blocks_comm)
-        _A_upper_diagonal_blocks.get(out=_A_upper_diagonal_blocks_comm)
-
-        if quadratic:
-            _B_diagonal_blocks.get(out=_B_diagonal_blocks_comm)
-            _B_lower_diagonal_blocks.get(out=_B_lower_diagonal_blocks_comm)
-            _B_upper_diagonal_blocks.get(out=_B_upper_diagonal_blocks_comm)
-
     if strategy == "allgather":
+        if xp.__name__ == 'cupy':
+            # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
+            if comm_rank == 0:
+                _A_diagonal_blocks[1].get(out=_A_diagonal_blocks_comm[1])
+                _A_lower_diagonal_blocks[1].get(out=_A_lower_diagonal_blocks_comm[1])
+                _A_upper_diagonal_blocks[1].get(out=_A_upper_diagonal_blocks_comm[1])
+            else:
+                _A_diagonal_blocks[2 * comm_rank].get(out=_A_diagonal_blocks_comm[2 * comm_rank])
+                _A_diagonal_blocks[2 * comm_rank + 1].get(out=_A_diagonal_blocks_comm[2 * comm_rank + 1])
+
+                if comm_rank < comm_size - 1:
+                    _A_lower_diagonal_blocks[2 * comm_rank].get(out=_A_lower_diagonal_blocks_comm[2 * comm_rank])
+                    _A_upper_diagonal_blocks[2 * comm_rank].get(out=_A_upper_diagonal_blocks_comm[2 * comm_rank])
+
+                    _A_lower_diagonal_blocks[2 * comm_rank + 1].get(out=_A_lower_diagonal_blocks_comm[2 * comm_rank + 1])
+                    _A_upper_diagonal_blocks[2 * comm_rank + 1].get(out=_A_upper_diagonal_blocks_comm[2 * comm_rank + 1])
+                else:
+                    _A_lower_diagonal_blocks[2 * comm_rank].get(out=_A_lower_diagonal_blocks_comm[2 * comm_rank])
+                    _A_upper_diagonal_blocks[2 * comm_rank].get(out=_A_upper_diagonal_blocks_comm[2 * comm_rank])
+
+        # Perform the allgather operation
         MPI.COMM_WORLD.Allgather(
             MPI.IN_PLACE,
             _A_diagonal_blocks_comm,
@@ -301,6 +309,27 @@ def aggregate_ddbtrs(
         ddbtrs["A_upper_diagonal_blocks"] = _A_upper_diagonal_blocks[1:-2]
 
         if quadratic:
+            if xp.__name__ == 'cupy':
+                # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
+                if comm_rank == 0:
+                    _B_diagonal_blocks[1].get(out=_B_diagonal_blocks_comm[1])
+                    _B_lower_diagonal_blocks[1].get(out=_B_lower_diagonal_blocks_comm[1])
+                    _B_upper_diagonal_blocks[1].get(out=_B_upper_diagonal_blocks_comm[1])
+                else:
+                    _B_diagonal_blocks[2 * comm_rank].get(out=_B_diagonal_blocks_comm[2 * comm_rank])
+                    _B_diagonal_blocks[2 * comm_rank + 1].get(out=_B_diagonal_blocks_comm[2 * comm_rank + 1])
+
+                    if comm_rank < comm_size - 1:
+                        _B_lower_diagonal_blocks[2 * comm_rank].get(out=_B_lower_diagonal_blocks_comm[2 * comm_rank])
+                        _B_upper_diagonal_blocks[2 * comm_rank].get(out=_B_upper_diagonal_blocks_comm[2 * comm_rank])
+
+                        _B_lower_diagonal_blocks[2 * comm_rank + 1].get(out=_B_lower_diagonal_blocks_comm[2 * comm_rank + 1])
+                        _B_upper_diagonal_blocks[2 * comm_rank + 1].get(out=_B_upper_diagonal_blocks_comm[2 * comm_rank + 1])
+                    else:
+                        _B_lower_diagonal_blocks[2 * comm_rank].get(out=_B_lower_diagonal_blocks_comm[2 * comm_rank])
+                        _B_upper_diagonal_blocks[2 * comm_rank].get(out=_B_upper_diagonal_blocks_comm[2 * comm_rank])
+
+            # Perform the allgather operation
             MPI.COMM_WORLD.Allgather(
                 MPI.IN_PLACE,
                 _B_diagonal_blocks_comm,
