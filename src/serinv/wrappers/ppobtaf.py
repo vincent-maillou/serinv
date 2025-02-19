@@ -164,27 +164,4 @@ def ppobtaf(
             A_arrow_tip_block=pobtars["A_arrow_tip_block"],
         )
 
-    # if strategy == "gather-scatter":
-    #     if comm_rank == root:
-    #         pobtaf(
-    #             _L_diagonal_blocks[1:],
-    #             _L_lower_diagonal_blocks[1:-1],
-    #             _L_lower_arrow_blocks[1:],
-    #             A_arrow_tip_block,
-    #             device_streaming=device_streaming,
-    #         )
-    # else:
-    #     if strategy == "allgather":
-    #         _L_diagonal_blocks = _L_diagonal_blocks[1:]
-    #         _L_lower_diagonal_blocks = _L_lower_diagonal_blocks[1:-1]
-    #         _L_lower_arrow_blocks = _L_lower_arrow_blocks[1:]
-
-    #     pobtaf(
-    #         _L_diagonal_blocks,
-    #         _L_lower_diagonal_blocks,
-    #         _L_lower_arrow_blocks,
-    #         A_arrow_tip_block,
-    #         device_streaming=device_streaming,
-    #     )
-
     MPI.COMM_WORLD.Barrier()

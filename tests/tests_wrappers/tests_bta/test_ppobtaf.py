@@ -32,8 +32,8 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
-@pytest.mark.parametrize("comm_strategy", ["allgather"])
-# @pytest.mark.parametrize("comm_strategy", ["gather-scatter"])
+# @pytest.mark.parametrize("comm_strategy", ["allgather"])
+@pytest.mark.parametrize("comm_strategy", ["gather-scatter"])
 # @pytest.mark.parametrize("comm_strategy", ["allgather", "gather-scatter"])
 def test_ppobtaf(
     diagonal_blocksize: int,
@@ -207,74 +207,29 @@ def test_ppobtaf(
             assert xp.allclose(
                 pobtars["A_arrow_tip_block"], X_ref_arrow_tip_block_global
             )
+    elif comm_strategy == "gather-scatter":
+        if comm_rank == 0:
+            # For the gather-scatter strategy we only check locally the
+            # correctness of the blocks on the root process.
+            pobtasi(
+                L_diagonal_blocks=pobtars["A_diagonal_blocks"],
+                L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
+                L_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"],
+                L_arrow_tip_block=pobtars["A_arrow_tip_block"],
+            )
 
-    # if comm_strategy == "gather-scatter":
-    #     if comm_rank == 0:
-    #         pobtasi(
-    #             pobtars["A_diagonal_blocks"][1:],
-    #             pobtars["A_lower_diagonal_blocks"][1:-1],
-    #             pobtars["A_lower_arrow_blocks"][1:],
-    #             A_arrow_tip_block_global,
-    #         )
-
-    #         assert xp.allclose(
-    #             pobtars["A_diagonal_blocks"][1],
-    #             X_ref_diagonal_blocks_local[-1],
-    #         )
-    #         assert xp.allclose(
-    #             pobtars["A_lower_diagonal_blocks"][1],
-    #             X_ref_lower_diagonal_blocks_local[-1],
-    #         )
-    #         assert xp.allclose(
-    #             pobtars["A_lower_arrow_blocks"][1],
-    #             X_ref_arrow_bottom_blocks_local[-1],
-    #         )
-    #         assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
-    # else:
-    #     pobtasi(
-    #         pobtars["A_diagonal_blocks"],
-    #         pobtars["A_lower_diagonal_blocks"],
-    #         pobtars["A_lower_arrow_blocks"],
-    #         A_arrow_tip_block_global,
-    #     )
-
-    #     if comm_rank == 0:
-    #         assert xp.allclose(
-    #             pobtars["A_diagonal_blocks"][0],
-    #             X_ref_diagonal_blocks_local[-1],
-    #         )
-    #         assert xp.allclose(
-    #             pobtars["A_lower_diagonal_blocks"][0],
-    #             X_ref_lower_diagonal_blocks_local[-1],
-    #         )
-    #         assert xp.allclose(
-    #             pobtars["A_lower_arrow_blocks"][0],
-    #             X_ref_arrow_bottom_blocks_local[-1],
-    #         )
-    #         assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
-    #     else:
-    #         assert xp.allclose(
-    #             pobtars["A_diagonal_blocks"][2 * comm_rank - 1],
-    #             X_ref_diagonal_blocks_local[0],
-    #         )
-    #         assert xp.allclose(
-    #             pobtars["A_diagonal_blocks"][2 * comm_rank],
-    #             X_ref_diagonal_blocks_local[-1],
-    #         )
-
-    #         if comm_rank < comm_size - 1:
-    #             assert xp.allclose(
-    #                 pobtars["A_lower_diagonal_blocks"][2 * comm_rank],
-    #                 X_ref_lower_diagonal_blocks_local[-1],
-    #             )
-
-    #         assert xp.allclose(
-    #             pobtars["A_lower_arrow_blocks"][2 * comm_rank - 1],
-    #             X_ref_arrow_bottom_blocks_local[0],
-    #         )
-    #         assert xp.allclose(
-    #             pobtars["A_lower_arrow_blocks"][2 * comm_rank],
-    #             X_ref_arrow_bottom_blocks_local[-1],
-    #         )
-
-    #         assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+            assert xp.allclose(
+                pobtars["A_diagonal_blocks"][0],
+                X_ref_diagonal_blocks_local[-1],
+            )
+            assert xp.allclose(
+                pobtars["A_lower_diagonal_blocks"][0],
+                X_ref_lower_diagonal_blocks_local[-1],
+            )
+            assert xp.allclose(
+                pobtars["A_lower_arrow_blocks"][0],
+                X_ref_arrow_bottom_blocks_local[-1],
+            )
+            assert xp.allclose(
+                pobtars["A_arrow_tip_block"], X_ref_arrow_tip_block_global
+            )
