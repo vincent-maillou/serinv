@@ -38,19 +38,12 @@ def ppobtaf(
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the block tridiagonal with arrowhead matrix.
 
-    Returns
-    -------
-    _L_diagonal_blocks : ArrayLike
-        Diagonal blocks of the reduced system.
-    _L_lower_diagonal_blocks : ArrayLike
-        Lower diagonal blocks of the reduced system.
-    _L_lower_arrow_blocks : ArrayLike
-        Arrow bottom blocks of the reduced system.
-    buffer : ArrayLike
-        Buffer array for the permuted arrowhead.
-
     Keyword Arguments
     -----------------
+    pobtars : dict
+        The reduced system arrays, given as dictionary format.
+    buffer : ArrayLike
+        The permutation buffer for the permuted-partition algorithms
     device_streaming : bool, optional
         If True, the algorithm will perform host-device streaming. (default: False)
     strategy : str, optional
@@ -140,6 +133,8 @@ def ppobtaf(
 
     aggregate_pobtars(
         pobtars=pobtars,
+        strategy=strategy,
+        root=root,
     )
 
     # --- Factorize the reduced system ---

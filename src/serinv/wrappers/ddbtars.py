@@ -341,6 +341,7 @@ def aggregate_ddbtars(
     ddbtars: dict,
     quadratic: bool = False,
     strategy: str = "allgather",
+    **kwargs,
 ):
     _A_diagonal_blocks: ArrayLike = ddbtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtars.get("A_lower_diagonal_blocks", None)
@@ -642,6 +643,7 @@ def scatter_ddbtars(
     ddbtars: dict,
     quadratic: bool = False,
     strategy: str = "allgather",
+    **kwargs,
 ):
     _A_diagonal_blocks: ArrayLike = ddbtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtars.get("A_lower_diagonal_blocks", None)

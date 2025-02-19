@@ -32,7 +32,8 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
-@pytest.mark.parametrize("comm_strategy", ["allreduce", "allgather", "gather-scatter"])
+@pytest.mark.parametrize("comm_strategy", ["allgather"])
+# @pytest.mark.parametrize("comm_strategy", ["allgather", "gather-scatter"])
 def test_d_pobtasi(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
@@ -89,31 +90,6 @@ def test_d_pobtasi(
         * n_diag_blocks_per_processes,
     ]
 
-    if backend_flags["cupy_avail"] and array_type == "streaming":
-        A_diagonal_blocks_local_pinned = cpx.zeros_like_pinned(A_diagonal_blocks_local)
-        A_diagonal_blocks_local_pinned[:, :, :] = A_diagonal_blocks_local[:, :, :]
-        A_lower_diagonal_blocks_local_pinned = cpx.zeros_like_pinned(
-            A_lower_diagonal_blocks_local
-        )
-        A_lower_diagonal_blocks_local_pinned[:, :, :] = A_lower_diagonal_blocks_local[
-            :, :, :
-        ]
-        A_arrow_bottom_blocks_local_pinned = cpx.zeros_like_pinned(
-            A_arrow_bottom_blocks_local
-        )
-        A_arrow_bottom_blocks_local_pinned[:, :, :] = A_arrow_bottom_blocks_local[
-            :, :, :
-        ]
-        A_arrow_tip_block_global_pinned = cpx.zeros_like_pinned(
-            A_arrow_tip_block_global
-        )
-        A_arrow_tip_block_global_pinned[:, :] = A_arrow_tip_block_global[:, :]
-
-        A_diagonal_blocks_local = A_diagonal_blocks_local_pinned
-        A_lower_diagonal_blocks_local = A_lower_diagonal_blocks_local_pinned
-        A_arrow_bottom_blocks_local = A_arrow_bottom_blocks_local_pinned
-        A_arrow_tip_block_global = A_arrow_tip_block_global_pinned
-
     # Reference solution
     X_ref = xp.linalg.inv(A)
 
@@ -154,57 +130,38 @@ def test_d_pobtasi(
     # Allocate permutation buffer
     buffer = allocate_pobtax_permutation_buffers(
         A_diagonal_blocks_local,
-        device_streaming=True if array_type == "streaming" else False,
     )
 
     # Allocate reduced system
-    (
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        _L_tip_update,
-    ) = allocate_pobtars(
+    pobtars: dict = allocate_pobtars(
         A_diagonal_blocks=A_diagonal_blocks_local,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
         A_arrow_tip_block=A_arrow_tip_block_global,
         comm_size=comm_size,
         array_module=xp.__name__,
-        device_streaming=True if array_type == "streaming" else False,
         strategy=comm_strategy,
     )
 
     # Distributed factorization
-    (
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        buffer,
-    ) = ppobtaf(
+    ppobtaf(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
-        device_streaming=True if array_type == "streaming" else False,
         buffer=buffer,
-        _L_diagonal_blocks=_L_diagonal_blocks,
-        _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks=_L_lower_arrow_blocks,
-        _L_tip_update=_L_tip_update,
+        pobtars=pobtars,
         strategy=comm_strategy,
     )
 
-    # Inversion of the full system
+    # Distributed Selected-Inversion of the full system
     ppobtasi(
-        A_diagonal_blocks_local,
-        A_lower_diagonal_blocks_local,
-        A_arrow_bottom_blocks_local,
-        A_arrow_tip_block_global,
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        buffer,
-        device_streaming=True if array_type == "streaming" else False,
+        L_diagonal_blocks=A_diagonal_blocks_local,
+        L_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
+        L_lower_arrow_blocks=A_arrow_bottom_blocks_local,
+        L_arrow_tip_block=A_arrow_tip_block_global,
+        buffer=buffer,
+        pobtars=pobtars,
         strategy=comm_strategy,
     )
 

@@ -19,9 +19,6 @@ from serinv.wrappers import (
     allocate_pobtars,
 )
 
-if backend_flags["cupy_avail"]:
-    import cupyx as cpx
-
 from os import environ
 
 environ["OMP_NUM_THREADS"] = "1"
@@ -32,9 +29,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
-# @pytest.mark.parametrize("comm_strategy", ["allgather"])
-@pytest.mark.parametrize("comm_strategy", ["gather-scatter"])
-# @pytest.mark.parametrize("comm_strategy", ["allgather", "gather-scatter"])
+@pytest.mark.parametrize("comm_strategy", ["allgather", "gather-scatter"])
 def test_ppobtaf(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
