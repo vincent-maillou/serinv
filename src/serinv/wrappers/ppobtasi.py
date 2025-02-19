@@ -95,9 +95,9 @@ def ppobtasi(
     if strategy == "gather-scatter":
         if comm_rank == root:
             pobtasi(
-                L_diagonal_blocks=pobtars["A_diagonal_blocks"],
-                L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-                L_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"],
+                L_diagonal_blocks=pobtars["A_diagonal_blocks"][1:],
+                L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"][1:-1],
+                L_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"][1:],
                 L_arrow_tip_block=pobtars["A_arrow_tip_block"],
             )
         MPI.COMM_WORLD.Barrier()

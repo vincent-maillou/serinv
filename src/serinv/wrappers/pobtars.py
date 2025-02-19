@@ -344,17 +344,17 @@ def aggregate_pobtars(
             root=root,
         )
 
-        pobtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:]
-        pobtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-1]
-        pobtars["A_lower_arrow_blocks_comm"] = _A_lower_arrow_blocks_comm[1:]
+        # Do not slice/view the array here in the gather-scatter strategy, otherwise
+        # the scatter-back won't work.
+        pobtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm
+        pobtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm
+        pobtars["A_lower_arrow_blocks_comm"] = _A_lower_arrow_blocks_comm
 
-        pobtars["A_diagonal_blocks"] = _A_diagonal_blocks[1:]
-        pobtars["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks[1:-1]
-        pobtars["A_lower_arrow_blocks"] = _A_lower_arrow_blocks[1:]
+        pobtars["A_diagonal_blocks"] = _A_diagonal_blocks
+        pobtars["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks
+        pobtars["A_lower_arrow_blocks"] = _A_lower_arrow_blocks
     else:
         raise ValueError("Unknown communication strategy.")
-
-    MPI.COMM_WORLD.Barrier()
 
     if xp.__name__ == "cupy":
         # Need to put back the reduced system on the GPU
@@ -420,7 +420,7 @@ def scatter_pobtars(
                 _A_lower_arrow_blocks.get(out=_A_lower_arrow_blocks_comm)
                 _A_arrow_tip_block.get(out=_A_arrow_tip_block_comm)
 
-                cpx.cuda.Stream.null.synchronize()
+            cpx.cuda.Stream.null.synchronize()
 
         MPI.COMM_WORLD.Scatter(
             sendbuf=_A_diagonal_blocks_comm if comm_rank == root else None,
@@ -476,8 +476,6 @@ def scatter_pobtars(
 
     else:
         raise ValueError("Unknown communication strategy.")
-
-    # MPI.COMM_WORLD.Barrier()
 
 
 def map_pobtars_to_ppobtax(

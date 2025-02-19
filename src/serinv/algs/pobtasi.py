@@ -50,7 +50,7 @@ def pobtasi(
     """
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
-    inverse_last_block = kwargs.get("inverse_last_block", True)
+    invert_last_block = kwargs.get("invert_last_block", True)
 
     if buffer is not None:
         # Permuted arrowhead
@@ -78,7 +78,7 @@ def pobtasi(
                 L_lower_diagonal_blocks,
                 L_arrow_bottom_blocks,
                 L_arrow_tip_block,
-                inverse_last_block,
+                invert_last_block,
             )
         else:
             return _pobtasi(
@@ -86,7 +86,7 @@ def pobtasi(
                 L_lower_diagonal_blocks,
                 L_arrow_bottom_blocks,
                 L_arrow_tip_block,
-                inverse_last_block,
+                invert_last_block,
             )
 
 
@@ -95,7 +95,7 @@ def _pobtasi(
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
-    inverse_last_block: bool,
+    invert_last_block: bool,
 ):
     xp, la = _get_module_from_array(L_diagonal_blocks)
 
@@ -112,7 +112,7 @@ def _pobtasi(
     L_blk_inv = xp.empty_like(L_diagonal_blocks[0, :, :])
     Identity = xp.eye(L_diagonal_blocks.shape[1])
 
-    if inverse_last_block:
+    if invert_last_block:
         L_last_blk_inv = la.solve_triangular(
             L_arrow_tip_block[:, :], xp.eye(L_arrow_tip_block.shape[0]), lower=True
         )
@@ -251,7 +251,7 @@ def _pobtasi_streaming(
     L_lower_diagonal_blocks: ArrayLike,
     L_arrow_bottom_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
-    inverse_last_block: bool,
+    invert_last_block: bool,
 ):
     arr_module, _ = _get_module_from_array(arr=L_diagonal_blocks)
     if arr_module.__name__ != "numpy":
@@ -321,7 +321,7 @@ def _pobtasi_streaming(
     L_arrow_tip_block_d.set(arr=L_arrow_tip_block[:, :], stream=compute_stream)
 
     with compute_stream:
-        if inverse_last_block:
+        if invert_last_block:
             # X_{ndb+1, ndb+1} = L_{ndb+1, ndb}^{-T} L_{ndb+1, ndb}^{-1}
             L_last_blk_inv_d = cu_la.solve_triangular(
                 L_arrow_tip_block_d[:, :],
@@ -334,7 +334,7 @@ def _pobtasi_streaming(
 
     # --- Device 2 Host transfers ---
     d2h_stream.wait_event(compute_arrow_tip_event)
-    if inverse_last_block:
+    if invert_last_block:
         X_arrow_tip_block_d[:, :].get(
             out=X_arrow_tip_block,
             stream=d2h_stream,
@@ -356,7 +356,7 @@ def _pobtasi_streaming(
 
     with compute_stream:
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
-        if inverse_last_block:
+        if invert_last_block:
             # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
             L_blk_inv_d = cu_la.solve_triangular(
                 L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
@@ -369,7 +369,7 @@ def _pobtasi_streaming(
             (n_diag_blocks - 1) % 2, :, :
         ]
 
-        if inverse_last_block:
+        if invert_last_block:
             X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
                 -X_arrow_tip_block_d[:, :]
                 @ L_arrow_bottom_blocks_d_i[:, :]
@@ -377,7 +377,7 @@ def _pobtasi_streaming(
             )
         compute_arrow_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
-        if inverse_last_block:
+        if invert_last_block:
             # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
             X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
                 L_blk_inv_d.conj().T
@@ -388,7 +388,7 @@ def _pobtasi_streaming(
 
     # --- Device 2 Host transfers ---
     d2h_stream.wait_event(compute_arrow_events[(n_diag_blocks - 1) % 2])
-    if inverse_last_block:
+    if invert_last_block:
         X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
             out=X_arrow_bottom_blocks[-1, :, :],
             stream=d2h_stream,
@@ -401,7 +401,7 @@ def _pobtasi_streaming(
         )
 
     d2h_stream.wait_event(compute_diagonal_events[(n_diag_blocks - 1) % 2])
-    if inverse_last_block:
+    if invert_last_block:
         X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
             out=X_diagonal_blocks[-1, :, :],
             stream=d2h_stream,

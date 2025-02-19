@@ -207,22 +207,22 @@ def test_ppobtaf(
             # For the gather-scatter strategy we only check locally the
             # correctness of the blocks on the root process.
             pobtasi(
-                L_diagonal_blocks=pobtars["A_diagonal_blocks"],
-                L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-                L_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"],
+                L_diagonal_blocks=pobtars["A_diagonal_blocks"][1:],
+                L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"][1:-1],
+                L_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"][1:],
                 L_arrow_tip_block=pobtars["A_arrow_tip_block"],
             )
 
             assert xp.allclose(
-                pobtars["A_diagonal_blocks"][0],
+                pobtars["A_diagonal_blocks"][1],
                 X_ref_diagonal_blocks_local[-1],
             )
             assert xp.allclose(
-                pobtars["A_lower_diagonal_blocks"][0],
+                pobtars["A_lower_diagonal_blocks"][1],
                 X_ref_lower_diagonal_blocks_local[-1],
             )
             assert xp.allclose(
-                pobtars["A_lower_arrow_blocks"][0],
+                pobtars["A_lower_arrow_blocks"][1],
                 X_ref_arrow_bottom_blocks_local[-1],
             )
             assert xp.allclose(
