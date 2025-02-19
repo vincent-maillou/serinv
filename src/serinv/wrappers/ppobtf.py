@@ -80,7 +80,7 @@ def ppobtf(
         ]
     ):
         raise ValueError(
-            "To run the distributed solvers, the reduced system `ddbtars` need to contain the required arrays."
+            "To run the distributed solvers, the reduced system `pobtrs` need to contain the required arrays."
         )
 
     # Perform the parallel factorization
@@ -88,14 +88,12 @@ def ppobtf(
         pobtf(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            device_streaming=device_streaming,
             factorize_last_block=False,
         )
     else:
         pobtf(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            device_streaming=device_streaming,
             buffer=buffer,
         )
 
