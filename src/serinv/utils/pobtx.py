@@ -12,7 +12,7 @@ if backend_flags["cupy_avail"]:
 
 def allocate_pobtx_permutation_buffers(
     A_diagonal_blocks: ArrayLike,
-    device_streaming: bool,
+    device_streaming: bool = False,
 ):
     """Allocate the (permutation) buffers necessary for the parallel BT algorithms.
 

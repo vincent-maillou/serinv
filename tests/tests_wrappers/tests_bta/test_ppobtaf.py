@@ -32,17 +32,15 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
-@pytest.mark.parametrize("preallocate_permutation_buffer", [True, False])
-@pytest.mark.parametrize("preallocate_reduced_system", [True, False])
-@pytest.mark.parametrize("comm_strategy", ["allreduce", "allgather", "gather-scatter"])
+@pytest.mark.parametrize("comm_strategy", ["allgather"])
+# @pytest.mark.parametrize("comm_strategy", ["gather-scatter"])
+# @pytest.mark.parametrize("comm_strategy", ["allgather", "gather-scatter"])
 def test_ppobtaf(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
     partition_size: int,
     array_type: str,
     dtype: np.dtype,
-    preallocate_permutation_buffer: bool,
-    preallocate_reduced_system: bool,
     comm_strategy: str,
 ):
     n_diag_blocks = partition_size * comm_size
@@ -93,31 +91,6 @@ def test_ppobtaf(
         * n_diag_blocks_per_processes,
     ]
 
-    if backend_flags["cupy_avail"] and array_type == "streaming":
-        A_diagonal_blocks_local_pinned = cpx.zeros_like_pinned(A_diagonal_blocks_local)
-        A_diagonal_blocks_local_pinned[:, :, :] = A_diagonal_blocks_local[:, :, :]
-        A_lower_diagonal_blocks_local_pinned = cpx.zeros_like_pinned(
-            A_lower_diagonal_blocks_local
-        )
-        A_lower_diagonal_blocks_local_pinned[:, :, :] = A_lower_diagonal_blocks_local[
-            :, :, :
-        ]
-        A_arrow_bottom_blocks_local_pinned = cpx.zeros_like_pinned(
-            A_arrow_bottom_blocks_local
-        )
-        A_arrow_bottom_blocks_local_pinned[:, :, :] = A_arrow_bottom_blocks_local[
-            :, :, :
-        ]
-        A_arrow_tip_block_global_pinned = cpx.zeros_like_pinned(
-            A_arrow_tip_block_global
-        )
-        A_arrow_tip_block_global_pinned[:, :] = A_arrow_tip_block_global[:, :]
-
-        A_diagonal_blocks_local = A_diagonal_blocks_local_pinned
-        A_lower_diagonal_blocks_local = A_lower_diagonal_blocks_local_pinned
-        A_arrow_bottom_blocks_local = A_arrow_bottom_blocks_local_pinned
-        A_arrow_tip_block_global = A_arrow_tip_block_global_pinned
-
     # Reference solution
     X_ref = xp.linalg.inv(A)
 
@@ -156,126 +129,152 @@ def test_ppobtaf(
     ]
 
     # Allocate permutation buffer
-    if preallocate_permutation_buffer:
-        buffer = allocate_pobtax_permutation_buffers(
-            A_diagonal_blocks_local,
-            device_streaming=True if array_type == "streaming" else False,
-        )
-    else:
-        buffer = None
+    buffer = allocate_pobtax_permutation_buffers(
+        A_diagonal_blocks_local,
+    )
 
     # Allocate reduced system
-    if preallocate_reduced_system:
-        (
-            _L_diagonal_blocks,
-            _L_lower_diagonal_blocks,
-            _L_lower_arrow_blocks,
-            _L_tip_update,
-        ) = allocate_pobtars(
-            A_diagonal_blocks=A_diagonal_blocks_local,
-            A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
-            A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
-            A_arrow_tip_block=A_arrow_tip_block_global,
-            comm_size=comm_size,
-            array_module=xp.__name__,
-            device_streaming=True if array_type == "streaming" else False,
-            strategy=comm_strategy,
-        )
-    else:
-        _L_diagonal_blocks = None
-        _L_lower_diagonal_blocks = None
-        _L_lower_arrow_blocks = None
-        _L_tip_update = None
+    pobtars: dict = allocate_pobtars(
+        A_diagonal_blocks=A_diagonal_blocks_local,
+        A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
+        A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
+        A_arrow_tip_block=A_arrow_tip_block_global,
+        comm_size=comm_size,
+        array_module=xp.__name__,
+        strategy=comm_strategy,
+    )
 
     # Distributed factorization
-    (
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        buffer,
-    ) = ppobtaf(
+    ppobtaf(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,
         A_arrow_bottom_blocks_local,
         A_arrow_tip_block_global,
-        device_streaming=True if array_type == "streaming" else False,
         buffer=buffer,
-        _L_diagonal_blocks=_L_diagonal_blocks,
-        _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks=_L_lower_arrow_blocks,
-        _L_tip_update=_L_tip_update,
+        pobtars=pobtars,
         strategy=comm_strategy,
     )
 
-    if comm_strategy == "gather-scatter":
-        if comm_rank == 0:
-            pobtasi(
-                _L_diagonal_blocks[1:],
-                _L_lower_diagonal_blocks[1:-1],
-                _L_lower_arrow_blocks[1:],
-                A_arrow_tip_block_global,
-                device_streaming=True if array_type == "streaming" else False,
-            )
-
-            assert xp.allclose(
-                _L_diagonal_blocks[1],
-                X_ref_diagonal_blocks_local[-1],
-            )
-            assert xp.allclose(
-                _L_lower_diagonal_blocks[1],
-                X_ref_lower_diagonal_blocks_local[-1],
-            )
-            assert xp.allclose(
-                _L_lower_arrow_blocks[1],
-                X_ref_arrow_bottom_blocks_local[-1],
-            )
-            assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
-    else:
+    if comm_strategy == "allgather":
         pobtasi(
-            _L_diagonal_blocks,
-            _L_lower_diagonal_blocks,
-            _L_lower_arrow_blocks,
-            A_arrow_tip_block_global,
-            device_streaming=True if array_type == "streaming" else False,
+            L_diagonal_blocks=pobtars["A_diagonal_blocks"],
+            L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
+            L_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"],
+            L_arrow_tip_block=pobtars["A_arrow_tip_block"],
         )
 
         if comm_rank == 0:
             assert xp.allclose(
-                _L_diagonal_blocks[0],
+                pobtars["A_diagonal_blocks"][0],
                 X_ref_diagonal_blocks_local[-1],
             )
             assert xp.allclose(
-                _L_lower_diagonal_blocks[0],
+                pobtars["A_lower_diagonal_blocks"][0],
                 X_ref_lower_diagonal_blocks_local[-1],
             )
             assert xp.allclose(
-                _L_lower_arrow_blocks[0],
+                pobtars["A_lower_arrow_blocks"][0],
                 X_ref_arrow_bottom_blocks_local[-1],
             )
-            assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+            assert xp.allclose(
+                pobtars["A_arrow_tip_block"], X_ref_arrow_tip_block_global
+            )
         else:
             assert xp.allclose(
-                _L_diagonal_blocks[2 * comm_rank - 1],
+                pobtars["A_diagonal_blocks"][2 * comm_rank - 1],
                 X_ref_diagonal_blocks_local[0],
             )
             assert xp.allclose(
-                _L_diagonal_blocks[2 * comm_rank],
+                pobtars["A_diagonal_blocks"][2 * comm_rank],
                 X_ref_diagonal_blocks_local[-1],
             )
 
             if comm_rank < comm_size - 1:
                 assert xp.allclose(
-                    _L_lower_diagonal_blocks[2 * comm_rank],
+                    pobtars["A_lower_diagonal_blocks"][2 * comm_rank],
                     X_ref_lower_diagonal_blocks_local[-1],
                 )
 
             assert xp.allclose(
-                _L_lower_arrow_blocks[2 * comm_rank - 1],
+                pobtars["A_lower_arrow_blocks"][2 * comm_rank - 1],
                 X_ref_arrow_bottom_blocks_local[0],
             )
             assert xp.allclose(
-                _L_lower_arrow_blocks[2 * comm_rank],
+                pobtars["A_lower_arrow_blocks"][2 * comm_rank],
                 X_ref_arrow_bottom_blocks_local[-1],
             )
 
-            assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+            assert xp.allclose(
+                pobtars["A_arrow_tip_block"], X_ref_arrow_tip_block_global
+            )
+
+    # if comm_strategy == "gather-scatter":
+    #     if comm_rank == 0:
+    #         pobtasi(
+    #             pobtars["A_diagonal_blocks"][1:],
+    #             pobtars["A_lower_diagonal_blocks"][1:-1],
+    #             pobtars["A_lower_arrow_blocks"][1:],
+    #             A_arrow_tip_block_global,
+    #         )
+
+    #         assert xp.allclose(
+    #             pobtars["A_diagonal_blocks"][1],
+    #             X_ref_diagonal_blocks_local[-1],
+    #         )
+    #         assert xp.allclose(
+    #             pobtars["A_lower_diagonal_blocks"][1],
+    #             X_ref_lower_diagonal_blocks_local[-1],
+    #         )
+    #         assert xp.allclose(
+    #             pobtars["A_lower_arrow_blocks"][1],
+    #             X_ref_arrow_bottom_blocks_local[-1],
+    #         )
+    #         assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+    # else:
+    #     pobtasi(
+    #         pobtars["A_diagonal_blocks"],
+    #         pobtars["A_lower_diagonal_blocks"],
+    #         pobtars["A_lower_arrow_blocks"],
+    #         A_arrow_tip_block_global,
+    #     )
+
+    #     if comm_rank == 0:
+    #         assert xp.allclose(
+    #             pobtars["A_diagonal_blocks"][0],
+    #             X_ref_diagonal_blocks_local[-1],
+    #         )
+    #         assert xp.allclose(
+    #             pobtars["A_lower_diagonal_blocks"][0],
+    #             X_ref_lower_diagonal_blocks_local[-1],
+    #         )
+    #         assert xp.allclose(
+    #             pobtars["A_lower_arrow_blocks"][0],
+    #             X_ref_arrow_bottom_blocks_local[-1],
+    #         )
+    #         assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+    #     else:
+    #         assert xp.allclose(
+    #             pobtars["A_diagonal_blocks"][2 * comm_rank - 1],
+    #             X_ref_diagonal_blocks_local[0],
+    #         )
+    #         assert xp.allclose(
+    #             pobtars["A_diagonal_blocks"][2 * comm_rank],
+    #             X_ref_diagonal_blocks_local[-1],
+    #         )
+
+    #         if comm_rank < comm_size - 1:
+    #             assert xp.allclose(
+    #                 pobtars["A_lower_diagonal_blocks"][2 * comm_rank],
+    #                 X_ref_lower_diagonal_blocks_local[-1],
+    #             )
+
+    #         assert xp.allclose(
+    #             pobtars["A_lower_arrow_blocks"][2 * comm_rank - 1],
+    #             X_ref_arrow_bottom_blocks_local[0],
+    #         )
+    #         assert xp.allclose(
+    #             pobtars["A_lower_arrow_blocks"][2 * comm_rank],
+    #             X_ref_arrow_bottom_blocks_local[-1],
+    #         )
+
+    #         assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)

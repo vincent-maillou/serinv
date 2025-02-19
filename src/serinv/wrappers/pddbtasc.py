@@ -109,15 +109,17 @@ def pddbtasc(
             - _B_arrow_tip_block : ArrayLike
                 The arrow tip block of the reduced system.
     """
+    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
+
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
-    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
-
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
+
     buffers: dict = kwargs.get("buffers", None)
-    ddbtars: dict = kwargs.get("ddbtars", None)
+    if comm_rank != 0:
+        assert buffers is not None
 
     # Check that the reduced system contains the required arrays
     ddbtars: dict = kwargs.get("ddbtars", None)

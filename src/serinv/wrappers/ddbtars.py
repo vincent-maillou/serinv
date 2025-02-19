@@ -484,6 +484,8 @@ def aggregate_ddbtars(
 
             _A_arrow_tip_block.get(out=_A_arrow_tip_block_comm)
 
+            cpx.cuda.Stream.null.synchronize()
+
         # Perform the allgather operation
         MPI.COMM_WORLD.Allgather(
             MPI.IN_PLACE,

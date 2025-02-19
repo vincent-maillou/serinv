@@ -8,12 +8,9 @@ from serinv import (
 )
 
 from serinv.algs import pobtaf
-from serinv.utils import allocate_pobtax_permutation_buffers
 from .pobtars import (
-    allocate_pobtars,
     map_ppobtax_to_pobtars,
     aggregate_pobtars,
-    allocate_pinned_pobtars,
 )
 
 comm_rank = MPI.COMM_WORLD.Get_rank()
@@ -23,7 +20,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 def ppobtaf(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     **kwargs,
 ) -> ArrayLike:
@@ -36,7 +33,7 @@ def ppobtaf(
         The diagonal blocks of the block tridiagonal with arrowhead matrix.
     A_lower_diagonal_blocks : ArrayLike
         The lower diagonal blocks of the block tridiagonal with arrowhead matrix.
-    A_arrow_bottom_blocks : ArrayLike
+    A_lower_arrow_blocks : ArrayLike
         The arrow bottom blocks of the block tridiagonal with arrowhead matrix.
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the block tridiagonal with arrowhead matrix.
@@ -67,17 +64,11 @@ def ppobtaf(
     - Will overwrite the inputs and store the results in them (in-place).
     - If a device array is given, the algorithm will run on the GPU.
 
-    Currently implemented:
-    ----------------------
-    |              | Natural | Permuted |
-    | ------------ | ------- | -------- |
-    | Direct-array | x       | x        |
-    | Streaming    | x       | x        |
     """
+    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
+
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
-
-    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
 
     # Check for optional parameters
     device_streaming: bool = kwargs.get("device_streaming", False)
@@ -86,169 +77,114 @@ def ppobtaf(
 
     # Check for given permutation buffer
     buffer: ArrayLike = kwargs.get("buffer", None)
-
     if comm_rank != 0:
-        if buffer is None:
-            buffer = allocate_pobtax_permutation_buffers(
-                A_diagonal_blocks=A_diagonal_blocks,
-                device_streaming=device_streaming,
-            )
-        else:
-            assert buffer.shape == A_diagonal_blocks.shape
+        assert buffer is not None
+
+    pobtars: dict = kwargs.get("pobtars", None)
 
     # Check for given reduced system buffers
-    _L_diagonal_blocks: ArrayLike = kwargs.get("_L_diagonal_blocks", None)
-    _L_lower_diagonal_blocks: ArrayLike = kwargs.get("_L_lower_diagonal_blocks", None)
-    _L_lower_arrow_blocks: ArrayLike = kwargs.get("_L_lower_arrow_blocks", None)
-    _L_tip_update: ArrayLike = kwargs.get("_L_tip_update", None)
-
-    # If one of the reduced system buffers is not given, allocate them all
+    _A_diagonal_blocks: ArrayLike = pobtars.get("A_diagonal_blocks", None)
+    _A_lower_diagonal_blocks: ArrayLike = pobtars.get("A_lower_diagonal_blocks", None)
+    _A_lower_arrow_blocks: ArrayLike = pobtars.get("A_lower_arrow_blocks", None)
+    _A_arrow_tip_block: ArrayLike = pobtars.get("A_arrow_tip_block", None)
     if any(
-        buffers is None
-        for buffers in [
-            _L_diagonal_blocks,
-            _L_lower_diagonal_blocks,
-            _L_lower_arrow_blocks,
-            _L_tip_update,
+        x is None
+        for x in [
+            _A_diagonal_blocks,
+            _A_lower_diagonal_blocks,
+            _A_lower_arrow_blocks,
+            _A_arrow_tip_block,
         ]
     ):
-        (
-            _L_diagonal_blocks,
-            _L_lower_diagonal_blocks,
-            _L_lower_arrow_blocks,
-            _L_tip_update,
-        ) = allocate_pobtars(
-            A_diagonal_blocks=A_diagonal_blocks,
-            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks=A_arrow_bottom_blocks,
-            A_arrow_tip_block=A_arrow_tip_block,
-            comm_size=comm_size,
-            array_module=xp.__name__,
-            device_streaming=device_streaming,
-            strategy=strategy,
+        raise ValueError(
+            "To run the distributed solvers, the reduced system `ddbtars` need to contain the required arrays."
         )
+
+    # Store the value of the tip of the arrow and reset the local arrow tip block to zero
+    # in order to correctly accumulate the updates from the distributed Schur complement.
+    A_arrow_tip_initial = A_arrow_tip_block.copy()
+    A_arrow_tip_block[:] = 0.0
 
     # Perform the parallel factorization
     if comm_rank == 0:
         pobtaf(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            _L_tip_update,
+            A_diagonal_blocks=A_diagonal_blocks,
+            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+            A_arrow_bottom_blocks=A_lower_arrow_blocks,
+            A_arrow_tip_block=A_arrow_tip_block,
             device_streaming=device_streaming,
             factorize_last_block=False,
         )
     else:
         pobtaf(
-            A_diagonal_blocks,
-            A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks,
-            _L_tip_update,
+            A_diagonal_blocks=A_diagonal_blocks,
+            A_lower_diagonal_blocks=A_lower_diagonal_blocks,
+            A_arrow_bottom_blocks=A_lower_arrow_blocks,
+            A_arrow_tip_block=A_arrow_tip_block,
             device_streaming=device_streaming,
             buffer=buffer,
         )
 
     map_ppobtax_to_pobtars(
-        _L_diagonal_blocks=_L_diagonal_blocks,
-        _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks=_L_lower_arrow_blocks,
-        _L_tip_update=_L_tip_update,
         A_diagonal_blocks=A_diagonal_blocks,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-        A_arrow_bottom_blocks=A_arrow_bottom_blocks,
+        A_lower_arrow_blocks=A_lower_arrow_blocks,
         A_arrow_tip_block=A_arrow_tip_block,
+        _A_diagonal_blocks=pobtars["A_diagonal_blocks"],
+        _A_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
+        _A_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
+        _A_arrow_tip_block=pobtars["A_arrow_tip_block"],
         buffer=buffer,
         strategy=strategy,
     )
 
-    if xp.__name__ == "cupy":
-        # Check for given pinned memory buffers
-        _L_diagonal_blocks_h: ArrayLike = kwargs.get("_L_diagonal_blocks_h", None)
-        _L_lower_diagonal_blocks_h: ArrayLike = kwargs.get(
-            "_L_lower_diagonal_blocks_h", None
-        )
-        _L_lower_arrow_blocks_h: ArrayLike = kwargs.get("_L_lower_arrow_blocks_h", None)
-        _L_tip_update_h: ArrayLike = kwargs.get("_L_tip_update_h", None)
-
-        if any(
-            buffers is None
-            for buffers in [
-                _L_diagonal_blocks_h,
-                _L_lower_diagonal_blocks_h,
-                _L_lower_arrow_blocks_h,
-                _L_tip_update_h,
-            ]
-        ):
-            (
-                _L_diagonal_blocks_h,
-                _L_lower_diagonal_blocks_h,
-                _L_lower_arrow_blocks_h,
-                _L_tip_update_h,
-            ) = allocate_pinned_pobtars(
-                _L_diagonal_blocks,
-                _L_lower_diagonal_blocks,
-                _L_lower_arrow_blocks,
-                _L_tip_update,
-            )
-
-        _L_diagonal_blocks.get(out=_L_diagonal_blocks_h)
-        _L_lower_diagonal_blocks.get(out=_L_lower_diagonal_blocks_h)
-        _L_lower_arrow_blocks.get(out=_L_lower_arrow_blocks_h)
-        _L_tip_update.get(out=_L_tip_update_h)
-
-        aggregate_pobtars(
-            _L_diagonal_blocks=_L_diagonal_blocks_h,
-            _L_lower_diagonal_blocks=_L_lower_diagonal_blocks_h,
-            _L_lower_arrow_blocks=_L_lower_arrow_blocks_h,
-            _L_tip_update=_L_tip_update_h,
-            strategy=strategy,
-            root=root if strategy == "gather-scatter" else None,
-        )
-
-        _L_diagonal_blocks.set(arr=_L_diagonal_blocks_h)
-        _L_lower_diagonal_blocks.set(arr=_L_lower_diagonal_blocks_h)
-        _L_lower_arrow_blocks.set(arr=_L_lower_arrow_blocks_h)
-        _L_tip_update.set(arr=_L_tip_update_h)
-
-    else:
-        aggregate_pobtars(
-            _L_diagonal_blocks=_L_diagonal_blocks,
-            _L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
-            _L_lower_arrow_blocks=_L_lower_arrow_blocks,
-            _L_tip_update=_L_tip_update,
-            strategy=strategy,
-            root=root if strategy == "gather-scatter" else None,
-        )
-
-    A_arrow_tip_block[:, :] = A_arrow_tip_block[:, :] + _L_tip_update[:, :]
+    aggregate_pobtars(
+        pobtars=pobtars,
+    )
 
     # --- Factorize the reduced system ---
+    pobtars["A_arrow_tip_block"][:] += A_arrow_tip_initial
+
     if strategy == "gather-scatter":
         if comm_rank == root:
             pobtaf(
-                _L_diagonal_blocks[1:],
-                _L_lower_diagonal_blocks[1:-1],
-                _L_lower_arrow_blocks[1:],
-                A_arrow_tip_block,
-                device_streaming=device_streaming,
+                A_diagonal_blocks=pobtars["A_diagonal_blocks"],
+                A_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
+                A_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"],
+                A_arrow_tip_block=pobtars["A_arrow_tip_block"],
             )
-    else:
-        if strategy == "allgather":
-            _L_diagonal_blocks = _L_diagonal_blocks[1:]
-            _L_lower_diagonal_blocks = _L_lower_diagonal_blocks[1:-1]
-            _L_lower_arrow_blocks = _L_lower_arrow_blocks[1:]
-
+        else:
+            # Do nothing.
+            ...
+    elif strategy == "allgather":
         pobtaf(
-            _L_diagonal_blocks,
-            _L_lower_diagonal_blocks,
-            _L_lower_arrow_blocks,
-            A_arrow_tip_block,
-            device_streaming=device_streaming,
+            A_diagonal_blocks=pobtars["A_diagonal_blocks"],
+            A_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
+            A_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"],
+            A_arrow_tip_block=pobtars["A_arrow_tip_block"],
         )
 
-    return (
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        buffer,
-    )
+    # if strategy == "gather-scatter":
+    #     if comm_rank == root:
+    #         pobtaf(
+    #             _L_diagonal_blocks[1:],
+    #             _L_lower_diagonal_blocks[1:-1],
+    #             _L_lower_arrow_blocks[1:],
+    #             A_arrow_tip_block,
+    #             device_streaming=device_streaming,
+    #         )
+    # else:
+    #     if strategy == "allgather":
+    #         _L_diagonal_blocks = _L_diagonal_blocks[1:]
+    #         _L_lower_diagonal_blocks = _L_lower_diagonal_blocks[1:-1]
+    #         _L_lower_arrow_blocks = _L_lower_arrow_blocks[1:]
+
+    #     pobtaf(
+    #         _L_diagonal_blocks,
+    #         _L_lower_diagonal_blocks,
+    #         _L_lower_arrow_blocks,
+    #         A_arrow_tip_block,
+    #         device_streaming=device_streaming,
+    #     )
+
+    MPI.COMM_WORLD.Barrier()

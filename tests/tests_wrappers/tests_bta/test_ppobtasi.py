@@ -32,8 +32,6 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
-@pytest.mark.parametrize("preallocate_permutation_buffer", [True, False])
-@pytest.mark.parametrize("preallocate_reduced_system", [True, False])
 @pytest.mark.parametrize("comm_strategy", ["allreduce", "allgather", "gather-scatter"])
 def test_d_pobtasi(
     diagonal_blocksize: int,
@@ -41,8 +39,6 @@ def test_d_pobtasi(
     partition_size: int,
     array_type: str,
     dtype: np.dtype,
-    preallocate_permutation_buffer: bool,
-    preallocate_reduced_system: bool,
     comm_strategy: str,
 ):
     n_diag_blocks = partition_size * comm_size
@@ -156,36 +152,27 @@ def test_d_pobtasi(
     ]
 
     # Allocate permutation buffer
-    if preallocate_permutation_buffer:
-        buffer = allocate_pobtax_permutation_buffers(
-            A_diagonal_blocks_local,
-            device_streaming=True if array_type == "streaming" else False,
-        )
-    else:
-        buffer = None
+    buffer = allocate_pobtax_permutation_buffers(
+        A_diagonal_blocks_local,
+        device_streaming=True if array_type == "streaming" else False,
+    )
 
     # Allocate reduced system
-    if preallocate_reduced_system:
-        (
-            _L_diagonal_blocks,
-            _L_lower_diagonal_blocks,
-            _L_lower_arrow_blocks,
-            _L_tip_update,
-        ) = allocate_pobtars(
-            A_diagonal_blocks=A_diagonal_blocks_local,
-            A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
-            A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
-            A_arrow_tip_block=A_arrow_tip_block_global,
-            comm_size=comm_size,
-            array_module=xp.__name__,
-            device_streaming=True if array_type == "streaming" else False,
-            strategy=comm_strategy,
-        )
-    else:
-        _L_diagonal_blocks = None
-        _L_lower_diagonal_blocks = None
-        _L_lower_arrow_blocks = None
-        _L_tip_update = None
+    (
+        _L_diagonal_blocks,
+        _L_lower_diagonal_blocks,
+        _L_lower_arrow_blocks,
+        _L_tip_update,
+    ) = allocate_pobtars(
+        A_diagonal_blocks=A_diagonal_blocks_local,
+        A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
+        A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
+        A_arrow_tip_block=A_arrow_tip_block_global,
+        comm_size=comm_size,
+        array_module=xp.__name__,
+        device_streaming=True if array_type == "streaming" else False,
+        strategy=comm_strategy,
+    )
 
     # Distributed factorization
     (

@@ -5,7 +5,6 @@ from serinv.wrappers.ppobtaf import ppobtaf
 from serinv.wrappers.ppobtasi import ppobtasi
 from serinv.wrappers.pobtars import (
     allocate_pobtars,
-    allocate_pinned_pobtars,
 )
 
 from serinv.wrappers.pddbtsc import pddbtsc
@@ -20,7 +19,6 @@ __all__ = [
     "ppobtaf",
     "ppobtasi",
     "allocate_pobtars",
-    "allocate_pinned_pobtars",
     "pddbtsc",
     "pddbtsci",
     "allocate_ddbtrs",
