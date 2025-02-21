@@ -46,12 +46,6 @@ def pobtaf(
     - If a device array is given, the algorithm will run on the GPU.
     - If a buffer is provided, the algorithm will perform the factorization of a permuted arrowhead matrix.
 
-    Currently implemented:
-    ----------------------
-    |              | Natural | Permuted |
-    | ------------ | ------- | -------- |
-    | Direct-array | x       | x        |
-    | Streaming    | x       | x        |
     """
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
