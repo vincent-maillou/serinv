@@ -47,6 +47,11 @@ def pobtaf(
     - If a buffer is provided, the algorithm will perform the factorization of a permuted arrowhead matrix.
 
     """
+    expected_kwargs = {"device_streaming", "buffer", "factorize_last_block"}
+    unexpected_kwargs = set(kwargs) - expected_kwargs
+    if unexpected_kwargs:
+        raise TypeError(f"Unexpected keyword arguments: {unexpected_kwargs}")
+
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
     factorize_last_block = kwargs.get("factorize_last_block", True)

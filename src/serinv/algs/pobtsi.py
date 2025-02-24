@@ -36,6 +36,11 @@ def pobtsi(
     - If a buffer is provided, the algorithm will perform the factorization of a permuted arrowhead matrix.
 
     """
+    expected_kwargs = {"device_streaming", "buffer", "invert_last_block"}
+    unexpected_kwargs = set(kwargs) - expected_kwargs
+    if unexpected_kwargs:
+        raise TypeError(f"Unexpected keyword arguments: {unexpected_kwargs}")
+
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
     invert_last_block = kwargs.get("invert_last_block", True)
