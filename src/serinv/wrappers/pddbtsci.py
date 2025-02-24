@@ -13,9 +13,6 @@ from .ddbtrs import (
     scatter_ddbtrs,
 )
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
-
 
 def pddbtsci(
     A_diagonal_blocks: ArrayLike,
@@ -86,6 +83,9 @@ def pddbtsci(
             - _B_upper_diagonal_blocks : ArrayLike
                 The upper diagonal blocks of the reduced system.
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 

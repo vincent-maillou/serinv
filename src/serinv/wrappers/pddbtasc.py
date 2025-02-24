@@ -14,8 +14,6 @@ from .ddbtars import (
 )
 
 
-
-
 def pddbtasc(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,

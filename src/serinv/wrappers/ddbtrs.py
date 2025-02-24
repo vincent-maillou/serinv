@@ -434,6 +434,7 @@ def scatter_ddbtrs(
     quadratic: bool = False,
     strategy: str = "allgather",
 ):
+    """Scatter the reduced system."""
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 

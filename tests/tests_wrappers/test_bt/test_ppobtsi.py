@@ -110,7 +110,7 @@ def test_ppobtsi(
     pobtrs: dict = allocate_pobtrs(
         A_diagonal_blocks=A_diagonal_blocks_local,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
-        comm_size=comm_size,
+        comm=MPI.COMM_WORLD,
         array_module=xp.__name__,
         strategy=comm_strategy,
     )
@@ -121,6 +121,7 @@ def test_ppobtsi(
         A_lower_diagonal_blocks_local,
         buffer=buffer,
         pobtrs=pobtrs,
+        comm=MPI.COMM_WORLD,
         strategy=comm_strategy,
     )
 
@@ -130,6 +131,7 @@ def test_ppobtsi(
         L_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
         buffer=buffer,
         pobtrs=pobtrs,
+        comm=MPI.COMM_WORLD,
         strategy=comm_strategy,
     )
 

@@ -116,8 +116,6 @@ def pddbtasci(
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
-    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
-
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)

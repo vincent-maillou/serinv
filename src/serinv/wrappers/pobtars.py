@@ -12,17 +12,14 @@ from serinv import (
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
-
 
 def allocate_pobtars(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-    comm_size: int,
     array_module: str,
+    comm: MPI.Comm,
     device_streaming: bool = False,
     strategy: str = "allgather",
 ):
@@ -49,15 +46,12 @@ def allocate_pobtars(
 
     Returns
     -------
-    _L_diagonal_blocks : ArrayLike
-        The diagonal blocks of the reduced system.
-    _L_lower_diagonal_blocks : ArrayLike
-        The lower diagonal blocks of the reduced system.
-    _L_lower_arrow_blocks : ArrayLike
-        The arrow bottom blocks of the reduced system.
-    _L_tip_update : ArrayLike
-        The arrow tip block of the reduced system.
+    pobtars : dict
+        Dictionary containing the reduced system arrays.
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     xp, _ = _get_module_from_str(array_module)
 
     if device_streaming:
@@ -151,6 +145,7 @@ def map_ppobtax_to_pobtars(
     _A_lower_arrow_blocks: ArrayLike,
     _A_arrow_tip_block: ArrayLike,
     buffer: ArrayLike,
+    comm: MPI.Comm,
     strategy: str = "allgather",
 ):
     """Map the the boundary blocks of the PPOBTAX algorithm to the reduced system.
@@ -178,6 +173,8 @@ def map_ppobtax_to_pobtars(
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
     if strategy == "allgather":
         if comm_rank == 0:
@@ -221,6 +218,7 @@ def map_ppobtax_to_pobtars(
 
 def aggregate_pobtars(
     pobtars: dict,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
 ):
@@ -239,6 +237,8 @@ def aggregate_pobtars(
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
     _A_diagonal_blocks: ArrayLike = pobtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = pobtars.get("A_lower_diagonal_blocks", None)
@@ -281,19 +281,19 @@ def aggregate_pobtars(
         cpx.cuda.Stream.null.synchronize()
 
     if strategy == "allgather":
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_lower_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_lower_arrow_blocks_comm,
         )
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
+        comm.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
 
         pobtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:]
         pobtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-1]
@@ -310,7 +310,7 @@ def aggregate_pobtars(
                 "The root rank must be given for gather-scatter communication strategy."
             )
 
-        MPI.COMM_WORLD.Gather(
+        comm.Gather(
             sendbuf=(
                 _A_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
@@ -319,7 +319,7 @@ def aggregate_pobtars(
             recvbuf=_A_diagonal_blocks_comm if comm_rank == root else None,
             root=root,
         )
-        MPI.COMM_WORLD.Gather(
+        comm.Gather(
             sendbuf=(
                 _A_lower_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
@@ -328,7 +328,7 @@ def aggregate_pobtars(
             recvbuf=_A_lower_diagonal_blocks_comm if comm_rank == root else None,
             root=root,
         )
-        MPI.COMM_WORLD.Gather(
+        comm.Gather(
             sendbuf=(
                 _A_lower_arrow_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
@@ -337,7 +337,7 @@ def aggregate_pobtars(
             recvbuf=_A_lower_arrow_blocks_comm if comm_rank == root else None,
             root=root,
         )
-        MPI.COMM_WORLD.Reduce(
+        comm.Reduce(
             sendbuf=_A_arrow_tip_block_comm if comm_rank != root else MPI.IN_PLACE,
             recvbuf=_A_arrow_tip_block_comm if comm_rank == root else None,
             op=MPI.SUM,
@@ -368,10 +368,14 @@ def aggregate_pobtars(
 
 def scatter_pobtars(
     pobtars: dict,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
 ):
     """Scatter the reduced system."""
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     _A_diagonal_blocks: ArrayLike = pobtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = pobtars.get("A_lower_diagonal_blocks", None)
     _A_lower_arrow_blocks: ArrayLike = pobtars.get("A_lower_arrow_blocks", None)
@@ -422,7 +426,7 @@ def scatter_pobtars(
 
             cpx.cuda.Stream.null.synchronize()
 
-        MPI.COMM_WORLD.Scatter(
+        comm.Scatter(
             sendbuf=_A_diagonal_blocks_comm if comm_rank == root else None,
             recvbuf=(
                 _A_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
@@ -432,7 +436,7 @@ def scatter_pobtars(
             root=root,
         )
 
-        MPI.COMM_WORLD.Gather(
+        comm.Gather(
             sendbuf=(
                 _A_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
@@ -442,7 +446,7 @@ def scatter_pobtars(
             root=root,
         )
 
-        MPI.COMM_WORLD.Scatter(
+        comm.Scatter(
             sendbuf=_A_lower_diagonal_blocks_comm if comm_rank == root else None,
             recvbuf=(
                 _A_lower_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
@@ -451,7 +455,7 @@ def scatter_pobtars(
             ),
             root=root,
         )
-        MPI.COMM_WORLD.Scatter(
+        comm.Scatter(
             sendbuf=_A_lower_arrow_blocks_comm if comm_rank == root else None,
             recvbuf=(
                 _A_lower_arrow_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
@@ -460,7 +464,7 @@ def scatter_pobtars(
             ),
             root=root,
         )
-        MPI.COMM_WORLD.Bcast(
+        comm.Bcast(
             buf=_A_arrow_tip_block_comm,
             root=root,
         )
@@ -487,6 +491,7 @@ def map_pobtars_to_ppobtax(
     _A_lower_diagonal_blocks: ArrayLike,
     _A_lower_arrow_blocks: ArrayLike,
     _A_arrow_tip_block: ArrayLike,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
 ):
@@ -513,6 +518,9 @@ def map_pobtars_to_ppobtax(
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     buffer: dict = kwargs.get("buffer", None)
 
     if strategy == "allgather":

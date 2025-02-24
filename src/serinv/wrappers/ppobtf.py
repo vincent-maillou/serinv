@@ -13,13 +13,11 @@ from .pobtrs import (
     aggregate_pobtrs,
 )
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
-
 
 def ppobtf(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel factorization of a block tridiagonal with arrowhead matrix
@@ -52,7 +50,8 @@ def ppobtf(
     - If a device array is given, the algorithm will run on the GPU.
 
     """
-    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
@@ -104,12 +103,14 @@ def ppobtf(
         A_lower_diagonal_blocks=A_lower_diagonal_blocks,
         _A_diagonal_blocks=pobtrs["A_diagonal_blocks"],
         _A_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"],
+        comm=comm,
         buffer=buffer,
         strategy=strategy,
     )
 
     aggregate_pobtrs(
         pobtrs=pobtrs,
+        comm=comm,
         strategy=strategy,
         root=root,
     )
@@ -132,4 +133,4 @@ def ppobtf(
             device_streaming=device_streaming,
         )
 
-    MPI.COMM_WORLD.Barrier()
+    comm.Barrier()
