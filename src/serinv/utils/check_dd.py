@@ -45,8 +45,8 @@ def check_ddbta(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
-    A_arrow_right_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
+    A_upper_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
 ) -> ArrayLike:
     """Check if the given block tridiagonal arrowhead matrix is diagonally dominant.
@@ -63,9 +63,9 @@ def check_ddbta(
         The blocks on the lower diagonal of the matrix.
     A_upper_diagonal_blocks : ArrayLike
         The blocks on the upper diagonal of the matrix.
-    A_arrow_bottom_blocks : ArrayLike
+    A_lower_arrow_blocks : ArrayLike
         The blocks on the bottom arrow of the matrix.
-    A_arrow_right_blocks : ArrayLike
+    A_upper_arrow_blocks : ArrayLike
         The blocks on the right arrow of the matrix.
     A_arrow_tip_block : ArrayLike
         The block at the tip of the arrowhead.
@@ -78,7 +78,7 @@ def check_ddbta(
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     diagonal_blocksize = A_diagonal_blocks.shape[1]
-    arrowhead_blocksize = A_arrow_bottom_blocks.shape[1]
+    arrowhead_blocksize = A_lower_arrow_blocks.shape[1]
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
     matrix_size = n_diag_blocks * diagonal_blocksize + arrowhead_blocksize
@@ -91,7 +91,7 @@ def check_ddbta(
         colsum = (
             xp.sum(A_diagonal_blocks[i, :, :], axis=1)
             - xp.diag(A_diagonal_blocks[i, :, :][:, :])
-            + xp.sum(A_arrow_right_blocks[i, :, :], axis=1)
+            + xp.sum(A_upper_arrow_blocks[i, :, :], axis=1)
         )
         if i > 0:
             colsum += xp.sum(A_lower_diagonal_blocks[i - 1, :, :], axis=1)
@@ -100,7 +100,7 @@ def check_ddbta(
 
         ddbta[i * diagonal_blocksize : (i + 1) * diagonal_blocksize] = diag > colsum
 
-        arrow_colsum[:] += xp.sum(A_arrow_bottom_blocks[i, :, :], axis=1)
+        arrow_colsum[:] += xp.sum(A_lower_arrow_blocks[i, :, :], axis=1)
 
     ddbta[-arrowhead_blocksize:] = xp.abs(xp.diag(A_arrow_tip_block[:, :])) > xp.abs(
         xp.sum(A_arrow_tip_block, axis=1)

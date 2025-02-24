@@ -66,6 +66,11 @@ def ddbtasci(
         - B_upper_buffer_blocks : ArrayLike
             The upper buffer blocks of the matrix B.
     """
+    expected_kwargs = {"rhs", "quadratic", "buffers", "invert_last_block"}
+    unexpected_kwargs = set(kwargs) - expected_kwargs
+    if unexpected_kwargs:
+        raise TypeError(f"Unexpected keyword arguments: {unexpected_kwargs}")
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)

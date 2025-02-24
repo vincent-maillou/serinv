@@ -145,7 +145,6 @@ def pddbtsci(
             A_upper_diagonal_blocks=A_upper_diagonal_blocks,
             rhs=rhs,
             quadratic=quadratic,
-            invert_last_block=False,
             direction="downward",
         )
     elif comm_rank == comm_size - 1:
@@ -156,7 +155,6 @@ def pddbtsci(
             A_upper_diagonal_blocks=A_upper_diagonal_blocks,
             rhs=rhs,
             quadratic=quadratic,
-            invert_last_block=False,
             direction="upward",
         )
     else:
@@ -168,5 +166,4 @@ def pddbtsci(
             rhs=rhs,
             quadratic=quadratic,
             buffers=buffers,
-            invert_last_block=False,
         )

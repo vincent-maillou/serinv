@@ -46,7 +46,7 @@ def test_pobtas(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         _,
-        A_arrow_bottom_blocks,
+        A_lower_arrow_blocks,
         _,
         A_arrow_tip_block,
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
@@ -54,14 +54,14 @@ def test_pobtas(
     pobtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_arrow_bottom_blocks,
+        A_lower_arrow_blocks,
         A_arrow_tip_block,
     )
 
     pobtas(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_arrow_bottom_blocks,
+        A_lower_arrow_blocks,
         A_arrow_tip_block,
         B,
     )

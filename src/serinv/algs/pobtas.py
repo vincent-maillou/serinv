@@ -10,7 +10,7 @@ from serinv import (
 def pobtas(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
     **kwargs,
@@ -43,7 +43,7 @@ def pobtas(
             _pobtas_permuted(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
-                L_arrow_bottom_blocks,
+                L_lower_arrow_blocks,
                 L_arrow_tip_block,
                 B,
                 buffer,
@@ -58,7 +58,7 @@ def pobtas(
             _pobtas(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
-                L_arrow_bottom_blocks,
+                L_lower_arrow_blocks,
                 L_arrow_tip_block,
                 B,
             )
@@ -67,7 +67,7 @@ def pobtas(
 def _pobtas(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
 ):
@@ -75,7 +75,7 @@ def _pobtas(
     xp, la = _get_module_from_array(L_diagonal_blocks)
 
     diag_blocksize = L_diagonal_blocks.shape[1]
-    arrow_blocksize = L_arrow_bottom_blocks.shape[1]
+    arrow_blocksize = L_lower_arrow_blocks.shape[1]
     n_diag_blocks = L_diagonal_blocks.shape[0]
 
     # ----- Forward substitution -----
@@ -99,7 +99,7 @@ def _pobtas(
     B_tip_rhs = B[-arrow_blocksize:]
     for i in range(0, n_diag_blocks):
         B_tip_rhs -= (
-            L_arrow_bottom_blocks[i] @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            L_lower_arrow_blocks[i] @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
         )
 
     # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
@@ -120,7 +120,7 @@ def _pobtas(
     B[-arrow_blocksize - diag_blocksize : -arrow_blocksize] = la.solve_triangular(
         L_diagonal_blocks[-1],
         B[-arrow_blocksize - diag_blocksize : -arrow_blocksize]
-        - L_arrow_bottom_blocks[-1].conj().T @ B[-arrow_blocksize:],
+        - L_lower_arrow_blocks[-1].conj().T @ B[-arrow_blocksize:],
         lower=True,
         trans="C",
     )
@@ -132,7 +132,7 @@ def _pobtas(
             B[i * diag_blocksize : (i + 1) * diag_blocksize]
             - L_lower_diagonal_blocks[i].conj().T
             @ B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-            - L_arrow_bottom_blocks[i].conj().T @ B[-arrow_blocksize:],
+            - L_lower_arrow_blocks[i].conj().T @ B[-arrow_blocksize:],
             lower=True,
             trans="C",
         )
@@ -141,7 +141,7 @@ def _pobtas(
 def _pobtas_permuted(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
     buffer: ArrayLike,
