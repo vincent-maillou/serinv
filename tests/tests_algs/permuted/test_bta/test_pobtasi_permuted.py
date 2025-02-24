@@ -21,7 +21,6 @@ def test_pobtasi_permuted(
     array_type: str,
     dtype: np.dtype,
 ):
-
     A = dd_bta(
         diagonal_blocksize,
         arrowhead_blocksize,
@@ -141,14 +140,14 @@ def test_pobtasi_permuted(
     A_arrow_tip_block[:, :] = _A_arrow_tip_block
 
     pobtasi(
-        A_diagonal_blocks,
-        A_lower_diagonal_blocks,
-        A_arrow_bottom_blocks,
-        A_arrow_tip_block,
-        buffers=buffer,
+        L_diagonal_blocks=A_diagonal_blocks,
+        L_lower_diagonal_blocks=A_lower_diagonal_blocks,
+        L_arrow_bottom_blocks=A_arrow_bottom_blocks,
+        L_arrow_tip_block=A_arrow_tip_block,
+        buffer=buffer,
     )
 
     assert xp.allclose(X_arrow_tip_block_ref, A_arrow_tip_block)
-    # assert xp.allclose(X_diagonal_blocks_ref, A_diagonal_blocks)
-    # assert xp.allclose(X_lower_diagonal_blocks_ref, A_lower_diagonal_blocks)
-    # assert xp.allclose(X_lower_arrow_blocks_ref, A_arrow_bottom_blocks)
+    assert xp.allclose(X_diagonal_blocks_ref, A_diagonal_blocks)
+    assert xp.allclose(X_lower_diagonal_blocks_ref, A_lower_diagonal_blocks)
+    assert xp.allclose(X_lower_arrow_blocks_ref, A_arrow_bottom_blocks)

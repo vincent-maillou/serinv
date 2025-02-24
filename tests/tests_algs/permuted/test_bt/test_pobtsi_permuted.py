@@ -99,8 +99,8 @@ def test_pobtsi_permuted(
     pobtsi(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        buffers=buffer,
+        buffer=buffer,
     )
 
-    # assert xp.allclose(X_diagonal_blocks_ref, A_diagonal_blocks)
-    # assert xp.allclose(X_lower_diagonal_blocks_ref, A_lower_diagonal_blocks)
+    assert xp.allclose(X_diagonal_blocks_ref, A_diagonal_blocks)
+    assert xp.allclose(X_lower_diagonal_blocks_ref, A_lower_diagonal_blocks)
