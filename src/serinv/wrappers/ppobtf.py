@@ -89,12 +89,14 @@ def ppobtf(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,
             factorize_last_block=False,
+            device_streaming=device_streaming,
         )
     else:
         pobtf(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,
             buffer=buffer,
+            device_streaming=device_streaming,
         )
 
     map_ppobtx_to_pobtrs(
@@ -118,6 +120,7 @@ def ppobtf(
             pobtf(
                 A_diagonal_blocks=pobtrs["A_diagonal_blocks"][1:],
                 A_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"][1:-1],
+                device_streaming=device_streaming,
             )
         else:
             # Do nothing.
@@ -126,6 +129,7 @@ def ppobtf(
         pobtf(
             A_diagonal_blocks=pobtrs["A_diagonal_blocks"],
             A_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"],
+            device_streaming=device_streaming,
         )
 
     MPI.COMM_WORLD.Barrier()

@@ -2,8 +2,7 @@
 # isort:skip_file
 
 from serinv.wrappers.ppobtf import ppobtf
-
-# from serinv.wrappers.ppobtsi import ppobtsi
+from serinv.wrappers.ppobtsi import ppobtsi
 from serinv.wrappers.pobtrs import (
     allocate_pobtrs,
 )
@@ -24,6 +23,7 @@ from serinv.wrappers.ddbtars import allocate_ddbtars
 
 __all__ = [
     "ppobtf",
+    "ppobtsi",
     "allocate_pobtrs",
     "ppobtaf",
     "ppobtasi",
