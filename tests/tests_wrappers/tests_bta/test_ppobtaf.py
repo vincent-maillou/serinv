@@ -134,7 +134,7 @@ def test_ppobtaf(
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
         A_lower_arrow_blocks=A_lower_arrow_blocks_local,
         A_arrow_tip_block=A_arrow_tip_block_global,
-        comm_size=comm_size,
+        comm=MPI.COMM_WORLD,
         array_module=xp.__name__,
         strategy=comm_strategy,
     )
@@ -147,6 +147,7 @@ def test_ppobtaf(
         A_arrow_tip_block_global,
         buffer=buffer,
         pobtars=pobtars,
+        comm=MPI.COMM_WORLD,
         strategy=comm_strategy,
     )
 

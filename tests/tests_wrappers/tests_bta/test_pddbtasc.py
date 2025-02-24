@@ -200,7 +200,7 @@ def test_pddbtasc(
         A_lower_arrow_blocks=A_lower_arrow_blocks_local,
         A_upper_arrow_blocks=A_upper_arrow_blocks_local,
         A_arrow_tip_block=A_arrow_tip_block,
-        comm_size=comm_size,
+        comm=MPI.COMM_WORLD,
         array_module="numpy" if array_type == "host" else "cupy",
         strategy=comm_strategy,
         quadratic=quadratic,
@@ -217,6 +217,8 @@ def test_pddbtasc(
         quadratic=quadratic,
         buffers=buffers,
         ddbtars=ddbtars,
+        comm=MPI.COMM_WORLD,
+        strategy=comm_strategy,
     )
 
     ddbtasci(

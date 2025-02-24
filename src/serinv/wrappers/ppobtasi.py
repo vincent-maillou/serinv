@@ -13,15 +13,13 @@ from serinv.wrappers.pobtars import (
     scatter_pobtars,
 )
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
-
 
 def ppobtasi(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
     L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD,
     **kwargs,
 ):
     """Perform a selected inversion of a block tridiagonal with arrowhead matrix (pointing downward by convention).
@@ -56,6 +54,9 @@ def ppobtasi(
     - If a device array is given, the algorithm will run on the GPU.
 
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
@@ -100,7 +101,7 @@ def ppobtasi(
                 L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"][1:],
                 L_arrow_tip_block=pobtars["A_arrow_tip_block"],
             )
-        MPI.COMM_WORLD.Barrier()
+        comm.Barrier()
 
     elif strategy == "allgather":
         pobtasi(
@@ -112,6 +113,7 @@ def ppobtasi(
 
     scatter_pobtars(
         pobtars=pobtars,
+        comm=comm,
         strategy=strategy,
         root=root,
     )
@@ -126,6 +128,7 @@ def ppobtasi(
         _A_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
         _A_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
         _A_arrow_tip_block=pobtars["A_arrow_tip_block"],
+        comm=comm,
         buffer=buffer,
         strategy=strategy,
     )

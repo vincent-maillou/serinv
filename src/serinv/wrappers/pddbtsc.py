@@ -13,14 +13,12 @@ from .ddbtrs import (
     aggregate_ddbtrs,
 )
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
-
 
 def pddbtsc(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel Schur-complement of a block tridiagonal matrix.
@@ -33,7 +31,9 @@ def pddbtsc(
         The lower diagonal blocks of the block tridiagonal with arrowhead matrix.
     A_upper_diagonal_blocks : ArrayLike
         The upper diagonal blocks of the block tridiagonal with arrowhead matrix.
-
+    comm : MPI.Comm
+        The MPI communicator. Default is MPI.COMM_WORLD.
+        
     Keyword Arguments
     -----------------
     rhs : dict
@@ -82,6 +82,9 @@ def pddbtsc(
             - _B_upper_diagonal_blocks : ArrayLike
                 The upper diagonal blocks of the reduced system.
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
@@ -91,6 +94,7 @@ def pddbtsc(
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)
     ddbtrs: dict = kwargs.get("ddbtrs", None)
+    strategy: str = kwargs.get("strategy", "allgather")
 
     # Check that the reduced system contains the required arrays
     ddbtrs: dict = kwargs.get("ddbtrs", None)
@@ -151,6 +155,8 @@ def pddbtsc(
         _A_diagonal_blocks=_A_diagonal_blocks,
         _A_lower_diagonal_blocks=_A_lower_diagonal_blocks,
         _A_upper_diagonal_blocks=_A_upper_diagonal_blocks,
+        comm=comm,
+        strategy=strategy,
         rhs=rhs,
         quadratic=quadratic,
         buffers=buffers,
@@ -160,6 +166,8 @@ def pddbtsc(
     aggregate_ddbtrs(
         ddbtrs=ddbtrs,
         quadratic=quadratic,
+        comm=comm,
+        strategy=strategy,
     )
 
     # Perform Schur complement on the reduced system
@@ -170,3 +178,5 @@ def pddbtsc(
         rhs=ddbtrs.get("_rhs", None),
         quadratic=quadratic,
     )
+
+    comm.Barrier()

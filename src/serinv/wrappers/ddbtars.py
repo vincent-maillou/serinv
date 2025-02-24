@@ -12,8 +12,6 @@ from serinv import (
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
 
 
 def allocate_ddbtars(
@@ -23,11 +21,14 @@ def allocate_ddbtars(
     A_lower_arrow_blocks: ArrayLike,
     A_upper_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-    comm_size: int,
     array_module: str,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     quadratic: bool = False,
-):
+) -> dict:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     xp, _ = _get_module_from_str(array_module)
 
     if strategy == "allgather":
@@ -208,9 +209,13 @@ def map_ddbtasc_to_ddbtars(
     _A_lower_arrow_blocks: ArrayLike,
     _A_upper_arrow_blocks: ArrayLike,
     _A_arrow_tip_block: ArrayLike,
-    strategy: str = "allgather",
+    comm: MPI.Comm,
+    strategy: str,
     **kwargs,
-):
+) -> None:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)
@@ -339,10 +344,13 @@ def map_ddbtasc_to_ddbtars(
 
 def aggregate_ddbtars(
     ddbtars: dict,
+    comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
-    **kwargs,
-):
+) -> None:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     _A_diagonal_blocks: ArrayLike = ddbtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtars.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtars.get("A_upper_diagonal_blocks", None)
@@ -488,27 +496,27 @@ def aggregate_ddbtars(
             cpx.cuda.Stream.null.synchronize()
 
         # Perform the allgather operation
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_lower_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_upper_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_lower_arrow_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_upper_arrow_blocks_comm,
         )
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
+        comm.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
 
         ddbtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:]
         ddbtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-1]
@@ -582,27 +590,27 @@ def aggregate_ddbtars(
                 _B_arrow_tip_block.get(out=_B_arrow_tip_block_comm)
 
             # Perform the allgather operation
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_diagonal_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_lower_diagonal_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_upper_diagonal_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_lower_arrow_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_upper_arrow_blocks_comm,
             )
-            MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _B_arrow_tip_block_comm, op=MPI.SUM)
+            comm.Allreduce(MPI.IN_PLACE, _B_arrow_tip_block_comm, op=MPI.SUM)
 
             _rhs["B_diagonal_blocks_comm"] = _B_diagonal_blocks_comm[1:]
             _rhs["B_lower_diagonal_blocks_comm"] = _B_lower_diagonal_blocks_comm[1:-1]
@@ -619,7 +627,7 @@ def aggregate_ddbtars(
     else:
         raise ValueError("Unknown communication strategy.")
 
-    MPI.COMM_WORLD.Barrier()
+    comm.Barrier()
 
     if xp.__name__ == "cupy":
         # Need to put back the reduced system on the GPU
@@ -641,10 +649,14 @@ def aggregate_ddbtars(
 
 def scatter_ddbtars(
     ddbtars: dict,
+    comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
     **kwargs,
 ):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     _A_diagonal_blocks: ArrayLike = ddbtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtars.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtars.get("A_upper_diagonal_blocks", None)
@@ -711,9 +723,13 @@ def map_ddbtars_to_ddbtasci(
     _A_lower_arrow_blocks: ArrayLike,
     _A_upper_arrow_blocks: ArrayLike,
     _A_arrow_tip_block: ArrayLike,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
 ):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)

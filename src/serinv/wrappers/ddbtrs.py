@@ -12,19 +12,19 @@ from serinv import (
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
-
 
 def allocate_ddbtrs(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
-    comm_size: int,
     array_module: str,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     quadratic: bool = False,
-):
+) -> dict:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     xp, _ = _get_module_from_str(array_module)
 
     if strategy == "allgather":
@@ -137,9 +137,13 @@ def map_ddbtsc_to_ddbtrs(
     _A_diagonal_blocks: ArrayLike,
     _A_lower_diagonal_blocks: ArrayLike,
     _A_upper_diagonal_blocks: ArrayLike,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
-):
+) -> None:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)
@@ -223,9 +227,13 @@ def map_ddbtsc_to_ddbtrs(
 
 def aggregate_ddbtrs(
     ddbtrs: dict,
+    comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
-):
+) -> None:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     _A_diagonal_blocks: ArrayLike = ddbtrs.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtrs.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtrs.get("A_upper_diagonal_blocks", None)
@@ -319,15 +327,15 @@ def aggregate_ddbtrs(
                     )
 
         # Perform the allgather operation
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_lower_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_upper_diagonal_blocks_comm,
         )
@@ -382,15 +390,15 @@ def aggregate_ddbtrs(
                         )
 
             # Perform the allgather operation
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_diagonal_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_lower_diagonal_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_upper_diagonal_blocks_comm,
             )
@@ -406,7 +414,7 @@ def aggregate_ddbtrs(
     else:
         raise ValueError("Unknown communication strategy.")
 
-    MPI.COMM_WORLD.Barrier()
+    comm.Barrier()
 
     if xp.__name__ == "cupy":
         # Need to put back the reduced system on the GPU
@@ -422,9 +430,14 @@ def aggregate_ddbtrs(
 
 def scatter_ddbtrs(
     ddbtrs: dict,
+    comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
 ):
+    """Scatter the reduced system."""
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     _A_diagonal_blocks: ArrayLike = ddbtrs.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtrs.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtrs.get("A_upper_diagonal_blocks", None)
@@ -473,9 +486,13 @@ def map_ddbtrs_to_ddbtsci(
     _A_diagonal_blocks: ArrayLike,
     _A_lower_diagonal_blocks: ArrayLike,
     _A_upper_diagonal_blocks: ArrayLike,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
 ):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)

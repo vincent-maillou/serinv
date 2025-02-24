@@ -162,7 +162,7 @@ def test_pddbtsc(
         A_diagonal_blocks=A_diagonal_blocks_local,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
         A_upper_diagonal_blocks=A_upper_diagonal_blocks_local,
-        comm_size=comm_size,
+        comm=MPI.COMM_WORLD,
         array_module="numpy" if array_type == "host" else "cupy",
         strategy=comm_strategy,
         quadratic=quadratic,
@@ -176,6 +176,8 @@ def test_pddbtsc(
         quadratic=quadratic,
         buffers=buffers,
         ddbtrs=ddbtrs,
+        comm=MPI.COMM_WORLD,
+        strategy=comm_strategy,
     )
 
     ddbtsci(
