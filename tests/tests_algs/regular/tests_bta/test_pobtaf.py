@@ -38,7 +38,7 @@ def test_pobtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         _,
-        A_arrow_bottom_blocks,
+        A_lower_arrow_blocks,
         _,
         A_arrow_tip_block,
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
@@ -48,20 +48,20 @@ def test_pobtaf(
         A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :]
         A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)
         A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks[:, :, :]
-        A_arrow_bottom_blocks_pinned = cpx.zeros_like_pinned(A_arrow_bottom_blocks)
-        A_arrow_bottom_blocks_pinned[:, :, :] = A_arrow_bottom_blocks[:, :, :]
+        A_lower_arrow_blocks_pinned = cpx.zeros_like_pinned(A_lower_arrow_blocks)
+        A_lower_arrow_blocks_pinned[:, :, :] = A_lower_arrow_blocks[:, :, :]
         A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block)
         A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block[:, :]
 
         A_diagonal_blocks = A_diagonal_blocks_pinned
         A_lower_diagonal_blocks = A_lower_diagonal_blocks_pinned
-        A_arrow_bottom_blocks = A_arrow_bottom_blocks_pinned
+        A_lower_arrow_blocks = A_lower_arrow_blocks_pinned
         A_arrow_tip_block = A_arrow_tip_block_pinned
 
     pobtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_arrow_bottom_blocks,
+        A_lower_arrow_blocks,
         A_arrow_tip_block,
         device_streaming=True if array_type == "streaming" else False,
     )
@@ -70,7 +70,7 @@ def test_pobtaf(
         L_diagonal_blocks_ref,
         L_lower_diagonal_blocks_ref,
         _,
-        L_arrow_bottom_blocks_ref,
+        L_lower_arrow_blocks_ref,
         _,
         L_arrow_tip_block_ref,
     ) = bta_dense_to_arrays(
@@ -80,5 +80,5 @@ def test_pobtaf(
     # Check algorithm validity
     assert xp.allclose(L_diagonal_blocks_ref, A_diagonal_blocks)
     assert xp.allclose(L_lower_diagonal_blocks_ref, A_lower_diagonal_blocks)
-    assert xp.allclose(L_arrow_bottom_blocks_ref, A_arrow_bottom_blocks)
+    assert xp.allclose(L_lower_arrow_blocks_ref, A_lower_arrow_blocks)
     assert xp.allclose(L_arrow_tip_block_ref, A_arrow_tip_block)

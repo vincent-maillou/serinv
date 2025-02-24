@@ -11,7 +11,7 @@ from serinv.algs import ddbtasc, ddbtasci
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("type_of_equation", ["AX=I", "AXA.T=B"])
-def test_ddbtasc_permuted(
+def test_ddbtasci_permuted(
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
     n_diag_blocks: int,

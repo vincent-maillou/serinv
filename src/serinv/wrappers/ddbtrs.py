@@ -51,12 +51,16 @@ def allocate_ddbtrs(
             dtype=A_upper_diagonal_blocks.dtype,
         )
 
-        if xp.__name__ == 'cupy':
+        if xp.__name__ == "cupy":
             # In this case we also need to allocate a pinned-memory
             # reduced system on the host side.
             _A_diagonal_blocks_comm = cpx.empty_like_pinned(_A_diagonal_blocks)
-            _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_A_lower_diagonal_blocks)
-            _A_upper_diagonal_blocks_comm = cpx.empty_like_pinned(_A_upper_diagonal_blocks)
+            _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(
+                _A_lower_diagonal_blocks
+            )
+            _A_upper_diagonal_blocks_comm = cpx.empty_like_pinned(
+                _A_upper_diagonal_blocks
+            )
         else:
             _A_diagonal_blocks_comm = _A_diagonal_blocks
             _A_lower_diagonal_blocks_comm = _A_lower_diagonal_blocks
@@ -84,17 +88,21 @@ def allocate_ddbtrs(
                 dtype=A_upper_diagonal_blocks.dtype,
             )
 
-            if xp.__name__ == 'cupy':
+            if xp.__name__ == "cupy":
                 # In this case we also need to allocate a pinned-memory
                 # reduced system on the host side.
 
                 _B_diagonal_blocks_comm = cpx.empty_like_pinned(_B_diagonal_blocks)
-                _B_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_B_lower_diagonal_blocks)
-                _B_upper_diagonal_blocks_comm = cpx.empty_like_pinned(_B_upper_diagonal_blocks)
+                _B_lower_diagonal_blocks_comm = cpx.empty_like_pinned(
+                    _B_lower_diagonal_blocks
+                )
+                _B_upper_diagonal_blocks_comm = cpx.empty_like_pinned(
+                    _B_upper_diagonal_blocks
+                )
             else:
                 _B_diagonal_blocks_comm = _B_diagonal_blocks
                 _B_lower_diagonal_blocks_comm = _B_lower_diagonal_blocks
-                _B_upper_diagonal_blocks_comm = _B_upper_diagonal_blocks  
+                _B_upper_diagonal_blocks_comm = _B_upper_diagonal_blocks
 
             _rhs = {
                 "B_diagonal_blocks": _B_diagonal_blocks,
@@ -229,10 +237,14 @@ def aggregate_ddbtrs(
     _A_diagonal_blocks: ArrayLike = ddbtrs.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtrs.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtrs.get("A_upper_diagonal_blocks", None)
-    
+
     _A_diagonal_blocks_comm: ArrayLike = ddbtrs.get("A_diagonal_blocks_comm", None)
-    _A_lower_diagonal_blocks_comm: ArrayLike = ddbtrs.get("A_lower_diagonal_blocks_comm", None)
-    _A_upper_diagonal_blocks_comm: ArrayLike = ddbtrs.get("A_upper_diagonal_blocks_comm", None)
+    _A_lower_diagonal_blocks_comm: ArrayLike = ddbtrs.get(
+        "A_lower_diagonal_blocks_comm", None
+    )
+    _A_upper_diagonal_blocks_comm: ArrayLike = ddbtrs.get(
+        "A_upper_diagonal_blocks_comm", None
+    )
     if any(
         x is None
         for x in [
@@ -253,10 +265,14 @@ def aggregate_ddbtrs(
         _B_diagonal_blocks: ArrayLike = _rhs.get("B_diagonal_blocks", None)
         _B_lower_diagonal_blocks: ArrayLike = _rhs.get("B_lower_diagonal_blocks", None)
         _B_upper_diagonal_blocks: ArrayLike = _rhs.get("B_upper_diagonal_blocks", None)
-        
+
         _B_diagonal_blocks_comm: ArrayLike = _rhs.get("B_diagonal_blocks_comm", None)
-        _B_lower_diagonal_blocks_comm: ArrayLike = _rhs.get("B_lower_diagonal_blocks_comm", None)
-        _B_upper_diagonal_blocks_comm: ArrayLike = _rhs.get("B_upper_diagonal_blocks_comm", None)
+        _B_lower_diagonal_blocks_comm: ArrayLike = _rhs.get(
+            "B_lower_diagonal_blocks_comm", None
+        )
+        _B_upper_diagonal_blocks_comm: ArrayLike = _rhs.get(
+            "B_upper_diagonal_blocks_comm", None
+        )
         if any(
             x is None
             for x in [
@@ -274,25 +290,41 @@ def aggregate_ddbtrs(
 
     xp, _ = _get_module_from_array(arr=_A_diagonal_blocks)
     if strategy == "allgather":
-        if xp.__name__ == 'cupy':
+        if xp.__name__ == "cupy":
             # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
             if comm_rank == 0:
                 _A_diagonal_blocks[1].get(out=_A_diagonal_blocks_comm[1])
                 _A_lower_diagonal_blocks[1].get(out=_A_lower_diagonal_blocks_comm[1])
                 _A_upper_diagonal_blocks[1].get(out=_A_upper_diagonal_blocks_comm[1])
             else:
-                _A_diagonal_blocks[2 * comm_rank].get(out=_A_diagonal_blocks_comm[2 * comm_rank])
-                _A_diagonal_blocks[2 * comm_rank + 1].get(out=_A_diagonal_blocks_comm[2 * comm_rank + 1])
+                _A_diagonal_blocks[2 * comm_rank].get(
+                    out=_A_diagonal_blocks_comm[2 * comm_rank]
+                )
+                _A_diagonal_blocks[2 * comm_rank + 1].get(
+                    out=_A_diagonal_blocks_comm[2 * comm_rank + 1]
+                )
 
                 if comm_rank < comm_size - 1:
-                    _A_lower_diagonal_blocks[2 * comm_rank].get(out=_A_lower_diagonal_blocks_comm[2 * comm_rank])
-                    _A_upper_diagonal_blocks[2 * comm_rank].get(out=_A_upper_diagonal_blocks_comm[2 * comm_rank])
+                    _A_lower_diagonal_blocks[2 * comm_rank].get(
+                        out=_A_lower_diagonal_blocks_comm[2 * comm_rank]
+                    )
+                    _A_upper_diagonal_blocks[2 * comm_rank].get(
+                        out=_A_upper_diagonal_blocks_comm[2 * comm_rank]
+                    )
 
-                    _A_lower_diagonal_blocks[2 * comm_rank + 1].get(out=_A_lower_diagonal_blocks_comm[2 * comm_rank + 1])
-                    _A_upper_diagonal_blocks[2 * comm_rank + 1].get(out=_A_upper_diagonal_blocks_comm[2 * comm_rank + 1])
+                    _A_lower_diagonal_blocks[2 * comm_rank + 1].get(
+                        out=_A_lower_diagonal_blocks_comm[2 * comm_rank + 1]
+                    )
+                    _A_upper_diagonal_blocks[2 * comm_rank + 1].get(
+                        out=_A_upper_diagonal_blocks_comm[2 * comm_rank + 1]
+                    )
                 else:
-                    _A_lower_diagonal_blocks[2 * comm_rank].get(out=_A_lower_diagonal_blocks_comm[2 * comm_rank])
-                    _A_upper_diagonal_blocks[2 * comm_rank].get(out=_A_upper_diagonal_blocks_comm[2 * comm_rank])
+                    _A_lower_diagonal_blocks[2 * comm_rank].get(
+                        out=_A_lower_diagonal_blocks_comm[2 * comm_rank]
+                    )
+                    _A_upper_diagonal_blocks[2 * comm_rank].get(
+                        out=_A_upper_diagonal_blocks_comm[2 * comm_rank]
+                    )
 
         # Perform the allgather operation
         comm.Allgather(
@@ -317,25 +349,45 @@ def aggregate_ddbtrs(
         ddbtrs["A_upper_diagonal_blocks"] = _A_upper_diagonal_blocks[1:-2]
 
         if quadratic:
-            if xp.__name__ == 'cupy':
+            if xp.__name__ == "cupy":
                 # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
                 if comm_rank == 0:
                     _B_diagonal_blocks[1].get(out=_B_diagonal_blocks_comm[1])
-                    _B_lower_diagonal_blocks[1].get(out=_B_lower_diagonal_blocks_comm[1])
-                    _B_upper_diagonal_blocks[1].get(out=_B_upper_diagonal_blocks_comm[1])
+                    _B_lower_diagonal_blocks[1].get(
+                        out=_B_lower_diagonal_blocks_comm[1]
+                    )
+                    _B_upper_diagonal_blocks[1].get(
+                        out=_B_upper_diagonal_blocks_comm[1]
+                    )
                 else:
-                    _B_diagonal_blocks[2 * comm_rank].get(out=_B_diagonal_blocks_comm[2 * comm_rank])
-                    _B_diagonal_blocks[2 * comm_rank + 1].get(out=_B_diagonal_blocks_comm[2 * comm_rank + 1])
+                    _B_diagonal_blocks[2 * comm_rank].get(
+                        out=_B_diagonal_blocks_comm[2 * comm_rank]
+                    )
+                    _B_diagonal_blocks[2 * comm_rank + 1].get(
+                        out=_B_diagonal_blocks_comm[2 * comm_rank + 1]
+                    )
 
                     if comm_rank < comm_size - 1:
-                        _B_lower_diagonal_blocks[2 * comm_rank].get(out=_B_lower_diagonal_blocks_comm[2 * comm_rank])
-                        _B_upper_diagonal_blocks[2 * comm_rank].get(out=_B_upper_diagonal_blocks_comm[2 * comm_rank])
+                        _B_lower_diagonal_blocks[2 * comm_rank].get(
+                            out=_B_lower_diagonal_blocks_comm[2 * comm_rank]
+                        )
+                        _B_upper_diagonal_blocks[2 * comm_rank].get(
+                            out=_B_upper_diagonal_blocks_comm[2 * comm_rank]
+                        )
 
-                        _B_lower_diagonal_blocks[2 * comm_rank + 1].get(out=_B_lower_diagonal_blocks_comm[2 * comm_rank + 1])
-                        _B_upper_diagonal_blocks[2 * comm_rank + 1].get(out=_B_upper_diagonal_blocks_comm[2 * comm_rank + 1])
+                        _B_lower_diagonal_blocks[2 * comm_rank + 1].get(
+                            out=_B_lower_diagonal_blocks_comm[2 * comm_rank + 1]
+                        )
+                        _B_upper_diagonal_blocks[2 * comm_rank + 1].get(
+                            out=_B_upper_diagonal_blocks_comm[2 * comm_rank + 1]
+                        )
                     else:
-                        _B_lower_diagonal_blocks[2 * comm_rank].get(out=_B_lower_diagonal_blocks_comm[2 * comm_rank])
-                        _B_upper_diagonal_blocks[2 * comm_rank].get(out=_B_upper_diagonal_blocks_comm[2 * comm_rank])
+                        _B_lower_diagonal_blocks[2 * comm_rank].get(
+                            out=_B_lower_diagonal_blocks_comm[2 * comm_rank]
+                        )
+                        _B_upper_diagonal_blocks[2 * comm_rank].get(
+                            out=_B_upper_diagonal_blocks_comm[2 * comm_rank]
+                        )
 
             # Perform the allgather operation
             comm.Allgather(
@@ -354,7 +406,7 @@ def aggregate_ddbtrs(
             _rhs["B_diagonal_blocks_comm"] = _B_diagonal_blocks_comm[1:-1]
             _rhs["B_lower_diagonal_blocks_comm"] = _B_lower_diagonal_blocks_comm[1:-2]
             _rhs["B_upper_diagonal_blocks_comm"] = _B_upper_diagonal_blocks_comm[1:-2]
-            
+
             _rhs["B_diagonal_blocks"] = _B_diagonal_blocks[1:-1]
             _rhs["B_lower_diagonal_blocks"] = _B_lower_diagonal_blocks[1:-2]
             _rhs["B_upper_diagonal_blocks"] = _B_upper_diagonal_blocks[1:-2]
@@ -364,13 +416,13 @@ def aggregate_ddbtrs(
 
     comm.Barrier()
 
-    if xp.__name__ == 'cupy':
+    if xp.__name__ == "cupy":
         # Need to put back the reduced system on the GPU
         _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
         _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)
         _A_upper_diagonal_blocks.set(arr=_A_upper_diagonal_blocks_comm)
 
-        if quadratic:   
+        if quadratic:
             _B_diagonal_blocks.set(arr=_B_diagonal_blocks_comm)
             _B_lower_diagonal_blocks.set(arr=_B_lower_diagonal_blocks_comm)
             _B_upper_diagonal_blocks.set(arr=_B_upper_diagonal_blocks_comm)
