@@ -11,7 +11,7 @@ from serinv import (
 def pobtaf(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     **kwargs,
 ):
@@ -24,7 +24,7 @@ def pobtaf(
         The diagonal blocks of the block tridiagonal with arrowhead matrix.
     A_lower_diagonal_blocks : ArrayLike
         The lower diagonal blocks of the block tridiagonal with arrowhead matrix.
-    A_arrow_bottom_blocks : ArrayLike
+    A_lower_arrow_blocks : ArrayLike
         The arrow bottom blocks of the block tridiagonal with arrowhead matrix.
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the block tridiagonal with arrowhead matrix.
@@ -57,7 +57,7 @@ def pobtaf(
             return _pobtaf_permuted_streaming(
                 A_diagonal_blocks,
                 A_lower_diagonal_blocks,
-                A_arrow_bottom_blocks,
+                A_lower_arrow_blocks,
                 A_arrow_tip_block,
                 buffer,
             )
@@ -65,7 +65,7 @@ def pobtaf(
             return _pobtaf_permuted(
                 A_diagonal_blocks,
                 A_lower_diagonal_blocks,
-                A_arrow_bottom_blocks,
+                A_lower_arrow_blocks,
                 A_arrow_tip_block,
                 buffer,
             )
@@ -75,7 +75,7 @@ def pobtaf(
             return _pobtaf_streaming(
                 A_diagonal_blocks,
                 A_lower_diagonal_blocks,
-                A_arrow_bottom_blocks,
+                A_lower_arrow_blocks,
                 A_arrow_tip_block,
                 factorize_last_block,
             )
@@ -83,7 +83,7 @@ def pobtaf(
             return _pobtaf(
                 A_diagonal_blocks,
                 A_lower_diagonal_blocks,
-                A_arrow_bottom_blocks,
+                A_lower_arrow_blocks,
                 A_arrow_tip_block,
                 factorize_last_block,
             )
@@ -92,7 +92,7 @@ def pobtaf(
 def _pobtaf(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     factorize_last_block: bool,
 ):
@@ -103,7 +103,7 @@ def _pobtaf(
 
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
-    L_arrow_bottom_blocks = A_arrow_bottom_blocks
+    L_lower_arrow_blocks = A_lower_arrow_blocks
     L_arrow_tip_block = A_arrow_tip_block
 
     # Forward block-Cholesky
@@ -123,10 +123,10 @@ def _pobtaf(
         )
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
-        L_arrow_bottom_blocks[i, :, :] = (
+        L_lower_arrow_blocks[i, :, :] = (
             la.solve_triangular(
                 L_diagonal_blocks[i, :, :],
-                A_arrow_bottom_blocks[i, :, :].conj().T,
+                A_lower_arrow_blocks[i, :, :].conj().T,
                 lower=True,
             )
             .conj()
@@ -142,15 +142,15 @@ def _pobtaf(
         )
 
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
-        A_arrow_bottom_blocks[i + 1, :, :] = (
-            A_arrow_bottom_blocks[i + 1, :, :]
-            - L_arrow_bottom_blocks[i, :, :] @ L_lower_diagonal_blocks[i, :, :].conj().T
+        A_lower_arrow_blocks[i + 1, :, :] = (
+            A_lower_arrow_blocks[i + 1, :, :]
+            - L_lower_arrow_blocks[i, :, :] @ L_lower_diagonal_blocks[i, :, :].conj().T
         )
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
         A_arrow_tip_block[:, :] = (
             A_arrow_tip_block[:, :]
-            - L_arrow_bottom_blocks[i, :, :] @ L_arrow_bottom_blocks[i, :, :].conj().T
+            - L_lower_arrow_blocks[i, :, :] @ L_lower_arrow_blocks[i, :, :].conj().T
         )
 
     if factorize_last_block:
@@ -158,10 +158,10 @@ def _pobtaf(
         L_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :])
 
         # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
-        L_arrow_bottom_blocks[-1, :, :] = (
+        L_lower_arrow_blocks[-1, :, :] = (
             la.solve_triangular(
                 L_diagonal_blocks[-1, :, :],
-                A_arrow_bottom_blocks[-1, :, :].conj().T,
+                A_lower_arrow_blocks[-1, :, :].conj().T,
                 lower=True,
             )
             .conj()
@@ -171,7 +171,7 @@ def _pobtaf(
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
         A_arrow_tip_block[:, :] = (
             A_arrow_tip_block[:, :]
-            - L_arrow_bottom_blocks[-1, :, :] @ L_arrow_bottom_blocks[-1, :, :].conj().T
+            - L_lower_arrow_blocks[-1, :, :] @ L_lower_arrow_blocks[-1, :, :].conj().T
         )
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
@@ -181,7 +181,7 @@ def _pobtaf(
 def _pobtaf_permuted(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     buffer: ArrayLike,
 ):
@@ -192,7 +192,7 @@ def _pobtaf_permuted(
 
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
-    L_arrow_bottom_blocks = A_arrow_bottom_blocks
+    L_lower_arrow_blocks = A_lower_arrow_blocks
     L_arrow_tip_block = A_arrow_tip_block
 
     buffer[1, :, :] = A_lower_diagonal_blocks[0, :, :].conj().T
@@ -226,10 +226,10 @@ def _pobtaf_permuted(
         )
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
-        L_arrow_bottom_blocks[i, :, :] = (
+        L_lower_arrow_blocks[i, :, :] = (
             la.solve_triangular(
                 L_diagonal_blocks[i, :, :],
-                A_arrow_bottom_blocks[i, :, :].conj().T,
+                A_lower_arrow_blocks[i, :, :].conj().T,
                 lower=True,
             )
             .conj()
@@ -245,16 +245,16 @@ def _pobtaf_permuted(
         )
 
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
-        A_arrow_bottom_blocks[i + 1, :, :] = (
-            A_arrow_bottom_blocks[i + 1, :, :]
-            - L_arrow_bottom_blocks[i, :, :] @ L_lower_diagonal_blocks[i, :, :].conj().T
+        A_lower_arrow_blocks[i + 1, :, :] = (
+            A_lower_arrow_blocks[i + 1, :, :]
+            - L_lower_arrow_blocks[i, :, :] @ L_lower_diagonal_blocks[i, :, :].conj().T
         )
 
         # Update the block at the tip of the arrowhead
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
         L_arrow_tip_block[:, :] = (
             L_arrow_tip_block[:, :]
-            - L_arrow_bottom_blocks[i, :, :] @ L_arrow_bottom_blocks[i, :, :].conj().T
+            - L_lower_arrow_blocks[i, :, :] @ L_lower_arrow_blocks[i, :, :].conj().T
         )
 
         # Update top and next upper/lower blocks of 2-sided factorization pattern
@@ -270,16 +270,16 @@ def _pobtaf_permuted(
 
         # Update the top (first blocks) of the arrowhead
         # A_{ndb+1, top} = A_{ndb+1, top} - L_{ndb+1, i} @ L_{top, i}.conj().T
-        A_arrow_bottom_blocks[0, :, :] = (
-            A_arrow_bottom_blocks[0, :, :]
-            - L_arrow_bottom_blocks[i, :, :] @ buffer[i, :, :].conj().T
+        A_lower_arrow_blocks[0, :, :] = (
+            A_lower_arrow_blocks[0, :, :]
+            - L_lower_arrow_blocks[i, :, :] @ buffer[i, :, :].conj().T
         )
 
 
 def _pobtaf_streaming(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     factorize_last_block: bool,
 ):
@@ -312,7 +312,7 @@ def _pobtaf_streaming(
     # L host aliases
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
-    L_arrow_bottom_blocks = A_arrow_bottom_blocks
+    L_lower_arrow_blocks = A_lower_arrow_blocks
     L_arrow_tip_block = A_arrow_tip_block
 
     # Device buffers
@@ -322,15 +322,15 @@ def _pobtaf_streaming(
     A_lower_diagonal_blocks_d = cp.empty(
         (2, *A_diagonal_blocks.shape[1:]), dtype=A_diagonal_blocks.dtype
     )
-    A_arrow_bottom_blocks_d = cp.empty(
-        (2, *A_arrow_bottom_blocks.shape[1:]), dtype=A_arrow_bottom_blocks.dtype
+    A_lower_arrow_blocks_d = cp.empty(
+        (2, *A_lower_arrow_blocks.shape[1:]), dtype=A_lower_arrow_blocks.dtype
     )
     A_arrow_tip_block_d = cp.empty_like(A_arrow_tip_block)
 
     # X Device buffers arrays pointers
     L_diagonal_blocks_d = A_diagonal_blocks_d
     L_lower_diagonal_blocks_d = A_lower_diagonal_blocks_d
-    L_arrow_bottom_blocks_d = A_arrow_bottom_blocks_d
+    L_lower_arrow_blocks_d = A_lower_arrow_blocks_d
     L_arrow_tip_block_d = A_arrow_tip_block_d
 
     # Forward pass
@@ -342,8 +342,8 @@ def _pobtaf_streaming(
     # --- H2D: transfers ---
     A_diagonal_blocks_d[0, :, :].set(arr=A_diagonal_blocks[0, :, :], stream=h2d_stream)
     h2d_diagonal_events[0].record(stream=h2d_stream)
-    A_arrow_bottom_blocks_d[0, :, :].set(
-        arr=A_arrow_bottom_blocks[0, :, :], stream=h2d_stream
+    A_lower_arrow_blocks_d[0, :, :].set(
+        arr=A_lower_arrow_blocks[0, :, :], stream=h2d_stream
     )
     h2d_arrow_events[0].record(stream=h2d_stream)
 
@@ -405,17 +405,17 @@ def _pobtaf_streaming(
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         h2d_stream.wait_event(compute_arrow_h2d_events[(i + 1) % 2])
-        A_arrow_bottom_blocks_d[(i + 1) % 2, :, :].set(
-            arr=A_arrow_bottom_blocks[i + 1, :, :], stream=h2d_stream
+        A_lower_arrow_blocks_d[(i + 1) % 2, :, :].set(
+            arr=A_lower_arrow_blocks[i + 1, :, :], stream=h2d_stream
         )
         h2d_arrow_events[(i + 1) % 2].record(stream=h2d_stream)
 
         with compute_stream:
             compute_stream.wait_event(h2d_arrow_events[i % 2])
-            L_arrow_bottom_blocks_d[i % 2, :, :] = (
+            L_lower_arrow_blocks_d[i % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    A_arrow_bottom_blocks_d[i % 2, :, :].conj().T,
+                    A_lower_arrow_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
                 )
                 .conj()
@@ -424,8 +424,8 @@ def _pobtaf_streaming(
             compute_arrow_events[i % 2].record(stream=compute_stream)
 
         d2h_stream.wait_event(compute_arrow_events[i % 2])
-        L_arrow_bottom_blocks_d[i % 2, :, :].get(
-            out=L_arrow_bottom_blocks[i, :, :],
+        L_lower_arrow_blocks_d[i % 2, :, :].get(
+            out=L_lower_arrow_blocks[i, :, :],
             stream=d2h_stream,
             blocking=False,
         )
@@ -447,9 +447,9 @@ def _pobtaf_streaming(
             )
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
-            A_arrow_bottom_blocks_d[(i + 1) % 2, :, :] = (
-                A_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
-                - L_arrow_bottom_blocks_d[i % 2, :, :]
+            A_lower_arrow_blocks_d[(i + 1) % 2, :, :] = (
+                A_lower_arrow_blocks_d[(i + 1) % 2, :, :]
+                - L_lower_arrow_blocks_d[i % 2, :, :]
                 @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
             compute_lower_h2d_events[i % 2].record(stream=compute_stream)
@@ -457,8 +457,8 @@ def _pobtaf_streaming(
             # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
             A_arrow_tip_block_d[:, :] = (
                 A_arrow_tip_block_d[:, :]
-                - L_arrow_bottom_blocks_d[i % 2, :, :]
-                @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
+                - L_lower_arrow_blocks_d[i % 2, :, :]
+                @ L_lower_arrow_blocks_d[i % 2, :, :].conj().T
             )
             compute_arrow_h2d_events[i % 2].record(stream=compute_stream)
 
@@ -482,10 +482,10 @@ def _pobtaf_streaming(
     with compute_stream:
         compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
         if factorize_last_block:
-            L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
+            L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
-                    A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T,
+                    A_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T,
                     lower=True,
                 )
                 .conj()
@@ -494,8 +494,8 @@ def _pobtaf_streaming(
         compute_arrow_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
     d2h_stream.wait_event(compute_arrow_events[(n_diag_blocks - 1) % 2])
-    L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-        out=L_arrow_bottom_blocks[-1, :, :],
+    L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
+        out=L_lower_arrow_blocks[-1, :, :],
         stream=d2h_stream,
         blocking=False,
     )
@@ -505,8 +505,8 @@ def _pobtaf_streaming(
             # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
             A_arrow_tip_block_d[:, :] = (
                 A_arrow_tip_block_d[:, :]
-                - L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :]
-                @ L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
+                - L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :]
+                @ L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
             )
 
             # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
@@ -522,7 +522,7 @@ def _pobtaf_streaming(
 def _pobtaf_permuted_streaming(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     buffer: ArrayLike,
 ):
@@ -555,7 +555,7 @@ def _pobtaf_permuted_streaming(
     # Host aliases & buffers
     L_diagonal_blocks = A_diagonal_blocks
     L_lower_diagonal_blocks = A_lower_diagonal_blocks
-    L_arrow_bottom_blocks = A_arrow_bottom_blocks
+    L_lower_arrow_blocks = A_lower_arrow_blocks
 
     # Device aliases & buffers
     A_diagonal_blocks_d = cp.empty(
@@ -565,21 +565,21 @@ def _pobtaf_permuted_streaming(
         (2, *A_lower_diagonal_blocks.shape[1:]),
         dtype=A_lower_diagonal_blocks.dtype,
     )
-    A_arrow_bottom_blocks_d = cp.empty(
-        (2, *A_arrow_bottom_blocks.shape[1:]),
-        dtype=A_arrow_bottom_blocks.dtype,
+    A_lower_arrow_blocks_d = cp.empty(
+        (2, *A_lower_arrow_blocks.shape[1:]),
+        dtype=A_lower_arrow_blocks.dtype,
     )
     A_arrow_tip_block_d = cp.zeros_like(A_arrow_tip_block)
 
     L_diagonal_blocks_d = A_diagonal_blocks_d
     L_lower_diagonal_blocks_d = A_lower_diagonal_blocks_d
-    L_arrow_bottom_blocks_d = A_arrow_bottom_blocks_d
+    L_lower_arrow_blocks_d = A_lower_arrow_blocks_d
 
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
     # Device aliases & buffers specific to the middle process
     A_diagonal_top_block_d = cp.empty_like(A_diagonal_blocks[0])
-    A_arrow_bottom_top_block_d = cp.empty_like(A_arrow_bottom_blocks[0])
+    A_arrow_bottom_top_block_d = cp.empty_like(A_lower_arrow_blocks[0])
     buffer_d = cp.empty(
         (2, *buffer.shape[1:]),
         dtype=buffer.dtype,
@@ -606,11 +606,11 @@ def _pobtaf_permuted_streaming(
         )
         h2d_lower_events[1].record(stream=h2d_stream)
 
-    A_arrow_bottom_blocks_d[1, :, :].set(
-        arr=A_arrow_bottom_blocks[1, :, :], stream=h2d_stream
+    A_lower_arrow_blocks_d[1, :, :].set(
+        arr=A_lower_arrow_blocks[1, :, :], stream=h2d_stream
     )
     A_arrow_bottom_top_block_d[:, :].set(
-        arr=A_arrow_bottom_blocks[0, :, :], stream=h2d_stream
+        arr=A_lower_arrow_blocks[0, :, :], stream=h2d_stream
     )
     h2d_arrow_events[1].record(stream=h2d_stream)
 
@@ -668,17 +668,17 @@ def _pobtaf_permuted_streaming(
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         h2d_stream.wait_event(cp_arrow_events_h2d_release[(i + 1) % 2])
-        A_arrow_bottom_blocks_d[(i + 1) % 2, :, :].set(
-            arr=A_arrow_bottom_blocks[i + 1, :, :], stream=h2d_stream
+        A_lower_arrow_blocks_d[(i + 1) % 2, :, :].set(
+            arr=A_lower_arrow_blocks[i + 1, :, :], stream=h2d_stream
         )
         h2d_arrow_events[(i + 1) % 2].record(stream=h2d_stream)
 
         with compute_stream:
             compute_stream.wait_event(h2d_arrow_events[i % 2])
-            L_arrow_bottom_blocks_d[i % 2, :, :] = (
+            L_lower_arrow_blocks_d[i % 2, :, :] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    A_arrow_bottom_blocks_d[i % 2, :, :].conj().T,
+                    A_lower_arrow_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
                 )
                 .conj()
@@ -687,8 +687,8 @@ def _pobtaf_permuted_streaming(
             cp_arrow_events[i % 2].record(stream=compute_stream)
 
         d2h_stream.wait_event(cp_arrow_events[i % 2])
-        L_arrow_bottom_blocks_d[i % 2, :, :].get(
-            out=L_arrow_bottom_blocks[i, :, :],
+        L_lower_arrow_blocks_d[i % 2, :, :].get(
+            out=L_lower_arrow_blocks[i, :, :],
             stream=d2h_stream,
             blocking=False,
         )
@@ -733,9 +733,9 @@ def _pobtaf_permuted_streaming(
             )
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
-            A_arrow_bottom_blocks_d[(i + 1) % 2, :, :] = (
-                A_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
-                - L_arrow_bottom_blocks_d[i % 2, :, :]
+            A_lower_arrow_blocks_d[(i + 1) % 2, :, :] = (
+                A_lower_arrow_blocks_d[(i + 1) % 2, :, :]
+                - L_lower_arrow_blocks_d[i % 2, :, :]
                 @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
@@ -750,15 +750,15 @@ def _pobtaf_permuted_streaming(
             # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
             A_arrow_tip_block_d[:, :] = (
                 A_arrow_tip_block_d[:, :]
-                - L_arrow_bottom_blocks_d[i % 2, :, :]
-                @ L_arrow_bottom_blocks_d[i % 2, :, :].conj().T
+                - L_lower_arrow_blocks_d[i % 2, :, :]
+                @ L_lower_arrow_blocks_d[i % 2, :, :].conj().T
             )
 
             # Update the top (first blocks) of the arrowhead
             # A_{ndb+1, top} = A_{ndb+1, top} - L_{ndb+1, i} @ L_{top, i}.conj().T
             A_arrow_bottom_top_block_d[:, :] = (
                 A_arrow_bottom_top_block_d[:, :]
-                - L_arrow_bottom_blocks_d[i % 2, :, :]
+                - L_lower_arrow_blocks_d[i % 2, :, :]
                 @ L_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
             )
             cp_arrow_events_h2d_release[i % 2].record(stream=compute_stream)
@@ -778,8 +778,8 @@ def _pobtaf_permuted_streaming(
         stream=d2h_stream,
         blocking=False,
     )
-    A_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
-        out=A_arrow_bottom_blocks[-1, :, :],
+    A_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
+        out=A_lower_arrow_blocks[-1, :, :],
         stream=d2h_stream,
         blocking=False,
     )
@@ -791,7 +791,7 @@ def _pobtaf_permuted_streaming(
 
     d2h_stream.wait_event(cp_arrow_events_h2d_release[(n_diag_blocks - 2) % 2])
     A_arrow_bottom_top_block_d.get(
-        out=A_arrow_bottom_blocks[0, :, :],
+        out=A_lower_arrow_blocks[0, :, :],
         stream=d2h_stream,
         blocking=False,
     )

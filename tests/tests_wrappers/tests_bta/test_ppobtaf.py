@@ -56,7 +56,7 @@ def test_ppobtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         _,
-        A_arrow_bottom_blocks,
+        A_lower_arrow_blocks,
         _,
         A_arrow_tip_block_global,
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
@@ -80,7 +80,7 @@ def test_ppobtaf(
             * n_diag_blocks_per_processes,
         ]
 
-    A_arrow_bottom_blocks_local = A_arrow_bottom_blocks[
+    A_lower_arrow_blocks_local = A_lower_arrow_blocks[
         comm_rank
         * n_diag_blocks_per_processes : (comm_rank + 1)
         * n_diag_blocks_per_processes,
@@ -132,7 +132,7 @@ def test_ppobtaf(
     pobtars: dict = allocate_pobtars(
         A_diagonal_blocks=A_diagonal_blocks_local,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
-        A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
+        A_lower_arrow_blocks=A_lower_arrow_blocks_local,
         A_arrow_tip_block=A_arrow_tip_block_global,
         comm_size=comm_size,
         array_module=xp.__name__,
@@ -143,7 +143,7 @@ def test_ppobtaf(
     ppobtaf(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,
-        A_arrow_bottom_blocks_local,
+        A_lower_arrow_blocks_local,
         A_arrow_tip_block_global,
         buffer=buffer,
         pobtars=pobtars,
@@ -154,7 +154,7 @@ def test_ppobtaf(
         pobtasi(
             L_diagonal_blocks=pobtars["A_diagonal_blocks"],
             L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-            L_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"],
+            L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
             L_arrow_tip_block=pobtars["A_arrow_tip_block"],
         )
 
@@ -209,7 +209,7 @@ def test_ppobtaf(
             pobtasi(
                 L_diagonal_blocks=pobtars["A_diagonal_blocks"][1:],
                 L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"][1:-1],
-                L_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"][1:],
+                L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"][1:],
                 L_arrow_tip_block=pobtars["A_arrow_tip_block"],
             )
 

@@ -50,7 +50,7 @@ def test_pobtasi_permuted(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         _,
-        A_arrow_bottom_blocks,
+        A_lower_arrow_blocks,
         _,
         A_arrow_tip_block,
     ) = bta_dense_to_arrays(
@@ -62,14 +62,14 @@ def test_pobtasi_permuted(
         A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :]
         A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)
         A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks[:, :, :]
-        A_arrow_bottom_blocks_pinned = cpx.zeros_like_pinned(A_arrow_bottom_blocks)
-        A_arrow_bottom_blocks_pinned[:, :, :] = A_arrow_bottom_blocks[:, :, :]
+        A_lower_arrow_blocks_pinned = cpx.zeros_like_pinned(A_lower_arrow_blocks)
+        A_lower_arrow_blocks_pinned[:, :, :] = A_lower_arrow_blocks[:, :, :]
         A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block)
         A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block[:, :]
 
         A_diagonal_blocks = A_diagonal_blocks_pinned
         A_lower_diagonal_blocks = A_lower_diagonal_blocks_pinned
-        A_arrow_bottom_blocks = A_arrow_bottom_blocks_pinned
+        A_lower_arrow_blocks = A_lower_arrow_blocks_pinned
         A_arrow_tip_block = A_arrow_tip_block_pinned
 
     # Allocate permutation buffer
@@ -81,7 +81,7 @@ def test_pobtasi_permuted(
     pobtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
-        A_arrow_bottom_blocks,
+        A_lower_arrow_blocks,
         A_arrow_tip_block,
         buffer=buffer,
         device_streaming=True if array_type == "streaming" else False,
@@ -106,8 +106,8 @@ def test_pobtasi_permuted(
     _A_diagonal_blocks[0] = A_diagonal_blocks[0]
     _A_diagonal_blocks[1] = A_diagonal_blocks[-1]
     _A_lower_diagonal_blocks[0] = buffer[-1].conj().T
-    _A_lower_arrow_blocks[0] = A_arrow_bottom_blocks[0]
-    _A_lower_arrow_blocks[1] = A_arrow_bottom_blocks[-1]
+    _A_lower_arrow_blocks[0] = A_lower_arrow_blocks[0]
+    _A_lower_arrow_blocks[1] = A_lower_arrow_blocks[-1]
     _A_arrow_tip_block[:, :] = A_arrow_tip_block
 
     pobtaf(
@@ -135,14 +135,14 @@ def test_pobtasi_permuted(
     A_diagonal_blocks[0] = _A_diagonal_blocks[0]
     A_diagonal_blocks[-1] = _A_diagonal_blocks[1]
     buffer[-1] = _A_lower_diagonal_blocks[0].conj().T
-    A_arrow_bottom_blocks[0] = _A_lower_arrow_blocks[0]
-    A_arrow_bottom_blocks[-1] = _A_lower_arrow_blocks[1]
+    A_lower_arrow_blocks[0] = _A_lower_arrow_blocks[0]
+    A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[1]
     A_arrow_tip_block[:, :] = _A_arrow_tip_block
 
     pobtasi(
         L_diagonal_blocks=A_diagonal_blocks,
         L_lower_diagonal_blocks=A_lower_diagonal_blocks,
-        L_arrow_bottom_blocks=A_arrow_bottom_blocks,
+        L_lower_arrow_blocks=A_lower_arrow_blocks,
         L_arrow_tip_block=A_arrow_tip_block,
         buffer=buffer,
     )
@@ -150,4 +150,4 @@ def test_pobtasi_permuted(
     assert xp.allclose(X_arrow_tip_block_ref, A_arrow_tip_block)
     assert xp.allclose(X_diagonal_blocks_ref, A_diagonal_blocks)
     assert xp.allclose(X_lower_diagonal_blocks_ref, A_lower_diagonal_blocks)
-    assert xp.allclose(X_lower_arrow_blocks_ref, A_arrow_bottom_blocks)
+    assert xp.allclose(X_lower_arrow_blocks_ref, A_lower_arrow_blocks)

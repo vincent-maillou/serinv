@@ -38,7 +38,7 @@ def pobtsi(
     """
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
-    inverse_last_block = kwargs.get("inverse_last_block", True)
+    invert_last_block = kwargs.get("invert_last_block", True)
 
     if buffer is not None:
         # Permuted arrowhead
@@ -60,20 +60,20 @@ def pobtsi(
             return _pobtsi_streaming(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
-                inverse_last_block,
+                invert_last_block,
             )
         else:
             return _pobtsi(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
-                inverse_last_block,
+                invert_last_block,
             )
 
 
 def _pobtsi(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    inverse_last_block: bool,
+    invert_last_block: bool,
 ):
     xp, la = _get_module_from_array(L_diagonal_blocks)
 
@@ -86,7 +86,7 @@ def _pobtsi(
     L_blk_inv = xp.empty_like(L_diagonal_blocks[0, :, :])
     Identity = xp.eye(L_diagonal_blocks.shape[1])
 
-    if inverse_last_block:
+    if invert_last_block:
         L_blk_inv = la.solve_triangular(
             L_diagonal_blocks[-1, :, :],
             Identity,
@@ -177,7 +177,7 @@ def _pobtsi_permuted(
 def _pobtsi_streaming(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    inverse_last_block: bool,
+    invert_last_block: bool,
 ):
     arr_module, _ = _get_module_from_array(arr=L_diagonal_blocks)
     if arr_module.__name__ != "numpy":
@@ -238,7 +238,7 @@ def _pobtsi_streaming(
 
     with compute_stream:
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
-        if inverse_last_block:
+        if invert_last_block:
             # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
             L_blk_inv_d = cu_la.solve_triangular(
                 L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
@@ -246,7 +246,7 @@ def _pobtsi_streaming(
                 lower=True,
             )
 
-        if inverse_last_block:
+        if invert_last_block:
             # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
             X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
                 L_blk_inv_d.conj().T @ L_blk_inv_d
@@ -255,7 +255,7 @@ def _pobtsi_streaming(
 
     # --- Device 2 Host transfers ---
     d2h_stream.wait_event(compute_diagonal_events[(n_diag_blocks - 1) % 2])
-    if inverse_last_block:
+    if invert_last_block:
         X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
             out=X_diagonal_blocks[-1, :, :],
             stream=d2h_stream,

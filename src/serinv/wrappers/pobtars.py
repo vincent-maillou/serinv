@@ -19,7 +19,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 def allocate_pobtars(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     comm_size: int,
     array_module: str,
@@ -34,7 +34,7 @@ def allocate_pobtars(
         The diagonal blocks of the original system.
     A_lower_diagonal_blocks : ArrayLike
         The lower diagonal blocks of the original system.
-    A_arrow_bottom_blocks : ArrayLike
+    A_lower_arrow_blocks : ArrayLike
         The arrow bottom blocks of the original system.
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the original system.
@@ -84,8 +84,8 @@ def allocate_pobtars(
             dtype=A_lower_diagonal_blocks.dtype,
         )
         _A_lower_arrow_blocks = alloc(
-            (_n, A_arrow_bottom_blocks[0].shape[0], A_arrow_bottom_blocks[0].shape[1]),
-            dtype=A_arrow_bottom_blocks.dtype,
+            (_n, A_lower_arrow_blocks[0].shape[0], A_lower_arrow_blocks[0].shape[1]),
+            dtype=A_lower_arrow_blocks.dtype,
         )
     elif strategy == "gather-scatter":
         _n: int = 2 * comm_size
@@ -104,8 +104,8 @@ def allocate_pobtars(
             dtype=A_lower_diagonal_blocks.dtype,
         )
         _A_lower_arrow_blocks = alloc(
-            (_n, A_arrow_bottom_blocks[0].shape[0], A_arrow_bottom_blocks[0].shape[1]),
-            dtype=A_arrow_bottom_blocks.dtype,
+            (_n, A_lower_arrow_blocks[0].shape[0], A_lower_arrow_blocks[0].shape[1]),
+            dtype=A_lower_arrow_blocks.dtype,
         )
     else:
         raise ValueError("Unknown communication strategy.")

@@ -56,7 +56,7 @@ def test_d_pobtasi(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         _,
-        A_arrow_bottom_blocks,
+        A_lower_arrow_blocks,
         _,
         A_arrow_tip_block_global,
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
@@ -80,7 +80,7 @@ def test_d_pobtasi(
             * n_diag_blocks_per_processes,
         ]
 
-    A_arrow_bottom_blocks_local = A_arrow_bottom_blocks[
+    A_lower_arrow_blocks_local = A_lower_arrow_blocks[
         comm_rank
         * n_diag_blocks_per_processes : (comm_rank + 1)
         * n_diag_blocks_per_processes,
@@ -132,7 +132,7 @@ def test_d_pobtasi(
     pobtars: dict = allocate_pobtars(
         A_diagonal_blocks=A_diagonal_blocks_local,
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
-        A_arrow_bottom_blocks=A_arrow_bottom_blocks_local,
+        A_lower_arrow_blocks=A_lower_arrow_blocks_local,
         A_arrow_tip_block=A_arrow_tip_block_global,
         comm_size=comm_size,
         array_module=xp.__name__,
@@ -143,7 +143,7 @@ def test_d_pobtasi(
     ppobtaf(
         A_diagonal_blocks_local,
         A_lower_diagonal_blocks_local,
-        A_arrow_bottom_blocks_local,
+        A_lower_arrow_blocks_local,
         A_arrow_tip_block_global,
         buffer=buffer,
         pobtars=pobtars,
@@ -154,7 +154,7 @@ def test_d_pobtasi(
     ppobtasi(
         L_diagonal_blocks=A_diagonal_blocks_local,
         L_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
-        L_lower_arrow_blocks=A_arrow_bottom_blocks_local,
+        L_lower_arrow_blocks=A_lower_arrow_blocks_local,
         L_arrow_tip_block=A_arrow_tip_block_global,
         buffer=buffer,
         pobtars=pobtars,
@@ -167,7 +167,7 @@ def test_d_pobtasi(
         X_ref_lower_diagonal_blocks_local,
     )
     assert xp.allclose(
-        A_arrow_bottom_blocks_local,
+        A_lower_arrow_blocks_local,
         X_ref_arrow_bottom_blocks_local,
     )
     assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)

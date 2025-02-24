@@ -17,7 +17,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 def ppobtas(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
     _L_diagonal_blocks: ArrayLike,
@@ -39,7 +39,7 @@ def ppobtas(
     """ pobtas(
         L_diagonal_blocks=L_diagonal_blocks,
         L_lower_diagonal_blocks=L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks=L_arrow_bottom_blocks,
+        L_lower_arrow_blocks=L_lower_arrow_blocks,
         L_arrow_tip_block=L_arrow_tip_block,
         B=B,
     )
@@ -72,7 +72,7 @@ def ppobtas(
     pobtas(
         L_diagonal_blocks=_L_diagonal_blocks,
         L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
-        L_arrow_bottom_blocks=_L_lower_arrow_blocks,
+        L_lower_arrow_blocks=_L_lower_arrow_blocks,
         L_arrow_tip_block=L_arrow_tip_block,
         B=_B,
     )

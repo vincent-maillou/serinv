@@ -117,7 +117,7 @@ def ppobtsi(
         pobtsi(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            inverse_last_block=False,
+            invert_last_block=False,
         )
     else:
         pobtsi(

@@ -103,7 +103,7 @@ def ppobtaf(
         pobtaf(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks=A_lower_arrow_blocks,
+            A_lower_arrow_blocks=A_lower_arrow_blocks,
             A_arrow_tip_block=A_arrow_tip_block,
             device_streaming=device_streaming,
             factorize_last_block=False,
@@ -112,7 +112,7 @@ def ppobtaf(
         pobtaf(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,
-            A_arrow_bottom_blocks=A_lower_arrow_blocks,
+            A_lower_arrow_blocks=A_lower_arrow_blocks,
             A_arrow_tip_block=A_arrow_tip_block,
             device_streaming=device_streaming,
             buffer=buffer,
@@ -145,7 +145,7 @@ def ppobtaf(
             pobtaf(
                 A_diagonal_blocks=pobtars["A_diagonal_blocks"][1:],
                 A_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"][1:-1],
-                A_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"][1:],
+                A_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"][1:],
                 A_arrow_tip_block=pobtars["A_arrow_tip_block"],
             )
         else:
@@ -155,7 +155,7 @@ def ppobtaf(
         pobtaf(
             A_diagonal_blocks=pobtars["A_diagonal_blocks"],
             A_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-            A_arrow_bottom_blocks=pobtars["A_lower_arrow_blocks"],
+            A_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
             A_arrow_tip_block=pobtars["A_arrow_tip_block"],
         )
 
