@@ -131,77 +131,6 @@ def _pobtas(
         )
 
 
-def _saved_pobtas_permuted(
-    L_diagonal_blocks: ArrayLike,
-    L_lower_diagonal_blocks: ArrayLike,
-    L_lower_arrow_blocks: ArrayLike,
-    L_arrow_tip_block: ArrayLike,
-    B: ArrayLike,
-    buffer: ArrayLike,
-):
-    xp, la = _get_module_from_array(L_diagonal_blocks)
-
-    diag_blocksize = L_diagonal_blocks.shape[1]
-    arrow_blocksize = L_lower_arrow_blocks.shape[1]
-    n_diag_blocks = L_diagonal_blocks.shape[0]
-
-    # ----- Forward substitution -----
-    for i in range(1, n_diag_blocks):
-        B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[i],
-            B[i * diag_blocksize : (i + 1) * diag_blocksize],
-            lower=True,
-        )
-
-        if i < n_diag_blocks - 1:
-            # Update the next RHS block
-            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
-                L_lower_diagonal_blocks[i]
-                @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
-            )
-
-        # Update the first RHS block (permutation-linked)
-        B[:diag_blocksize] -= (
-            buffer[i] @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
-        )
-
-        # Update the tip RHS block
-        B[-arrow_blocksize:] -= (
-            L_lower_arrow_blocks[i] @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
-        )
-
-    # Compute first block
-    B[:diag_blocksize] = la.solve_triangular(
-        L_diagonal_blocks[0],
-        B[:diag_blocksize],
-        lower=True,
-    )
-
-    # Update the tip RHS block
-    B[-arrow_blocksize:] -= L_lower_arrow_blocks[0] @ B[:diag_blocksize]
-
-    # Compute the tip RHS block
-    B[-arrow_blocksize:] = la.solve_triangular(
-        L_arrow_tip_block[:],
-        B[-arrow_blocksize:],
-        lower=True,
-    )
-
-    # ----- Backward substitution -----
-    B[-arrow_blocksize:] = la.solve_triangular(
-        L_arrow_tip_block[:],
-        B[-arrow_blocksize:],
-        lower=True,
-        trans="C",
-    )
-
-    B[0:diag_blocksize] = la.solve_triangular(
-        L_diagonal_blocks[0],
-        B[0:diag_blocksize] - L_lower_arrow_blocks[0].conj().T @ B[-arrow_blocksize:],
-        lower=True,
-    )
-
-
 def _pobtas_permuted(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
@@ -241,6 +170,7 @@ def _pobtas_permuted(
         )
 
     # ----- Re-order the operations in a "reduced-system solve" -----
+    # ... Forward solve
     # Compute first block
     B[:diag_blocksize] = la.solve_triangular(
         L_diagonal_blocks[0],
@@ -276,7 +206,7 @@ def _pobtas_permuted(
         lower=True,
     )
 
-    # ----- Backward substitution -----
+    # ... Backward solve
     B[-arrow_blocksize:] = la.solve_triangular(
         L_arrow_tip_block[:],
         B[-arrow_blocksize:],
@@ -284,8 +214,36 @@ def _pobtas_permuted(
         trans="C",
     )
 
-    B[0:diag_blocksize] = la.solve_triangular(
-        L_diagonal_blocks[0],
-        B[0:diag_blocksize] - L_lower_arrow_blocks[0].conj().T @ B[-arrow_blocksize:],
-        lower=True,
+    B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
+        la.solve_triangular(
+            L_diagonal_blocks[-1],
+            B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize]
+            - L_lower_arrow_blocks[-1].conj().T @ B[-arrow_blocksize:],
+            lower=True,
+            trans="C",
+        )
     )
+
+    B[:diag_blocksize] = la.solve_triangular(
+        L_diagonal_blocks[0],
+        B[:diag_blocksize]
+        - buffer[-1]
+        @ B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize]
+        - L_lower_arrow_blocks[0].conj().T @ B[-arrow_blocksize:],
+        lower=True,
+        trans="C",
+    )
+    # ----- End of "reduced-system solve" ---------------------------
+
+    # ----- Backward substitution -----
+    for i in range(n_diag_blocks - 2, 0, -1):
+        B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
+            L_diagonal_blocks[i],
+            B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            - L_lower_diagonal_blocks[i].conj().T
+            @ B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+            - L_lower_arrow_blocks[i].conj().T @ B[-arrow_blocksize:]
+            - buffer[i].conj().T @ B[:diag_blocksize],
+            lower=True,
+            trans="C",
+        )
