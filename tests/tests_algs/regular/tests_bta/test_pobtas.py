@@ -58,12 +58,24 @@ def test_pobtas(
         A_arrow_tip_block,
     )
 
+    # Forward solve: Y=L^{-1}B
     pobtas(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_lower_arrow_blocks,
         A_arrow_tip_block,
         B,
+        trans="N",
+    )
+
+    # Backward solve: X=L^{-T}Y
+    pobtas(
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        A_lower_arrow_blocks,
+        A_arrow_tip_block,
+        B,
+        trans="C",
     )
 
     assert xp.allclose(B, X_ref)
