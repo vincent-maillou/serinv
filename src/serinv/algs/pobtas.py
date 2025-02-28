@@ -179,78 +179,7 @@ def _pobtas_permuted(
                 L_lower_arrow_blocks[i]
                 @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
             )
-
-        # ----- Re-order the operations in a "reduced-system solve" -----
-        # ... Forward solve
-        # Compute first block
-        B[:diag_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[0],
-            B[:diag_blocksize],
-            lower=True,
-        )
-
-        # Update last diagonal RHS block
-        B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] -= (
-            buffer[-1].conj().T @ B[:diag_blocksize]
-        )
-
-        # Compute last RHS block
-        B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
-            la.solve_triangular(
-                L_diagonal_blocks[-1],
-                B[
-                    (n_diag_blocks - 1)
-                    * diag_blocksize : n_diag_blocks
-                    * diag_blocksize
-                ],
-                lower=True,
-            )
-        )
-
-        # Update tip RHS block
-        B[-arrow_blocksize:] -= L_lower_arrow_blocks[0] @ B[:diag_blocksize]
-        B[-arrow_blocksize:] -= (
-            L_lower_arrow_blocks[-1]
-            @ B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize]
-        )
-
-        # Compute tip RHS block
-        B[-arrow_blocksize:] = la.solve_triangular(
-            L_arrow_tip_block[:],
-            B[-arrow_blocksize:],
-            lower=True,
-        )
     elif trans == "T" or trans == "C":
-        # ----- Re-order the operations in a "reduced-system solve" -----
-        # ... Backward solve
-        B[-arrow_blocksize:] = la.solve_triangular(
-            L_arrow_tip_block[:],
-            B[-arrow_blocksize:],
-            lower=True,
-            trans="C",
-        )
-
-        B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
-            la.solve_triangular(
-                L_diagonal_blocks[-1],
-                B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize]
-                - L_lower_arrow_blocks[-1].conj().T @ B[-arrow_blocksize:],
-                lower=True,
-                trans="C",
-            )
-        )
-
-        B[:diag_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[0],
-            B[:diag_blocksize]
-            - buffer[-1]
-            @ B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize]
-            - L_lower_arrow_blocks[0].conj().T @ B[-arrow_blocksize:],
-            lower=True,
-            trans="C",
-        )
-        # ----- End of "reduced-system solve" ---------------------------
-
         # ----- Backward substitution -----
         for i in range(n_diag_blocks - 2, 0, -1):
             B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(

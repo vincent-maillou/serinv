@@ -136,60 +136,7 @@ def _pobts_permuted(
             B[:diag_blocksize] -= (
                 buffer[i] @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
             )
-
-        # ----- Re-order the operations in a "reduced-system solve" -----
-        # ... Forward solve
-        # Compute first block
-        B[:diag_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[0],
-            B[:diag_blocksize],
-            lower=True,
-        )
-
-        # Update last diagonal RHS block
-        B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] -= (
-            buffer[-1].conj().T @ B[:diag_blocksize]
-        )
-
-        # Compute last RHS block
-        B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
-            la.solve_triangular(
-                L_diagonal_blocks[-1],
-                B[
-                    (n_diag_blocks - 1)
-                    * diag_blocksize : n_diag_blocks
-                    * diag_blocksize
-                ],
-                lower=True,
-            )
-        )
-
     elif trans == "T" or trans == "C":
-        # ----- Re-order the operations in a "reduced-system solve" -----
-        # ... Backward solve
-        B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
-            la.solve_triangular(
-                L_diagonal_blocks[-1],
-                B[
-                    (n_diag_blocks - 1)
-                    * diag_blocksize : n_diag_blocks
-                    * diag_blocksize
-                ],
-                lower=True,
-                trans="C",
-            )
-        )
-
-        B[:diag_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[0],
-            B[:diag_blocksize]
-            - buffer[-1]
-            @ B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize],
-            lower=True,
-            trans="C",
-        )
-        # ----- End of "reduced-system solve" ---------------------------
-
         # ----- Backward substitution -----
         for i in range(n_diag_blocks - 2, 0, -1):
             B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(

@@ -114,6 +114,39 @@ def test_pobtas_permuted(
         trans="N",
     )
 
+    # Make reduced-system RHS:
+    _B = xp.zeros((2 * diagonal_blocksize + arrowhead_blocksize, n_rhs), dtype=dtype)
+
+    _B[:diagonal_blocksize] = B[:diagonal_blocksize]
+    _B[diagonal_blocksize : 2 * diagonal_blocksize] = B[
+        -diagonal_blocksize - arrowhead_blocksize : -arrowhead_blocksize
+    ]
+    _B[-arrowhead_blocksize:] = B[-arrowhead_blocksize:]
+
+    pobtas(
+        _A_diagonal_blocks,
+        _A_lower_diagonal_blocks,
+        _A_lower_arrow_blocks,
+        _A_arrow_tip_block,
+        _B,
+        trans="N",
+    )
+
+    pobtas(
+        _A_diagonal_blocks,
+        _A_lower_diagonal_blocks,
+        _A_lower_arrow_blocks,
+        _A_arrow_tip_block,
+        _B,
+        trans="C",
+    )
+
+    B[:diagonal_blocksize] = _B[:diagonal_blocksize]
+    B[-diagonal_blocksize - arrowhead_blocksize : -arrowhead_blocksize] = _B[
+        diagonal_blocksize : 2 * diagonal_blocksize
+    ]
+    B[-arrowhead_blocksize:] = _B[-arrowhead_blocksize:]
+
     # Backward solve: X=L^{-T}Y
     pobtas(
         A_diagonal_blocks,
