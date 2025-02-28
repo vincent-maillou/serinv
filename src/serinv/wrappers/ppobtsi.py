@@ -114,7 +114,7 @@ def ppobtsi(
     )
 
     # Parallel selected inversion of the original system
-    if comm_rank == 0:
+    if comm_rank == root:
         pobtsi(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,

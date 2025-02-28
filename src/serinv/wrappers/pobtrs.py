@@ -18,6 +18,7 @@ def allocate_pobtrs(
     A_lower_diagonal_blocks: ArrayLike,
     comm: MPI.Comm,
     array_module: str,
+    B: ArrayLike = None,
     device_streaming: bool = False,
     strategy: str = "allgather",
 ):
@@ -48,6 +49,14 @@ def allocate_pobtrs(
 
     xp, _ = _get_module_from_str(array_module)
 
+    b = A_diagonal_blocks[0].shape[0]
+    if B is not None:
+        n_rhs = B.shape[1]
+    else:
+        _B = None
+        _B_comm = None
+    dtype = A_diagonal_blocks.dtype
+
     if device_streaming:
         zeros = cpx.zeros_pinned
         empty = cpx.empty_pinned
@@ -59,34 +68,20 @@ def allocate_pobtrs(
         _n: int = 2 * comm_size
         alloc = empty
 
-        _A_diagonal_blocks = alloc(
-            (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
-            dtype=A_diagonal_blocks.dtype,
-        )
-        _A_lower_diagonal_blocks = alloc(
-            (
-                _n,
-                A_lower_diagonal_blocks[0].shape[0],
-                A_lower_diagonal_blocks[0].shape[1],
-            ),
-            dtype=A_lower_diagonal_blocks.dtype,
-        )
+        _A_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+
+        if B is not None:
+            _B = alloc((_n * b, n_rhs), dtype=dtype)
     elif strategy == "gather-scatter":
         _n: int = 2 * comm_size
         alloc = zeros
 
-        _A_diagonal_blocks = alloc(
-            (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
-            dtype=A_diagonal_blocks.dtype,
-        )
-        _A_lower_diagonal_blocks = alloc(
-            (
-                _n,
-                A_lower_diagonal_blocks[0].shape[0],
-                A_lower_diagonal_blocks[0].shape[1],
-            ),
-            dtype=A_lower_diagonal_blocks.dtype,
-        )
+        _A_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+
+        if B is not None:
+            _B = alloc((_n * b, n_rhs), dtype=dtype)
     else:
         raise ValueError("Unknown communication strategy.")
 
@@ -94,15 +89,23 @@ def allocate_pobtrs(
     if xp.__name__ == "cupy":
         _A_diagonal_blocks_comm = cpx.empty_like_pinned(_A_diagonal_blocks)
         _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_A_lower_diagonal_blocks)
+
+        if B is not None:
+            _B_comm = cpx.empty_like_pinned(_B)
     else:
         _A_diagonal_blocks_comm = _A_diagonal_blocks
         _A_lower_diagonal_blocks_comm = _A_lower_diagonal_blocks
 
+        if B is not None:
+            _B_comm = _B
+
     pobtrs: dict = {
         "A_diagonal_blocks": _A_diagonal_blocks,
         "A_lower_diagonal_blocks": _A_lower_diagonal_blocks,
+        "B": _B,
         "A_diagonal_blocks_comm": _A_diagonal_blocks_comm,
         "A_lower_diagonal_blocks_comm": _A_lower_diagonal_blocks_comm,
+        "B_comm": _B_comm,
     }
 
     return pobtrs

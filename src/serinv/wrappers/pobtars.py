@@ -20,6 +20,7 @@ def allocate_pobtars(
     A_arrow_tip_block: ArrayLike,
     array_module: str,
     comm: MPI.Comm,
+    B: ArrayLike = None,
     device_streaming: bool = False,
     strategy: str = "allgather",
 ):
@@ -54,6 +55,15 @@ def allocate_pobtars(
 
     xp, _ = _get_module_from_str(array_module)
 
+    b = A_diagonal_blocks[0].shape[0]
+    a = A_arrow_tip_block.shape[0]
+    if B is not None:
+        n_rhs = B.shape[1]
+    else:
+        _B = None
+        _B_comm = None
+    dtype = A_diagonal_blocks.dtype
+
     if device_streaming:
         zeros = cpx.zeros_pinned
         empty = cpx.empty_pinned
@@ -65,49 +75,26 @@ def allocate_pobtars(
         _n: int = 2 * comm_size
         alloc = empty
 
-        _A_diagonal_blocks = alloc(
-            (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
-            dtype=A_diagonal_blocks.dtype,
-        )
-        _A_lower_diagonal_blocks = alloc(
-            (
-                _n,
-                A_lower_diagonal_blocks[0].shape[0],
-                A_lower_diagonal_blocks[0].shape[1],
-            ),
-            dtype=A_lower_diagonal_blocks.dtype,
-        )
-        _A_lower_arrow_blocks = alloc(
-            (_n, A_lower_arrow_blocks[0].shape[0], A_lower_arrow_blocks[0].shape[1]),
-            dtype=A_lower_arrow_blocks.dtype,
-        )
+        _A_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_arrow_blocks = alloc((_n, a, b), dtype=dtype)
+
+        if B is not None:
+            _B = alloc((_n * b + a, n_rhs), dtype=dtype)
     elif strategy == "gather-scatter":
         _n: int = 2 * comm_size
         alloc = zeros
 
-        _A_diagonal_blocks = alloc(
-            (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
-            dtype=A_diagonal_blocks.dtype,
-        )
-        _A_lower_diagonal_blocks = alloc(
-            (
-                _n,
-                A_lower_diagonal_blocks[0].shape[0],
-                A_lower_diagonal_blocks[0].shape[1],
-            ),
-            dtype=A_lower_diagonal_blocks.dtype,
-        )
-        _A_lower_arrow_blocks = alloc(
-            (_n, A_lower_arrow_blocks[0].shape[0], A_lower_arrow_blocks[0].shape[1]),
-            dtype=A_lower_arrow_blocks.dtype,
-        )
+        _A_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_arrow_blocks = alloc((_n, a, b), dtype=dtype)
+
+        if B is not None:
+            _B = alloc((_n * b + a, n_rhs), dtype=dtype)
     else:
         raise ValueError("Unknown communication strategy.")
 
-    _A_arrow_tip_block = zeros(
-        (A_arrow_tip_block.shape[0], A_arrow_tip_block.shape[1]),
-        dtype=A_arrow_tip_block.dtype,
-    )
+    _A_arrow_tip_block = zeros((a, a), dtype=dtype)
 
     # If needed, allocate the reduced system for communication
     if xp.__name__ == "cupy":
@@ -115,21 +102,29 @@ def allocate_pobtars(
         _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_A_lower_diagonal_blocks)
         _A_lower_arrow_blocks_comm = cpx.empty_like_pinned(_A_lower_arrow_blocks)
         _A_arrow_tip_block_comm = cpx.empty_like_pinned(_A_arrow_tip_block)
+
+        if B is not None:
+            _B_comm = cpx.empty_like_pinned(_B)
     else:
         _A_diagonal_blocks_comm = _A_diagonal_blocks
         _A_lower_diagonal_blocks_comm = _A_lower_diagonal_blocks
         _A_lower_arrow_blocks_comm = _A_lower_arrow_blocks
         _A_arrow_tip_block_comm = _A_arrow_tip_block
 
+        if B is not None:
+            _B_comm = _B
+
     pobtars: dict = {
         "A_diagonal_blocks": _A_diagonal_blocks,
         "A_lower_diagonal_blocks": _A_lower_diagonal_blocks,
         "A_lower_arrow_blocks": _A_lower_arrow_blocks,
         "A_arrow_tip_block": _A_arrow_tip_block,
+        "B": _B,
         "A_diagonal_blocks_comm": _A_diagonal_blocks_comm,
         "A_lower_diagonal_blocks_comm": _A_lower_diagonal_blocks_comm,
         "A_lower_arrow_blocks_comm": _A_lower_arrow_blocks_comm,
         "A_arrow_tip_block_comm": _A_arrow_tip_block_comm,
+        "B_comm": _B_comm,
     }
 
     return pobtars

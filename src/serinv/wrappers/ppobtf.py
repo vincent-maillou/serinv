@@ -83,7 +83,7 @@ def ppobtf(
         )
 
     # Perform the parallel factorization
-    if comm_rank == 0:
+    if comm_rank == root:
         pobtf(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,

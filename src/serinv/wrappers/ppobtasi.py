@@ -60,8 +60,6 @@ def ppobtasi(
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
-    xp, _ = _get_module_from_array(arr=L_diagonal_blocks)
-
     # Check for optional parameters
     device_streaming: bool = kwargs.get("device_streaming", False)
     strategy: str = kwargs.get("strategy", "allgather")
@@ -89,7 +87,7 @@ def ppobtasi(
         ]
     ):
         raise ValueError(
-            "To run the distributed solvers, the reduced system `ddbtars` need to contain the required arrays."
+            "To run the distributed solvers, the reduced system `pobtars` need to contain the required arrays."
         )
 
     # Selected-inversion of the reduced system
@@ -134,7 +132,7 @@ def ppobtasi(
     )
 
     # Parallel selected inversion of the original system
-    if comm_rank == 0:
+    if comm_rank == root:
         pobtasi(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
