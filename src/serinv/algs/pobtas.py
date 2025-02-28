@@ -26,7 +26,7 @@ def pobtas(
     """
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
-    # solve_last_rhs = kwargs.get("solve_last_rhs", True)
+    partial = kwargs.get("partial", False)
 
     if buffer is not None:
         # Permuted arrowhead
@@ -58,6 +58,7 @@ def pobtas(
                 L_arrow_tip_block,
                 B,
                 trans,
+                partial,
             )
 
 
@@ -68,6 +69,7 @@ def _pobtas(
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
     trans: str,
+    partial: bool,
 ):
     _, la = _get_module_from_array(L_diagonal_blocks)
 
@@ -77,52 +79,72 @@ def _pobtas(
 
     if trans == "N":
         # ----- Forward substitution -----
-        B[0:diag_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[0],
-            B[0:diag_blocksize],
-            lower=True,
-        )
-
-        for i in range(1, n_diag_blocks):
-            # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
+        for i in range(0, n_diag_blocks - 1):
             B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
                 L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize]
-                - L_lower_diagonal_blocks[i - 1]
-                @ B[(i - 1) * diag_blocksize : (i) * diag_blocksize],
+                B[i * diag_blocksize : (i + 1) * diag_blocksize],
                 lower=True,
             )
 
-        # Accumulation of the arrowhead blocks
-        B_tip_rhs = B[-arrow_blocksize:]
-        for i in range(0, n_diag_blocks):
-            B_tip_rhs -= (
+            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
+                L_lower_diagonal_blocks[i]
+                @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            )
+
+            B[-arrow_blocksize:] -= (
                 L_lower_arrow_blocks[i]
                 @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
             )
 
-        # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
-        B[-arrow_blocksize:] = la.solve_triangular(
-            L_arrow_tip_block[:], B_tip_rhs[:], lower=True
-        )
+        if not partial:
+            # In the case of the partial solve, we do not solve the last block and
+            # arrow tip block of the RHS.
+            B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
+                la.solve_triangular(
+                    L_diagonal_blocks[n_diag_blocks - 1],
+                    B[
+                        (n_diag_blocks - 1)
+                        * diag_blocksize : n_diag_blocks
+                        * diag_blocksize
+                    ],
+                    lower=True,
+                )
+            )
+
+            B[-arrow_blocksize:] -= (
+                L_lower_arrow_blocks[-1]
+                @ B[
+                    (n_diag_blocks - 1)
+                    * diag_blocksize : n_diag_blocks
+                    * diag_blocksize
+                ]
+            )
+
+            # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
+            B[-arrow_blocksize:] = la.solve_triangular(
+                L_arrow_tip_block[:], B[-arrow_blocksize:], lower=True
+            )
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
-        # X_{ndb+1} = L_{ndb+1,ndb+1}^{-T} (Y_{ndb+1})
-        B[-arrow_blocksize:] = la.solve_triangular(
-            L_arrow_tip_block[:],
-            B[-arrow_blocksize:],
-            lower=True,
-            trans="C",
-        )
+        if not partial:
+            # X_{ndb+1} = L_{ndb+1,ndb+1}^{-T} (Y_{ndb+1})
+            B[-arrow_blocksize:] = la.solve_triangular(
+                L_arrow_tip_block[:],
+                B[-arrow_blocksize:],
+                lower=True,
+                trans="C",
+            )
 
-        # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
-        B[-arrow_blocksize - diag_blocksize : -arrow_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[-1],
-            B[-arrow_blocksize - diag_blocksize : -arrow_blocksize]
-            - L_lower_arrow_blocks[-1].conj().T @ B[-arrow_blocksize:],
-            lower=True,
-            trans="C",
-        )
+            # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
+            B[-arrow_blocksize - diag_blocksize : -arrow_blocksize] = (
+                la.solve_triangular(
+                    L_diagonal_blocks[-1],
+                    B[-arrow_blocksize - diag_blocksize : -arrow_blocksize]
+                    - L_lower_arrow_blocks[-1].conj().T @ B[-arrow_blocksize:],
+                    lower=True,
+                    trans="C",
+                )
+            )
 
         for i in range(n_diag_blocks - 2, -1, -1):
             # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
