@@ -80,7 +80,7 @@ def allocate_pobtars(
         _A_lower_arrow_blocks = alloc((_n, a, b), dtype=dtype)
 
         if B is not None:
-            _B = alloc((_n * b + a, n_rhs), dtype=dtype)
+            _B = zeros((_n * b + a, n_rhs), dtype=dtype)
     elif strategy == "gather-scatter":
         _n: int = 2 * comm_size
         alloc = zeros
@@ -90,7 +90,7 @@ def allocate_pobtars(
         _A_lower_arrow_blocks = alloc((_n, a, b), dtype=dtype)
 
         if B is not None:
-            _B = alloc((_n * b + a, n_rhs), dtype=dtype)
+            _B = zeros((_n * b + a, n_rhs), dtype=dtype)
     else:
         raise ValueError("Unknown communication strategy.")
 
@@ -207,6 +207,34 @@ def map_ppobtax_to_pobtars(
             _A_lower_arrow_blocks[2 * comm_rank] = A_lower_arrow_blocks[0]
             _A_lower_arrow_blocks[2 * comm_rank + 1] = A_lower_arrow_blocks[-1]
         _A_arrow_tip_block[:] = A_arrow_tip_block[:]
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+
+def map_ppobtas_to_pobtarss(
+    A_diagonal_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
+    _B: ArrayLike,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+):
+    """Map the right-hand side of the PPOBTAS algorithm to the right-hand-side
+    of the reduced system."""
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
+    a = A_arrow_tip_block.shape[0]
+
+    if strategy == "allgather" or strategy == "gather-scatter":
+        if comm_rank == 0:
+            _B[b : 2 * b] = _B[-b - a : -a]
+            _B[-a:] = _B[-a:]
+        else:
+            _B[2 * comm_rank * b : 2 * comm_rank * b + b] = B[:b]
+            _B[2 * comm_rank * b + b : 2 * (comm_rank + 1) * b] = B[-b - a : -a]
+            _B[-a:] = B[-a:]
     else:
         raise ValueError("Unknown communication strategy.")
 
@@ -361,6 +389,60 @@ def aggregate_pobtars(
         cpx.cuda.Stream.null.synchronize()
 
 
+def aggregate_pobtarss(
+    A_diagonal_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+    pobtars: dict,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+    **kwargs,
+):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
+    a = A_arrow_tip_block.shape[0]
+
+    _B: ArrayLike = pobtars.get("B", None)
+    _B_comm: ArrayLike = pobtars.get("B_comm", None)
+    if any(
+        x is None
+        for x in [
+            _B,
+            _B_comm,
+        ]
+    ):
+        raise ValueError(
+            "The reduced system `pobtars` doesn't contain the required arrays."
+        )
+
+    xp, _ = _get_module_from_array(arr=_B)
+    if xp.__name__ == "cupy":
+        # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
+        _B.get(out=_B_comm)
+
+        cpx.cuda.Stream.null.synchronize()
+
+    if strategy == "allgather" or strategy == "gather-scatter":
+        comm.Allgather(
+            MPI.IN_PLACE,
+            _B_comm[:-a],
+        )
+        comm.Allreduce(MPI.IN_PLACE, _B_comm[-a:], op=MPI.SUM)
+
+        # Do not slice/view the array here in the gather-scatter strategy, otherwise
+        # the scatter-back won't work.
+        pobtars["B_comm"] = _B_comm
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+    if xp.__name__ == "cupy":
+        # Need to put back the reduced system RHS on the GPU
+        _B.set(arr=_B)
+
+        cpx.cuda.Stream.null.synchronize()
+
+
 def scatter_pobtars(
     pobtars: dict,
     comm: MPI.Comm,
@@ -477,6 +559,37 @@ def scatter_pobtars(
         raise ValueError("Unknown communication strategy.")
 
 
+def scatter_pobtarss(
+    pobtars: dict,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+    **kwargs,
+):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    _B: ArrayLike = pobtars.get("B", None)
+    _B_comm: ArrayLike = pobtars.get("B_comm", None)
+    if any(
+        x is None
+        for x in [
+            _B,
+            _B_comm,
+        ]
+    ):
+        raise ValueError(
+            "The reduced system `pobtars` doesn't contain the required arrays."
+        )
+
+    xp, _ = _get_module_from_array(arr=_B)
+    if strategy == "allgather":
+        ...
+    elif strategy == "gather-scatter":
+        ...
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+
 def map_pobtars_to_ppobtax(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
@@ -552,5 +665,41 @@ def map_pobtars_to_ppobtax(
             A_lower_arrow_blocks[0] = _A_lower_arrow_blocks[2 * comm_rank]
             A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[2 * comm_rank + 1]
         A_arrow_tip_block[:] = _A_arrow_tip_block[:]
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+
+def map_pobtarss_to_ppobtas(
+    A_diagonal_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
+    _B: ArrayLike,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+):
+    """Map the right-hand side of the PPOBTAS algorithm to the right-hand-side
+    of the reduced system."""
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
+    a = A_arrow_tip_block.shape[0]
+
+    if strategy == "allgather":
+        if comm_rank == 0:
+            _B[:b] = _B[-b - a : -a]
+            _B[-a:] = _B[-a:]
+        else:
+            _B[2 * comm_rank * b - b : 2 * comm_rank * b] = B[:b]
+            _B[2 * comm_rank * b : 2 * (comm_rank + 1) * b] = B[-b - a : -a]
+            _B[-a:] = B[-a:]
+    elif strategy == "gather-scatter":
+        if comm_rank == 0:
+            _B[:b] = _B[-b - a : -a]
+            _B[-a:] = _B[-a:]
+        else:
+            _B[2 * comm_rank * b - b : 2 * comm_rank * b] = B[:b]
+            _B[2 * comm_rank * b : 2 * (comm_rank + 1) * b] = B[-b - a : -a]
+            _B[-a:] = B[-a:]
     else:
         raise ValueError("Unknown communication strategy.")
