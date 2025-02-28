@@ -22,7 +22,6 @@ def ppobtas(
     L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
-
     comm: MPI.Comm = MPI.COMM_WORLD,
     **kwargs,
 ):
@@ -95,7 +94,7 @@ def ppobtas(
         raise ValueError(
             "To run the distributed solvers, the reduced system `pobtars` need to contain the required arrays."
         )
-    
+
     _B: ArrayLike = pobtars.get("B", None)
     if _B is None:
         raise ValueError(
@@ -103,27 +102,27 @@ def ppobtas(
         )
 
     # Isolate the tip block of the RHS
-    B_tip_initial = xp.zeros_like(B[-_A_arrow_tip_block.shape[0]:])
-    B_tip_initial[:] = B[-_A_arrow_tip_block.shape[0]:]
-    B[-_A_arrow_tip_block.shape[0]:] = 0.
+    B_tip_initial = xp.zeros_like(B[-_A_arrow_tip_block.shape[0] :])
+    B_tip_initial[:] = B[-_A_arrow_tip_block.shape[0] :]
+    B[-_A_arrow_tip_block.shape[0] :] = 0.0
 
     # Parallel forward solve
     if comm_rank == root:
         pobtas(
-            A_diagonal_blocks=L_diagonal_blocks,
-            A_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            A_lower_arrow_blocks=L_lower_arrow_blocks,
-            A_arrow_tip_block=L_arrow_tip_block,
+            L_diagonal_blocks=L_diagonal_blocks,
+            L_lower_diagonal_blocks=L_lower_diagonal_blocks,
+            L_lower_arrow_blocks=L_lower_arrow_blocks,
+            L_arrow_tip_block=L_arrow_tip_block,
             B=B,
             trans="N",
-            partial = True,
+            partial=True,
         )
     else:
         pobtas(
-            A_diagonal_blocks=L_diagonal_blocks,
-            A_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            A_lower_arrow_blocks=L_lower_arrow_blocks,
-            A_arrow_tip_block=L_arrow_tip_block,
+            L_diagonal_blocks=L_diagonal_blocks,
+            L_lower_diagonal_blocks=L_lower_diagonal_blocks,
+            L_lower_arrow_blocks=L_lower_arrow_blocks,
+            L_arrow_tip_block=L_arrow_tip_block,
             B=B,
             buffer=buffer,
             trans="N",
@@ -137,7 +136,6 @@ def ppobtas(
         _B=_B,
         comm=comm,
         strategy=strategy,
-        root=root,
     )
 
     # Agregate reduced RHS
@@ -147,30 +145,51 @@ def ppobtas(
         pobtars=pobtars,
         comm=comm,
         strategy=strategy,
-        root=root,
     )
 
     # Add the tip block of the RHS to the aggregated update
-    pobtars["B"][-_A_arrow_tip_block.shape[0]:] += B_tip_initial
+    a = _A_arrow_tip_block.shape[0]
+    _B[-a:] += B_tip_initial
 
     # Solve RHS FWD/BWD
     if strategy == "gather-scatter":
         if comm_rank == root:
+            _A_diagonal_blocks = _A_diagonal_blocks[1:]
+            _A_lower_diagonal_blocks = _A_lower_diagonal_blocks[1:-1]
+            _A_lower_arrow_blocks = _A_lower_arrow_blocks[1:]
+
             pobtas(
-                L_diagonal_blocks=pobtars["A_diagonal_blocks"][1:],
-                L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"][1:-1],
-                L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"][1:],
-                L_arrow_tip_block=pobtars["A_arrow_tip_block"],
-                B=pobtars["B"],
+                L_diagonal_blocks=_A_diagonal_blocks,
+                L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
+                L_lower_arrow_blocks=_A_lower_arrow_blocks,
+                L_arrow_tip_block=_A_arrow_tip_block,
+                B=_B,
+                trans="N",
             )
-        comm.Barrier()
+            pobtas(
+                L_diagonal_blocks=_A_diagonal_blocks,
+                L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
+                L_lower_arrow_blocks=_A_lower_arrow_blocks,
+                L_arrow_tip_block=_A_arrow_tip_block,
+                B=_B,
+                trans="C",
+            )
     elif strategy == "allgather":
         pobtas(
-            L_diagonal_blocks=pobtars["A_diagonal_blocks"],
-            L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-            L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
-            L_arrow_tip_block=pobtars["A_arrow_tip_block"],
-            B=pobtars["B"],
+            L_diagonal_blocks=_A_diagonal_blocks,
+            L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
+            L_lower_arrow_blocks=_A_lower_arrow_blocks,
+            L_arrow_tip_block=_A_arrow_tip_block,
+            B=_B,
+            trans="N",
+        )
+        pobtas(
+            L_diagonal_blocks=_A_diagonal_blocks,
+            L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
+            L_lower_arrow_blocks=_A_lower_arrow_blocks,
+            L_arrow_tip_block=_A_arrow_tip_block,
+            B=_B,
+            trans="C",
         )
 
     # Scatter solution of reduced RHS
@@ -178,7 +197,6 @@ def ppobtas(
         pobtars=pobtars,
         comm=comm,
         strategy=strategy,
-        root=root,
     )
 
     # Map solution of reduced RHS to RHS
@@ -189,27 +207,26 @@ def ppobtas(
         _B=_B,
         comm=comm,
         strategy=strategy,
-        root=root,
     )
 
-    # Parallel backward solve
+    """ # Parallel backward solve
     if comm_rank == root:
         pobtas(
-            A_diagonal_blocks=L_diagonal_blocks,
-            A_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            A_lower_arrow_blocks=L_lower_arrow_blocks,
-            A_arrow_tip_block=L_arrow_tip_block,
+            L_diagonal_blocks=L_diagonal_blocks,
+            L_lower_diagonal_blocks=L_lower_diagonal_blocks,
+            L_lower_arrow_blocks=L_lower_arrow_blocks,
+            L_arrow_tip_block=L_arrow_tip_block,
             B=B,
             trans="C",
-            partial = True,
+            partial=True,
         )
     else:
         pobtas(
-            A_diagonal_blocks=L_diagonal_blocks,
-            A_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            A_lower_arrow_blocks=L_lower_arrow_blocks,
-            A_arrow_tip_block=L_arrow_tip_block,
+            L_diagonal_blocks=L_diagonal_blocks,
+            L_lower_diagonal_blocks=L_lower_diagonal_blocks,
+            L_lower_arrow_blocks=L_lower_arrow_blocks,
+            L_arrow_tip_block=L_arrow_tip_block,
             B=B,
             buffer=buffer,
             trans="C",
-        )
+        ) """

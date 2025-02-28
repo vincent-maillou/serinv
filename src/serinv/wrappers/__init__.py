@@ -3,15 +3,12 @@
 
 from serinv.wrappers.ppobtf import ppobtf
 from serinv.wrappers.ppobtsi import ppobtsi
-from serinv.wrappers.pobtrs import (
-    allocate_pobtrs,
-)
+from serinv.wrappers.pobtrs import allocate_pobtrs
 
 from serinv.wrappers.ppobtaf import ppobtaf
 from serinv.wrappers.ppobtasi import ppobtasi
-from serinv.wrappers.pobtars import (
-    allocate_pobtars,
-)
+from serinv.wrappers.ppobtas import ppobtas
+from serinv.wrappers.pobtars import allocate_pobtars
 
 from serinv.wrappers.pddbtsc import pddbtsc
 from serinv.wrappers.pddbtsci import pddbtsci

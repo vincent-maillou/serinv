@@ -229,8 +229,8 @@ def map_ppobtas_to_pobtarss(
 
     if strategy == "allgather" or strategy == "gather-scatter":
         if comm_rank == 0:
-            _B[b : 2 * b] = _B[-b - a : -a]
-            _B[-a:] = _B[-a:]
+            _B[b : 2 * b] = B[-b - a : -a]
+            _B[-a:] = B[-a:]
         else:
             _B[2 * comm_rank * b : 2 * comm_rank * b + b] = B[:b]
             _B[2 * comm_rank * b + b : 2 * (comm_rank + 1) * b] = B[-b - a : -a]
@@ -430,8 +430,6 @@ def aggregate_pobtarss(
         )
         comm.Allreduce(MPI.IN_PLACE, _B_comm[-a:], op=MPI.SUM)
 
-        # Do not slice/view the array here in the gather-scatter strategy, otherwise
-        # the scatter-back won't work.
         pobtars["B_comm"] = _B_comm
     else:
         raise ValueError("Unknown communication strategy.")
@@ -685,21 +683,13 @@ def map_pobtarss_to_ppobtas(
     b = A_diagonal_blocks[0].shape[0]
     a = A_arrow_tip_block.shape[0]
 
-    if strategy == "allgather":
+    if strategy == "allgather" or strategy == "gather-scatter":
         if comm_rank == 0:
-            _B[:b] = _B[-b - a : -a]
-            _B[-a:] = _B[-a:]
+            B[-b - a : -a] = _B[b : 2 * b]
+            B[-a:] = _B[-a:]
         else:
-            _B[2 * comm_rank * b - b : 2 * comm_rank * b] = B[:b]
-            _B[2 * comm_rank * b : 2 * (comm_rank + 1) * b] = B[-b - a : -a]
-            _B[-a:] = B[-a:]
-    elif strategy == "gather-scatter":
-        if comm_rank == 0:
-            _B[:b] = _B[-b - a : -a]
-            _B[-a:] = _B[-a:]
-        else:
-            _B[2 * comm_rank * b - b : 2 * comm_rank * b] = B[:b]
-            _B[2 * comm_rank * b : 2 * (comm_rank + 1) * b] = B[-b - a : -a]
-            _B[-a:] = B[-a:]
+            B[:b] = _B[2 * comm_rank * b : 2 * comm_rank * b + b]
+            B[-b - a : -a] = _B[2 * comm_rank * b + b : 2 * (comm_rank + 1) * b]
+            B[-a:] = _B[-a:]
     else:
         raise ValueError("Unknown communication strategy.")
