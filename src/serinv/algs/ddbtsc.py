@@ -55,6 +55,11 @@ def ddbtsc(
         This doesn't matter for performances but it is usefull in the case of the parallel implementation which last
         process needs to perform the Schur complement upward.
     """
+    expected_kwargs = {"rhs", "quadratic", "buffers", "invert_last_block", "direction"}
+    unexpected_kwargs = set(kwargs) - expected_kwargs
+    if unexpected_kwargs:
+        raise TypeError(f"Unexpected keyword arguments: {unexpected_kwargs}")
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)

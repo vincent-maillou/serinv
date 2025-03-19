@@ -52,10 +52,20 @@ def test_pobts(
         A_lower_diagonal_blocks,
     )
 
+    # Forward solve: Y=L^{-1}B
     pobts(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         B,
+        trans="N",
+    )
+
+    # Backward solve: X=L^{-T}Y
+    pobts(
+        A_diagonal_blocks,
+        A_lower_diagonal_blocks,
+        B,
+        trans="C",
     )
 
     assert xp.allclose(B, X_ref)

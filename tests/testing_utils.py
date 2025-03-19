@@ -41,9 +41,9 @@ def bta_dense_to_arrays(
         The lower diagonal blocks of the block tridiagonal with arrowhead matrix.
     A_upper_diagonal_blocks : ArrayLike
         The upper diagonal blocks of the block tridiagonal with arrowhead matrix.
-    A_arrow_bottom_blocks : ArrayLike
+    A_lower_arrow_blocks : ArrayLike
         The arrow bottom blocks of the block tridiagonal with arrowhead matrix.
-    A_arrow_right_blocks : ArrayLike
+    A_upper_arrow_blocks : ArrayLike
         The arrow right blocks of the block tridiagonal with arrowhead matrix.
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the block tridiagonal with arrowhead matrix.
@@ -69,12 +69,12 @@ def bta_dense_to_arrays(
         dtype=A.dtype,
     )
 
-    A_arrow_bottom_blocks = xp.zeros(
+    A_lower_arrow_blocks = xp.zeros(
         (n_diag_blocks, arrowhead_blocksize, diagonal_blocksize),
         dtype=A.dtype,
     )
 
-    A_arrow_right_blocks = xp.zeros(
+    A_upper_arrow_blocks = xp.zeros(
         (n_diag_blocks, diagonal_blocksize, arrowhead_blocksize),
         dtype=A.dtype,
     )
@@ -100,12 +100,12 @@ def bta_dense_to_arrays(
                 (i + 1) * diagonal_blocksize : (i + 2) * diagonal_blocksize,
             ]
 
-        A_arrow_bottom_blocks[i] = A[
+        A_lower_arrow_blocks[i] = A[
             -arrowhead_blocksize:,
             i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
         ]
 
-        A_arrow_right_blocks[i] = A[
+        A_upper_arrow_blocks[i] = A[
             i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
             -arrowhead_blocksize:,
         ]
@@ -116,8 +116,8 @@ def bta_dense_to_arrays(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
-        A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
+        A_lower_arrow_blocks,
+        A_upper_arrow_blocks,
         A_arrow_tip_block,
     )
 
@@ -195,8 +195,8 @@ def bta_arrays_to_dense(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
-    A_arrow_right_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
+    A_upper_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
 ):
     """Converts arrays of blocks to a block tridiagonal arrowhead matrix in a dense representation.
@@ -209,9 +209,9 @@ def bta_arrays_to_dense(
         The lower diagonal blocks of the block tridiagonal with arrowhead matrix.
     A_upper_diagonal_blocks : ArrayLike
         The upper diagonal blocks of the block tridiagonal with arrowhead matrix.
-    A_arrow_bottom_blocks : ArrayLike
+    A_lower_arrow_blocks : ArrayLike
         The arrow bottom blocks of the block tridiagonal with arrowhead matrix.
-    A_arrow_right_blocks : ArrayLike
+    A_upper_arrow_blocks : ArrayLike
         The arrow right blocks of the block tridiagonal with arrowhead matrix.
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the block tridiagonal with arrowhead matrix.
@@ -229,7 +229,7 @@ def bta_arrays_to_dense(
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     diagonal_blocksize = A_diagonal_blocks.shape[1]
-    arrowhead_blocksize = A_arrow_bottom_blocks.shape[1]
+    arrowhead_blocksize = A_lower_arrow_blocks.shape[1]
     n_diag_blocks = A_diagonal_blocks.shape[0]
 
     A = xp.zeros(
@@ -259,12 +259,12 @@ def bta_arrays_to_dense(
         A[
             -arrowhead_blocksize:,
             i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
-        ] = A_arrow_bottom_blocks[i]
+        ] = A_lower_arrow_blocks[i]
 
         A[
             i * diagonal_blocksize : (i + 1) * diagonal_blocksize,
             -arrowhead_blocksize:,
-        ] = A_arrow_right_blocks[i]
+        ] = A_upper_arrow_blocks[i]
 
     A[-arrowhead_blocksize:, -arrowhead_blocksize:] = A_arrow_tip_block[:]
 

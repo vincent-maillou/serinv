@@ -12,8 +12,6 @@ from serinv import (
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
 
 
 def allocate_ddbtars(
@@ -23,11 +21,14 @@ def allocate_ddbtars(
     A_lower_arrow_blocks: ArrayLike,
     A_upper_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-    comm_size: int,
     array_module: str,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     quadratic: bool = False,
-):
+) -> dict:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     xp, _ = _get_module_from_str(array_module)
 
     if strategy == "allgather":
@@ -71,12 +72,16 @@ def allocate_ddbtars(
         )
         _A_arrow_tip_block = xp.zeros_like(A_arrow_tip_block)
 
-        if xp.__name__ == 'cupy':
+        if xp.__name__ == "cupy":
             # In this case we also need to allocate a pinned-memory
             # reduced system on the host side.
             _A_diagonal_blocks_comm = cpx.empty_like_pinned(_A_diagonal_blocks)
-            _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_A_lower_diagonal_blocks)
-            _A_upper_diagonal_blocks_comm = cpx.empty_like_pinned(_A_upper_diagonal_blocks)
+            _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(
+                _A_lower_diagonal_blocks
+            )
+            _A_upper_diagonal_blocks_comm = cpx.empty_like_pinned(
+                _A_upper_diagonal_blocks
+            )
             _A_lower_arrow_blocks_comm = cpx.empty_like_pinned(_A_lower_arrow_blocks)
             _A_upper_arrow_blocks_comm = cpx.empty_like_pinned(_A_upper_arrow_blocks)
             _A_arrow_tip_block_comm = cpx.empty_like_pinned(_A_arrow_tip_block)
@@ -127,20 +132,28 @@ def allocate_ddbtars(
             )
             _B_arrow_tip_block = xp.zeros_like(A_arrow_tip_block)
 
-            if xp.__name__ == 'cupy':
+            if xp.__name__ == "cupy":
                 # In this case we also need to allocate a pinned-memory
                 # reduced system on the host side.
 
                 _B_diagonal_blocks_comm = cpx.empty_like_pinned(_B_diagonal_blocks)
-                _B_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_B_lower_diagonal_blocks)
-                _B_upper_diagonal_blocks_comm = cpx.empty_like_pinned(_B_upper_diagonal_blocks)
-                _B_lower_arrow_blocks_comm = cpx.empty_like_pinned(_B_lower_arrow_blocks)
-                _B_upper_arrow_blocks_comm = cpx.empty_like_pinned(_B_upper_arrow_blocks)
+                _B_lower_diagonal_blocks_comm = cpx.empty_like_pinned(
+                    _B_lower_diagonal_blocks
+                )
+                _B_upper_diagonal_blocks_comm = cpx.empty_like_pinned(
+                    _B_upper_diagonal_blocks
+                )
+                _B_lower_arrow_blocks_comm = cpx.empty_like_pinned(
+                    _B_lower_arrow_blocks
+                )
+                _B_upper_arrow_blocks_comm = cpx.empty_like_pinned(
+                    _B_upper_arrow_blocks
+                )
                 _B_arrow_tip_block_comm = cpx.empty_like_pinned(_B_arrow_tip_block)
             else:
                 _B_diagonal_blocks_comm = _B_diagonal_blocks
                 _B_lower_diagonal_blocks_comm = _B_lower_diagonal_blocks
-                _B_upper_diagonal_blocks_comm = _B_upper_diagonal_blocks  
+                _B_upper_diagonal_blocks_comm = _B_upper_diagonal_blocks
                 _B_lower_arrow_blocks_comm = _B_lower_arrow_blocks
                 _B_upper_arrow_blocks_comm = _B_upper_arrow_blocks
                 _B_arrow_tip_block_comm = _B_arrow_tip_block
@@ -196,9 +209,13 @@ def map_ddbtasc_to_ddbtars(
     _A_lower_arrow_blocks: ArrayLike,
     _A_upper_arrow_blocks: ArrayLike,
     _A_arrow_tip_block: ArrayLike,
-    strategy: str = "allgather",
+    comm: MPI.Comm,
+    strategy: str,
     **kwargs,
-):
+) -> None:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)
@@ -327,9 +344,13 @@ def map_ddbtasc_to_ddbtars(
 
 def aggregate_ddbtars(
     ddbtars: dict,
+    comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
-):
+) -> None:
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     _A_diagonal_blocks: ArrayLike = ddbtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtars.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtars.get("A_upper_diagonal_blocks", None)
@@ -338,10 +359,18 @@ def aggregate_ddbtars(
     _A_arrow_tip_block: ArrayLike = ddbtars.get("A_arrow_tip_block", None)
 
     _A_diagonal_blocks_comm: ArrayLike = ddbtars.get("A_diagonal_blocks_comm", None)
-    _A_lower_diagonal_blocks_comm: ArrayLike = ddbtars.get("A_lower_diagonal_blocks_comm", None)
-    _A_upper_diagonal_blocks_comm: ArrayLike = ddbtars.get("A_upper_diagonal_blocks_comm", None)
-    _A_lower_arrow_blocks_comm: ArrayLike = ddbtars.get("A_lower_arrow_blocks_comm", None)
-    _A_upper_arrow_blocks_comm: ArrayLike = ddbtars.get("A_upper_arrow_blocks_comm", None)
+    _A_lower_diagonal_blocks_comm: ArrayLike = ddbtars.get(
+        "A_lower_diagonal_blocks_comm", None
+    )
+    _A_upper_diagonal_blocks_comm: ArrayLike = ddbtars.get(
+        "A_upper_diagonal_blocks_comm", None
+    )
+    _A_lower_arrow_blocks_comm: ArrayLike = ddbtars.get(
+        "A_lower_arrow_blocks_comm", None
+    )
+    _A_upper_arrow_blocks_comm: ArrayLike = ddbtars.get(
+        "A_upper_arrow_blocks_comm", None
+    )
     _A_arrow_tip_block_comm: ArrayLike = ddbtars.get("A_arrow_tip_block_comm", None)
     if any(
         x is None
@@ -374,10 +403,18 @@ def aggregate_ddbtars(
         _B_arrow_tip_block: ArrayLike = _rhs.get("B_arrow_tip_block", None)
 
         _B_diagonal_blocks_comm: ArrayLike = _rhs.get("B_diagonal_blocks_comm", None)
-        _B_lower_diagonal_blocks_comm: ArrayLike = _rhs.get("B_lower_diagonal_blocks_comm", None)
-        _B_upper_diagonal_blocks_comm: ArrayLike = _rhs.get("B_upper_diagonal_blocks_comm", None)
-        _B_lower_arrow_blocks_comm: ArrayLike = _rhs.get("B_lower_arrow_blocks_comm", None)
-        _B_upper_arrow_blocks_comm: ArrayLike = _rhs.get("B_upper_arrow_blocks_comm", None)
+        _B_lower_diagonal_blocks_comm: ArrayLike = _rhs.get(
+            "B_lower_diagonal_blocks_comm", None
+        )
+        _B_upper_diagonal_blocks_comm: ArrayLike = _rhs.get(
+            "B_upper_diagonal_blocks_comm", None
+        )
+        _B_lower_arrow_blocks_comm: ArrayLike = _rhs.get(
+            "B_lower_arrow_blocks_comm", None
+        )
+        _B_upper_arrow_blocks_comm: ArrayLike = _rhs.get(
+            "B_upper_arrow_blocks_comm", None
+        )
         _B_arrow_tip_block_comm: ArrayLike = _rhs.get("B_arrow_tip_block_comm", None)
         if any(
             x is None
@@ -402,7 +439,7 @@ def aggregate_ddbtars(
 
     xp, _ = _get_module_from_array(arr=_A_diagonal_blocks)
     if strategy == "allgather":
-        if xp.__name__ == 'cupy':
+        if xp.__name__ == "cupy":
             # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
             if comm_rank == 0:
                 _A_diagonal_blocks[1].get(out=_A_diagonal_blocks_comm[1])
@@ -411,49 +448,75 @@ def aggregate_ddbtars(
                 _A_lower_arrow_blocks[1].get(out=_A_lower_arrow_blocks_comm[1])
                 _A_upper_arrow_blocks[1].get(out=_A_upper_arrow_blocks_comm[1])
             else:
-                _A_diagonal_blocks[2 * comm_rank].get(out=_A_diagonal_blocks_comm[2 * comm_rank])
-                _A_diagonal_blocks[2 * comm_rank + 1].get(out=_A_diagonal_blocks_comm[2 * comm_rank + 1])
+                _A_diagonal_blocks[2 * comm_rank].get(
+                    out=_A_diagonal_blocks_comm[2 * comm_rank]
+                )
+                _A_diagonal_blocks[2 * comm_rank + 1].get(
+                    out=_A_diagonal_blocks_comm[2 * comm_rank + 1]
+                )
 
                 if comm_rank < comm_size - 1:
-                    _A_lower_diagonal_blocks[2 * comm_rank].get(out=_A_lower_diagonal_blocks_comm[2 * comm_rank])
-                    _A_upper_diagonal_blocks[2 * comm_rank].get(out=_A_upper_diagonal_blocks_comm[2 * comm_rank])
+                    _A_lower_diagonal_blocks[2 * comm_rank].get(
+                        out=_A_lower_diagonal_blocks_comm[2 * comm_rank]
+                    )
+                    _A_upper_diagonal_blocks[2 * comm_rank].get(
+                        out=_A_upper_diagonal_blocks_comm[2 * comm_rank]
+                    )
 
-                    _A_lower_diagonal_blocks[2 * comm_rank + 1].get(out=_A_lower_diagonal_blocks_comm[2 * comm_rank + 1])
-                    _A_upper_diagonal_blocks[2 * comm_rank + 1].get(out=_A_upper_diagonal_blocks_comm[2 * comm_rank + 1])
+                    _A_lower_diagonal_blocks[2 * comm_rank + 1].get(
+                        out=_A_lower_diagonal_blocks_comm[2 * comm_rank + 1]
+                    )
+                    _A_upper_diagonal_blocks[2 * comm_rank + 1].get(
+                        out=_A_upper_diagonal_blocks_comm[2 * comm_rank + 1]
+                    )
                 else:
-                    _A_lower_diagonal_blocks[2 * comm_rank].get(out=_A_lower_diagonal_blocks_comm[2 * comm_rank])
-                    _A_upper_diagonal_blocks[2 * comm_rank].get(out=_A_upper_diagonal_blocks_comm[2 * comm_rank])
+                    _A_lower_diagonal_blocks[2 * comm_rank].get(
+                        out=_A_lower_diagonal_blocks_comm[2 * comm_rank]
+                    )
+                    _A_upper_diagonal_blocks[2 * comm_rank].get(
+                        out=_A_upper_diagonal_blocks_comm[2 * comm_rank]
+                    )
 
-                _A_lower_arrow_blocks[2 * comm_rank].get(out=_A_lower_arrow_blocks_comm[2 * comm_rank])
-                _A_lower_arrow_blocks[2 * comm_rank + 1].get(out=_A_lower_arrow_blocks_comm[2 * comm_rank + 1])
+                _A_lower_arrow_blocks[2 * comm_rank].get(
+                    out=_A_lower_arrow_blocks_comm[2 * comm_rank]
+                )
+                _A_lower_arrow_blocks[2 * comm_rank + 1].get(
+                    out=_A_lower_arrow_blocks_comm[2 * comm_rank + 1]
+                )
 
-                _A_upper_arrow_blocks[2 * comm_rank].get(out=_A_upper_arrow_blocks_comm[2 * comm_rank])
-                _A_upper_arrow_blocks[2 * comm_rank + 1].get(out=_A_upper_arrow_blocks_comm[2 * comm_rank + 1])
+                _A_upper_arrow_blocks[2 * comm_rank].get(
+                    out=_A_upper_arrow_blocks_comm[2 * comm_rank]
+                )
+                _A_upper_arrow_blocks[2 * comm_rank + 1].get(
+                    out=_A_upper_arrow_blocks_comm[2 * comm_rank + 1]
+                )
 
             _A_arrow_tip_block.get(out=_A_arrow_tip_block_comm)
 
+            cpx.cuda.Stream.null.synchronize()
+
         # Perform the allgather operation
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_lower_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_upper_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_lower_arrow_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
             _A_upper_arrow_blocks_comm,
         )
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
+        comm.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
 
         ddbtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:]
         ddbtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-1]
@@ -468,58 +531,86 @@ def aggregate_ddbtars(
         ddbtars["A_upper_arrow_blocks"] = _A_upper_arrow_blocks[1:]
 
         if quadratic:
-            if xp.__name__ == 'cupy':
+            if xp.__name__ == "cupy":
                 # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
                 if comm_rank == 0:
                     _B_diagonal_blocks[1].get(out=_B_diagonal_blocks_comm[1])
-                    _B_lower_diagonal_blocks[1].get(out=_B_lower_diagonal_blocks_comm[1])
-                    _B_upper_diagonal_blocks[1].get(out=_B_upper_diagonal_blocks_comm[1])
+                    _B_lower_diagonal_blocks[1].get(
+                        out=_B_lower_diagonal_blocks_comm[1]
+                    )
+                    _B_upper_diagonal_blocks[1].get(
+                        out=_B_upper_diagonal_blocks_comm[1]
+                    )
                     _B_lower_arrow_blocks[1].get(out=_B_lower_arrow_blocks_comm[1])
                     _B_upper_arrow_blocks[1].get(out=_B_upper_arrow_blocks_comm[1])
                 else:
-                    _B_diagonal_blocks[2 * comm_rank].get(out=_B_diagonal_blocks_comm[2 * comm_rank])
-                    _B_diagonal_blocks[2 * comm_rank + 1].get(out=_B_diagonal_blocks_comm[2 * comm_rank + 1])
+                    _B_diagonal_blocks[2 * comm_rank].get(
+                        out=_B_diagonal_blocks_comm[2 * comm_rank]
+                    )
+                    _B_diagonal_blocks[2 * comm_rank + 1].get(
+                        out=_B_diagonal_blocks_comm[2 * comm_rank + 1]
+                    )
 
                     if comm_rank < comm_size - 1:
-                        _B_lower_diagonal_blocks[2 * comm_rank].get(out=_B_lower_diagonal_blocks_comm[2 * comm_rank])
-                        _B_upper_diagonal_blocks[2 * comm_rank].get(out=_B_upper_diagonal_blocks_comm[2 * comm_rank])
+                        _B_lower_diagonal_blocks[2 * comm_rank].get(
+                            out=_B_lower_diagonal_blocks_comm[2 * comm_rank]
+                        )
+                        _B_upper_diagonal_blocks[2 * comm_rank].get(
+                            out=_B_upper_diagonal_blocks_comm[2 * comm_rank]
+                        )
 
-                        _B_lower_diagonal_blocks[2 * comm_rank + 1].get(out=_B_lower_diagonal_blocks_comm[2 * comm_rank + 1])
-                        _B_upper_diagonal_blocks[2 * comm_rank + 1].get(out=_B_upper_diagonal_blocks_comm[2 * comm_rank + 1])
+                        _B_lower_diagonal_blocks[2 * comm_rank + 1].get(
+                            out=_B_lower_diagonal_blocks_comm[2 * comm_rank + 1]
+                        )
+                        _B_upper_diagonal_blocks[2 * comm_rank + 1].get(
+                            out=_B_upper_diagonal_blocks_comm[2 * comm_rank + 1]
+                        )
                     else:
-                        _B_lower_diagonal_blocks[2 * comm_rank].get(out=_B_lower_diagonal_blocks_comm[2 * comm_rank])
-                        _B_upper_diagonal_blocks[2 * comm_rank].get(out=_B_upper_diagonal_blocks_comm[2 * comm_rank])
+                        _B_lower_diagonal_blocks[2 * comm_rank].get(
+                            out=_B_lower_diagonal_blocks_comm[2 * comm_rank]
+                        )
+                        _B_upper_diagonal_blocks[2 * comm_rank].get(
+                            out=_B_upper_diagonal_blocks_comm[2 * comm_rank]
+                        )
 
-                    _B_lower_arrow_blocks[2 * comm_rank].get(out=_B_lower_arrow_blocks_comm[2 * comm_rank])
-                    _B_lower_arrow_blocks[2 * comm_rank + 1].get(out=_B_lower_arrow_blocks_comm[2 * comm_rank + 1])
+                    _B_lower_arrow_blocks[2 * comm_rank].get(
+                        out=_B_lower_arrow_blocks_comm[2 * comm_rank]
+                    )
+                    _B_lower_arrow_blocks[2 * comm_rank + 1].get(
+                        out=_B_lower_arrow_blocks_comm[2 * comm_rank + 1]
+                    )
 
-                    _B_upper_arrow_blocks[2 * comm_rank].get(out=_B_upper_arrow_blocks_comm[2 * comm_rank])
-                    _B_upper_arrow_blocks[2 * comm_rank + 1].get(out=_B_upper_arrow_blocks_comm[2 * comm_rank + 1])
+                    _B_upper_arrow_blocks[2 * comm_rank].get(
+                        out=_B_upper_arrow_blocks_comm[2 * comm_rank]
+                    )
+                    _B_upper_arrow_blocks[2 * comm_rank + 1].get(
+                        out=_B_upper_arrow_blocks_comm[2 * comm_rank + 1]
+                    )
 
                 _B_arrow_tip_block.get(out=_B_arrow_tip_block_comm)
 
             # Perform the allgather operation
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_diagonal_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_lower_diagonal_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_upper_diagonal_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_lower_arrow_blocks_comm,
             )
-            MPI.COMM_WORLD.Allgather(
+            comm.Allgather(
                 MPI.IN_PLACE,
                 _B_upper_arrow_blocks_comm,
             )
-            MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _B_arrow_tip_block_comm, op=MPI.SUM)
+            comm.Allreduce(MPI.IN_PLACE, _B_arrow_tip_block_comm, op=MPI.SUM)
 
             _rhs["B_diagonal_blocks_comm"] = _B_diagonal_blocks_comm[1:]
             _rhs["B_lower_diagonal_blocks_comm"] = _B_lower_diagonal_blocks_comm[1:-1]
@@ -536,9 +627,9 @@ def aggregate_ddbtars(
     else:
         raise ValueError("Unknown communication strategy.")
 
-    MPI.COMM_WORLD.Barrier()
+    comm.Barrier()
 
-    if xp.__name__ == 'cupy':
+    if xp.__name__ == "cupy":
         # Need to put back the reduced system on the GPU
         _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
         _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)
@@ -547,7 +638,7 @@ def aggregate_ddbtars(
         _A_upper_arrow_blocks.set(arr=_A_upper_arrow_blocks_comm)
         _A_arrow_tip_block.set(arr=_A_arrow_tip_block_comm)
 
-        if quadratic:   
+        if quadratic:
             _B_diagonal_blocks.set(arr=_B_diagonal_blocks_comm)
             _B_lower_diagonal_blocks.set(arr=_B_lower_diagonal_blocks_comm)
             _B_upper_diagonal_blocks.set(arr=_B_upper_diagonal_blocks_comm)
@@ -558,9 +649,14 @@ def aggregate_ddbtars(
 
 def scatter_ddbtars(
     ddbtars: dict,
+    comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
+    **kwargs,
 ):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     _A_diagonal_blocks: ArrayLike = ddbtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtars.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtars.get("A_upper_diagonal_blocks", None)
@@ -627,9 +723,13 @@ def map_ddbtars_to_ddbtasci(
     _A_lower_arrow_blocks: ArrayLike,
     _A_upper_arrow_blocks: ArrayLike,
     _A_arrow_tip_block: ArrayLike,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
 ):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)

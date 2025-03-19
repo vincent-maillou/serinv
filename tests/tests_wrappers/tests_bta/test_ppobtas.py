@@ -10,12 +10,12 @@ else:
 
 import numpy as np
 
-from ...testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
+from ...testing_utils import bta_dense_to_arrays, dd_bta, symmetrize, rhs
 
 from serinv.utils import allocate_pobtax_permutation_buffers
 from serinv.wrappers import (
     ppobtaf,
-    ppobtasi,
+    ppobtas,
     allocate_pobtars,
 )
 
@@ -29,8 +29,10 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
-@pytest.mark.parametrize("comm_strategy", ["allgather", "gather-scatter"])
-def test_d_pobtasi(
+@pytest.mark.parametrize("comm_strategy", ["allgather"])
+@pytest.mark.parametrize("n_rhs", [1, 2, 3])
+def test_ppobtas(
+    n_rhs: int,
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
     partition_size: int,
@@ -59,7 +61,9 @@ def test_d_pobtasi(
         A_lower_arrow_blocks,
         _,
         A_arrow_tip_block_global,
-    ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
+    ) = bta_dense_to_arrays(
+        A.copy(), diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
+    )
 
     # Save the local slice of the array for each MPI process
     n_diag_blocks_per_processes = n_diag_blocks // comm_size
@@ -86,42 +90,41 @@ def test_d_pobtasi(
         * n_diag_blocks_per_processes,
     ]
 
-    # Reference solution
-    X_ref = xp.linalg.inv(A)
-
-    (
-        X_ref_diagonal_blocks,
-        X_ref_lower_diagonal_blocks,
-        _,
-        X_ref_arrow_bottom_blocks,
-        _,
-        X_ref_arrow_tip_block_global,
-    ) = bta_dense_to_arrays(
-        X_ref, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks
+    B = rhs(
+        n_rhs,
+        diagonal_blocksize,
+        arrowhead_blocksize,
+        n_diag_blocks,
+        device_array=True if array_type == "device" else False,
+        dtype=dtype,
     )
 
-    X_ref_diagonal_blocks_local = X_ref_diagonal_blocks[
-        comm_rank
-        * n_diag_blocks_per_processes : (comm_rank + 1)
-        * n_diag_blocks_per_processes,
-    ]
+    B_local = xp.zeros(
+        (n_diag_blocks_per_processes * diagonal_blocksize + arrowhead_blocksize, n_rhs),
+        dtype=dtype,
+    )
 
-    if comm_rank == comm_size - 1:
-        X_ref_lower_diagonal_blocks_local = X_ref_lower_diagonal_blocks[
-            comm_rank * n_diag_blocks_per_processes : n_diag_blocks - 1,
-        ]
-    else:
-        X_ref_lower_diagonal_blocks_local = X_ref_lower_diagonal_blocks[
-            comm_rank
-            * n_diag_blocks_per_processes : (comm_rank + 1)
-            * n_diag_blocks_per_processes,
-        ]
-
-    X_ref_arrow_bottom_blocks_local = X_ref_arrow_bottom_blocks[
+    B_local[:-arrowhead_blocksize] = B[
         comm_rank
-        * n_diag_blocks_per_processes : (comm_rank + 1)
-        * n_diag_blocks_per_processes,
+        * n_diag_blocks_per_processes
+        * diagonal_blocksize : (comm_rank + 1)
+        * n_diag_blocks_per_processes
+        * diagonal_blocksize
     ]
+    B_local[-arrowhead_blocksize:] = B[-arrowhead_blocksize:]
+
+    # Reference solution
+    X_ref = xp.linalg.solve(A.copy(), B.copy())
+
+    X_ref_local = xp.zeros_like(B_local)
+    X_ref_local[:-arrowhead_blocksize] = X_ref[
+        comm_rank
+        * n_diag_blocks_per_processes
+        * diagonal_blocksize : (comm_rank + 1)
+        * n_diag_blocks_per_processes
+        * diagonal_blocksize
+    ]
+    X_ref_local[-arrowhead_blocksize:] = X_ref[-arrowhead_blocksize:]
 
     # Allocate permutation buffer
     buffer = allocate_pobtax_permutation_buffers(
@@ -134,6 +137,7 @@ def test_d_pobtasi(
         A_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
         A_lower_arrow_blocks=A_lower_arrow_blocks_local,
         A_arrow_tip_block=A_arrow_tip_block_global,
+        B=B_local,
         comm=MPI.COMM_WORLD,
         array_module=xp.__name__,
         strategy=comm_strategy,
@@ -151,25 +155,17 @@ def test_d_pobtasi(
         strategy=comm_strategy,
     )
 
-    # Distributed Selected-Inversion of the full system
-    ppobtasi(
+    # Distributed Solve
+    ppobtas(
         L_diagonal_blocks=A_diagonal_blocks_local,
         L_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
         L_lower_arrow_blocks=A_lower_arrow_blocks_local,
         L_arrow_tip_block=A_arrow_tip_block_global,
+        B=B_local,
         buffer=buffer,
         pobtars=pobtars,
         comm=MPI.COMM_WORLD,
         strategy=comm_strategy,
     )
 
-    assert xp.allclose(A_diagonal_blocks_local, X_ref_diagonal_blocks_local)
-    assert xp.allclose(
-        A_lower_diagonal_blocks_local,
-        X_ref_lower_diagonal_blocks_local,
-    )
-    assert xp.allclose(
-        A_lower_arrow_blocks_local,
-        X_ref_arrow_bottom_blocks_local,
-    )
-    assert xp.allclose(A_arrow_tip_block_global, X_ref_arrow_tip_block_global)
+    assert xp.allclose(X_ref_local, B_local)

@@ -10,7 +10,7 @@ from serinv import (
 def pobtasi(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     **kwargs,
 ):
@@ -23,7 +23,7 @@ def pobtasi(
         Diagonal blocks of the Cholesky factor of the matrix.
     L_lower_diagonal_blocks : ArrayLike
         Lower diagonal blocks of the Cholesky factor of the matrix.
-    L_arrow_bottom_blocks : ArrayLike
+    L_lower_arrow_blocks : ArrayLike
         Arrow bottom blocks of the Cholesky factor of the matrix.
     L_arrow_tip_block : ArrayLike
         Arrow tip block of the Cholesky factor of the matrix.
@@ -41,61 +41,60 @@ def pobtasi(
     - If a device array is given, the algorithm will run on the GPU.
     - If a buffer is provided, the algorithm will perform the factorization of a permuted arrowhead matrix.
 
-    Currently implemented:
-    ----------------------
-    |              | Natural | Permuted |
-    | ------------ | ------- | -------- |
-    | Direct-array | x       | x        |
-    | Streaming    | x       | x        |
     """
+    expected_kwargs = {"device_streaming", "buffer", "invert_last_block"}
+    unexpected_kwargs = set(kwargs) - expected_kwargs
+    if unexpected_kwargs:
+        raise TypeError(f"Unexpected keyword arguments: {unexpected_kwargs}")
+
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
-    inverse_last_block = kwargs.get("inverse_last_block", True)
+    invert_last_block = kwargs.get("invert_last_block", True)
 
     if buffer is not None:
         # Permuted arrowhead
         if device_streaming:
-            return _pobtasi_permuted_streaming(
+            _pobtasi_permuted_streaming(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
-                L_arrow_bottom_blocks,
+                L_lower_arrow_blocks,
                 L_arrow_tip_block,
                 buffer,
             )
         else:
-            return _pobtasi_permuted(
+            _pobtasi_permuted(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
-                L_arrow_bottom_blocks,
+                L_lower_arrow_blocks,
                 L_arrow_tip_block,
                 buffer,
             )
     else:
         # Natural arrowhead
         if device_streaming:
-            return _pobtasi_streaming(
+            _pobtasi_streaming(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
-                L_arrow_bottom_blocks,
+                L_lower_arrow_blocks,
                 L_arrow_tip_block,
-                inverse_last_block,
+                invert_last_block,
             )
         else:
-            return _pobtasi(
+            _pobtasi(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
-                L_arrow_bottom_blocks,
+                L_lower_arrow_blocks,
                 L_arrow_tip_block,
-                inverse_last_block,
+                invert_last_block,
             )
 
 
 def _pobtasi(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
-    inverse_last_block: bool,
+    invert_last_block: bool,
 ):
     xp, la = _get_module_from_array(L_diagonal_blocks)
 
@@ -103,16 +102,16 @@ def _pobtasi(
 
     X_diagonal_blocks = L_diagonal_blocks
     X_lower_diagonal_blocks = L_lower_diagonal_blocks
-    X_arrow_bottom_blocks = L_arrow_bottom_blocks
+    X_arrow_bottom_blocks = L_lower_arrow_blocks
     X_arrow_tip_block = L_arrow_tip_block
     L_last_blk_inv = L_arrow_tip_block
 
     L_lower_diagonal_blocks_i = xp.empty_like(L_diagonal_blocks[0, :, :])
-    L_arrow_bottom_blocks_i = xp.empty_like(L_arrow_bottom_blocks[0, :, :])
+    L_lower_arrow_blocks_i = xp.empty_like(L_lower_arrow_blocks[0, :, :])
     L_blk_inv = xp.empty_like(L_diagonal_blocks[0, :, :])
     Identity = xp.eye(L_diagonal_blocks.shape[1])
 
-    if inverse_last_block:
+    if invert_last_block:
         L_last_blk_inv = la.solve_triangular(
             L_arrow_tip_block[:, :], xp.eye(L_arrow_tip_block.shape[0]), lower=True
         )
@@ -120,7 +119,7 @@ def _pobtasi(
         X_arrow_tip_block[:, :] = L_last_blk_inv.conj().T @ L_last_blk_inv
 
         # Backward block-selected inversion
-        L_arrow_bottom_blocks_i[:, :] = L_arrow_bottom_blocks[-1, :, :]
+        L_lower_arrow_blocks_i[:, :] = L_lower_arrow_blocks[-1, :, :]
 
         L_blk_inv = la.solve_triangular(
             L_diagonal_blocks[-1, :, :],
@@ -130,18 +129,18 @@ def _pobtasi(
 
         # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
         X_arrow_bottom_blocks[-1, :, :] = (
-            -X_arrow_tip_block[:, :] @ L_arrow_bottom_blocks_i[:, :] @ L_blk_inv
+            -X_arrow_tip_block[:, :] @ L_lower_arrow_blocks_i[:, :] @ L_blk_inv
         )
 
         # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
         X_diagonal_blocks[-1, :, :] = (
             L_blk_inv.conj().T
-            - X_arrow_bottom_blocks[-1, :, :].conj().T @ L_arrow_bottom_blocks_i[:, :]
+            - X_arrow_bottom_blocks[-1, :, :].conj().T @ L_lower_arrow_blocks_i[:, :]
         ) @ L_blk_inv
 
     for i in range(n_diag_blocks - 2, -1, -1):
         L_lower_diagonal_blocks_i[:, :] = L_lower_diagonal_blocks[i, :, :]
-        L_arrow_bottom_blocks_i[:, :] = L_arrow_bottom_blocks[i, :, :]
+        L_lower_arrow_blocks_i[:, :] = L_lower_arrow_blocks[i, :, :]
 
         L_blk_inv = la.solve_triangular(
             L_diagonal_blocks[i, :, :],
@@ -153,15 +152,14 @@ def _pobtasi(
         # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}^{T} L_{ndb+1, i}) L_{i, i}^{-1}
         X_lower_diagonal_blocks[i, :, :] = (
             -X_diagonal_blocks[i + 1, :, :] @ L_lower_diagonal_blocks_i[:, :]
-            - X_arrow_bottom_blocks[i + 1, :, :].conj().T
-            @ L_arrow_bottom_blocks_i[:, :]
+            - X_arrow_bottom_blocks[i + 1, :, :].conj().T @ L_lower_arrow_blocks_i[:, :]
         ) @ L_blk_inv
 
         # --- Arrowhead part ---
         # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
         X_arrow_bottom_blocks[i, :, :] = (
             -X_arrow_bottom_blocks[i + 1, :, :] @ L_lower_diagonal_blocks_i[:, :]
-            - X_arrow_tip_block[:, :] @ L_arrow_bottom_blocks_i[:, :]
+            - X_arrow_tip_block[:, :] @ L_lower_arrow_blocks_i[:, :]
         ) @ L_blk_inv
 
         # --- Diagonal block part ---
@@ -170,14 +168,14 @@ def _pobtasi(
             L_blk_inv.conj().T
             - X_lower_diagonal_blocks[i, :, :].conj().T
             @ L_lower_diagonal_blocks_i[:, :]
-            - X_arrow_bottom_blocks[i, :, :].conj().T @ L_arrow_bottom_blocks_i[:, :]
+            - X_arrow_bottom_blocks[i, :, :].conj().T @ L_lower_arrow_blocks_i[:, :]
         ) @ L_blk_inv
 
 
 def _pobtasi_permuted(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     buffer: ArrayLike,
 ):
@@ -188,19 +186,19 @@ def _pobtasi_permuted(
 
     X_diagonal_blocks = L_diagonal_blocks
     X_lower_diagonal_blocks = L_lower_diagonal_blocks
-    X_arrow_bottom_blocks = L_arrow_bottom_blocks
+    X_arrow_bottom_blocks = L_lower_arrow_blocks
     X_arrow_tip_block = L_arrow_tip_block
 
     # Backward selected-inversion
     L_inv_temp = xp.empty_like(L_diagonal_blocks[0])
     L_lower_diagonal_blocks_temp = xp.empty_like(L_lower_diagonal_blocks[0])
-    L_arrow_bottom_blocks_temp = xp.empty_like(L_arrow_bottom_blocks[0])
+    L_lower_arrow_blocks_temp = xp.empty_like(L_lower_arrow_blocks[0])
 
     buffer_temp = xp.empty_like(buffer[0, :, :])
 
     for i in range(n_diag_blocks - 2, 0, -1):
         L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks[i, :, :]
-        L_arrow_bottom_blocks_temp[:, :] = L_arrow_bottom_blocks[i, :, :]
+        L_lower_arrow_blocks_temp[:, :] = L_lower_arrow_blocks[i, :, :]
         buffer_temp[:, :] = buffer[i, :, :]
 
         L_inv_temp[:, :] = la.solve_triangular(
@@ -214,14 +212,14 @@ def _pobtasi_permuted(
             -buffer[i + 1, :, :].conj().T @ buffer_temp[:, :]
             - X_diagonal_blocks[i + 1, :, :] @ L_lower_diagonal_blocks_temp[:, :]
             - X_arrow_bottom_blocks[i + 1, :, :].conj().T
-            @ L_arrow_bottom_blocks_temp[:, :]
+            @ L_lower_arrow_blocks_temp[:, :]
         ) @ L_inv_temp[:, :]
 
         # X_{top, i} = (- X_{top, i+1} L_{i+1, i} - X_{top, top} L_{top, i} - X_{ndb+1, top}.T L_{ndb+1, i}) L_{i, i}^{-1}
         buffer[i, :, :] = (
             -buffer[i + 1, :, :] @ L_lower_diagonal_blocks_temp[:, :]
             - X_diagonal_blocks[0, :, :] @ buffer_temp[:, :]
-            - X_arrow_bottom_blocks[0, :, :].conj().T @ L_arrow_bottom_blocks_temp[:, :]
+            - X_arrow_bottom_blocks[0, :, :].conj().T @ L_lower_arrow_blocks_temp[:, :]
         ) @ L_inv_temp[:, :]
 
         # Arrowhead
@@ -229,7 +227,7 @@ def _pobtasi_permuted(
         X_arrow_bottom_blocks[i, :, :] = (
             -X_arrow_bottom_blocks[i + 1, :, :] @ L_lower_diagonal_blocks_temp[:, :]
             - X_arrow_bottom_blocks[0, :, :] @ buffer_temp[:, :]
-            - X_arrow_tip_block[:, :] @ L_arrow_bottom_blocks_temp[:, :]
+            - X_arrow_tip_block[:, :] @ L_lower_arrow_blocks_temp[:, :]
         ) @ L_inv_temp[:, :]
 
         # X_{i, i} = (L_{i, i}^{-T} - X_{i+1, i}.T L_{i+1, i} - X_{top, i}.T L_{top, i} - X_{ndb+1, i}.T L_{ndb+1, i}) L_{i, i}^{-1}
@@ -238,7 +236,7 @@ def _pobtasi_permuted(
             - X_lower_diagonal_blocks[i, :, :].conj().T
             @ L_lower_diagonal_blocks_temp[:, :]
             - buffer[i, :, :].conj().T @ buffer_temp[:, :]
-            - X_arrow_bottom_blocks[i, :, :].conj().T @ L_arrow_bottom_blocks_temp[:, :]
+            - X_arrow_bottom_blocks[i, :, :].conj().T @ L_lower_arrow_blocks_temp[:, :]
         ) @ L_inv_temp[:, :]
 
     # Copy back the 2 first blocks that have been produced in the 2-sided pattern
@@ -249,9 +247,9 @@ def _pobtasi_permuted(
 def _pobtasi_streaming(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
-    inverse_last_block: bool,
+    invert_last_block: bool,
 ):
     arr_module, _ = _get_module_from_array(arr=L_diagonal_blocks)
     if arr_module.__name__ != "numpy":
@@ -284,7 +282,7 @@ def _pobtasi_streaming(
     # X hosts arrays pointers
     X_diagonal_blocks = L_diagonal_blocks
     X_lower_diagonal_blocks = L_lower_diagonal_blocks
-    X_arrow_bottom_blocks = L_arrow_bottom_blocks
+    X_arrow_bottom_blocks = L_lower_arrow_blocks
     X_arrow_tip_block = L_arrow_tip_block
 
     # Device buffers
@@ -294,8 +292,8 @@ def _pobtasi_streaming(
     L_lower_diagonal_blocks_d = cp.empty(
         (2, *L_diagonal_blocks.shape[1:]), dtype=L_diagonal_blocks.dtype
     )
-    L_arrow_bottom_blocks_d = cp.empty(
-        (2, *L_arrow_bottom_blocks.shape[1:]), dtype=L_arrow_bottom_blocks.dtype
+    L_lower_arrow_blocks_d = cp.empty(
+        (2, *L_lower_arrow_blocks.shape[1:]), dtype=L_lower_arrow_blocks.dtype
     )
     L_arrow_tip_block_d = cp.empty_like(L_arrow_tip_block)
 
@@ -304,7 +302,7 @@ def _pobtasi_streaming(
     # X Device buffers arrays pointers
     X_diagonal_blocks_d = L_diagonal_blocks_d
     X_lower_diagonal_blocks_d = L_lower_diagonal_blocks_d
-    X_arrow_bottom_blocks_d = L_arrow_bottom_blocks_d
+    X_arrow_bottom_blocks_d = L_lower_arrow_blocks_d
     X_arrow_tip_block_d = L_arrow_tip_block_d
 
     # Buffers for the intermediate results of the backward block-selected inversion
@@ -312,7 +310,7 @@ def _pobtasi_streaming(
     L_last_blk_inv_d = cp.empty_like(L_arrow_tip_block)
 
     L_lower_diagonal_blocks_d_i = cp.empty_like(L_diagonal_blocks[0, :, :])
-    L_arrow_bottom_blocks_d_i = cp.empty_like(L_arrow_bottom_blocks[0, :, :])
+    L_lower_arrow_blocks_d_i = cp.empty_like(L_lower_arrow_blocks[0, :, :])
 
     # Backward block-selected inversion
     # --- C: events + transfers---
@@ -321,7 +319,7 @@ def _pobtasi_streaming(
     L_arrow_tip_block_d.set(arr=L_arrow_tip_block[:, :], stream=compute_stream)
 
     with compute_stream:
-        if inverse_last_block:
+        if invert_last_block:
             # X_{ndb+1, ndb+1} = L_{ndb+1, ndb}^{-T} L_{ndb+1, ndb}^{-1}
             L_last_blk_inv_d = cu_la.solve_triangular(
                 L_arrow_tip_block_d[:, :],
@@ -334,7 +332,7 @@ def _pobtasi_streaming(
 
     # --- Device 2 Host transfers ---
     d2h_stream.wait_event(compute_arrow_tip_event)
-    if inverse_last_block:
+    if invert_last_block:
         X_arrow_tip_block_d[:, :].get(
             out=X_arrow_tip_block,
             stream=d2h_stream,
@@ -349,14 +347,14 @@ def _pobtasi_streaming(
     )
     h2d_diagonal_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
 
-    L_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].set(
-        arr=L_arrow_bottom_blocks[-1, :, :], stream=h2d_stream
+    L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :].set(
+        arr=L_lower_arrow_blocks[-1, :, :], stream=h2d_stream
     )
     h2d_arrow_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
 
     with compute_stream:
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
-        if inverse_last_block:
+        if invert_last_block:
             # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
             L_blk_inv_d = cu_la.solve_triangular(
                 L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
@@ -365,30 +363,30 @@ def _pobtasi_streaming(
             )
 
         compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
-        L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[
+        L_lower_arrow_blocks_d_i[:, :] = L_lower_arrow_blocks_d[
             (n_diag_blocks - 1) % 2, :, :
         ]
 
-        if inverse_last_block:
+        if invert_last_block:
             X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
                 -X_arrow_tip_block_d[:, :]
-                @ L_arrow_bottom_blocks_d_i[:, :]
+                @ L_lower_arrow_blocks_d_i[:, :]
                 @ L_blk_inv_d
             )
         compute_arrow_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
-        if inverse_last_block:
+        if invert_last_block:
             # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
             X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
                 L_blk_inv_d.conj().T
                 - X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T
-                @ L_arrow_bottom_blocks_d_i[:, :]
+                @ L_lower_arrow_blocks_d_i[:, :]
             ) @ L_blk_inv_d
         compute_diagonal_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
     # --- Device 2 Host transfers ---
     d2h_stream.wait_event(compute_arrow_events[(n_diag_blocks - 1) % 2])
-    if inverse_last_block:
+    if invert_last_block:
         X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
             out=X_arrow_bottom_blocks[-1, :, :],
             stream=d2h_stream,
@@ -401,7 +399,7 @@ def _pobtasi_streaming(
         )
 
     d2h_stream.wait_event(compute_diagonal_events[(n_diag_blocks - 1) % 2])
-    if inverse_last_block:
+    if invert_last_block:
         X_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
             out=X_diagonal_blocks[-1, :, :],
             stream=d2h_stream,
@@ -429,8 +427,8 @@ def _pobtasi_streaming(
         h2d_lower_events[i % 2].record(stream=h2d_stream)
 
         h2d_stream.wait_event(compute_arrow_h2d_events[i % 2])
-        L_arrow_bottom_blocks_d[i % 2, :, :].set(
-            arr=L_arrow_bottom_blocks[i, :, :], stream=h2d_stream
+        L_lower_arrow_blocks_d[i % 2, :, :].set(
+            arr=L_lower_arrow_blocks[i, :, :], stream=h2d_stream
         )
         h2d_arrow_events[i % 2].record(stream=h2d_stream)
 
@@ -446,13 +444,13 @@ def _pobtasi_streaming(
             compute_stream.wait_event(h2d_lower_events[i % 2])
             L_lower_diagonal_blocks_d_i[:, :] = L_lower_diagonal_blocks_d[i % 2, :, :]
             compute_stream.wait_event(h2d_arrow_events[i % 2])
-            L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[i % 2, :, :]
+            L_lower_arrow_blocks_d_i[:, :] = L_lower_arrow_blocks_d[i % 2, :, :]
             # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}^{T} L_{ndb+1, i}) L_{i, i}^{-1}
             X_lower_diagonal_blocks_d[i % 2, :, :] = (
                 -X_diagonal_blocks_d[(i + 1) % 2, :, :]
                 @ L_lower_diagonal_blocks_d_i[:, :]
                 - X_arrow_bottom_blocks_d[(i + 1) % 2, :, :].conj().T
-                @ L_arrow_bottom_blocks_d_i[:, :]
+                @ L_lower_arrow_blocks_d_i[:, :]
             ) @ L_blk_inv_d
             compute_diagonal_h2d_events[(i + 1) % 2].record(stream=compute_stream)
             compute_lower_events[i % 2].record(stream=compute_stream)
@@ -462,7 +460,7 @@ def _pobtasi_streaming(
             X_arrow_bottom_blocks_d[i % 2, :, :] = (
                 -X_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
                 @ L_lower_diagonal_blocks_d_i[:, :]
-                - X_arrow_tip_block_d[:, :] @ L_arrow_bottom_blocks_d_i[:, :]
+                - X_arrow_tip_block_d[:, :] @ L_lower_arrow_blocks_d_i[:, :]
             ) @ L_blk_inv_d
             compute_arrow_h2d_events[(i + 1) % 2].record(stream=compute_stream)
             compute_arrow_events[i % 2].record(stream=compute_stream)
@@ -474,7 +472,7 @@ def _pobtasi_streaming(
                 - X_lower_diagonal_blocks_d[i % 2, :, :].conj().T
                 @ L_lower_diagonal_blocks_d_i[:, :]
                 - X_arrow_bottom_blocks_d[i % 2, :, :].conj().T
-                @ L_arrow_bottom_blocks_d_i[:, :]
+                @ L_lower_arrow_blocks_d_i[:, :]
             ) @ L_blk_inv_d
             compute_diagonal_events[i % 2].record(stream=compute_stream)
 
@@ -501,7 +499,7 @@ def _pobtasi_streaming(
 def _pobtasi_permuted_streaming(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     buffer: ArrayLike,
 ):
@@ -519,7 +517,7 @@ def _pobtasi_permuted_streaming(
 
     X_diagonal_blocks = L_diagonal_blocks
     X_lower_diagonal_blocks = L_lower_diagonal_blocks
-    X_arrow_bottom_blocks = L_arrow_bottom_blocks
+    X_arrow_bottom_blocks = L_lower_arrow_blocks
     X_arrow_tip_block = L_arrow_tip_block
 
     # Backward selected-inversion
@@ -530,21 +528,21 @@ def _pobtasi_permuted_streaming(
     L_lower_diagonal_blocks_d = cp.empty(
         (2, *L_diagonal_blocks.shape[1:]), dtype=L_diagonal_blocks.dtype
     )
-    L_arrow_bottom_blocks_d = cp.empty(
-        (2, *L_arrow_bottom_blocks.shape[1:]),
-        dtype=L_arrow_bottom_blocks.dtype,
+    L_lower_arrow_blocks_d = cp.empty(
+        (2, *L_lower_arrow_blocks.shape[1:]),
+        dtype=L_lower_arrow_blocks.dtype,
     )
     X_arrow_tip_block_d = cp.empty_like(X_arrow_tip_block)
 
     # X Device buffers arrays pointers
     X_diagonal_blocks_d = L_diagonal_blocks_d
     X_lower_diagonal_blocks_d = L_lower_diagonal_blocks_d
-    X_arrow_bottom_blocks_d = L_arrow_bottom_blocks_d
+    X_arrow_bottom_blocks_d = L_lower_arrow_blocks_d
 
     # Buffers for the intermediate results of the backward block-selected inversion
     L_inv_temp_d = cp.empty_like(L_diagonal_blocks[0])
     L_lower_diagonal_blocks_d_i = cp.empty_like(L_lower_diagonal_blocks[0])
-    L_arrow_bottom_blocks_d_i = cp.empty_like(L_arrow_bottom_blocks[0])
+    L_lower_arrow_blocks_d_i = cp.empty_like(L_lower_arrow_blocks[0])
 
     # Copy/Compute overlap strems
     compute_stream = cp.cuda.Stream(non_blocking=True)
@@ -594,7 +592,7 @@ def _pobtasi_permuted_streaming(
     h2d_diagonal_events[(n_diag_blocks - 1) % 2].record(h2d_stream)
 
     X_arrow_bottom_blocks_d[(n_diag_blocks - 1) % 2, :, :].set(
-        arr=L_arrow_bottom_blocks[-1, :, :], stream=h2d_stream
+        arr=L_lower_arrow_blocks[-1, :, :], stream=h2d_stream
     )
     X_arrow_bottom_top_block_d.set(
         arr=X_arrow_bottom_blocks[0, :, :], stream=h2d_stream
@@ -623,8 +621,8 @@ def _pobtasi_permuted_streaming(
         h2d_lower_events[i % 2].record(stream=h2d_stream)
 
         h2d_stream.wait_event(compute_arrow_h2d_events[i % 2])
-        L_arrow_bottom_blocks_d[i % 2, :, :].set(
-            arr=L_arrow_bottom_blocks[i, :, :], stream=h2d_stream
+        L_lower_arrow_blocks_d[i % 2, :, :].set(
+            arr=L_lower_arrow_blocks[i, :, :], stream=h2d_stream
         )
         h2d_arrow_events[i % 2].record(stream=h2d_stream)
 
@@ -644,7 +642,7 @@ def _pobtasi_permuted_streaming(
             L_lower_diagonal_blocks_d_i[:, :] = L_lower_diagonal_blocks_d[i % 2, :, :]
 
             compute_stream.wait_event(h2d_arrow_events[i % 2])
-            L_arrow_bottom_blocks_d_i[:, :] = L_arrow_bottom_blocks_d[i % 2, :, :]
+            L_lower_arrow_blocks_d_i[:, :] = L_lower_arrow_blocks_d[i % 2, :, :]
 
             compute_stream.wait_event(h2d_upper_nested_dissection_buffer_events[i % 2])
             buffer_d_i[:, :] = buffer_d[i % 2, :, :]
@@ -656,7 +654,7 @@ def _pobtasi_permuted_streaming(
                 - X_diagonal_blocks_d[(i + 1) % 2, :, :]
                 @ L_lower_diagonal_blocks_d_i[:, :]
                 - X_arrow_bottom_blocks_d[(i + 1) % 2, :, :].conj().T
-                @ L_arrow_bottom_blocks_d_i[:, :]
+                @ L_lower_arrow_blocks_d_i[:, :]
             ) @ L_inv_temp_d[:, :]
             compute_diagonal_h2d_events[(i + 1) % 2].record(stream=compute_stream)
             compute_lower_events[i % 2].record(stream=compute_stream)
@@ -667,7 +665,7 @@ def _pobtasi_permuted_streaming(
                 @ L_lower_diagonal_blocks_d_i[:, :]
                 - X_diagonal_top_block_d[:, :] @ buffer_d_i[:, :]
                 - X_arrow_bottom_top_block_d[:, :].conj().T
-                @ L_arrow_bottom_blocks_d_i[:, :]
+                @ L_lower_arrow_blocks_d_i[:, :]
             ) @ L_inv_temp_d[:, :]
             compute_upper_nested_dissection_buffer_h2d_events[(i + 1) % 2].record(
                 stream=compute_stream
@@ -682,7 +680,7 @@ def _pobtasi_permuted_streaming(
                 -X_arrow_bottom_blocks_d[(i + 1) % 2, :, :]
                 @ L_lower_diagonal_blocks_d_i[:, :]
                 - X_arrow_bottom_top_block_d[:, :] @ buffer_d_i[:, :]
-                - X_arrow_tip_block_d[:, :] @ L_arrow_bottom_blocks_d_i[:, :]
+                - X_arrow_tip_block_d[:, :] @ L_lower_arrow_blocks_d_i[:, :]
             ) @ L_inv_temp_d[:, :]
             compute_arrow_h2d_events[(i + 1) % 2].record(stream=compute_stream)
             compute_arrow_events[i % 2].record(stream=compute_stream)
@@ -695,7 +693,7 @@ def _pobtasi_permuted_streaming(
                 - X_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
                 @ buffer_d_i[:, :]
                 - X_arrow_bottom_blocks_d[i % 2, :, :].conj().T
-                @ L_arrow_bottom_blocks_d_i[:, :]
+                @ L_lower_arrow_blocks_d_i[:, :]
             ) @ L_inv_temp_d[:, :]
             compute_diagonal_events[i % 2].record(stream=compute_stream)
 

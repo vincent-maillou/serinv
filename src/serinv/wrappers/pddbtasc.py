@@ -13,9 +13,6 @@ from .ddbtars import (
     aggregate_ddbtars,
 )
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
-
 
 def pddbtasc(
     A_diagonal_blocks: ArrayLike,
@@ -24,6 +21,7 @@ def pddbtasc(
     A_lower_arrow_blocks: ArrayLike,
     A_upper_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel Schur-complement of a block tridiagonal matrix.
@@ -42,7 +40,9 @@ def pddbtasc(
         The arrow top blocks of the block tridiagonal with arrowhead matrix.
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the block tridiagonal with arrowhead matrix.
-
+    comm : MPI.Comm
+        The MPI communicator. Default is MPI.COMM_WORLD.
+        
     Keyword Arguments
     -----------------
     rhs : dict
@@ -109,15 +109,18 @@ def pddbtasc(
             - _B_arrow_tip_block : ArrayLike
                 The arrow tip block of the reduced system.
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
-    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
-
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
+
     buffers: dict = kwargs.get("buffers", None)
     ddbtars: dict = kwargs.get("ddbtars", None)
+    strategy: str = kwargs.get("strategy", "allgather")
 
     # Check that the reduced system contains the required arrays
     ddbtars: dict = kwargs.get("ddbtars", None)
@@ -191,6 +194,8 @@ def pddbtasc(
         _A_lower_arrow_blocks=ddbtars["A_lower_arrow_blocks"],
         _A_upper_arrow_blocks=ddbtars["A_upper_arrow_blocks"],
         _A_arrow_tip_block=ddbtars["A_arrow_tip_block"],
+        comm=comm,
+        strategy=strategy,
         rhs=rhs,
         quadratic=quadratic,
         buffers=buffers,
@@ -200,6 +205,8 @@ def pddbtasc(
     aggregate_ddbtars(
         ddbtars=ddbtars,
         quadratic=quadratic,
+        comm=comm,
+        strategy=strategy,
     )
 
     ddbtars["A_arrow_tip_block"][:] += A_arrow_tip_initial
@@ -218,4 +225,4 @@ def pddbtasc(
         quadratic=quadratic,
     )
 
-    MPI.COMM_WORLD.Barrier()
+    comm.Barrier()

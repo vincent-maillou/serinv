@@ -62,8 +62,8 @@ def test_check_ddbta(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
-        A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
+        A_lower_arrow_blocks,
+        A_upper_arrow_blocks,
         A_arrow_tip_block,
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
@@ -71,8 +71,8 @@ def test_check_ddbta(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         A_upper_diagonal_blocks,
-        A_arrow_bottom_blocks,
-        A_arrow_right_blocks,
+        A_lower_arrow_blocks,
+        A_upper_arrow_blocks,
         A_arrow_tip_block,
     )
 

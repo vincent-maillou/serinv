@@ -7,18 +7,16 @@ from serinv import (
     _get_module_from_array,
 )
 
-from serinv.algs import pobtasi
-from serinv.wrappers.pobtars import (
-    map_pobtars_to_ppobtax,
-    scatter_pobtars,
+from serinv.algs import pobtsi
+from serinv.wrappers.pobtrs import (
+    map_pobtrs_to_ppobtx,
+    scatter_pobtrs,
 )
 
 
-def ppobtasi(
+def ppobtsi(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_lower_arrow_blocks: ArrayLike,
-    L_arrow_tip_block: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
     **kwargs,
 ):
@@ -30,14 +28,10 @@ def ppobtasi(
         Diagonal blocks of the Cholesky factor of the matrix.
     L_lower_diagonal_blocks : ArrayLike
         Lower diagonal blocks of the Cholesky factor of the matrix.
-    L_lower_arrow_blocks : ArrayLike
-        Arrow bottom blocks of the Cholesky factor of the matrix.
-    L_arrow_tip_block : ArrayLike
-        Arrow tip block of the Cholesky factor of the matrix.
 
     Keyword Arguments
     -----------------
-    pobtars : dict
+    pobtrs : dict
         The reduced system arrays, given as dictionary format.
     buffer : ArrayLike
         The permutation buffer for the permuted-partition algorithms
@@ -70,62 +64,50 @@ def ppobtasi(
     if comm_rank != 0:
         assert buffer is not None
 
-    pobtars: dict = kwargs.get("pobtars", None)
+    pobtrs: dict = kwargs.get("pobtrs", None)
 
     # Check for given reduced system buffers
-    _A_diagonal_blocks: ArrayLike = pobtars.get("A_diagonal_blocks", None)
-    _A_lower_diagonal_blocks: ArrayLike = pobtars.get("A_lower_diagonal_blocks", None)
-    _A_lower_arrow_blocks: ArrayLike = pobtars.get("A_lower_arrow_blocks", None)
-    _A_arrow_tip_block: ArrayLike = pobtars.get("A_arrow_tip_block", None)
+    _A_diagonal_blocks: ArrayLike = pobtrs.get("A_diagonal_blocks", None)
+    _A_lower_diagonal_blocks: ArrayLike = pobtrs.get("A_lower_diagonal_blocks", None)
     if any(
         x is None
         for x in [
             _A_diagonal_blocks,
             _A_lower_diagonal_blocks,
-            _A_lower_arrow_blocks,
-            _A_arrow_tip_block,
         ]
     ):
         raise ValueError(
-            "To run the distributed solvers, the reduced system `pobtars` need to contain the required arrays."
+            "To run the distributed solvers, the reduced system `pobtrs` need to contain the required arrays."
         )
 
     # Selected-inversion of the reduced system
     if strategy == "gather-scatter":
         if comm_rank == root:
-            pobtasi(
-                L_diagonal_blocks=pobtars["A_diagonal_blocks"][1:],
-                L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"][1:-1],
-                L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"][1:],
-                L_arrow_tip_block=pobtars["A_arrow_tip_block"],
+            pobtsi(
+                L_diagonal_blocks=pobtrs["A_diagonal_blocks"][1:],
+                L_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"][1:-1],
             )
         comm.Barrier()
 
     elif strategy == "allgather":
-        pobtasi(
-            L_diagonal_blocks=pobtars["A_diagonal_blocks"],
-            L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-            L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
-            L_arrow_tip_block=pobtars["A_arrow_tip_block"],
+        pobtsi(
+            L_diagonal_blocks=pobtrs["A_diagonal_blocks"],
+            L_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"],
         )
 
-    scatter_pobtars(
-        pobtars=pobtars,
+    scatter_pobtrs(
+        pobtrs=pobtrs,
         comm=comm,
         strategy=strategy,
         root=root,
     )
 
     # Map result of the reduced system back to the original system
-    map_pobtars_to_ppobtax(
+    map_pobtrs_to_ppobtx(
         A_diagonal_blocks=L_diagonal_blocks,
         A_lower_diagonal_blocks=L_lower_diagonal_blocks,
-        A_lower_arrow_blocks=L_lower_arrow_blocks,
-        A_arrow_tip_block=L_arrow_tip_block,
-        _A_diagonal_blocks=pobtars["A_diagonal_blocks"],
-        _A_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-        _A_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
-        _A_arrow_tip_block=pobtars["A_arrow_tip_block"],
+        _A_diagonal_blocks=pobtrs["A_diagonal_blocks"],
+        _A_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"],
         comm=comm,
         buffer=buffer,
         strategy=strategy,
@@ -133,19 +115,15 @@ def ppobtasi(
 
     # Parallel selected inversion of the original system
     if comm_rank == root:
-        pobtasi(
+        pobtsi(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            L_lower_arrow_blocks=L_lower_arrow_blocks,
-            L_arrow_tip_block=L_arrow_tip_block,
             invert_last_block=False,
         )
     else:
-        pobtasi(
+        pobtsi(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            L_lower_arrow_blocks=L_lower_arrow_blocks,
-            L_arrow_tip_block=L_arrow_tip_block,
             device_streaming=device_streaming,
             buffer=buffer,
         )

@@ -12,47 +12,15 @@ from serinv import (
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
-
-
-def allocate_permutation_buffer(
-    A_diagonal_blocks: ArrayLike,
-    device_streaming: bool,
-):
-    """Allocate the (permutation) buffers necessary for the parallel BTA algorithms.
-
-    Parameters
-    ----------
-    A_diagonal_blocks : ArrayLike
-        The diagonal blocks of the original system.
-    device_streaming : bool
-        If True, pinned host-arrays will be allocated
-
-    Returns
-    -------
-    A_permutation_buffer : ArrayLike
-        The permutation buffer needed for the parallel BTA algorithms.
-    """
-    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
-
-    if device_streaming:
-        empty_like = cpx.empty_like_pinned
-    else:
-        empty_like = xp.empty_like
-
-    A_permutation_buffer = empty_like(A_diagonal_blocks)
-
-    return A_permutation_buffer
-
 
 def allocate_pobtars(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-    comm_size: int,
     array_module: str,
+    comm: MPI.Comm,
+    B: ArrayLike = None,
     device_streaming: bool = False,
     strategy: str = "allgather",
 ):
@@ -64,7 +32,7 @@ def allocate_pobtars(
         The diagonal blocks of the original system.
     A_lower_diagonal_blocks : ArrayLike
         The lower diagonal blocks of the original system.
-    A_arrow_bottom_blocks : ArrayLike
+    A_lower_arrow_blocks : ArrayLike
         The arrow bottom blocks of the original system.
     A_arrow_tip_block : ArrayLike
         The arrow tip block of the original system.
@@ -79,16 +47,22 @@ def allocate_pobtars(
 
     Returns
     -------
-    _L_diagonal_blocks : ArrayLike
-        The diagonal blocks of the reduced system.
-    _L_lower_diagonal_blocks : ArrayLike
-        The lower diagonal blocks of the reduced system.
-    _L_lower_arrow_blocks : ArrayLike
-        The arrow bottom blocks of the reduced system.
-    _L_tip_update : ArrayLike
-        The arrow tip block of the reduced system.
+    pobtars : dict
+        Dictionary containing the reduced system arrays.
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     xp, _ = _get_module_from_str(array_module)
+
+    b = A_diagonal_blocks[0].shape[0]
+    a = A_arrow_tip_block.shape[0]
+    if B is not None:
+        n_rhs = B.shape[1]
+    else:
+        _B = None
+        _B_comm = None
+    dtype = A_diagonal_blocks.dtype
 
     if device_streaming:
         zeros = cpx.zeros_pinned
@@ -97,315 +71,177 @@ def allocate_pobtars(
         zeros = xp.zeros
         empty = xp.empty
 
-    if strategy == "allreduce":
-        _n: int = 2 * comm_size - 1
-
-        # In the case of an allreduce communication strategy, the buffers needs
-        # to be allocated as zeros to avoid false-reduction.
-        alloc = zeros
-
-        _L_diagonal_blocks = alloc(
-            (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
-            dtype=A_diagonal_blocks.dtype,
-        )
-        _L_lower_diagonal_blocks = alloc(
-            (
-                _n - 1,
-                A_lower_diagonal_blocks[0].shape[0],
-                A_lower_diagonal_blocks[0].shape[1],
-            ),
-            dtype=A_lower_diagonal_blocks.dtype,
-        )
-        _L_lower_arrow_blocks = alloc(
-            (_n, A_arrow_bottom_blocks[0].shape[0], A_arrow_bottom_blocks[0].shape[1]),
-            dtype=A_arrow_bottom_blocks.dtype,
-        )
-    elif strategy == "allgather":
+    if strategy == "allgather":
         _n: int = 2 * comm_size
         alloc = empty
 
-        _L_diagonal_blocks = alloc(
-            (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
-            dtype=A_diagonal_blocks.dtype,
-        )
-        _L_lower_diagonal_blocks = alloc(
-            (
-                _n,
-                A_lower_diagonal_blocks[0].shape[0],
-                A_lower_diagonal_blocks[0].shape[1],
-            ),
-            dtype=A_lower_diagonal_blocks.dtype,
-        )
-        _L_lower_arrow_blocks = alloc(
-            (_n, A_arrow_bottom_blocks[0].shape[0], A_arrow_bottom_blocks[0].shape[1]),
-            dtype=A_arrow_bottom_blocks.dtype,
-        )
+        _A_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_arrow_blocks = alloc((_n, a, b), dtype=dtype)
+
+        if B is not None:
+            _B = zeros((_n * b + a, n_rhs), dtype=dtype)
     elif strategy == "gather-scatter":
         _n: int = 2 * comm_size
         alloc = zeros
 
-        _L_diagonal_blocks = alloc(
-            (_n, A_diagonal_blocks[0].shape[0], A_diagonal_blocks[0].shape[1]),
-            dtype=A_diagonal_blocks.dtype,
-        )
-        _L_lower_diagonal_blocks = alloc(
-            (
-                _n,
-                A_lower_diagonal_blocks[0].shape[0],
-                A_lower_diagonal_blocks[0].shape[1],
-            ),
-            dtype=A_lower_diagonal_blocks.dtype,
-        )
-        _L_lower_arrow_blocks = alloc(
-            (_n, A_arrow_bottom_blocks[0].shape[0], A_arrow_bottom_blocks[0].shape[1]),
-            dtype=A_arrow_bottom_blocks.dtype,
-        )
+        _A_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_diagonal_blocks = alloc((_n, b, b), dtype=dtype)
+        _A_lower_arrow_blocks = alloc((_n, a, b), dtype=dtype)
+
+        if B is not None:
+            _B = zeros((_n * b + a, n_rhs), dtype=dtype)
     else:
         raise ValueError("Unknown communication strategy.")
 
-    _L_tip_update = zeros(
-        (A_arrow_tip_block.shape[0], A_arrow_tip_block.shape[1]),
-        dtype=A_arrow_tip_block.dtype,
-    )
+    _A_arrow_tip_block = zeros((a, a), dtype=dtype)
 
-    return (
-        _L_diagonal_blocks,
-        _L_lower_diagonal_blocks,
-        _L_lower_arrow_blocks,
-        _L_tip_update,
-    )
+    # If needed, allocate the reduced system for communication
+    if xp.__name__ == "cupy":
+        _A_diagonal_blocks_comm = cpx.empty_like_pinned(_A_diagonal_blocks)
+        _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_A_lower_diagonal_blocks)
+        _A_lower_arrow_blocks_comm = cpx.empty_like_pinned(_A_lower_arrow_blocks)
+        _A_arrow_tip_block_comm = cpx.empty_like_pinned(_A_arrow_tip_block)
 
+        if B is not None:
+            _B_comm = cpx.empty_like_pinned(_B)
+    else:
+        _A_diagonal_blocks_comm = _A_diagonal_blocks
+        _A_lower_diagonal_blocks_comm = _A_lower_diagonal_blocks
+        _A_lower_arrow_blocks_comm = _A_lower_arrow_blocks
+        _A_arrow_tip_block_comm = _A_arrow_tip_block
 
-def allocate_pinned_pobtars(
-    _L_diagonal_blocks,
-    _L_lower_diagonal_blocks,
-    _L_lower_arrow_blocks,
-    _L_arrow_tip_block,
-):
-    """Allocate pinned host-arrays for the reduced system of the PPOBTARX algorithms.
+        if B is not None:
+            _B_comm = _B
 
-    Parameters
-    ----------
-    _L_diagonal_blocks : ArrayLike
-        The diagonal blocks of the reduced system.
-    _L_lower_diagonal_blocks : ArrayLike
-        The lower diagonal blocks of the reduced system.
-    _L_lower_arrow_blocks : ArrayLike
-        The arrow bottom blocks of the reduced system.
-    _L_tip_update : ArrayLike
-        The arrow tip block of the reduced system.
+    pobtars: dict = {
+        "A_diagonal_blocks": _A_diagonal_blocks,
+        "A_lower_diagonal_blocks": _A_lower_diagonal_blocks,
+        "A_lower_arrow_blocks": _A_lower_arrow_blocks,
+        "A_arrow_tip_block": _A_arrow_tip_block,
+        "B": _B,
+        "A_diagonal_blocks_comm": _A_diagonal_blocks_comm,
+        "A_lower_diagonal_blocks_comm": _A_lower_diagonal_blocks_comm,
+        "A_lower_arrow_blocks_comm": _A_lower_arrow_blocks_comm,
+        "A_arrow_tip_block_comm": _A_arrow_tip_block_comm,
+        "B_comm": _B_comm,
+    }
 
-    Returns
-    -------
-    _L_diagonal_blocks_h : ArrayLike
-        The diagonal blocks of the reduced system (host-pinned).
-    _L_lower_diagonal_blocks_h : ArrayLike
-        The lower diagonal blocks of the reduced system (host-pinned).
-    _L_lower_arrow_blocks_h : ArrayLike
-        The arrow bottom blocks of the reduced system (host-pinned).
-    _L_tip_update_h : ArrayLike
-        The arrow tip block of the reduced system (host-pinned).
-    """
-    _L_diagonal_blocks_h = cpx.zeros_like_pinned(_L_diagonal_blocks)
-    _L_lower_diagonal_blocks_h = cpx.zeros_like_pinned(_L_lower_diagonal_blocks)
-    _L_lower_arrow_blocks_h = cpx.zeros_like_pinned(_L_lower_arrow_blocks)
-    _L_tip_update_h = cpx.zeros_like_pinned(_L_arrow_tip_block)
-
-    return (
-        _L_diagonal_blocks_h,
-        _L_lower_diagonal_blocks_h,
-        _L_lower_arrow_blocks_h,
-        _L_tip_update_h,
-    )
+    return pobtars
 
 
 def map_ppobtax_to_pobtars(
-    _L_diagonal_blocks: ArrayLike,
-    _L_lower_diagonal_blocks: ArrayLike,
-    _L_lower_arrow_blocks: ArrayLike,
-    _L_tip_update: ArrayLike,
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
-    A_arrow_bottom_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
-    A_permutation_buffer: ArrayLike,
+    _A_diagonal_blocks: ArrayLike,
+    _A_lower_diagonal_blocks: ArrayLike,
+    _A_lower_arrow_blocks: ArrayLike,
+    _A_arrow_tip_block: ArrayLike,
+    buffer: ArrayLike,
+    comm: MPI.Comm,
     strategy: str = "allgather",
 ):
     """Map the the boundary blocks of the PPOBTAX algorithm to the reduced system.
 
     Parameters
     ----------
-    _L_diagonal_blocks : ArrayLike
-        The diagonal blocks of the reduced system.
-    _L_lower_diagonal_blocks : ArrayLike
-        The lower diagonal blocks of the reduced system.
-    _L_lower_arrow_blocks : ArrayLike
-        The arrow bottom blocks of the reduced system.
-    _L_tip_update : ArrayLike
-        The arrow tip block of the reduced system.
-    A_diagonal_blocks : ArrayLike
+    A_diagonal_blocks : ArrayLike,
         The diagonal blocks of the original system.
-    A_lower_diagonal_blocks : ArrayLike
+    A_lower_diagonal_blocks : ArrayLike,
         The lower diagonal blocks of the original system.
-    A_arrow_bottom_blocks : ArrayLike
+    A_lower_arrow_blocks : ArrayLike,
         The arrow bottom blocks of the original system.
-    A_arrow_tip_block : ArrayLike
+    A_arrow_tip_block : ArrayLike,
         The arrow tip block of the original system.
-    """
-
-    if strategy == "allreduce":
-        if comm_rank == 0:
-            _L_diagonal_blocks[0] = A_diagonal_blocks[-1]
-            _L_lower_diagonal_blocks[0] = A_lower_diagonal_blocks[-1]
-            _L_lower_arrow_blocks[0] = A_arrow_bottom_blocks[-1]
-        else:
-            _L_diagonal_blocks[2 * comm_rank - 1] = A_diagonal_blocks[0]
-            _L_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[-1]
-
-            _L_lower_diagonal_blocks[2 * comm_rank - 1] = (
-                A_permutation_buffer[-1].conj().T
-            )
-            if comm_rank != comm_size - 1:
-                _L_lower_diagonal_blocks[2 * comm_rank] = A_lower_diagonal_blocks[-1]
-
-            _L_lower_arrow_blocks[2 * comm_rank - 1] = A_arrow_bottom_blocks[0]
-            _L_lower_arrow_blocks[2 * comm_rank] = A_arrow_bottom_blocks[-1]
-    elif strategy == "allgather":
-        if comm_rank == 0:
-            _L_diagonal_blocks[1] = A_diagonal_blocks[-1]
-            _L_lower_diagonal_blocks[1] = A_lower_diagonal_blocks[-1]
-            _L_lower_arrow_blocks[1] = A_arrow_bottom_blocks[-1]
-        else:
-            _L_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[0]
-            _L_diagonal_blocks[2 * comm_rank + 1] = A_diagonal_blocks[-1]
-
-            _L_lower_diagonal_blocks[2 * comm_rank] = A_permutation_buffer[-1].conj().T
-            if comm_rank < comm_size - 1:
-                _L_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
-                    -1
-                ]
-
-            _L_lower_arrow_blocks[2 * comm_rank] = A_arrow_bottom_blocks[0]
-            _L_lower_arrow_blocks[2 * comm_rank + 1] = A_arrow_bottom_blocks[-1]
-    elif strategy == "gather-scatter":
-        if comm_rank == 0:
-            _L_diagonal_blocks[1] = A_diagonal_blocks[-1]
-            _L_lower_diagonal_blocks[1] = A_lower_diagonal_blocks[-1]
-            _L_lower_arrow_blocks[1] = A_arrow_bottom_blocks[-1]
-        else:
-            _L_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[0]
-            _L_diagonal_blocks[2 * comm_rank + 1] = A_diagonal_blocks[-1]
-
-            _L_lower_diagonal_blocks[2 * comm_rank] = A_permutation_buffer[-1].conj().T
-            if comm_rank < comm_size - 1:
-                _L_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
-                    -1
-                ]
-
-            _L_lower_arrow_blocks[2 * comm_rank] = A_arrow_bottom_blocks[0]
-            _L_lower_arrow_blocks[2 * comm_rank + 1] = A_arrow_bottom_blocks[-1]
-    else:
-        raise ValueError("Unknown communication strategy.")
-
-
-def map_pobtars_to_ppobtax(
-    L_diagonal_blocks: ArrayLike,
-    L_lower_diagonal_blocks: ArrayLike,
-    L_arrow_bottom_blocks: ArrayLike,
-    L_arrow_tip_block: ArrayLike,
-    L_permutation_buffer: ArrayLike,
-    _L_diagonal_blocks: ArrayLike,
-    _L_lower_diagonal_blocks: ArrayLike,
-    _L_lower_arrow_blocks: ArrayLike,
-    _L_tip_update: ArrayLike,
-    strategy: str = "allgather",
-):
-    """Map the reduced system back to the original system.
-
-    Parameters
-    ----------
-    A_diagonal_blocks : ArrayLike
-        The diagonal blocks of the original system.
-    A_lower_diagonal_blocks : ArrayLike
-        The lower diagonal blocks of the original system.
-    A_arrow_bottom_blocks : ArrayLike
-        The arrow bottom blocks of the original system.
-    A_arrow_tip_block : ArrayLike
-        The arrow tip block of the original system.
-    A_permutation_buffer : ArrayLike
-        The permutation buffer of the original system.
-    _L_diagonal_blocks : ArrayLike
+    _A_diagonal_blocks : ArrayLike,
         The diagonal blocks of the reduced system.
-    _L_lower_diagonal_blocks : ArrayLike
+    _A_lower_diagonal_blocks : ArrayLike,
         The lower diagonal blocks of the reduced system.
-    _L_lower_arrow_blocks : ArrayLike
+    _A_lower_arrow_blocks : ArrayLike,
         The arrow bottom blocks of the reduced system.
-    _L_tip_update : ArrayLike
+    _A_arrow_tip_block : ArrayLike,
         The arrow tip block of the reduced system.
+    buffer : ArrayLike,
+        The permutation buffer used in the PPOBTAX algorithm.
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
-    if strategy == "allreduce":
+    if strategy == "allgather":
         if comm_rank == 0:
-            L_diagonal_blocks[-1] = _L_diagonal_blocks[0]
-            L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[0]
-            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[0]
+            _A_diagonal_blocks[1] = A_diagonal_blocks[-1]
+            _A_lower_diagonal_blocks[1] = A_lower_diagonal_blocks[-1]
+            _A_lower_arrow_blocks[1] = A_lower_arrow_blocks[-1]
         else:
-            L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank - 1]
-            L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
+            _A_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[0]
+            _A_diagonal_blocks[2 * comm_rank + 1] = A_diagonal_blocks[-1]
 
-            L_permutation_buffer[-1] = (
-                _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
-            )
-            if comm_rank != comm_size - 1:
-                L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[2 * comm_rank]
-
-            L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank - 1]
-            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
-    elif strategy == "allgather":
-        if comm_rank == 0:
-            L_diagonal_blocks[-1] = _L_diagonal_blocks[0]
-            L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[0]
-            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[0]
-        else:
-            L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank - 1]
-            L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank]
-
-            L_permutation_buffer[-1] = (
-                _L_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
-            )
-            if comm_rank != comm_size - 1:
-                L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[2 * comm_rank]
-
-            L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank - 1]
-            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank]
-    elif strategy == "gather-scatter":
-        if comm_rank == 0:
-            L_diagonal_blocks[-1] = _L_diagonal_blocks[1]
-            L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[1]
-            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[1]
-        else:
-            L_diagonal_blocks[0] = _L_diagonal_blocks[2 * comm_rank]
-            L_diagonal_blocks[-1] = _L_diagonal_blocks[2 * comm_rank + 1]
-
-            L_permutation_buffer[-1] = _L_lower_diagonal_blocks[2 * comm_rank].conj().T
+            _A_lower_diagonal_blocks[2 * comm_rank] = buffer[-1].conj().T
             if comm_rank < comm_size - 1:
-                L_lower_diagonal_blocks[-1] = _L_lower_diagonal_blocks[
-                    2 * comm_rank + 1
+                _A_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
+                    -1
                 ]
 
-            L_arrow_bottom_blocks[0] = _L_lower_arrow_blocks[2 * comm_rank]
-            L_arrow_bottom_blocks[-1] = _L_lower_arrow_blocks[2 * comm_rank + 1]
+            _A_lower_arrow_blocks[2 * comm_rank] = A_lower_arrow_blocks[0]
+            _A_lower_arrow_blocks[2 * comm_rank + 1] = A_lower_arrow_blocks[-1]
+        _A_arrow_tip_block[:] = A_arrow_tip_block[:]
+    elif strategy == "gather-scatter":
+        if comm_rank == 0:
+            _A_diagonal_blocks[1] = A_diagonal_blocks[-1]
+            _A_lower_diagonal_blocks[1] = A_lower_diagonal_blocks[-1]
+            _A_lower_arrow_blocks[1] = A_lower_arrow_blocks[-1]
+        else:
+            _A_diagonal_blocks[2 * comm_rank] = A_diagonal_blocks[0]
+            _A_diagonal_blocks[2 * comm_rank + 1] = A_diagonal_blocks[-1]
+
+            _A_lower_diagonal_blocks[2 * comm_rank] = buffer[-1].conj().T
+            if comm_rank < comm_size - 1:
+                _A_lower_diagonal_blocks[2 * comm_rank + 1] = A_lower_diagonal_blocks[
+                    -1
+                ]
+
+            _A_lower_arrow_blocks[2 * comm_rank] = A_lower_arrow_blocks[0]
+            _A_lower_arrow_blocks[2 * comm_rank + 1] = A_lower_arrow_blocks[-1]
+        _A_arrow_tip_block[:] = A_arrow_tip_block[:]
     else:
         raise ValueError("Unknown communication strategy.")
 
 
+def map_ppobtas_to_pobtarss(
+    A_diagonal_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
+    _B: ArrayLike,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+):
+    """Map the right-hand side of the PPOBTAS algorithm to the right-hand-side
+    of the reduced system."""
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
+    a = A_arrow_tip_block.shape[0]
+
+    if strategy == "allgather":
+        if comm_rank == 0:
+            _B[b : 2 * b] = B[-b - a : -a]
+            _B[-a:] = B[-a:]
+        else:
+            _B[2 * comm_rank * b : 2 * comm_rank * b + b] = B[:b]
+            _B[2 * comm_rank * b + b : 2 * (comm_rank + 1) * b] = B[-b - a : -a]
+            _B[-a:] = B[-a:]
+    else:
+        raise ValueError(f"Unknown communication strategy: {strategy}.")
+
+
 def aggregate_pobtars(
-    _L_diagonal_blocks: ArrayLike,
-    _L_lower_diagonal_blocks: ArrayLike,
-    _L_lower_arrow_blocks: ArrayLike,
-    _L_tip_update: ArrayLike,
+    pobtars: dict,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
 ):
@@ -424,32 +260,72 @@ def aggregate_pobtars(
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
-    """ # For debug fill the reduced system with ones
-    _L_diagonal_blocks.fill(1 * comm_rank + 1)
-    _L_lower_diagonal_blocks.fill(1 * comm_rank + 1)
-    _L_lower_arrow_blocks.fill(1 * comm_rank + 1)
-    _L_tip_update.fill(1) """
+    _A_diagonal_blocks: ArrayLike = pobtars.get("A_diagonal_blocks", None)
+    _A_lower_diagonal_blocks: ArrayLike = pobtars.get("A_lower_diagonal_blocks", None)
+    _A_lower_arrow_blocks: ArrayLike = pobtars.get("A_lower_arrow_blocks", None)
+    _A_arrow_tip_block: ArrayLike = pobtars.get("A_arrow_tip_block", None)
 
-    if strategy == "allreduce":
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_diagonal_blocks, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_diagonal_blocks, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_lower_arrow_blocks, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_tip_update, op=MPI.SUM)
-    elif strategy == "allgather":
-        MPI.COMM_WORLD.Allgather(
-            MPI.IN_PLACE,
-            _L_diagonal_blocks,
+    _A_diagonal_blocks_comm: ArrayLike = pobtars.get("A_diagonal_blocks_comm", None)
+    _A_lower_diagonal_blocks_comm: ArrayLike = pobtars.get(
+        "A_lower_diagonal_blocks_comm", None
+    )
+    _A_lower_arrow_blocks_comm: ArrayLike = pobtars.get(
+        "A_lower_arrow_blocks_comm", None
+    )
+    _A_arrow_tip_block_comm: ArrayLike = pobtars.get("A_arrow_tip_block_comm", None)
+    if any(
+        x is None
+        for x in [
+            _A_diagonal_blocks,
+            _A_lower_diagonal_blocks,
+            _A_lower_arrow_blocks,
+            _A_arrow_tip_block,
+            _A_diagonal_blocks_comm,
+            _A_lower_diagonal_blocks_comm,
+            _A_lower_arrow_blocks_comm,
+            _A_arrow_tip_block_comm,
+        ]
+    ):
+        raise ValueError(
+            "The reduced system `pobtars` doesn't contain the required arrays."
         )
-        MPI.COMM_WORLD.Allgather(
+
+    xp, _ = _get_module_from_array(arr=_A_diagonal_blocks)
+    if xp.__name__ == "cupy":
+        # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
+        _A_diagonal_blocks.get(out=_A_diagonal_blocks_comm)
+        _A_lower_diagonal_blocks.get(out=_A_lower_diagonal_blocks_comm)
+        _A_lower_arrow_blocks.get(out=_A_lower_arrow_blocks_comm)
+        _A_arrow_tip_block.get(out=_A_arrow_tip_block_comm)
+
+        cpx.cuda.Stream.null.synchronize()
+
+    if strategy == "allgather":
+        comm.Allgather(
             MPI.IN_PLACE,
-            _L_lower_diagonal_blocks,
+            _A_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allgather(
+        comm.Allgather(
             MPI.IN_PLACE,
-            _L_lower_arrow_blocks,
+            _A_lower_diagonal_blocks_comm,
         )
-        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, _L_tip_update, op=MPI.SUM)
+        comm.Allgather(
+            MPI.IN_PLACE,
+            _A_lower_arrow_blocks_comm,
+        )
+        comm.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
+
+        pobtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:]
+        pobtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-1]
+        pobtars["A_lower_arrow_blocks_comm"] = _A_lower_arrow_blocks_comm[1:]
+
+        pobtars["A_diagonal_blocks"] = _A_diagonal_blocks[1:]
+        pobtars["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks[1:-1]
+        pobtars["A_lower_arrow_blocks"] = _A_lower_arrow_blocks[1:]
+
     elif strategy == "gather-scatter":
         root = kwargs.get("root", None)
         if root is None:
@@ -457,115 +333,363 @@ def aggregate_pobtars(
                 "The root rank must be given for gather-scatter communication strategy."
             )
 
-        MPI.COMM_WORLD.Gather(
+        comm.Gather(
             sendbuf=(
-                _L_diagonal_blocks[2 * comm_rank : 2 * (comm_rank + 1)]
+                _A_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
                 else MPI.IN_PLACE
             ),
-            recvbuf=_L_diagonal_blocks if comm_rank == root else None,
+            recvbuf=_A_diagonal_blocks_comm if comm_rank == root else None,
             root=root,
         )
-        MPI.COMM_WORLD.Gather(
+        comm.Gather(
             sendbuf=(
-                _L_lower_diagonal_blocks[2 * comm_rank : 2 * (comm_rank + 1)]
+                _A_lower_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
                 else MPI.IN_PLACE
             ),
-            recvbuf=_L_lower_diagonal_blocks if comm_rank == root else None,
+            recvbuf=_A_lower_diagonal_blocks_comm if comm_rank == root else None,
             root=root,
         )
-        MPI.COMM_WORLD.Gather(
+        comm.Gather(
             sendbuf=(
-                _L_lower_arrow_blocks[2 * comm_rank : 2 * (comm_rank + 1)]
+                _A_lower_arrow_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
                 if comm_rank != root
                 else MPI.IN_PLACE
             ),
-            recvbuf=_L_lower_arrow_blocks if comm_rank == root else None,
+            recvbuf=_A_lower_arrow_blocks_comm if comm_rank == root else None,
             root=root,
         )
-        MPI.COMM_WORLD.Reduce(
-            sendbuf=_L_tip_update if comm_rank != root else MPI.IN_PLACE,
-            recvbuf=_L_tip_update if comm_rank == root else None,
+        comm.Reduce(
+            sendbuf=_A_arrow_tip_block_comm if comm_rank != root else MPI.IN_PLACE,
+            recvbuf=_A_arrow_tip_block_comm if comm_rank == root else None,
             op=MPI.SUM,
             root=root,
         )
+
+        # Do not slice/view the array here in the gather-scatter strategy, otherwise
+        # the scatter-back won't work.
+        pobtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm
+        pobtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm
+        pobtars["A_lower_arrow_blocks_comm"] = _A_lower_arrow_blocks_comm
+
+        pobtars["A_diagonal_blocks"] = _A_diagonal_blocks
+        pobtars["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks
+        pobtars["A_lower_arrow_blocks"] = _A_lower_arrow_blocks
     else:
         raise ValueError("Unknown communication strategy.")
 
-    MPI.COMM_WORLD.Barrier()
+    if xp.__name__ == "cupy":
+        # Need to put back the reduced system on the GPU
+        _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
+        _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)
+        _A_lower_arrow_blocks.set(arr=_A_lower_arrow_blocks_comm)
+        _A_arrow_tip_block.set(arr=_A_arrow_tip_block_comm)
+
+        cpx.cuda.Stream.null.synchronize()
 
 
-def scatter_pobtars(
-    _L_diagonal_blocks: ArrayLike,
-    _L_lower_diagonal_blocks: ArrayLike,
-    _L_lower_arrow_blocks: ArrayLike,
-    L_arrow_tip_block: ArrayLike,
+def aggregate_pobtarss(
+    A_diagonal_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+    pobtars: dict,
+    comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
 ):
-    """Scatter the reduced system.
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
+    a = A_arrow_tip_block.shape[0]
+
+    _B: ArrayLike = pobtars.get("B", None)
+    _B_comm: ArrayLike = pobtars.get("B_comm", None)
+    if any(
+        x is None
+        for x in [
+            _B,
+            _B_comm,
+        ]
+    ):
+        raise ValueError(
+            "The reduced system `pobtars` doesn't contain the required arrays."
+        )
+
+    xp, _ = _get_module_from_array(arr=_B)
+    if xp.__name__ == "cupy":
+        # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
+        _B.get(out=_B_comm)
+
+        cpx.cuda.Stream.null.synchronize()
+
+    if strategy == "allgather" or strategy == "gather-scatter":
+        comm.Allgather(
+            MPI.IN_PLACE,
+            _B_comm[:-a],
+        )
+        comm.Allreduce(MPI.IN_PLACE, _B_comm[-a:], op=MPI.SUM)
+
+        pobtars["B_comm"] = _B_comm
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+    if xp.__name__ == "cupy":
+        # Need to put back the reduced system RHS on the GPU
+        _B.set(arr=_B)
+
+        cpx.cuda.Stream.null.synchronize()
+
+
+def scatter_pobtars(
+    pobtars: dict,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+    **kwargs,
+):
+    """Scatter the reduced system."""
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    _A_diagonal_blocks: ArrayLike = pobtars.get("A_diagonal_blocks", None)
+    _A_lower_diagonal_blocks: ArrayLike = pobtars.get("A_lower_diagonal_blocks", None)
+    _A_lower_arrow_blocks: ArrayLike = pobtars.get("A_lower_arrow_blocks", None)
+    _A_arrow_tip_block: ArrayLike = pobtars.get("A_arrow_tip_block", None)
+
+    _A_diagonal_blocks_comm: ArrayLike = pobtars.get("A_diagonal_blocks_comm", None)
+    _A_lower_diagonal_blocks_comm: ArrayLike = pobtars.get(
+        "A_lower_diagonal_blocks_comm", None
+    )
+    _A_lower_arrow_blocks_comm: ArrayLike = pobtars.get(
+        "A_lower_arrow_blocks_comm", None
+    )
+    _A_arrow_tip_block_comm: ArrayLike = pobtars.get("A_arrow_tip_block_comm", None)
+    if any(
+        x is None
+        for x in [
+            _A_diagonal_blocks,
+            _A_lower_diagonal_blocks,
+            _A_lower_arrow_blocks,
+            _A_arrow_tip_block,
+            _A_diagonal_blocks_comm,
+            _A_lower_diagonal_blocks_comm,
+            _A_lower_arrow_blocks_comm,
+            _A_arrow_tip_block_comm,
+        ]
+    ):
+        raise ValueError(
+            "The reduced system `pobtars` doesn't contain the required arrays."
+        )
+
+    xp, _ = _get_module_from_array(arr=_A_diagonal_blocks)
+    if strategy == "allgather":
+        ...
+    elif strategy == "gather-scatter":
+        root = kwargs.get("root", None)
+        if root is None:
+            raise ValueError(
+                "The root rank must be given for gather-scatter communication strategy."
+            )
+
+        if xp.__name__ == "cupy":
+            if comm_rank == root:
+                # If cupy array, need to move the data to host before initiating the communications
+                _A_diagonal_blocks.get(out=_A_diagonal_blocks_comm)
+                _A_lower_diagonal_blocks.get(out=_A_lower_diagonal_blocks_comm)
+                _A_lower_arrow_blocks.get(out=_A_lower_arrow_blocks_comm)
+                _A_arrow_tip_block.get(out=_A_arrow_tip_block_comm)
+
+            cpx.cuda.Stream.null.synchronize()
+
+        comm.Scatter(
+            sendbuf=_A_diagonal_blocks_comm if comm_rank == root else None,
+            recvbuf=(
+                _A_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
+                if comm_rank != root
+                else MPI.IN_PLACE
+            ),
+            root=root,
+        )
+
+        comm.Gather(
+            sendbuf=(
+                _A_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
+                if comm_rank != root
+                else MPI.IN_PLACE
+            ),
+            recvbuf=_A_diagonal_blocks_comm if comm_rank == root else None,
+            root=root,
+        )
+
+        comm.Scatter(
+            sendbuf=_A_lower_diagonal_blocks_comm if comm_rank == root else None,
+            recvbuf=(
+                _A_lower_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
+                if comm_rank != root
+                else MPI.IN_PLACE
+            ),
+            root=root,
+        )
+        comm.Scatter(
+            sendbuf=_A_lower_arrow_blocks_comm if comm_rank == root else None,
+            recvbuf=(
+                _A_lower_arrow_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
+                if comm_rank != root
+                else MPI.IN_PLACE
+            ),
+            root=root,
+        )
+        comm.Bcast(
+            buf=_A_arrow_tip_block_comm,
+            root=root,
+        )
+
+        if xp.__name__ == "cupy":
+            # Need to put back the reduced system on the GPU
+            _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
+            _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)
+            _A_lower_arrow_blocks.set(arr=_A_lower_arrow_blocks_comm)
+            _A_arrow_tip_block.set(arr=_A_arrow_tip_block_comm)
+
+            cpx.cuda.Stream.null.synchronize()
+
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+
+def scatter_pobtarss(
+    pobtars: dict,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+    **kwargs,
+):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    _B: ArrayLike = pobtars.get("B", None)
+    _B_comm: ArrayLike = pobtars.get("B_comm", None)
+    if any(
+        x is None
+        for x in [
+            _B,
+            _B_comm,
+        ]
+    ):
+        raise ValueError(
+            "The reduced system `pobtars` doesn't contain the required arrays."
+        )
+
+    xp, _ = _get_module_from_array(arr=_B)
+    if strategy == "allgather":
+        ...
+    elif strategy == "gather-scatter":
+        ...
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+
+def map_pobtars_to_ppobtax(
+    A_diagonal_blocks: ArrayLike,
+    A_lower_diagonal_blocks: ArrayLike,
+    A_lower_arrow_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+    _A_diagonal_blocks: ArrayLike,
+    _A_lower_diagonal_blocks: ArrayLike,
+    _A_lower_arrow_blocks: ArrayLike,
+    _A_arrow_tip_block: ArrayLike,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+    **kwargs,
+):
+    """Map the reduced system back to the original system.
 
     Parameters
     ----------
+    A_diagonal_blocks : ArrayLike
+        The diagonal blocks of the original system.
+    A_lower_diagonal_blocks : ArrayLike
+        The lower diagonal blocks of the original system.
+    A_lower_arrow_blocks : ArrayLike
+        The arrow bottom blocks of the original system.
+    A_arrow_tip_block : ArrayLike
+        The arrow tip block of the original system.
     _L_diagonal_blocks : ArrayLike
         The diagonal blocks of the reduced system.
     _L_lower_diagonal_blocks : ArrayLike
         The lower diagonal blocks of the reduced system.
     _L_lower_arrow_blocks : ArrayLike
         The arrow bottom blocks of the reduced system.
-    L_arrow_tip_block : ArrayLike
+    _L_tip_update : ArrayLike
         The arrow tip block of the reduced system.
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
-
-    Keyword Arguments
-    -----------------
-    root : int, optional
-        The root rank for the communication strategy. (default: 0)
     """
-    if strategy == "allreduce":
-        ...
-    elif strategy == "allgather":
-        ...
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    buffer: dict = kwargs.get("buffer", None)
+
+    if strategy == "allgather":
+        if comm_rank == 0:
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[0]
+            A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[0]
+            A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[0]
+        else:
+            A_diagonal_blocks[0] = _A_diagonal_blocks[2 * comm_rank - 1]
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[2 * comm_rank]
+
+            buffer[-1] = _A_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
+            if comm_rank != comm_size - 1:
+                A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank]
+
+            A_lower_arrow_blocks[0] = _A_lower_arrow_blocks[2 * comm_rank - 1]
+            A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[2 * comm_rank]
+        A_arrow_tip_block[:] = _A_arrow_tip_block[:]
     elif strategy == "gather-scatter":
-        root = kwargs.get("root", None)
-        if root is None:
-            raise ValueError(
-                "The root rank must be given for gather-scatter communication strategy."
-            )
-        MPI.COMM_WORLD.Scatter(
-            sendbuf=_L_diagonal_blocks if comm_rank == root else None,
-            recvbuf=(
-                _L_diagonal_blocks[2 * comm_rank : 2 * (comm_rank + 1)]
-                if comm_rank != root
-                else MPI.IN_PLACE
-            ),
-            root=root,
-        )
-        MPI.COMM_WORLD.Scatter(
-            sendbuf=_L_lower_diagonal_blocks if comm_rank == root else None,
-            recvbuf=(
-                _L_lower_diagonal_blocks[2 * comm_rank : 2 * (comm_rank + 1)]
-                if comm_rank != root
-                else MPI.IN_PLACE
-            ),
-            root=root,
-        )
-        MPI.COMM_WORLD.Scatter(
-            sendbuf=_L_lower_arrow_blocks if comm_rank == root else None,
-            recvbuf=(
-                _L_lower_arrow_blocks[2 * comm_rank : 2 * (comm_rank + 1)]
-                if comm_rank != root
-                else MPI.IN_PLACE
-            ),
-            root=root,
-        )
-        MPI.COMM_WORLD.Bcast(
-            buf=L_arrow_tip_block,
-            root=root,
-        )
+        if comm_rank == 0:
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[1]
+            A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[1]
+            A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[1]
+        else:
+            A_diagonal_blocks[0] = _A_diagonal_blocks[2 * comm_rank]
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[2 * comm_rank + 1]
+
+            buffer[-1] = _A_lower_diagonal_blocks[2 * comm_rank].conj().T
+            if comm_rank < comm_size - 1:
+                A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[
+                    2 * comm_rank + 1
+                ]
+
+            A_lower_arrow_blocks[0] = _A_lower_arrow_blocks[2 * comm_rank]
+            A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[2 * comm_rank + 1]
+        A_arrow_tip_block[:] = _A_arrow_tip_block[:]
     else:
         raise ValueError("Unknown communication strategy.")
 
-    MPI.COMM_WORLD.Barrier()
+
+def map_pobtarss_to_ppobtas(
+    A_diagonal_blocks: ArrayLike,
+    A_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
+    _B: ArrayLike,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+):
+    """Map the right-hand side of the PPOBTAS algorithm to the right-hand-side
+    of the reduced system."""
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
+    a = A_arrow_tip_block.shape[0]
+
+    if strategy == "allgather" or strategy == "gather-scatter":
+        if comm_rank == 0:
+            B[-b - a : -a] = _B[b : 2 * b]
+            B[-a:] = _B[-a:]
+        else:
+            B[:b] = _B[2 * comm_rank * b : 2 * comm_rank * b + b]
+            B[-b - a : -a] = _B[2 * comm_rank * b + b : 2 * (comm_rank + 1) * b]
+            B[-a:] = _B[-a:]
+    else:
+        raise ValueError("Unknown communication strategy.")

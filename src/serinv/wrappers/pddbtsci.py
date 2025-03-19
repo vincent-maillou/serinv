@@ -13,14 +13,12 @@ from .ddbtrs import (
     scatter_ddbtrs,
 )
 
-comm_rank = MPI.COMM_WORLD.Get_rank()
-comm_size = MPI.COMM_WORLD.Get_size()
-
 
 def pddbtsci(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
+    comm: MPI.Comm = MPI.COMM_WORLD,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel selected-inversion of the Schur-complement of a block tridiagonal matrix.
@@ -34,7 +32,9 @@ def pddbtsci(
         The lower diagonal blocks of the block tridiagonal matrix.
     A_upper_diagonal_blocks : ArrayLike
         The upper diagonal blocks of the block tridiagonal matrix.
-
+    comm : MPI.Comm
+        The MPI communicator. Default is MPI.COMM_WORLD.
+        
     Keyword Arguments
     -----------------
     rhs : dict
@@ -83,6 +83,9 @@ def pddbtsci(
             - _B_upper_diagonal_blocks : ArrayLike
                 The upper diagonal blocks of the reduced system.
     """
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
@@ -120,6 +123,7 @@ def pddbtsci(
 
     scatter_ddbtrs(
         ddbtrs=ddbtrs,
+        comm=comm,
         quadratic=quadratic,
     )
 
@@ -130,6 +134,7 @@ def pddbtsci(
         _A_diagonal_blocks=_A_diagonal_blocks,
         _A_lower_diagonal_blocks=_A_lower_diagonal_blocks,
         _A_upper_diagonal_blocks=_A_upper_diagonal_blocks,
+        comm=comm,
         rhs=rhs,
         quadratic=quadratic,
         buffers=buffers,
@@ -145,7 +150,6 @@ def pddbtsci(
             A_upper_diagonal_blocks=A_upper_diagonal_blocks,
             rhs=rhs,
             quadratic=quadratic,
-            invert_last_block=False,
             direction="downward",
         )
     elif comm_rank == comm_size - 1:
@@ -156,7 +160,6 @@ def pddbtsci(
             A_upper_diagonal_blocks=A_upper_diagonal_blocks,
             rhs=rhs,
             quadratic=quadratic,
-            invert_last_block=False,
             direction="upward",
         )
     else:
@@ -168,5 +171,4 @@ def pddbtsci(
             rhs=rhs,
             quadratic=quadratic,
             buffers=buffers,
-            invert_last_block=False,
         )
