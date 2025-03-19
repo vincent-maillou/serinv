@@ -102,9 +102,11 @@ def ppobtas(
         )
 
     # Isolate the tip block of the RHS
-    B_tip_initial = xp.zeros_like(B[-_A_arrow_tip_block.shape[0] :])
-    B_tip_initial[:] = B[-_A_arrow_tip_block.shape[0] :]
-    B[-_A_arrow_tip_block.shape[0] :] = 0.0
+    a = _A_arrow_tip_block.shape[0]
+    b = L_diagonal_blocks.shape[1]
+    B_tip_initial = xp.zeros_like(B[-a:])
+    B_tip_initial[:] = B[-a:]
+    B[-a:] = 0.0
 
     # Parallel forward solve
     if comm_rank == root:
@@ -148,39 +150,16 @@ def ppobtas(
     )
 
     # Add the tip block of the RHS to the aggregated update
-    a = _A_arrow_tip_block.shape[0]
     _B[-a:] += B_tip_initial
 
     # Solve RHS FWD/BWD
-    if strategy == "gather-scatter":
-        if comm_rank == root:
-            _A_diagonal_blocks = _A_diagonal_blocks[1:]
-            _A_lower_diagonal_blocks = _A_lower_diagonal_blocks[1:-1]
-            _A_lower_arrow_blocks = _A_lower_arrow_blocks[1:]
-
-            pobtas(
-                L_diagonal_blocks=_A_diagonal_blocks,
-                L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
-                L_lower_arrow_blocks=_A_lower_arrow_blocks,
-                L_arrow_tip_block=_A_arrow_tip_block,
-                B=_B,
-                trans="N",
-            )
-            pobtas(
-                L_diagonal_blocks=_A_diagonal_blocks,
-                L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
-                L_lower_arrow_blocks=_A_lower_arrow_blocks,
-                L_arrow_tip_block=_A_arrow_tip_block,
-                B=_B,
-                trans="C",
-            )
-    elif strategy == "allgather":
+    if strategy == "allgather":
         pobtas(
             L_diagonal_blocks=_A_diagonal_blocks,
             L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
             L_lower_arrow_blocks=_A_lower_arrow_blocks,
             L_arrow_tip_block=_A_arrow_tip_block,
-            B=_B,
+            B=_B[b:],
             trans="N",
         )
         pobtas(
@@ -188,9 +167,11 @@ def ppobtas(
             L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
             L_lower_arrow_blocks=_A_lower_arrow_blocks,
             L_arrow_tip_block=_A_arrow_tip_block,
-            B=_B,
+            B=_B[b:],
             trans="C",
         )
+    else:
+        raise NotImplementedError(f"The strategy {strategy} is not yet implemented.")
 
     # Scatter solution of reduced RHS
     scatter_pobtarss(
@@ -209,7 +190,7 @@ def ppobtas(
         strategy=strategy,
     )
 
-    """ # Parallel backward solve
+    # Parallel backward solve
     if comm_rank == root:
         pobtas(
             L_diagonal_blocks=L_diagonal_blocks,
@@ -229,4 +210,4 @@ def ppobtas(
             B=B,
             buffer=buffer,
             trans="C",
-        ) """
+        )

@@ -29,9 +29,9 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
-@pytest.mark.parametrize("comm_strategy", ["allgather", "gather-scatter"])
+@pytest.mark.parametrize("comm_strategy", ["allgather"])
 @pytest.mark.parametrize("n_rhs", [1, 2, 3])
-def test_d_pobtasi(
+def test_ppobtas(
     n_rhs: int,
     diagonal_blocksize: int,
     arrowhead_blocksize: int,
@@ -155,7 +155,7 @@ def test_d_pobtasi(
         strategy=comm_strategy,
     )
 
-    # Distributed Selected-Inversion of the full system
+    # Distributed Solve
     ppobtas(
         L_diagonal_blocks=A_diagonal_blocks_local,
         L_lower_diagonal_blocks=A_lower_diagonal_blocks_local,
@@ -168,6 +168,4 @@ def test_d_pobtasi(
         strategy=comm_strategy,
     )
 
-    assert xp.allclose(
-        X_ref_local[-arrowhead_blocksize:], B_local[-arrowhead_blocksize:]
-    )
+    assert xp.allclose(X_ref_local, B_local)

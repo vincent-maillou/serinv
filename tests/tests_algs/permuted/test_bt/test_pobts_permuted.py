@@ -53,6 +53,7 @@ def test_pobts_permuted(
         A_diagonal_blocks=A_diagonal_blocks,
     )
 
+    # Call to the permuted factorization
     pobtf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -82,7 +83,7 @@ def test_pobts_permuted(
     A_diagonal_blocks[-1] = _A_diagonal_blocks[1]
     buffer[-1] = _A_lower_diagonal_blocks[0].conj().T
 
-    # Forward solve: Y=L^{-1}B
+    # Forward solve: y=L^{-1}b
     pobts(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -114,7 +115,7 @@ def test_pobts_permuted(
     B[:diagonal_blocksize] = _B[:diagonal_blocksize]
     B[-diagonal_blocksize:] = _B[diagonal_blocksize : 2 * diagonal_blocksize]
 
-    # Backward solve: X=L^{-T}Y
+    # Parallel backward solve: x=L^{-T}y
     pobts(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,

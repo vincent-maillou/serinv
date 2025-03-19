@@ -227,7 +227,7 @@ def map_ppobtas_to_pobtarss(
     b = A_diagonal_blocks[0].shape[0]
     a = A_arrow_tip_block.shape[0]
 
-    if strategy == "allgather" or strategy == "gather-scatter":
+    if strategy == "allgather":
         if comm_rank == 0:
             _B[b : 2 * b] = B[-b - a : -a]
             _B[-a:] = B[-a:]
@@ -236,7 +236,7 @@ def map_ppobtas_to_pobtarss(
             _B[2 * comm_rank * b + b : 2 * (comm_rank + 1) * b] = B[-b - a : -a]
             _B[-a:] = B[-a:]
     else:
-        raise ValueError("Unknown communication strategy.")
+        raise ValueError(f"Unknown communication strategy: {strategy}.")
 
 
 def aggregate_pobtars(
