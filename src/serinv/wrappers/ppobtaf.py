@@ -98,7 +98,7 @@ def ppobtaf(
     A_arrow_tip_block[:] = 0.0
 
     # Perform the parallel factorization
-    if comm_rank == 0:
+    if comm_rank == root:
         pobtaf(
             A_diagonal_blocks=A_diagonal_blocks,
             A_lower_diagonal_blocks=A_lower_diagonal_blocks,

@@ -7,18 +7,21 @@ from serinv import (
     _get_module_from_array,
 )
 
-from serinv.algs import pobtasi
+from serinv.algs import pobtas
 from serinv.wrappers.pobtars import (
-    map_pobtars_to_ppobtax,
-    scatter_pobtars,
+    map_ppobtas_to_pobtarss,
+    aggregate_pobtarss,
+    scatter_pobtarss,
+    map_pobtarss_to_ppobtas,
 )
 
 
-def ppobtasi(
+def ppobtas(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
     L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
     **kwargs,
 ):
@@ -60,6 +63,8 @@ def ppobtasi(
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
+    xp, _ = _get_module_from_array(arr=L_diagonal_blocks)
+
     # Check for optional parameters
     device_streaming: bool = kwargs.get("device_streaming", False)
     strategy: str = kwargs.get("strategy", "allgather")
@@ -90,62 +95,119 @@ def ppobtasi(
             "To run the distributed solvers, the reduced system `pobtars` need to contain the required arrays."
         )
 
-    # Selected-inversion of the reduced system
-    if strategy == "gather-scatter":
-        if comm_rank == root:
-            pobtasi(
-                L_diagonal_blocks=pobtars["A_diagonal_blocks"][1:],
-                L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"][1:-1],
-                L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"][1:],
-                L_arrow_tip_block=pobtars["A_arrow_tip_block"],
-            )
-        comm.Barrier()
-
-    elif strategy == "allgather":
-        pobtasi(
-            L_diagonal_blocks=pobtars["A_diagonal_blocks"],
-            L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-            L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
-            L_arrow_tip_block=pobtars["A_arrow_tip_block"],
+    _B: ArrayLike = pobtars.get("B", None)
+    if _B is None:
+        raise ValueError(
+            "To run the distributed rhs-solve, the reduced system `pobtars` need to contain the required arrays: 'B'."
         )
 
-    scatter_pobtars(
+    # Isolate the tip block of the RHS
+    a = _A_arrow_tip_block.shape[0]
+    b = L_diagonal_blocks.shape[1]
+    B_tip_initial = xp.zeros_like(B[-a:])
+    B_tip_initial[:] = B[-a:]
+    B[-a:] = 0.0
+
+    # Parallel forward solve
+    if comm_rank == root:
+        pobtas(
+            L_diagonal_blocks=L_diagonal_blocks,
+            L_lower_diagonal_blocks=L_lower_diagonal_blocks,
+            L_lower_arrow_blocks=L_lower_arrow_blocks,
+            L_arrow_tip_block=L_arrow_tip_block,
+            B=B,
+            trans="N",
+            partial=True,
+        )
+    else:
+        pobtas(
+            L_diagonal_blocks=L_diagonal_blocks,
+            L_lower_diagonal_blocks=L_lower_diagonal_blocks,
+            L_lower_arrow_blocks=L_lower_arrow_blocks,
+            L_arrow_tip_block=L_arrow_tip_block,
+            B=B,
+            buffer=buffer,
+            trans="N",
+        )
+
+    # Map RHS to reduced RHS
+    map_ppobtas_to_pobtarss(
+        A_diagonal_blocks=L_diagonal_blocks,
+        A_arrow_tip_block=L_arrow_tip_block,
+        B=B,
+        _B=_B,
+        comm=comm,
+        strategy=strategy,
+    )
+
+    # Agregate reduced RHS
+    aggregate_pobtarss(
+        A_diagonal_blocks=L_diagonal_blocks,
+        A_arrow_tip_block=L_arrow_tip_block,
         pobtars=pobtars,
         comm=comm,
         strategy=strategy,
-        root=root,
     )
 
-    # Map result of the reduced system back to the original system
-    map_pobtars_to_ppobtax(
-        A_diagonal_blocks=L_diagonal_blocks,
-        A_lower_diagonal_blocks=L_lower_diagonal_blocks,
-        A_lower_arrow_blocks=L_lower_arrow_blocks,
-        A_arrow_tip_block=L_arrow_tip_block,
-        _A_diagonal_blocks=pobtars["A_diagonal_blocks"],
-        _A_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-        _A_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
-        _A_arrow_tip_block=pobtars["A_arrow_tip_block"],
+    # Add the tip block of the RHS to the aggregated update
+    _B[-a:] += B_tip_initial
+
+    # Solve RHS FWD/BWD
+    if strategy == "allgather":
+        pobtas(
+            L_diagonal_blocks=_A_diagonal_blocks,
+            L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
+            L_lower_arrow_blocks=_A_lower_arrow_blocks,
+            L_arrow_tip_block=_A_arrow_tip_block,
+            B=_B[b:],
+            trans="N",
+        )
+        pobtas(
+            L_diagonal_blocks=_A_diagonal_blocks,
+            L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
+            L_lower_arrow_blocks=_A_lower_arrow_blocks,
+            L_arrow_tip_block=_A_arrow_tip_block,
+            B=_B[b:],
+            trans="C",
+        )
+    else:
+        raise NotImplementedError(f"The strategy {strategy} is not yet implemented.")
+
+    # Scatter solution of reduced RHS
+    scatter_pobtarss(
+        pobtars=pobtars,
         comm=comm,
-        buffer=buffer,
         strategy=strategy,
     )
 
-    # Parallel selected inversion of the original system
+    # Map solution of reduced RHS to RHS
+    map_pobtarss_to_ppobtas(
+        A_diagonal_blocks=L_diagonal_blocks,
+        A_arrow_tip_block=L_arrow_tip_block,
+        B=B,
+        _B=_B,
+        comm=comm,
+        strategy=strategy,
+    )
+
+    # Parallel backward solve
     if comm_rank == root:
-        pobtasi(
+        pobtas(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
             L_lower_arrow_blocks=L_lower_arrow_blocks,
             L_arrow_tip_block=L_arrow_tip_block,
-            invert_last_block=False,
+            B=B,
+            trans="C",
+            partial=True,
         )
     else:
-        pobtasi(
+        pobtas(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
             L_lower_arrow_blocks=L_lower_arrow_blocks,
             L_arrow_tip_block=L_arrow_tip_block,
-            device_streaming=device_streaming,
+            B=B,
             buffer=buffer,
+            trans="C",
         )
