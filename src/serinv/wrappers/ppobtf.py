@@ -128,8 +128,8 @@ def ppobtf(
             ...
     elif strategy == "allgather":
         pobtf(
-            A_diagonal_blocks=pobtrs["A_diagonal_blocks"],
-            A_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"],
+            A_diagonal_blocks=pobtrs["A_diagonal_blocks"][1:],
+            A_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"][1:-1],
             device_streaming=device_streaming,
         )
 

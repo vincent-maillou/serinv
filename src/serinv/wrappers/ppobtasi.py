@@ -103,9 +103,9 @@ def ppobtasi(
 
     elif strategy == "allgather":
         pobtasi(
-            L_diagonal_blocks=pobtars["A_diagonal_blocks"],
-            L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-            L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
+            L_diagonal_blocks=pobtars["A_diagonal_blocks"][1:],
+            L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"][1:-1],
+            L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"][1:],
             L_arrow_tip_block=pobtars["A_arrow_tip_block"],
         )
 

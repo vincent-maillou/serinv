@@ -152,57 +152,58 @@ def test_ppobtaf(
     )
 
     if comm_strategy == "allgather":
+        _L_diagonal_blocks = pobtars["A_diagonal_blocks"][1:]
+        _L_lower_diagonal_blocks = pobtars["A_lower_diagonal_blocks"][1:-1]
+        _L_lower_arrow_blocks = pobtars["A_lower_arrow_blocks"][1:]
+        _L_arrow_tip_block = pobtars["A_arrow_tip_block"]
+
         pobtasi(
-            L_diagonal_blocks=pobtars["A_diagonal_blocks"],
-            L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-            L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
-            L_arrow_tip_block=pobtars["A_arrow_tip_block"],
+            L_diagonal_blocks=_L_diagonal_blocks,
+            L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
+            L_lower_arrow_blocks=_L_lower_arrow_blocks,
+            L_arrow_tip_block=_L_arrow_tip_block,
         )
 
         if comm_rank == 0:
             assert xp.allclose(
-                pobtars["A_diagonal_blocks"][0],
+                _L_diagonal_blocks[0],
                 X_ref_diagonal_blocks_local[-1],
             )
             assert xp.allclose(
-                pobtars["A_lower_diagonal_blocks"][0],
+                _L_lower_diagonal_blocks[0],
                 X_ref_lower_diagonal_blocks_local[-1],
             )
             assert xp.allclose(
-                pobtars["A_lower_arrow_blocks"][0],
+                _L_lower_arrow_blocks[0],
                 X_ref_arrow_bottom_blocks_local[-1],
             )
-            assert xp.allclose(
-                pobtars["A_arrow_tip_block"], X_ref_arrow_tip_block_global
-            )
+            assert xp.allclose(_L_arrow_tip_block, X_ref_arrow_tip_block_global)
         else:
             assert xp.allclose(
-                pobtars["A_diagonal_blocks"][2 * comm_rank - 1],
+                _L_diagonal_blocks[2 * comm_rank - 1],
                 X_ref_diagonal_blocks_local[0],
             )
             assert xp.allclose(
-                pobtars["A_diagonal_blocks"][2 * comm_rank],
+                _L_diagonal_blocks[2 * comm_rank],
                 X_ref_diagonal_blocks_local[-1],
             )
 
             if comm_rank < comm_size - 1:
                 assert xp.allclose(
-                    pobtars["A_lower_diagonal_blocks"][2 * comm_rank],
+                    _L_lower_diagonal_blocks[2 * comm_rank],
                     X_ref_lower_diagonal_blocks_local[-1],
                 )
 
             assert xp.allclose(
-                pobtars["A_lower_arrow_blocks"][2 * comm_rank - 1],
+                _L_lower_arrow_blocks[2 * comm_rank - 1],
                 X_ref_arrow_bottom_blocks_local[0],
             )
             assert xp.allclose(
-                pobtars["A_lower_arrow_blocks"][2 * comm_rank],
+                _L_lower_arrow_blocks[2 * comm_rank],
                 X_ref_arrow_bottom_blocks_local[-1],
             )
 
-            assert xp.allclose(
-                pobtars["A_arrow_tip_block"], X_ref_arrow_tip_block_global
-            )
+            assert xp.allclose(_L_arrow_tip_block, X_ref_arrow_tip_block_global)
     elif comm_strategy == "gather-scatter":
         if comm_rank == 0:
             # For the gather-scatter strategy we only check locally the
