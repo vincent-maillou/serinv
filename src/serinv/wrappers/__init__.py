@@ -3,6 +3,7 @@
 
 from serinv.wrappers.ppobtf import ppobtf
 from serinv.wrappers.ppobtsi import ppobtsi
+from serinv.wrappers.ppobts import ppobts
 from serinv.wrappers.pobtrs import allocate_pobtrs
 
 from serinv.wrappers.ppobtaf import ppobtaf
@@ -21,9 +22,11 @@ from serinv.wrappers.ddbtars import allocate_ddbtars
 __all__ = [
     "ppobtf",
     "ppobtsi",
+    "ppobts",
     "allocate_pobtrs",
     "ppobtaf",
     "ppobtasi",
+    "ppobtas",
     "allocate_pobtars",
     "pddbtsc",
     "pddbtsci",
