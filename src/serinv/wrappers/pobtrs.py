@@ -170,6 +170,30 @@ def map_ppobtx_to_pobtrs(
         raise ValueError("Unknown communication strategy.")
 
 
+def map_ppobts_to_pobtrss(
+    A_diagonal_blocks: ArrayLike,
+    B: ArrayLike,
+    _B: ArrayLike,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+):
+    """Map the right-hand side of the PPOBTS algorithm to the right-hand-side
+    of the reduced system."""
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
+
+    if strategy == "allgather":
+        if comm_rank == 0:
+            _B[b : 2 * b] = B[-b:]
+        else:
+            _B[2 * comm_rank * b : 2 * comm_rank * b + b] = B[:b]
+            _B[2 * comm_rank * b + b : 2 * (comm_rank + 1) * b] = B[-b:]
+    else:
+        raise ValueError(f"Unknown communication strategy: {strategy}.")
+
+
 def aggregate_pobtrs(
     pobtrs: dict,
     comm: MPI.Comm,
@@ -226,11 +250,11 @@ def aggregate_pobtrs(
             _A_lower_diagonal_blocks_comm,
         )
 
-        pobtrs["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:]
-        pobtrs["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-1]
+        pobtrs["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm
+        pobtrs["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm
 
-        pobtrs["A_diagonal_blocks"] = _A_diagonal_blocks[1:]
-        pobtrs["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks[1:-1]
+        pobtrs["A_diagonal_blocks"] = _A_diagonal_blocks
+        pobtrs["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks
 
     elif strategy == "gather-scatter":
         root = kwargs.get("root", None)
@@ -272,6 +296,55 @@ def aggregate_pobtrs(
         # Need to put back the reduced system on the GPU
         _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
         _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)
+
+        cpx.cuda.Stream.null.synchronize()
+
+
+def aggregate_pobtrss(
+    A_diagonal_blocks: ArrayLike,
+    pobtrs: dict,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+    **kwargs,
+):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
+
+    _B: ArrayLike = pobtrs.get("B", None)
+    _B_comm: ArrayLike = pobtrs.get("B_comm", None)
+    if any(
+        x is None
+        for x in [
+            _B,
+            _B_comm,
+        ]
+    ):
+        raise ValueError(
+            "The reduced system `pobtrs` doesn't contain the required arrays."
+        )
+
+    xp, _ = _get_module_from_array(arr=_B)
+    if xp.__name__ == "cupy":
+        # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
+        _B.get(out=_B_comm)
+
+        cpx.cuda.Stream.null.synchronize()
+
+    if strategy == "allgather" or strategy == "gather-scatter":
+        comm.Allgather(
+            MPI.IN_PLACE,
+            _B_comm,
+        )
+
+        pobtrs["B_comm"] = _B_comm
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+    if xp.__name__ == "cupy":
+        # Need to put back the reduced system RHS on the GPU
+        _B.set(arr=_B)
 
         cpx.cuda.Stream.null.synchronize()
 
@@ -365,6 +438,37 @@ def scatter_pobtrs(
         raise ValueError("Unknown communication strategy.")
 
 
+def scatter_pobtrss(
+    pobtrs: dict,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+    **kwargs,
+):
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    _B: ArrayLike = pobtrs.get("B", None)
+    _B_comm: ArrayLike = pobtrs.get("B_comm", None)
+    if any(
+        x is None
+        for x in [
+            _B,
+            _B_comm,
+        ]
+    ):
+        raise ValueError(
+            "The reduced system `pobtrs` doesn't contain the required arrays."
+        )
+
+    xp, _ = _get_module_from_array(arr=_B)
+    if strategy == "allgather":
+        ...
+    elif strategy == "gather-scatter":
+        ...
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+
 def map_pobtrs_to_ppobtx(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
@@ -396,15 +500,17 @@ def map_pobtrs_to_ppobtx(
 
     if strategy == "allgather":
         if comm_rank == 0:
-            A_diagonal_blocks[-1] = _A_diagonal_blocks[0]
-            A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[0]
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[1]
+            A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[1]
         else:
-            A_diagonal_blocks[0] = _A_diagonal_blocks[2 * comm_rank - 1]
-            A_diagonal_blocks[-1] = _A_diagonal_blocks[2 * comm_rank]
+            A_diagonal_blocks[0] = _A_diagonal_blocks[2 * comm_rank]
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[2 * comm_rank + 1]
 
-            buffer[-1] = _A_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
+            buffer[-1] = _A_lower_diagonal_blocks[2 * comm_rank].conj().T
             if comm_rank != comm_size - 1:
-                A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank]
+                A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[
+                    2 * comm_rank + 1
+                ]
     elif strategy == "gather-scatter":
         if comm_rank == 0:
             A_diagonal_blocks[-1] = _A_diagonal_blocks[1]
@@ -418,5 +524,29 @@ def map_pobtrs_to_ppobtx(
                 A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[
                     2 * comm_rank + 1
                 ]
+    else:
+        raise ValueError("Unknown communication strategy.")
+
+
+def map_pobtrss_to_ppobts(
+    A_diagonal_blocks: ArrayLike,
+    B: ArrayLike,
+    _B: ArrayLike,
+    comm: MPI.Comm,
+    strategy: str = "allgather",
+):
+    """Map the right-hand side of the PPOBTS algorithm to the right-hand-side
+    of the reduced system."""
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
+
+    if strategy == "allgather" or strategy == "gather-scatter":
+        if comm_rank == 0:
+            B[-b:] = _B[b : 2 * b]
+        else:
+            B[:b] = _B[2 * comm_rank * b : 2 * comm_rank * b + b]
+            B[-b:] = _B[2 * comm_rank * b + b : 2 * (comm_rank + 1) * b]
     else:
         raise ValueError("Unknown communication strategy.")

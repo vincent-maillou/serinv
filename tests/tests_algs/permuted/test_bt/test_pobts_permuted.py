@@ -44,9 +44,7 @@ def test_pobts_permuted(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
         _,
-    ) = bt_dense_to_arrays(
-        A.copy(), diagonal_blocksize, n_diag_blocks
-    )
+    ) = bt_dense_to_arrays(A.copy(), diagonal_blocksize, n_diag_blocks)
 
     # Allocate permutation buffer
     buffer = allocate_pobtx_permutation_buffers(

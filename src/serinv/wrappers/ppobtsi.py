@@ -91,8 +91,8 @@ def ppobtsi(
 
     elif strategy == "allgather":
         pobtsi(
-            L_diagonal_blocks=pobtrs["A_diagonal_blocks"],
-            L_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"],
+            L_diagonal_blocks=pobtrs["A_diagonal_blocks"][1:],
+            L_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"][1:-1],
         )
 
     scatter_pobtrs(

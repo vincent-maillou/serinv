@@ -7,20 +7,18 @@ from serinv import (
     _get_module_from_array,
 )
 
-from serinv.algs import pobtas
-from serinv.wrappers.pobtars import (
-    map_ppobtas_to_pobtarss,
-    aggregate_pobtarss,
-    scatter_pobtarss,
-    map_pobtarss_to_ppobtas,
+from serinv.algs import pobts
+from serinv.wrappers.pobtrs import (
+    map_ppobts_to_pobtrss,
+    aggregate_pobtrss,
+    scatter_pobtrss,
+    map_pobtrss_to_ppobts,
 )
 
 
-def ppobtas(
+def ppobts(
     L_diagonal_blocks: ArrayLike,
     L_lower_diagonal_blocks: ArrayLike,
-    L_lower_arrow_blocks: ArrayLike,
-    L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
     **kwargs,
@@ -33,14 +31,10 @@ def ppobtas(
         Diagonal blocks of the Cholesky factor of the matrix.
     L_lower_diagonal_blocks : ArrayLike
         Lower diagonal blocks of the Cholesky factor of the matrix.
-    L_lower_arrow_blocks : ArrayLike
-        Arrow bottom blocks of the Cholesky factor of the matrix.
-    L_arrow_tip_block : ArrayLike
-        Arrow tip block of the Cholesky factor of the matrix.
 
     Keyword Arguments
     -----------------
-    pobtars : dict
+    pobtrs : dict
         The reduced system arrays, given as dictionary format.
     buffer : ArrayLike
         The permutation buffer for the permuted-partition algorithms
@@ -75,98 +69,76 @@ def ppobtas(
     if comm_rank != 0:
         assert buffer is not None
 
-    pobtars: dict = kwargs.get("pobtars", None)
+    pobtrs: dict = kwargs.get("pobtrs", None)
 
     # Check for given reduced system buffers
-    _A_diagonal_blocks: ArrayLike = pobtars.get("A_diagonal_blocks", None)
-    _A_lower_diagonal_blocks: ArrayLike = pobtars.get("A_lower_diagonal_blocks", None)
-    _A_lower_arrow_blocks: ArrayLike = pobtars.get("A_lower_arrow_blocks", None)
-    _A_arrow_tip_block: ArrayLike = pobtars.get("A_arrow_tip_block", None)
+    _A_diagonal_blocks: ArrayLike = pobtrs.get("A_diagonal_blocks", None)
+    _A_lower_diagonal_blocks: ArrayLike = pobtrs.get("A_lower_diagonal_blocks", None)
     if any(
         x is None
         for x in [
             _A_diagonal_blocks,
             _A_lower_diagonal_blocks,
-            _A_lower_arrow_blocks,
-            _A_arrow_tip_block,
         ]
     ):
         raise ValueError(
-            "To run the distributed solvers, the reduced system `pobtars` need to contain the required arrays."
+            "To run the distributed solvers, the reduced system `pobtrs` need to contain the required arrays."
         )
 
-    _B: ArrayLike = pobtars.get("B", None)
+    _B: ArrayLike = pobtrs.get("B", None)
     if _B is None:
         raise ValueError(
-            "To run the distributed rhs-solve, the reduced system `pobtars` need to contain the required arrays: 'B'."
+            "To run the distributed rhs-solve, the reduced system `pobtrs` need to contain the required arrays: 'B'."
         )
 
     # Isolate the tip block of the RHS
-    a = _A_arrow_tip_block.shape[0]
     b = L_diagonal_blocks.shape[1]
-    B_tip_initial = xp.zeros_like(B[-a:])
-    B_tip_initial[:] = B[-a:]
-    B[-a:] = 0.0
 
     # Parallel forward solve
     if comm_rank == root:
-        pobtas(
+        pobts(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            L_lower_arrow_blocks=L_lower_arrow_blocks,
-            L_arrow_tip_block=L_arrow_tip_block,
             B=B,
             trans="N",
             partial=True,
         )
     else:
-        pobtas(
+        pobts(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            L_lower_arrow_blocks=L_lower_arrow_blocks,
-            L_arrow_tip_block=L_arrow_tip_block,
             B=B,
             buffer=buffer,
             trans="N",
         )
 
     # Map RHS to reduced RHS
-    map_ppobtas_to_pobtarss(
+    map_ppobts_to_pobtrss(
         A_diagonal_blocks=L_diagonal_blocks,
-        A_arrow_tip_block=L_arrow_tip_block,
         B=B,
         _B=_B,
         comm=comm,
         strategy=strategy,
     )
-
     # Agregate reduced RHS
-    aggregate_pobtarss(
+    aggregate_pobtrss(
         A_diagonal_blocks=L_diagonal_blocks,
-        A_arrow_tip_block=L_arrow_tip_block,
-        pobtars=pobtars,
+        pobtrs=pobtrs,
         comm=comm,
         strategy=strategy,
     )
 
-    # Add the tip block of the RHS to the aggregated update
-    _B[-a:] += B_tip_initial
-
     # Solve RHS FWD/BWD
     if strategy == "allgather":
-        pobtas(
+        pobts(
             L_diagonal_blocks=_A_diagonal_blocks[1:],
             L_lower_diagonal_blocks=_A_lower_diagonal_blocks[1:-1],
-            L_lower_arrow_blocks=_A_lower_arrow_blocks[1:],
-            L_arrow_tip_block=_A_arrow_tip_block,
             B=_B[b:],
             trans="N",
         )
-        pobtas(
+        pobts(
             L_diagonal_blocks=_A_diagonal_blocks[1:],
             L_lower_diagonal_blocks=_A_lower_diagonal_blocks[1:-1],
-            L_lower_arrow_blocks=_A_lower_arrow_blocks[1:],
-            L_arrow_tip_block=_A_arrow_tip_block,
             B=_B[b:],
             trans="C",
         )
@@ -174,16 +146,15 @@ def ppobtas(
         raise NotImplementedError(f"The strategy {strategy} is not yet implemented.")
 
     # Scatter solution of reduced RHS
-    scatter_pobtarss(
-        pobtars=pobtars,
+    scatter_pobtrss(
+        pobtrs=pobtrs,
         comm=comm,
         strategy=strategy,
     )
 
     # Map solution of reduced RHS to RHS
-    map_pobtarss_to_ppobtas(
+    map_pobtrss_to_ppobts(
         A_diagonal_blocks=L_diagonal_blocks,
-        A_arrow_tip_block=L_arrow_tip_block,
         B=B,
         _B=_B,
         comm=comm,
@@ -192,21 +163,17 @@ def ppobtas(
 
     # Parallel backward solve
     if comm_rank == root:
-        pobtas(
+        pobts(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            L_lower_arrow_blocks=L_lower_arrow_blocks,
-            L_arrow_tip_block=L_arrow_tip_block,
             B=B,
             trans="C",
             partial=True,
         )
     else:
-        pobtas(
+        pobts(
             L_diagonal_blocks=L_diagonal_blocks,
             L_lower_diagonal_blocks=L_lower_diagonal_blocks,
-            L_lower_arrow_blocks=L_lower_arrow_blocks,
-            L_arrow_tip_block=L_arrow_tip_block,
             B=B,
             buffer=buffer,
             trans="C",
