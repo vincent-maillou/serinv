@@ -92,6 +92,10 @@ def ppobtaf(
             "To run the distributed solvers, the reduced system `ddbtars` need to contain the required arrays."
         )
 
+    # Reset the arrow tip block in case of reccurent call using the same buffers
+    pobtars["A_arrow_tip_block"][:, :] = 0.0
+    pobtars["A_arrow_tip_block_comm"][:, :] = 0.0
+
     # Store the value of the tip of the arrow and reset the local arrow tip block to zero
     # in order to correctly accumulate the updates from the distributed Schur complement.
     A_arrow_tip_initial = A_arrow_tip_block.copy()

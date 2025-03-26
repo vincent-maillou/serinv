@@ -80,7 +80,7 @@ def allocate_pobtars(
         _A_lower_arrow_blocks = alloc((_n, a, b), dtype=dtype)
 
         if B is not None:
-            _B = zeros((_n * b + a, n_rhs), dtype=dtype)
+            _B = alloc((_n * b + a, n_rhs), dtype=dtype)
     elif strategy == "gather-scatter":
         _n: int = 2 * comm_size
         alloc = zeros
@@ -90,7 +90,7 @@ def allocate_pobtars(
         _A_lower_arrow_blocks = alloc((_n, a, b), dtype=dtype)
 
         if B is not None:
-            _B = zeros((_n * b + a, n_rhs), dtype=dtype)
+            _B = alloc((_n * b + a, n_rhs), dtype=dtype)
     else:
         raise ValueError("Unknown communication strategy.")
 
