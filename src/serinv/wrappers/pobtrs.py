@@ -250,11 +250,11 @@ def aggregate_pobtrs(
             _A_lower_diagonal_blocks_comm,
         )
 
-        pobtrs["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:]
-        pobtrs["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-1]
+        pobtrs["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm
+        pobtrs["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm
 
-        pobtrs["A_diagonal_blocks"] = _A_diagonal_blocks[1:]
-        pobtrs["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks[1:-1]
+        pobtrs["A_diagonal_blocks"] = _A_diagonal_blocks
+        pobtrs["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks
 
     elif strategy == "gather-scatter":
         root = kwargs.get("root", None)
@@ -500,15 +500,17 @@ def map_pobtrs_to_ppobtx(
 
     if strategy == "allgather":
         if comm_rank == 0:
-            A_diagonal_blocks[-1] = _A_diagonal_blocks[0]
-            A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[0]
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[1]
+            A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[1]
         else:
-            A_diagonal_blocks[0] = _A_diagonal_blocks[2 * comm_rank - 1]
-            A_diagonal_blocks[-1] = _A_diagonal_blocks[2 * comm_rank]
+            A_diagonal_blocks[0] = _A_diagonal_blocks[2 * comm_rank]
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[2 * comm_rank + 1]
 
-            buffer[-1] = _A_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
+            buffer[-1] = _A_lower_diagonal_blocks[2 * comm_rank].conj().T
             if comm_rank != comm_size - 1:
-                A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank]
+                A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[
+                    2 * comm_rank + 1
+                ]
     elif strategy == "gather-scatter":
         if comm_rank == 0:
             A_diagonal_blocks[-1] = _A_diagonal_blocks[1]

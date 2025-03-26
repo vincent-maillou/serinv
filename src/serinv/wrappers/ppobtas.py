@@ -155,17 +155,17 @@ def ppobtas(
     # Solve RHS FWD/BWD
     if strategy == "allgather":
         pobtas(
-            L_diagonal_blocks=_A_diagonal_blocks,
-            L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
-            L_lower_arrow_blocks=_A_lower_arrow_blocks,
+            L_diagonal_blocks=_A_diagonal_blocks[1:],
+            L_lower_diagonal_blocks=_A_lower_diagonal_blocks[1:-1],
+            L_lower_arrow_blocks=_A_lower_arrow_blocks[1:],
             L_arrow_tip_block=_A_arrow_tip_block,
             B=_B[b:],
             trans="N",
         )
         pobtas(
-            L_diagonal_blocks=_A_diagonal_blocks,
-            L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
-            L_lower_arrow_blocks=_A_lower_arrow_blocks,
+            L_diagonal_blocks=_A_diagonal_blocks[1:],
+            L_lower_diagonal_blocks=_A_lower_diagonal_blocks[1:-1],
+            L_lower_arrow_blocks=_A_lower_arrow_blocks[1:],
             L_arrow_tip_block=_A_arrow_tip_block,
             B=_B[b:],
             trans="C",

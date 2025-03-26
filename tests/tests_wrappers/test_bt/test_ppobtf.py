@@ -126,33 +126,36 @@ def test_ppobtf(
     )
 
     if comm_strategy == "allgather":
+        _L_diagonal_blocks = pobtrs["A_diagonal_blocks"][1:]
+        _L_lower_diagonal_blocks = pobtrs["A_lower_diagonal_blocks"][1:-1]
+
         pobtsi(
-            L_diagonal_blocks=pobtrs["A_diagonal_blocks"],
-            L_lower_diagonal_blocks=pobtrs["A_lower_diagonal_blocks"],
+            L_diagonal_blocks=_L_diagonal_blocks,
+            L_lower_diagonal_blocks=_L_lower_diagonal_blocks,
         )
 
         if comm_rank == 0:
             assert xp.allclose(
-                pobtrs["A_diagonal_blocks"][0],
+                _L_diagonal_blocks[0],
                 X_ref_diagonal_blocks_local[-1],
             )
             assert xp.allclose(
-                pobtrs["A_lower_diagonal_blocks"][0],
+                _L_lower_diagonal_blocks[0],
                 X_ref_lower_diagonal_blocks_local[-1],
             )
         else:
             assert xp.allclose(
-                pobtrs["A_diagonal_blocks"][2 * comm_rank - 1],
+                _L_diagonal_blocks[2 * comm_rank - 1],
                 X_ref_diagonal_blocks_local[0],
             )
             assert xp.allclose(
-                pobtrs["A_diagonal_blocks"][2 * comm_rank],
+                _L_diagonal_blocks[2 * comm_rank],
                 X_ref_diagonal_blocks_local[-1],
             )
 
             if comm_rank < comm_size - 1:
                 assert xp.allclose(
-                    pobtrs["A_lower_diagonal_blocks"][2 * comm_rank],
+                    _L_lower_diagonal_blocks[2 * comm_rank],
                     X_ref_lower_diagonal_blocks_local[-1],
                 )
     elif comm_strategy == "gather-scatter":

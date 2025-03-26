@@ -131,14 +131,14 @@ def ppobts(
     # Solve RHS FWD/BWD
     if strategy == "allgather":
         pobts(
-            L_diagonal_blocks=_A_diagonal_blocks,
-            L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
+            L_diagonal_blocks=_A_diagonal_blocks[1:],
+            L_lower_diagonal_blocks=_A_lower_diagonal_blocks[1:-1],
             B=_B[b:],
             trans="N",
         )
         pobts(
-            L_diagonal_blocks=_A_diagonal_blocks,
-            L_lower_diagonal_blocks=_A_lower_diagonal_blocks,
+            L_diagonal_blocks=_A_diagonal_blocks[1:],
+            L_lower_diagonal_blocks=_A_lower_diagonal_blocks[1:-1],
             B=_B[b:],
             trans="C",
         )

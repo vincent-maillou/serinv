@@ -318,13 +318,13 @@ def aggregate_pobtars(
         )
         comm.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
 
-        pobtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:]
-        pobtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-1]
-        pobtars["A_lower_arrow_blocks_comm"] = _A_lower_arrow_blocks_comm[1:]
+        pobtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm
+        pobtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm
+        pobtars["A_lower_arrow_blocks_comm"] = _A_lower_arrow_blocks_comm
 
-        pobtars["A_diagonal_blocks"] = _A_diagonal_blocks[1:]
-        pobtars["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks[1:-1]
-        pobtars["A_lower_arrow_blocks"] = _A_lower_arrow_blocks[1:]
+        pobtars["A_diagonal_blocks"] = _A_diagonal_blocks
+        pobtars["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks
+        pobtars["A_lower_arrow_blocks"] = _A_lower_arrow_blocks
 
     elif strategy == "gather-scatter":
         root = kwargs.get("root", None)
@@ -631,19 +631,21 @@ def map_pobtars_to_ppobtax(
 
     if strategy == "allgather":
         if comm_rank == 0:
-            A_diagonal_blocks[-1] = _A_diagonal_blocks[0]
-            A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[0]
-            A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[0]
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[1]
+            A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[1]
+            A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[1]
         else:
-            A_diagonal_blocks[0] = _A_diagonal_blocks[2 * comm_rank - 1]
-            A_diagonal_blocks[-1] = _A_diagonal_blocks[2 * comm_rank]
+            A_diagonal_blocks[0] = _A_diagonal_blocks[2 * comm_rank]
+            A_diagonal_blocks[-1] = _A_diagonal_blocks[2 * comm_rank + 1]
 
-            buffer[-1] = _A_lower_diagonal_blocks[2 * comm_rank - 1].conj().T
+            buffer[-1] = _A_lower_diagonal_blocks[2 * comm_rank].conj().T
             if comm_rank != comm_size - 1:
-                A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[2 * comm_rank]
+                A_lower_diagonal_blocks[-1] = _A_lower_diagonal_blocks[
+                    2 * comm_rank + 1
+                ]
 
-            A_lower_arrow_blocks[0] = _A_lower_arrow_blocks[2 * comm_rank - 1]
-            A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[2 * comm_rank]
+            A_lower_arrow_blocks[0] = _A_lower_arrow_blocks[2 * comm_rank]
+            A_lower_arrow_blocks[-1] = _A_lower_arrow_blocks[2 * comm_rank + 1]
         A_arrow_tip_block[:] = _A_arrow_tip_block[:]
     elif strategy == "gather-scatter":
         if comm_rank == 0:
