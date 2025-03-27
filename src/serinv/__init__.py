@@ -38,6 +38,18 @@ try:
 
         nccl.get_version()
         backend_flags["nccl_avail"] = True
+
+        nccl_datatype = {
+            np.float32: nccl.NCCL_FLOAT,
+            cp.float32: nccl.NCCL_FLOAT,
+            np.complex64: nccl.NCCL_FLOAT,
+            cp.complex64: nccl.NCCL_FLOAT,
+            np.float64: nccl.NCCL_DOUBLE,
+            cp.float64: nccl.NCCL_DOUBLE,
+            np.complex128: nccl.NCCL_DOUBLE,
+            cp.complex128: nccl.NCCL_DOUBLE,
+        }
+
     except (AttributeError, ImportError, ModuleNotFoundError) as w:
         warn(f"'NCCL' is unavailable. ({w})")
 except (ImportError, ImportWarning, ModuleNotFoundError) as w:
@@ -143,6 +155,34 @@ def _get_cholesky(module_str: str):
         raise ValueError(f"Unknown module '{module_str}'.")
 
 
+def _use_nccl(comm):
+    """Handle NCCL GPU-to-GPU communication."""
+    if backend_flags["nccl_avail"]:
+        if isinstance(comm, nccl.NcclCommunicator):
+            return True
+    return False
+
+
+def _get_nccl_parameters(arr, comm, op: str):
+    """Get the NCCL parameters for the given operation."""
+    if backend_flags["nccl_avail"]:
+        if op == "allgather":
+            count = arr.size // comm.size
+            displacement = count * comm.rank * arr.dtype.itemsize
+        elif op == "allreduce":
+            count = arr.size
+            displacement = 0
+        else:
+            raise ValueError(f"Not supported NCCL operation '{op}'.")
+
+        datatype = nccl_datatype[arr.dtype.type]
+    else:
+        count = arr.size
+        displacement = 0
+        datatype = None
+    return count, displacement, datatype
+
+
 __all__ = [
     "__version__",
     "ArrayLike",
@@ -150,4 +190,6 @@ __all__ = [
     "_get_module_from_array",
     "_get_module_from_str",
     "_get_cholesky",
+    "_use_nccl",
+    "_get_nccl_parameters",
 ]
