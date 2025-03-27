@@ -165,25 +165,27 @@ def _use_nccl(comm):
 
 def _get_nccl_parameters(arr, comm, op: str):
     """Get the NCCL parameters for the given operation."""
+    if np.iscomplexobj(arr):
+        factor = 2
+    else:
+        factor = 1
+
     if backend_flags["nccl_avail"]:
-        if np.iscomplexobj(arr):
-            factor = 2
-        else:
-            factor = 1
         if op == "allgather":
             count = (arr.size // comm.size) * factor
             displacement = count * comm.rank * arr.dtype.itemsize
         elif op == "allreduce":
-            count = (arr.size) * factor
+            count = arr.size * factor
             displacement = 0
         else:
             raise ValueError(f"Not supported NCCL operation '{op}'.")
 
         datatype = nccl_datatype[arr.dtype.type]
     else:
-        count = arr.size
+        count = arr.size * factor
         displacement = 0
         datatype = None
+
     return count, displacement, datatype
 
 
