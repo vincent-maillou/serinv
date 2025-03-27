@@ -1,5 +1,6 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import os
 from warnings import warn
 
 import numpy as np
@@ -47,28 +48,23 @@ try:
     # Check if mpi4py is available
     from mpi4py import MPI
 
+    comm = MPI.COMM_WORLD
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
+    # Create a small GPU array
+    array = np.array([comm_rank], dtype=np.float32)
+
+    # Perform an MPI operation to check working
+    if comm_size > 1:
+        if comm_rank == 0:
+            comm.Send([array, MPI.FLOAT], dest=1)
+        elif comm_rank == 1:
+            comm.Recv([array, MPI.FLOAT], source=0)
+
     backend_flags["mpi_avail"] = True
-
-    if backend_flags["cupy_avail"]:
-        # Check if MPI is CUDA-aware
-        try:
-            comm = MPI.COMM_WORLD
-            comm_rank = comm.Get_rank()
-            comm_size = comm.Get_size()
-
-            # Create a small GPU array
-            gpu_array = cp.array([comm_rank], dtype=cp.float32)
-
-            # Perform an MPI operation on the GPU array
-            if comm_size > 1:
-                if comm_rank == 0:
-                    comm.Send([gpu_array, MPI.FLOAT], dest=1)
-                elif comm_rank == 1:
-                    comm.Recv([gpu_array, MPI.FLOAT], source=0)
-
-            backend_flags["mpi_cuda_aware"] = True
-        except Exception as e:
-            warn(f"MPI is not CUDA-aware. ({e})")
+    if backend_flags["cupy_avail"] and os.environ.get("MPI_CUDA_AWARE", "0") == "1":
+        backend_flags["mpi_cuda_aware"] = True
 
 except (ImportError, ImportWarning, ModuleNotFoundError) as w:
     warn(f"'mpi4py' is unavailable. ({w})")

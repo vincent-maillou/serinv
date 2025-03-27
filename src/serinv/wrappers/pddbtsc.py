@@ -33,7 +33,7 @@ def pddbtsc(
         The upper diagonal blocks of the block tridiagonal with arrowhead matrix.
     comm : MPI.Comm
         The MPI communicator. Default is MPI.COMM_WORLD.
-        
+
     Keyword Arguments
     -----------------
     rhs : dict

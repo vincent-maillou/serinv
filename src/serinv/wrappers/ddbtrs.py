@@ -11,6 +11,7 @@ from serinv import (
 
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
+    import cupy as cp
 
 
 def allocate_ddbtrs(
@@ -51,7 +52,7 @@ def allocate_ddbtrs(
             dtype=A_upper_diagonal_blocks.dtype,
         )
 
-        if xp.__name__ == "cupy":
+        if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
             # In this case we also need to allocate a pinned-memory
             # reduced system on the host side.
             _A_diagonal_blocks_comm = cpx.empty_like_pinned(_A_diagonal_blocks)
@@ -88,7 +89,7 @@ def allocate_ddbtrs(
                 dtype=A_upper_diagonal_blocks.dtype,
             )
 
-            if xp.__name__ == "cupy":
+            if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
                 # In this case we also need to allocate a pinned-memory
                 # reduced system on the host side.
 
@@ -290,7 +291,7 @@ def aggregate_ddbtrs(
 
     xp, _ = _get_module_from_array(arr=_A_diagonal_blocks)
     if strategy == "allgather":
-        if xp.__name__ == "cupy":
+        if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
             # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
             if comm_rank == 0:
                 _A_diagonal_blocks[1].get(out=_A_diagonal_blocks_comm[1])
@@ -325,6 +326,7 @@ def aggregate_ddbtrs(
                     _A_upper_diagonal_blocks[2 * comm_rank].get(
                         out=_A_upper_diagonal_blocks_comm[2 * comm_rank]
                     )
+                cp.cuda.runtime.deviceSynchronize()
 
         # Perform the allgather operation
         comm.Allgather(
@@ -349,7 +351,7 @@ def aggregate_ddbtrs(
         ddbtrs["A_upper_diagonal_blocks"] = _A_upper_diagonal_blocks[1:-2]
 
         if quadratic:
-            if xp.__name__ == "cupy":
+            if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
                 # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
                 if comm_rank == 0:
                     _B_diagonal_blocks[1].get(out=_B_diagonal_blocks_comm[1])
@@ -416,7 +418,7 @@ def aggregate_ddbtrs(
 
     comm.Barrier()
 
-    if xp.__name__ == "cupy":
+    if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
         # Need to put back the reduced system on the GPU
         _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
         _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)

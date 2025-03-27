@@ -42,7 +42,7 @@ def pddbtasc(
         The arrow tip block of the block tridiagonal with arrowhead matrix.
     comm : MPI.Comm
         The MPI communicator. Default is MPI.COMM_WORLD.
-        
+
     Keyword Arguments
     -----------------
     rhs : dict

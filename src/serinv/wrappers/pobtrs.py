@@ -11,6 +11,7 @@ from serinv import (
 
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
+    import cupy as cp
 
 
 def allocate_pobtrs(
@@ -86,7 +87,7 @@ def allocate_pobtrs(
         raise ValueError("Unknown communication strategy.")
 
     # If needed, allocate the reduced system for communication
-    if xp.__name__ == "cupy":
+    if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
         _A_diagonal_blocks_comm = cpx.empty_like_pinned(_A_diagonal_blocks)
         _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_A_lower_diagonal_blocks)
 
@@ -180,7 +181,6 @@ def map_ppobts_to_pobtrss(
     """Map the right-hand side of the PPOBTS algorithm to the right-hand-side
     of the reduced system."""
     comm_rank = comm.Get_rank()
-    comm_size = comm.Get_size()
 
     b = A_diagonal_blocks[0].shape[0]
 
@@ -210,7 +210,6 @@ def aggregate_pobtrs(
         Communication strategy to use. (default: "allgather")
     """
     comm_rank = comm.Get_rank()
-    comm_size = comm.Get_size()
 
     _A_diagonal_blocks: ArrayLike = pobtrs.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = pobtrs.get("A_lower_diagonal_blocks", None)
@@ -233,12 +232,12 @@ def aggregate_pobtrs(
         )
 
     xp, _ = _get_module_from_array(arr=_A_diagonal_blocks)
-    if xp.__name__ == "cupy":
+    if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
         # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
         _A_diagonal_blocks.get(out=_A_diagonal_blocks_comm)
         _A_lower_diagonal_blocks.get(out=_A_lower_diagonal_blocks_comm)
 
-        cpx.cuda.Stream.null.synchronize()
+        cp.cuda.runtime.deviceSynchronize()
 
     if strategy == "allgather":
         comm.Allgather(
@@ -249,13 +248,6 @@ def aggregate_pobtrs(
             MPI.IN_PLACE,
             _A_lower_diagonal_blocks_comm,
         )
-
-        pobtrs["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm
-        pobtrs["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm
-
-        pobtrs["A_diagonal_blocks"] = _A_diagonal_blocks
-        pobtrs["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks
-
     elif strategy == "gather-scatter":
         root = kwargs.get("root", None)
         if root is None:
@@ -281,23 +273,21 @@ def aggregate_pobtrs(
             recvbuf=_A_lower_diagonal_blocks_comm if comm_rank == root else None,
             root=root,
         )
-
-        # Do not slice/view the array here in the gather-scatter strategy, otherwise
-        # the scatter-back won't work.
-        pobtrs["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm
-        pobtrs["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm
-
-        pobtrs["A_diagonal_blocks"] = _A_diagonal_blocks
-        pobtrs["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks
     else:
         raise ValueError("Unknown communication strategy.")
 
-    if xp.__name__ == "cupy":
+    pobtrs["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm
+    pobtrs["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm
+
+    pobtrs["A_diagonal_blocks"] = _A_diagonal_blocks
+    pobtrs["A_lower_diagonal_blocks"] = _A_lower_diagonal_blocks
+
+    if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
         # Need to put back the reduced system on the GPU
         _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
         _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)
 
-        cpx.cuda.Stream.null.synchronize()
+        cp.cuda.runtime.deviceSynchronize()
 
 
 def aggregate_pobtrss(
@@ -326,27 +316,44 @@ def aggregate_pobtrss(
         )
 
     xp, _ = _get_module_from_array(arr=_B)
-    if xp.__name__ == "cupy":
-        # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
+    if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
+        # We need to move the data of the reduced system from the GPU to the
+        # HOST pinned arrays.
         _B.get(out=_B_comm)
 
-        cpx.cuda.Stream.null.synchronize()
+        cp.cuda.runtime.deviceSynchronize()
 
-    if strategy == "allgather" or strategy == "gather-scatter":
+    if strategy == "allgather":
         comm.Allgather(
             MPI.IN_PLACE,
             _B_comm,
         )
-
-        pobtrs["B_comm"] = _B_comm
+    elif strategy == "gather-scatter":
+        root = kwargs.get("root", None)
+        if root is None:
+            raise ValueError(
+                "The root rank must be given for gather-scatter communication strategy."
+            )
+        comm.Gather(
+            sendbuf=(
+                _B_comm[comm_rank * b : (comm_rank + 1) * b]
+                if comm_rank != root
+                else MPI.IN_PLACE
+            ),
+            recvbuf=_B_comm if comm_rank == root else None,
+            root=root,
+        )
     else:
         raise ValueError("Unknown communication strategy.")
 
+    pobtrs["B_comm"] = _B_comm
+    pobtrs["B"] = _B
+
     if xp.__name__ == "cupy":
         # Need to put back the reduced system RHS on the GPU
-        _B.set(arr=_B)
+        _B.set(arr=_B_comm)
 
-        cpx.cuda.Stream.null.synchronize()
+        cp.cuda.runtime.deviceSynchronize()
 
 
 def scatter_pobtrs(
@@ -357,7 +364,6 @@ def scatter_pobtrs(
 ):
     """Scatter the reduced system."""
     comm_rank = comm.Get_rank()
-    comm_size = comm.Get_size()
 
     _A_diagonal_blocks: ArrayLike = pobtrs.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = pobtrs.get("A_lower_diagonal_blocks", None)
@@ -389,13 +395,13 @@ def scatter_pobtrs(
                 "The root rank must be given for gather-scatter communication strategy."
             )
 
-        if xp.__name__ == "cupy":
+        if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
             if comm_rank == root:
                 # If cupy array, need to move the data to host before initiating the communications
                 _A_diagonal_blocks.get(out=_A_diagonal_blocks_comm)
                 _A_lower_diagonal_blocks.get(out=_A_lower_diagonal_blocks_comm)
 
-            cpx.cuda.Stream.null.synchronize()
+            cp.cuda.runtime.deviceSynchronize()
 
         comm.Scatter(
             sendbuf=_A_diagonal_blocks_comm if comm_rank == root else None,
@@ -406,17 +412,6 @@ def scatter_pobtrs(
             ),
             root=root,
         )
-
-        comm.Gather(
-            sendbuf=(
-                _A_diagonal_blocks_comm[2 * comm_rank : 2 * (comm_rank + 1)]
-                if comm_rank != root
-                else MPI.IN_PLACE
-            ),
-            recvbuf=_A_diagonal_blocks_comm if comm_rank == root else None,
-            root=root,
-        )
-
         comm.Scatter(
             sendbuf=_A_lower_diagonal_blocks_comm if comm_rank == root else None,
             recvbuf=(
@@ -427,25 +422,27 @@ def scatter_pobtrs(
             root=root,
         )
 
-        if xp.__name__ == "cupy":
+        if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
             # Need to put back the reduced system on the GPU
             _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
             _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)
 
-            cpx.cuda.Stream.null.synchronize()
+            cp.cuda.runtime.deviceSynchronize()
 
     else:
         raise ValueError("Unknown communication strategy.")
 
 
 def scatter_pobtrss(
+    A_diagonal_blocks: ArrayLike,
     pobtrs: dict,
     comm: MPI.Comm,
     strategy: str = "allgather",
     **kwargs,
 ):
     comm_rank = comm.Get_rank()
-    comm_size = comm.Get_size()
+
+    b = A_diagonal_blocks[0].shape[0]
 
     _B: ArrayLike = pobtrs.get("B", None)
     _B_comm: ArrayLike = pobtrs.get("B_comm", None)
@@ -464,7 +461,31 @@ def scatter_pobtrss(
     if strategy == "allgather":
         ...
     elif strategy == "gather-scatter":
-        ...
+        root = kwargs.get("root", None)
+        if root is None:
+            raise ValueError(
+                "The root rank must be given for gather-scatter communication strategy."
+            )
+        if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
+            if comm_rank == root:
+                # If cupy array, need to move the data to host before initiating the communications
+                _B.get(out=_B_comm)
+            cp.cuda.runtime.deviceSynchronize()
+
+        comm.Scatter(
+            sendbuf=_B_comm if comm_rank == root else None,
+            recvbuf=(
+                _B_comm[comm_rank * b : (comm_rank + 1) * b]
+                if comm_rank != root
+                else MPI.IN_PLACE
+            ),
+            root=root,
+        )
+
+        if xp.__name__ == "cupy" and not backend_flags["mpi_cuda_aware"]:
+            # Need to put back the reduced system on the GPU
+            _B.set(arr=_B_comm)
+            cp.cuda.runtime.deviceSynchronize()
     else:
         raise ValueError("Unknown communication strategy.")
 

@@ -29,6 +29,7 @@ comm_size = MPI.COMM_WORLD.Get_size()
 
 
 @pytest.mark.mpi(min_size=2)
+@pytest.mark.parametrize("comm_strategy", ["allgather"])
 @pytest.mark.parametrize("type_of_equation", ["AX=I", "AXA.T=B"])
 def test_pddbtsc(
     diagonal_blocksize: int,
