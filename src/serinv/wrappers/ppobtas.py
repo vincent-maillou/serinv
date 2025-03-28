@@ -175,6 +175,8 @@ def ppobtas(
 
     # Scatter solution of reduced RHS
     scatter_pobtarss(
+        A_diagonal_blocks=L_diagonal_blocks,
+        A_arrow_tip_block=L_arrow_tip_block,
         pobtars=pobtars,
         comm=comm,
         strategy=strategy,
