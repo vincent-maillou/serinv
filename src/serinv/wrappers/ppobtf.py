@@ -1,5 +1,7 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import time
+
 from mpi4py import MPI
 
 from serinv import (
@@ -18,6 +20,7 @@ def ppobtf(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel factorization of a block tridiagonal with arrowhead matrix
@@ -55,6 +58,8 @@ def ppobtf(
 
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
+
+    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
 
     # Check for optional parameters
     device_streaming: bool = kwargs.get("device_streaming", False)
@@ -106,14 +111,23 @@ def ppobtf(
         comm=comm,
         buffer=buffer,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
 
+    MPI.COMM_WORLD.Barrier()
+    tic = time.perf_counter()
     aggregate_pobtrs(
         pobtrs=pobtrs,
         comm=comm,
         strategy=strategy,
         root=root,
+        nccl_comm=nccl_comm,
     )
+    if xp.__name__ == "cupy":
+        xp.cuda.runtime.deviceSynchronize()
+    MPI.COMM_WORLD.Barrier()
+    toc = time.perf_counter()
+    elapsed = toc - tic
 
     # --- Factorize the reduced system ---
     if strategy == "gather-scatter":
@@ -134,3 +148,5 @@ def ppobtf(
         )
 
     comm.Barrier()
+
+    return elapsed

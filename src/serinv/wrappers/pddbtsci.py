@@ -4,7 +4,6 @@ from mpi4py import MPI
 
 from serinv import (
     ArrayLike,
-    _get_module_from_array,
 )
 
 from serinv.algs import ddbtsci
@@ -19,6 +18,7 @@ def pddbtsci(
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel selected-inversion of the Schur-complement of a block tridiagonal matrix.
@@ -89,8 +89,6 @@ def pddbtsci(
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
-    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
-
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
     buffers: dict = kwargs.get("buffers", None)
@@ -125,6 +123,7 @@ def pddbtsci(
         ddbtrs=ddbtrs,
         comm=comm,
         quadratic=quadratic,
+        nccl_comm=nccl_comm,
     )
 
     map_ddbtrs_to_ddbtsci(
@@ -139,6 +138,7 @@ def pddbtsci(
         quadratic=quadratic,
         buffers=buffers,
         _rhs=ddbtrs.get("_rhs", None),
+        nccl_comm=nccl_comm,
     )
 
     # Perform distributed SCI

@@ -15,9 +15,6 @@ if backend_flags["cupy_avail"]:
     import cupyx as cpx
     import cupy as cp
 
-    if backend_flags["nccl_avail"]:
-        from cupy.cuda import nccl
-
 
 def allocate_pobtars(
     A_diagonal_blocks: ArrayLike,
@@ -29,6 +26,7 @@ def allocate_pobtars(
     B: ArrayLike = None,
     device_streaming: bool = False,
     strategy: str = "allgather",
+    nccl_comm: object = None,
 ):
     """Allocate the buffers necessary for the reduced system of the PPOBTARX algorithms.
 
@@ -56,6 +54,12 @@ def allocate_pobtars(
     pobtars : dict
         Dictionary containing the reduced system arrays.
     """
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -106,7 +110,7 @@ def allocate_pobtars(
     if (
         xp.__name__ == "cupy"
         and not backend_flags["mpi_cuda_aware"]
-        and not _use_nccl(comm)
+        and not _use_nccl(communicator)
     ):
         _A_diagonal_blocks_comm = cpx.empty_like_pinned(_A_diagonal_blocks)
         _A_lower_diagonal_blocks_comm = cpx.empty_like_pinned(_A_lower_diagonal_blocks)
@@ -152,6 +156,7 @@ def map_ppobtax_to_pobtars(
     buffer: ArrayLike,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
 ):
     """Map the the boundary blocks of the PPOBTAX algorithm to the reduced system.
 
@@ -178,6 +183,12 @@ def map_ppobtax_to_pobtars(
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
     """
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -228,9 +239,16 @@ def map_ppobtas_to_pobtarss(
     _B: ArrayLike,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
 ):
     """Map the right-hand side of the PPOBTAS algorithm to the right-hand-side
     of the reduced system."""
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
 
     b = A_diagonal_blocks[0].shape[0]
@@ -252,6 +270,7 @@ def aggregate_pobtars(
     pobtars: dict,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
     **kwargs,
 ):
     """Aggregate the reduced system.
@@ -269,7 +288,14 @@ def aggregate_pobtars(
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
     """
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
     _A_diagonal_blocks: ArrayLike = pobtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = pobtars.get("A_lower_diagonal_blocks", None)
@@ -306,7 +332,7 @@ def aggregate_pobtars(
     if (
         xp.__name__ == "cupy"
         and not backend_flags["mpi_cuda_aware"]
-        and not _use_nccl(comm)
+        and not _use_nccl(communicator)
     ):
         # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
         _A_diagonal_blocks.get(out=_A_diagonal_blocks_comm)
@@ -317,11 +343,12 @@ def aggregate_pobtars(
         cp.cuda.runtime.deviceSynchronize()
 
     if strategy == "allgather":
-        if _use_nccl(comm):
+        if _use_nccl(communicator):
+            # --- Use NCCL ---
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_diagonal_blocks_comm, comm=comm, op="allgather"
+                arr=_A_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
             )
-            comm.allGather(
+            communicator.allGather(
                 sendbuf=_A_diagonal_blocks_comm.data.ptr + displacement,
                 recvbuf=_A_diagonal_blocks_comm.data.ptr,
                 count=count,
@@ -329,9 +356,9 @@ def aggregate_pobtars(
                 stream=cp.cuda.Stream.null.ptr,
             )
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_lower_diagonal_blocks_comm, comm=comm, op="allgather"
+                arr=_A_lower_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
             )
-            comm.allGather(
+            communicator.allGather(
                 sendbuf=_A_lower_diagonal_blocks_comm.data.ptr + displacement,
                 recvbuf=_A_lower_diagonal_blocks_comm.data.ptr,
                 count=count,
@@ -339,9 +366,9 @@ def aggregate_pobtars(
                 stream=cp.cuda.Stream.null.ptr,
             )
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_lower_arrow_blocks_comm, comm=comm, op="allgather"
+                arr=_A_lower_arrow_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
             )
-            comm.allGather(
+            communicator.allGather(
                 sendbuf=_A_lower_arrow_blocks_comm.data.ptr + displacement,
                 recvbuf=_A_lower_arrow_blocks_comm.data.ptr,
                 count=count,
@@ -349,17 +376,18 @@ def aggregate_pobtars(
                 stream=cp.cuda.Stream.null.ptr,
             )
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_arrow_tip_block_comm, comm=comm, op="allreduce"
+                arr=_A_arrow_tip_block_comm, comm=communicator, rank=comm_rank, op="allreduce"
             )
-            comm.allReduce(
+            communicator.allReduce(
                 sendbuf=_A_arrow_tip_block_comm.data.ptr,
                 recvbuf=_A_arrow_tip_block_comm.data.ptr,
                 count=count,
                 datatype=datatype,
-                op=nccl.NCCL_SUM,
+                op=cp.cuda.nccl.NCCL_SUM,
                 stream=cp.cuda.Stream.null.ptr,
             )
         else:
+            # --- Use MPI ---
             comm.Allgather(
                 MPI.IN_PLACE,
                 _A_diagonal_blocks_comm,
@@ -374,7 +402,7 @@ def aggregate_pobtars(
             )
             comm.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
     elif strategy == "gather-scatter":
-        if _use_nccl(comm):
+        if _use_nccl(communicator):
             raise ValueError(
                 "NCCL is not supported for gather-scatter communication strategy."
             )
@@ -432,7 +460,7 @@ def aggregate_pobtars(
     if (
         xp.__name__ == "cupy"
         and not backend_flags["mpi_cuda_aware"]
-        and not _use_nccl(comm)
+        and not _use_nccl(communicator)
     ):
         # Need to put back the reduced system on the GPU
         _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
@@ -449,8 +477,15 @@ def aggregate_pobtarss(
     pobtars: dict,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
     **kwargs,
 ):
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -474,7 +509,7 @@ def aggregate_pobtarss(
     if (
         xp.__name__ == "cupy"
         and not backend_flags["mpi_cuda_aware"]
-        and not _use_nccl(comm)
+        and not _use_nccl(communicator)
     ):
         # We need to move the data of the reduced system from the GPU to the
         # HOST pinned arrays.
@@ -484,10 +519,11 @@ def aggregate_pobtarss(
 
     if strategy == "allgather":
         if _use_nccl(comm):
+            # --- Use NCCL ---
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_B_comm[:-a], comm=comm, op="allgather"
+                arr=_B_comm[:-a], comm=communicator, rank=comm_rank, op="allgather"
             )
-            comm.allGather(
+            communicator.allGather(
                 sendbuf=_B_comm[:-a].data.ptr + displacement,
                 recvbuf=_B_comm[:-a].data.ptr,
                 count=count,
@@ -495,24 +531,25 @@ def aggregate_pobtarss(
                 stream=cp.cuda.Stream.null.ptr,
             )
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_B_comm[-a:], comm=comm, op="allreduce"
+                arr=_B_comm[-a:], comm=communicator, rank=comm_rank, op="allreduce"
             )
-            comm.allReduce(
+            communicator.allReduce(
                 sendbuf=_B_comm[-a:].data.ptr,
                 recvbuf=_B_comm[-a:].data.ptr,
                 count=count,
                 datatype=datatype,
-                op=nccl.NCCL_SUM,
+                op=cp.cuda.nccl.NCCL_SUM,
                 stream=cp.cuda.Stream.null.ptr,
             )
         else:
+            # --- Use MPI ---
             comm.Allgather(
                 MPI.IN_PLACE,
                 _B_comm[:-a],
             )
             comm.Allreduce(MPI.IN_PLACE, _B_comm[-a:], op=MPI.SUM)
     elif strategy == "gather-scatter":
-        if _use_nccl(comm):
+        if _use_nccl(communicator):
             raise ValueError(
                 "NCCL is not supported for gather-scatter communication strategy."
             )
@@ -547,7 +584,7 @@ def aggregate_pobtarss(
     if (
         xp.__name__ == "cupy"
         and not backend_flags["mpi_cuda_aware"]
-        and not _use_nccl(comm)
+        and not _use_nccl(communicator)
     ):
         # Need to put back the reduced system RHS on the GPU
         _B.set(arr=_B_comm)
@@ -559,10 +596,18 @@ def scatter_pobtars(
     pobtars: dict,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
     **kwargs,
 ):
     """Scatter the reduced system."""
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
     _A_diagonal_blocks: ArrayLike = pobtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = pobtars.get("A_lower_diagonal_blocks", None)
@@ -598,6 +643,11 @@ def scatter_pobtars(
     if strategy == "allgather":
         ...
     elif strategy == "gather-scatter":
+        if _use_nccl(communicator):
+            raise ValueError(
+                "NCCL is not supported for gather-scatter communication strategy."
+            )
+        
         root = kwargs.get("root", None)
         if root is None:
             raise ValueError(
@@ -607,7 +657,7 @@ def scatter_pobtars(
         if (
             xp.__name__ == "cupy"
             and not backend_flags["mpi_cuda_aware"]
-            and not _use_nccl(comm)
+            and not _use_nccl(communicator)
         ):
             if comm_rank == root:
                 # If cupy array, need to move the data to host before initiating the communications
@@ -652,7 +702,7 @@ def scatter_pobtars(
         if (
             xp.__name__ == "cupy"
             and not backend_flags["mpi_cuda_aware"]
-            and not _use_nccl(comm)
+            and not _use_nccl(communicator)
         ):
             # Need to put back the reduced system on the GPU
             _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
@@ -671,9 +721,17 @@ def scatter_pobtarss(
     pobtars: dict,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
     **kwargs,
 ):
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
 
     b = A_diagonal_blocks[0].shape[0]
     a = A_arrow_tip_block.shape[0]
@@ -695,6 +753,11 @@ def scatter_pobtarss(
     if strategy == "allgather":
         ...
     elif strategy == "gather-scatter":
+        if _use_nccl(communicator):
+            raise ValueError(
+                "NCCL is not supported for gather-scatter communication strategy."
+            )
+
         root = kwargs.get("root", None)
         if root is None:
             raise ValueError(
@@ -703,7 +766,7 @@ def scatter_pobtarss(
         if (
             xp.__name__ == "cupy"
             and not backend_flags["mpi_cuda_aware"]
-            and not _use_nccl(comm)
+            and not _use_nccl(communicator)
         ):
             if comm_rank == root:
                 # If cupy array, need to move the data to host before initiating the communications
@@ -727,7 +790,7 @@ def scatter_pobtarss(
         if (
             xp.__name__ == "cupy"
             and not backend_flags["mpi_cuda_aware"]
-            and not _use_nccl(comm)
+            and not _use_nccl(communicator)
         ):
             # Need to put back the reduced system on the GPU
             _B.set(arr=_B_comm)
@@ -747,6 +810,7 @@ def map_pobtars_to_ppobtax(
     _A_arrow_tip_block: ArrayLike,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
     **kwargs,
 ):
     """Map the reduced system back to the original system.
@@ -772,6 +836,12 @@ def map_pobtars_to_ppobtax(
     strategy : str, optional
         Communication strategy to use. (default: "allgather")
     """
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -824,9 +894,16 @@ def map_pobtarss_to_ppobtas(
     _B: ArrayLike,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
 ):
     """Map the right-hand side of the PPOBTAS algorithm to the right-hand-side
     of the reduced system."""
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+        
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 

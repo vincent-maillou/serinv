@@ -24,6 +24,7 @@ def pddbtasc(
     A_upper_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel Schur-complement of a block tridiagonal matrix.
@@ -117,9 +118,10 @@ def pddbtasc(
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
+    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
-
     buffers: dict = kwargs.get("buffers", None)
     ddbtars: dict = kwargs.get("ddbtars", None)
     strategy: str = kwargs.get("strategy", "allgather")
@@ -202,6 +204,7 @@ def pddbtasc(
         quadratic=quadratic,
         buffers=buffers,
         _rhs=ddbtars.get("_rhs", None),
+        nccl_comm=nccl_comm,
     )
 
     MPI.COMM_WORLD.Barrier()
@@ -211,7 +214,10 @@ def pddbtasc(
         quadratic=quadratic,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
+    if xp.__name__ == "cupy":
+        xp.cuda.runtime.deviceSynchronize()
     MPI.COMM_WORLD.Barrier()
     toc = time.perf_counter()
     elapsed = toc - tic
