@@ -15,9 +15,6 @@ if backend_flags["cupy_avail"]:
     import cupyx as cpx
     import cupy as cp
 
-    if backend_flags["nccl_avail"]:
-        from cupy.cuda import nccl
-
 
 def allocate_ddbtars(
     A_diagonal_blocks: ArrayLike,
@@ -30,7 +27,14 @@ def allocate_ddbtars(
     comm: MPI.Comm,
     strategy: str = "allgather",
     quadratic: bool = False,
+    nccl_comm: object = None,
 ) -> dict:
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -80,7 +84,7 @@ def allocate_ddbtars(
         if (
             xp.__name__ == "cupy"
             and not backend_flags["mpi_cuda_aware"]
-            and not _use_nccl(comm)
+            and not _use_nccl(communicator)
         ):
             # In this case we also need to allocate a pinned-memory
             # reduced system on the host side.
@@ -144,7 +148,7 @@ def allocate_ddbtars(
             if (
                 xp.__name__ == "cupy"
                 and not backend_flags["mpi_cuda_aware"]
-                and not _use_nccl(comm)
+                and not _use_nccl(communicator)
             ):
                 # In this case we also need to allocate a pinned-memory
                 # reduced system on the host side.
@@ -224,8 +228,15 @@ def map_ddbtasc_to_ddbtars(
     _A_arrow_tip_block: ArrayLike,
     comm: MPI.Comm,
     strategy: str,
+    nccl_comm: object = None,
     **kwargs,
 ) -> None:
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -360,7 +371,14 @@ def aggregate_ddbtars(
     comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
+    nccl_comm: object = None,
 ) -> None:
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -455,7 +473,7 @@ def aggregate_ddbtars(
     if (
         xp.__name__ == "cupy"
         and not backend_flags["mpi_cuda_aware"]
-        and not _use_nccl(comm)
+        and not _use_nccl(communicator)
     ):
         # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
         if comm_rank == 0:
@@ -564,11 +582,12 @@ def aggregate_ddbtars(
         cp.cuda.runtime.deviceSynchronize()
 
     if strategy == "allgather":
-        if _use_nccl(comm):
+        if _use_nccl(communicator):
+            # --- Use NCCL ---
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_diagonal_blocks_comm, comm=comm, op="allgather"
+                arr=_A_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
             )
-            comm.allGather(
+            communicator.allGather(
                 sendbuf=_A_diagonal_blocks_comm.data.ptr + displacement,
                 recvbuf=_A_diagonal_blocks_comm.data.ptr,
                 count=count,
@@ -576,9 +595,9 @@ def aggregate_ddbtars(
                 stream=cp.cuda.Stream.null.ptr,
             )
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_lower_diagonal_blocks_comm, comm=comm, op="allgather"
+                arr=_A_lower_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
             )
-            comm.allGather(
+            communicator.allGather(
                 sendbuf=_A_lower_diagonal_blocks_comm.data.ptr + displacement,
                 recvbuf=_A_lower_diagonal_blocks_comm.data.ptr,
                 count=count,
@@ -586,9 +605,9 @@ def aggregate_ddbtars(
                 stream=cp.cuda.Stream.null.ptr,
             )
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_upper_diagonal_blocks_comm, comm=comm, op="allgather"
+                arr=_A_upper_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
             )
-            comm.allGather(
+            communicator.allGather(
                 sendbuf=_A_upper_diagonal_blocks_comm.data.ptr + displacement,
                 recvbuf=_A_upper_diagonal_blocks_comm.data.ptr,
                 count=count,
@@ -596,9 +615,9 @@ def aggregate_ddbtars(
                 stream=cp.cuda.Stream.null.ptr,
             )
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_lower_arrow_blocks_comm, comm=comm, op="allgather"
+                arr=_A_lower_arrow_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
             )
-            comm.allGather(
+            communicator.allGather(
                 sendbuf=_A_lower_arrow_blocks_comm.data.ptr + displacement,
                 recvbuf=_A_lower_arrow_blocks_comm.data.ptr,
                 count=count,
@@ -606,9 +625,9 @@ def aggregate_ddbtars(
                 stream=cp.cuda.Stream.null.ptr,
             )
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_upper_arrow_blocks_comm, comm=comm, op="allgather"
+                arr=_A_upper_arrow_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
             )
-            comm.allGather(
+            communicator.allGather(
                 sendbuf=_A_upper_arrow_blocks_comm.data.ptr + displacement,
                 recvbuf=_A_upper_arrow_blocks_comm.data.ptr,
                 count=count,
@@ -616,17 +635,18 @@ def aggregate_ddbtars(
                 stream=cp.cuda.Stream.null.ptr,
             )
             count, displacement, datatype = _get_nccl_parameters(
-                arr=_A_arrow_tip_block_comm, comm=comm, op="allreduce"
+                arr=_A_arrow_tip_block_comm, comm=communicator, rank=comm_rank, op="allreduce"
             )
-            comm.allReduce(
+            communicator.allReduce(
                 sendbuf=_A_arrow_tip_block_comm.data.ptr,
                 recvbuf=_A_arrow_tip_block_comm.data.ptr,
                 count=count,
                 datatype=datatype,
-                op=nccl.NCCL_SUM,
+                op=cp.cuda.nccl.NCCL_SUM,
                 stream=cp.cuda.Stream.null.ptr,
             )
         else:
+            # --- Use MPI ---
             comm.Allgather(
                 MPI.IN_PLACE,
                 _A_diagonal_blocks_comm,
@@ -662,11 +682,12 @@ def aggregate_ddbtars(
         ddbtars["A_upper_arrow_blocks"] = _A_upper_arrow_blocks[1:]
 
         if quadratic:
-            if _use_nccl(comm):
+            if _use_nccl(communicator):
+                # --- Use NCCL ---
                 count, displacement, datatype = _get_nccl_parameters(
-                    arr=_B_diagonal_blocks_comm, comm=comm, op="allgather"
+                    arr=_B_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
                 )
-                comm.allGather(
+                communicator.allGather(
                     sendbuf=_B_diagonal_blocks_comm.data.ptr + displacement,
                     recvbuf=_B_diagonal_blocks_comm.data.ptr,
                     count=count,
@@ -674,9 +695,9 @@ def aggregate_ddbtars(
                     stream=cp.cuda.Stream.null.ptr,
                 )
                 count, displacement, datatype = _get_nccl_parameters(
-                    arr=_B_lower_diagonal_blocks_comm, comm=comm, op="allgather"
+                    arr=_B_lower_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
                 )
-                comm.allGather(
+                communicator.allGather(
                     sendbuf=_B_lower_diagonal_blocks_comm.data.ptr + displacement,
                     recvbuf=_B_lower_diagonal_blocks_comm.data.ptr,
                     count=count,
@@ -684,9 +705,9 @@ def aggregate_ddbtars(
                     stream=cp.cuda.Stream.null.ptr,
                 )
                 count, displacement, datatype = _get_nccl_parameters(
-                    arr=_B_upper_diagonal_blocks_comm, comm=comm, op="allgather"
+                    arr=_B_upper_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
                 )
-                comm.allGather(
+                communicator.allGather(
                     sendbuf=_B_upper_diagonal_blocks_comm.data.ptr + displacement,
                     recvbuf=_B_upper_diagonal_blocks_comm.data.ptr,
                     count=count,
@@ -694,9 +715,9 @@ def aggregate_ddbtars(
                     stream=cp.cuda.Stream.null.ptr,
                 )
                 count, displacement, datatype = _get_nccl_parameters(
-                    arr=_B_lower_arrow_blocks_comm, comm=comm, op="allgather"
+                    arr=_B_lower_arrow_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
                 )
-                comm.allGather(
+                communicator.allGather(
                     sendbuf=_B_lower_arrow_blocks_comm.data.ptr + displacement,
                     recvbuf=_B_lower_arrow_blocks_comm.data.ptr,
                     count=count,
@@ -704,9 +725,9 @@ def aggregate_ddbtars(
                     stream=cp.cuda.Stream.null.ptr,
                 )
                 count, displacement, datatype = _get_nccl_parameters(
-                    arr=_B_upper_arrow_blocks_comm, comm=comm, op="allgather"
+                    arr=_B_upper_arrow_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
                 )
-                comm.allGather(
+                communicator.allGather(
                     sendbuf=_B_upper_arrow_blocks_comm.data.ptr + displacement,
                     recvbuf=_B_upper_arrow_blocks_comm.data.ptr,
                     count=count,
@@ -714,17 +735,18 @@ def aggregate_ddbtars(
                     stream=cp.cuda.Stream.null.ptr,
                 )
                 count, displacement, datatype = _get_nccl_parameters(
-                    arr=_B_arrow_tip_block_comm, comm=comm, op="allreduce"
+                    arr=_B_arrow_tip_block_comm, comm=communicator, rank=comm_rank, op="allreduce"
                 )
-                comm.allReduce(
+                communicator.allReduce(
                     sendbuf=_B_arrow_tip_block_comm.data.ptr,
                     recvbuf=_B_arrow_tip_block_comm.data.ptr,
                     count=count,
                     datatype=datatype,
-                    op=nccl.NCCL_SUM,
+                    op=cp.cuda.nccl.NCCL_SUM,
                     stream=cp.cuda.Stream.null.ptr,
                 )
             else:
+                # --- Use MPI ---
                 comm.Allgather(
                     MPI.IN_PLACE,
                     _B_diagonal_blocks_comm,
@@ -763,7 +785,7 @@ def aggregate_ddbtars(
     if (
         xp.__name__ == "cupy"
         and not backend_flags["mpi_cuda_aware"]
-        and not _use_nccl(comm)
+        and not _use_nccl(communicator)
     ):
         # Need to put back the reduced system on the GPU
         _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
@@ -787,8 +809,18 @@ def scatter_ddbtars(
     comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
+    nccl_comm: object = None,
     **kwargs,
 ):
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
+    comm_rank = comm.Get_rank()
+    comm_size = comm.Get_size()
+
     _A_diagonal_blocks: ArrayLike = ddbtars.get("A_diagonal_blocks", None)
     _A_lower_diagonal_blocks: ArrayLike = ddbtars.get("A_lower_diagonal_blocks", None)
     _A_upper_diagonal_blocks: ArrayLike = ddbtars.get("A_upper_diagonal_blocks", None)
@@ -857,8 +889,15 @@ def map_ddbtars_to_ddbtasci(
     _A_arrow_tip_block: ArrayLike,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
     **kwargs,
 ):
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+        
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 

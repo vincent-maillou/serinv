@@ -21,6 +21,7 @@ def pddbtsc(
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel Schur-complement of a block tridiagonal matrix.
@@ -84,6 +85,7 @@ def pddbtsc(
             - _B_upper_diagonal_blocks : ArrayLike
                 The upper diagonal blocks of the reduced system.
     """
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -163,6 +165,7 @@ def pddbtsc(
         quadratic=quadratic,
         buffers=buffers,
         _rhs=ddbtrs.get("_rhs", None),
+        nccl_comm=nccl_comm,
     )
 
     MPI.COMM_WORLD.Barrier()
@@ -172,7 +175,10 @@ def pddbtsc(
         quadratic=quadratic,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
+    if xp.__name__ == "cupy":
+        xp.cuda.runtime.deviceSynchronize()
     MPI.COMM_WORLD.Barrier()
     toc = time.perf_counter()
     elapsed = toc - tic
