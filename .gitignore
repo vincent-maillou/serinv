@@ -165,6 +165,7 @@ cython_debug/
 #.idea/
 
 dev/*
+sc25_runs/*
 *.dat
 *.nsys-rep
 *.sqlite
