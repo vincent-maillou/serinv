@@ -1,5 +1,7 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import time
+
 from mpi4py import MPI
 
 from serinv import (
@@ -202,12 +204,17 @@ def pddbtasc(
         _rhs=ddbtars.get("_rhs", None),
     )
 
+    MPI.COMM_WORLD.Barrier()
+    tic = time.perf_counter()
     aggregate_ddbtars(
         ddbtars=ddbtars,
         quadratic=quadratic,
         comm=comm,
         strategy=strategy,
     )
+    MPI.COMM_WORLD.Barrier()
+    toc = time.perf_counter()
+    elapsed = toc - tic
 
     ddbtars["A_arrow_tip_block"][:] += A_arrow_tip_initial
     if quadratic:
@@ -226,3 +233,5 @@ def pddbtasc(
     )
 
     comm.Barrier()
+
+    return elapsed
