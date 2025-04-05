@@ -1,5 +1,7 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import time
+
 from mpi4py import MPI
 
 from serinv import (
@@ -163,12 +165,17 @@ def pddbtsc(
         _rhs=ddbtrs.get("_rhs", None),
     )
 
+    MPI.COMM_WORLD.Barrier()
+    tic = time.perf_counter()
     aggregate_ddbtrs(
         ddbtrs=ddbtrs,
         quadratic=quadratic,
         comm=comm,
         strategy=strategy,
     )
+    MPI.COMM_WORLD.Barrier()
+    toc = time.perf_counter()
+    elapsed = toc - tic
 
     # Perform Schur complement on the reduced system
     ddbtsc(
@@ -180,3 +187,5 @@ def pddbtsc(
     )
 
     comm.Barrier()
+
+    return elapsed
