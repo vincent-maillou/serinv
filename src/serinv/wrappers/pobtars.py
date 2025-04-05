@@ -345,6 +345,7 @@ def aggregate_pobtars(
     if strategy == "allgather":
         if _use_nccl(communicator):
             # --- Use NCCL ---
+            cp.cuda.runtime.deviceSynchronize()
             count, displacement, datatype = _get_nccl_parameters(
                 arr=_A_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
             )
@@ -386,6 +387,8 @@ def aggregate_pobtars(
                 op=cp.cuda.nccl.NCCL_SUM,
                 stream=cp.cuda.Stream.null.ptr,
             )
+            cp.cuda.runtime.deviceSynchronize()
+            comm.Barrier()
         else:
             # --- Use MPI ---
             comm.Allgather(
