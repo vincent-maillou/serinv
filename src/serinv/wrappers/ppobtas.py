@@ -145,7 +145,7 @@ def ppobtas(
     )
 
     # Agregate reduced RHS
-    MPI.COMM_WORLD.Barrier()
+    comm.Barrier()
     tic = time.perf_counter()
     aggregate_pobtarss(
         A_diagonal_blocks=L_diagonal_blocks,
@@ -157,7 +157,7 @@ def ppobtas(
     )
     if xp.__name__ == "cupy":
         xp.cuda.runtime.deviceSynchronize()
-    MPI.COMM_WORLD.Barrier()
+    comm.Barrier()
     toc = time.perf_counter()
     elapsed = toc - tic
 
