@@ -168,7 +168,7 @@ def pddbtsc(
         nccl_comm=nccl_comm,
     )
 
-    MPI.COMM_WORLD.Barrier()
+    comm.Barrier()
     tic = time.perf_counter()
     aggregate_ddbtrs(
         ddbtrs=ddbtrs,
@@ -179,7 +179,7 @@ def pddbtsc(
     )
     if xp.__name__ == "cupy":
         xp.cuda.runtime.deviceSynchronize()
-    MPI.COMM_WORLD.Barrier()
+    comm.Barrier()
     toc = time.perf_counter()
     elapsed = toc - tic
 
