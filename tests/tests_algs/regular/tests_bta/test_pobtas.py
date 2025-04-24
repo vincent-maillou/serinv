@@ -23,7 +23,6 @@ def test_pobtas(
     dtype: np.dtype,
 ):
     
-    array_type = "streaming"
     
     A = dd_bta(
         diagonal_blocksize,
