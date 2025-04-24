@@ -307,6 +307,8 @@ def _pobtas_streaming(
     # --- H2D: transfers ---
     print("B block")
     print(B[0 : 1 * diag_blocksize])
+    print("B")
+    print(B)
     print("B_d 0")
     print(B_d[0])
     B_d[0].set(arr=B[0 : 1 * diag_blocksize], stream = h2d_stream)
