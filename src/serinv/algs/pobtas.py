@@ -259,11 +259,6 @@ def _pobtas_streaming(
 
     compute_partial_events = [cp.cuda.Event(), cp.cuda.Event()]
 
-    #compute_arrow_events = [cp.cuda.Event(), cp.cuda.Event()]
-    #compute_arrow_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
-    #compute_B_events = [cp.cuda.Event(), cp.cuda.Event()]
-    #compute_B_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
-
     # Vars
     diag_blocksize = L_diagonal_blocks.shape[1]
     arrow_blocksize = L_lower_arrow_blocks.shape[1]
@@ -272,13 +267,9 @@ def _pobtas_streaming(
     # Device Buffers
     # B Buffers
     B_shape = B[0 : diag_blocksize] # block template
-    print("B_shape")
-    print(B_shape)
     B_d = cp.empty(
         (2, *B_shape.shape), dtype=B_shape.dtype
     )
-    print("B_d")
-    print(B_d)
     B_shape = B[-arrow_blocksize:] 
     B_last_block_d = cp.empty_like(B_shape)
     del B_shape
@@ -305,12 +296,6 @@ def _pobtas_streaming(
     L_arrow_tip_block_d.set(arr=L_arrow_tip_block[:, :], stream=h2d_stream)
 
     # --- H2D: transfers ---
-    print("B block")
-    print(B[0 : 1 * diag_blocksize])
-    print("B")
-    print(B)
-    print("B_d 0")
-    print(B_d[0])
     B_d[0].set(arr=B[0 : 1 * diag_blocksize], stream = h2d_stream)
     h2d_B_events[0].record(stream=h2d_stream)
     
@@ -331,7 +316,6 @@ def _pobtas_streaming(
         L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
         h2d_lower_diagonal_events[0].record(stream=h2d_stream)
 
-    
 
     if trans == "N":
         for i in range(0, n_diag_blocks-1):
@@ -342,8 +326,8 @@ def _pobtas_streaming(
                 compute_stream.wait_event(compute_arrow_B_events[i % 2])
                 compute_stream.wait_event(compute_current_B_events[(i + 1) % 2])
                 B_d[i % 2 * diag_blocksize : (i + 1) % 2 * diag_blocksize] = cu_la.solve_triangular(
-                    L_diagonal_blocks[i % 2],
-                    B[i % 2 * diag_blocksize : (i + 1) % 2 * diag_blocksize],
+                    L_diagonal_blocks_d[i % 2],
+                    B_d[i % 2 * diag_blocksize : (i + 1) % 2 * diag_blocksize],
                     lower=True,
                 )
                 compute_current_B_events[i % 2].record(stream=compute_stream)
