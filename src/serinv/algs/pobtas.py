@@ -416,7 +416,7 @@ def _pobtas_streaming(
                 compute_partial_events[1].record(stream=compute_stream)
 
             d2h_stream.wait_event(compute_partial_events[1])
-            B_d[i % 2].get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
+            B_last_block_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
 
             # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
 
