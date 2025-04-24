@@ -272,9 +272,11 @@ def _pobtas_streaming(
     # Device Buffers
     # B Buffers
     B_shape = B[0 : diag_blocksize] # block template
+    print(B_shape)
     B_d = cp.empty(
         (2, *B_shape.shape[1:]), dtype=B_shape.dtype
     )
+    print(B_d)
     B_shape = B[-arrow_blocksize:] 
     B_last_block_d = cp.empty_like(B_shape)
     del B_shape
