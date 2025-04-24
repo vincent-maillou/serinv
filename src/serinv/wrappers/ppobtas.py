@@ -1,5 +1,7 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import time
+
 from mpi4py import MPI
 
 from serinv import (
@@ -23,6 +25,7 @@ def ppobtas(
     L_arrow_tip_block: ArrayLike,
     B: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ):
     """Perform a selected inversion of a block tridiagonal with arrowhead matrix (pointing downward by convention).
@@ -138,16 +141,25 @@ def ppobtas(
         _B=_B,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
 
     # Agregate reduced RHS
+    comm.Barrier()
+    tic = time.perf_counter()
     aggregate_pobtarss(
         A_diagonal_blocks=L_diagonal_blocks,
         A_arrow_tip_block=L_arrow_tip_block,
         pobtars=pobtars,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
+    if xp.__name__ == "cupy":
+        xp.cuda.runtime.deviceSynchronize()
+    comm.Barrier()
+    toc = time.perf_counter()
+    elapsed = toc - tic
 
     # Add the tip block of the RHS to the aggregated update
     _B[-a:] += B_tip_initial
@@ -175,9 +187,12 @@ def ppobtas(
 
     # Scatter solution of reduced RHS
     scatter_pobtarss(
+        A_diagonal_blocks=L_diagonal_blocks,
+        A_arrow_tip_block=L_arrow_tip_block,
         pobtars=pobtars,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
 
     # Map solution of reduced RHS to RHS
@@ -188,6 +203,7 @@ def ppobtas(
         _B=_B,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
 
     # Parallel backward solve
@@ -211,3 +227,5 @@ def ppobtas(
             buffer=buffer,
             trans="C",
         )
+
+    return elapsed

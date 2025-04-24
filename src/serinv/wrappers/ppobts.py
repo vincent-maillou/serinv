@@ -1,5 +1,7 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import time
+
 from mpi4py import MPI
 
 from serinv import (
@@ -21,6 +23,7 @@ def ppobts(
     L_lower_diagonal_blocks: ArrayLike,
     B: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ):
     """Perform a selected inversion of a block tridiagonal with arrowhead matrix (pointing downward by convention).
@@ -119,14 +122,24 @@ def ppobts(
         _B=_B,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
+
     # Agregate reduced RHS
+    comm.Barrier()
+    tic = time.perf_counter()
     aggregate_pobtrss(
         A_diagonal_blocks=L_diagonal_blocks,
         pobtrs=pobtrs,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
+    if xp.__name__ == "cupy":
+        xp.cuda.runtime.deviceSynchronize()
+    comm.Barrier()
+    toc = time.perf_counter()
+    elapsed = toc - tic
 
     # Solve RHS FWD/BWD
     if strategy == "allgather":
@@ -147,9 +160,11 @@ def ppobts(
 
     # Scatter solution of reduced RHS
     scatter_pobtrss(
+        A_diagonal_blocks=L_diagonal_blocks,
         pobtrs=pobtrs,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
 
     # Map solution of reduced RHS to RHS
@@ -159,6 +174,7 @@ def ppobts(
         _B=_B,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
 
     # Parallel backward solve
@@ -178,3 +194,5 @@ def ppobts(
             buffer=buffer,
             trans="C",
         )
+
+    return elapsed

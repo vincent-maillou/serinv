@@ -1,5 +1,7 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import time
+
 from mpi4py import MPI
 
 from serinv import (
@@ -19,6 +21,7 @@ def pddbtsc(
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel Schur-complement of a block tridiagonal matrix.
@@ -33,7 +36,7 @@ def pddbtsc(
         The upper diagonal blocks of the block tridiagonal with arrowhead matrix.
     comm : MPI.Comm
         The MPI communicator. Default is MPI.COMM_WORLD.
-        
+
     Keyword Arguments
     -----------------
     rhs : dict
@@ -82,6 +85,7 @@ def pddbtsc(
             - _B_upper_diagonal_blocks : ArrayLike
                 The upper diagonal blocks of the reduced system.
     """
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -161,14 +165,23 @@ def pddbtsc(
         quadratic=quadratic,
         buffers=buffers,
         _rhs=ddbtrs.get("_rhs", None),
+        nccl_comm=nccl_comm,
     )
 
+    comm.Barrier()
+    tic = time.perf_counter()
     aggregate_ddbtrs(
         ddbtrs=ddbtrs,
         quadratic=quadratic,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
+    if xp.__name__ == "cupy":
+        xp.cuda.runtime.deviceSynchronize()
+    comm.Barrier()
+    toc = time.perf_counter()
+    elapsed = toc - tic
 
     # Perform Schur complement on the reduced system
     ddbtsc(
@@ -180,3 +193,5 @@ def pddbtsc(
     )
 
     comm.Barrier()
+
+    return elapsed
