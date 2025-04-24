@@ -302,8 +302,8 @@ def _pobtas_streaming(
     L_diagonal_blocks_d[0].set(arr=L_diagonal_blocks[0], stream=h2d_stream)
     h2d_diagonal_events[0].record(stream=h2d_stream)
 
-    L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
-    h2d_lower_diagonal_events[0].record(stream=h2d_stream)
+    #L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
+    #h2d_lower_diagonal_events[0].record(stream=h2d_stream)
 
     L_lower_arrow_blocks_d[0].set(arr=L_lower_arrow_blocks[0], stream=h2d_stream)
     h2d_arrow_events[0].record(stream=h2d_stream)
@@ -318,7 +318,7 @@ def _pobtas_streaming(
 
 
     if trans == "N":
-        for i in range(0, n_diag_blocks-1):
+        for i in range(0, n_diag_blocks - 1):
             # --- Forward substitution ---
             with compute_stream:
                 # Compute step 1 : compute B
@@ -357,7 +357,7 @@ def _pobtas_streaming(
                 compute_next_B_events[i % 2].record(stream=compute_stream)
 
             h2d_stream.wait_event(compute_next_B_events[i % 2])
-            L_lower_diagonal_blocks_d[(i + 2) % 2].set(arr=L_lower_diagonal_blocks[i + 2], stream=h2d_stream)
+            L_lower_diagonal_blocks_d[(i + 1) % 2].set(arr=L_lower_diagonal_blocks[i + 1], stream=h2d_stream)
             h2d_lower_diagonal_events[i % 2].record(stream=h2d_stream)
                 
             with compute_stream:
