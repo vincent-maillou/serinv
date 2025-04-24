@@ -275,7 +275,7 @@ def _pobtas_streaming(
     print("B_shape")
     print(B_shape)
     B_d = cp.empty(
-        (2, *B_shape.shape[1:]), dtype=B_shape.dtype
+        (2, *B_shape.shape), dtype=B_shape.dtype
     )
     print("B_d")
     print(B_d)
