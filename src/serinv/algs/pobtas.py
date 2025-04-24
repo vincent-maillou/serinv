@@ -325,8 +325,6 @@ def _pobtas_streaming(
                 compute_stream.wait_event(h2d_diagonal_events[i % 2])
                 compute_stream.wait_event(compute_arrow_B_events[i % 2])
                 compute_stream.wait_event(compute_current_B_events[(i + 1) % 2])
-                print(B_d[i % 2].shape)
-                print(L_diagonal_blocks_d[i % 2].shape)
                 B_d[i % 2] = cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2],
@@ -352,9 +350,9 @@ def _pobtas_streaming(
                 compute_stream.wait_event(h2d_B_events[(i + 1) % 2])
                 compute_stream.wait_event(compute_current_B_events[i % 2])
                 compute_stream.wait_event(compute_next_B_events[(i + 1) % 2])
-                B_d[(i + 1) % 2 * diag_blocksize : (i + 2) % 2 * diag_blocksize] -= (
-                    L_lower_diagonal_blocks[i%2]
-                    @ B[i % 2 * diag_blocksize : (i + 1) % 2 * diag_blocksize]
+                B_d[(i + 1) % 2] -= (
+                    L_lower_diagonal_blocks[i % 2]
+                    @ B[i % 2]
                 )
                 compute_next_B_events[i % 2].record(stream=compute_stream)
 
