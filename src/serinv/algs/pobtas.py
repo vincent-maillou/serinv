@@ -333,7 +333,7 @@ def _pobtas_streaming(
                 compute_current_B_events[i % 2].record(stream=compute_stream)
             
             h2d_stream.wait_event(compute_current_B_events[i % 2])
-            L_diagonal_blocks_d[(i + 2) % 2].set(arr=L_diagonal_blocks[i + 2], stream=h2d_stream)
+            L_diagonal_blocks_d[(i + 1) % 2].set(arr=L_diagonal_blocks[i + 1], stream=h2d_stream)
             h2d_diagonal_events[i % 2].record(stream=h2d_stream)
 
             d2h_stream.wait_event(compute_next_B_events[i % 2])
