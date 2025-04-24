@@ -3,10 +3,13 @@
 import numpy as np
 import pytest
 
-from serinv import _get_module_from_array
+from serinv import backend_flags, _get_module_from_array
 from ....testing_utils import bta_dense_to_arrays, dd_bta, symmetrize, rhs
 
 from serinv.algs import pobtaf, pobtas
+
+if backend_flags["cupy_avail"]:
+    import cupyx as cpx
 
 
 @pytest.mark.mpi_skip()
@@ -19,6 +22,9 @@ def test_pobtas(
     array_type: str,
     dtype: np.dtype,
 ):
+    
+    array_type = "streaming"
+    
     A = dd_bta(
         diagonal_blocksize,
         arrowhead_blocksize,
@@ -51,6 +57,24 @@ def test_pobtas(
         A_arrow_tip_block,
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
+    if backend_flags["cupy_avail"] and array_type == "streaming":
+        A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks)
+        A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :]
+        A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)
+        A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks[:, :, :]
+        A_lower_arrow_blocks_pinned = cpx.zeros_like_pinned(A_lower_arrow_blocks)
+        A_lower_arrow_blocks_pinned[:, :, :] = A_lower_arrow_blocks[:, :, :]
+        A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block)
+        A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block[:, :]
+        B_pinned = cpx.zeros_like_pinned(B)
+        B_pinned[:, :] = B[:, :]
+
+        A_diagonal_blocks = A_diagonal_blocks_pinned
+        A_lower_diagonal_blocks = A_lower_diagonal_blocks_pinned
+        A_lower_arrow_blocks = A_lower_arrow_blocks_pinned
+        A_arrow_tip_block = A_arrow_tip_block_pinned
+        B = B_pinned
+
     pobtaf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
@@ -66,6 +90,7 @@ def test_pobtas(
         A_arrow_tip_block,
         B,
         trans="N",
+        device_streaming=True if array_type == "streaming" else False,
     )
 
     # Backward solve: X=L^{-T}Y

@@ -4,6 +4,7 @@
 from serinv import (
     ArrayLike,
     _get_module_from_array,
+    _get_module_from_str,
 )
 
 
@@ -47,8 +48,14 @@ def pobtas(
     else:
         # Natural arrowhead
         if device_streaming:
-            raise NotImplementedError(
-                "Streaming is not implemented for the natural arrowhead."
+            _pobtas_streaming(
+                L_diagonal_blocks,
+                L_lower_diagonal_blocks,
+                L_lower_arrow_blocks,
+                L_arrow_tip_block,
+                B,
+                trans,
+                partial,
             )
         else:
             _pobtas(
@@ -214,5 +221,208 @@ def _pobtas_permuted(
                 lower=True,
                 trans="C",
             )
+    else:
+        raise ValueError(f"Invalid transpose argument: {trans}.")
+    
+def _pobtas_streaming(
+    L_diagonal_blocks: ArrayLike,
+    L_lower_diagonal_blocks: ArrayLike,
+    L_lower_arrow_blocks: ArrayLike,
+    L_arrow_tip_block: ArrayLike,
+    B: ArrayLike,
+    trans: str,
+    partial: bool,
+):
+    arr_module, _ = _get_module_from_array(arr=L_diagonal_blocks)
+    if arr_module.__name__ != "numpy":
+        raise NotImplementedError(
+            "Host<->Device streaming only works when host-arrays are given."
+        )
+
+    cp, cu_la = _get_module_from_str(module_str="cupy")
+
+    # Streams and events
+    compute_stream = cp.cuda.Stream(non_blocking=True)
+    h2d_stream = cp.cuda.Stream(non_blocking=True)
+    d2h_stream = cp.cuda.Stream(non_blocking=True)
+
+    h2d_diagonal_events = [cp.cuda.Event(), cp.cuda.Event()]
+    h2d_lower_diagonal_events = [cp.cuda.Event(), cp.cuda.Event()]
+    h2d_arrow_events = [cp.cuda.Event(), cp.cuda.Event()]
+    h2d_B_events = [cp.cuda.Event(), cp.cuda.Event()]
+
+    d2h_B_events = [cp.cuda.Event(), cp.cuda.Event()]
+
+    compute_current_B_events = [cp.cuda.Event(), cp.cuda.Event()]
+    compute_next_B_events = [cp.cuda.Event(), cp.cuda.Event()]
+    compute_arrow_B_events = [cp.cuda.Event(), cp.cuda.Event()]
+
+    compute_partial_events = [cp.cuda.Event(), cp.cuda.Event()]
+
+    #compute_arrow_events = [cp.cuda.Event(), cp.cuda.Event()]
+    #compute_arrow_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
+    #compute_B_events = [cp.cuda.Event(), cp.cuda.Event()]
+    #compute_B_h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
+
+    # Vars
+    diag_blocksize = L_diagonal_blocks.shape[1]
+    arrow_blocksize = L_lower_arrow_blocks.shape[1]
+    n_diag_blocks = L_diagonal_blocks.shape[0]
+
+    # Device Buffers
+    # B Buffers
+    B_shape = B[0 : diag_blocksize] # block template
+    B_d = cp.empty(
+        (2, *B_shape.shape[1:]), dtype=B_shape.dtype
+    )
+    B_shape = B[-arrow_blocksize:] 
+    B_last_block_d = cp.empty_like(B_shape)
+    del B_shape
+
+    # L Buffers
+    L_diagonal_blocks_d = cp.empty(
+        (2, *L_diagonal_blocks.shape[1:]), dtype=L_diagonal_blocks.dtype
+    )
+    L_lower_diagonal_blocks_d = cp.empty(
+        (2, *L_diagonal_blocks.shape[1:]), dtype=L_diagonal_blocks.dtype
+    )
+    L_lower_arrow_blocks_d = cp.empty(
+        (2, *L_lower_arrow_blocks.shape[1:]), dtype=L_diagonal_blocks.dtype
+    )
+    L_arrow_tip_block_d = cp.empty_like(L_arrow_tip_block)
+
+    # Forward Pass
+    # --- C: events + transfers ---
+    compute_current_B_events[1].record(stream=compute_stream)
+    compute_next_B_events[1].record(stream=compute_stream)
+    compute_arrow_B_events[1].record(stream=compute_stream)
+
+    B_last_block_d.set(arr=B[-arrow_blocksize:], stream=h2d_stream)
+    L_arrow_tip_block_d.set(arr=L_arrow_tip_block[:, :], stream=h2d_stream)
+
+    # --- H2D: transfers ---
+    B_d[0].set(arr=B[0 : 1 * diag_blocksize], stream = h2d_stream)
+    h2d_B_events[0].record(stream=h2d_stream)
+    
+    L_diagonal_blocks_d[0].set(arr=L_diagonal_blocks[0], stream=h2d_stream)
+    h2d_diagonal_events[0].record(stream=h2d_stream)
+
+    L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
+    h2d_lower_diagonal_events[0].record(stream=h2d_stream)
+
+    L_lower_arrow_blocks_d[0].set(arr=L_lower_arrow_blocks[0], stream=h2d_stream)
+    h2d_arrow_events[0].record(stream=h2d_stream)
+
+    # --- D2H: event ---
+    d2h_B_events[1].record(stream=d2h_stream)
+
+    n_diag_blocks: int = L_diagonal_blocks.shape[0] # why?
+    if n_diag_blocks > 1:
+        L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
+        h2d_lower_diagonal_events[0].record(stream=h2d_stream)
+
+    
+
+    if trans == "N":
+        for i in range(0, n_diag_blocks-1):
+            # --- Forward substitution ---
+            with compute_stream:
+                # Compute step 1 : compute B
+                compute_stream.wait_event(h2d_diagonal_events[i % 2])
+                compute_stream.wait_event(compute_arrow_B_events[i % 2])
+                compute_stream.wait_event(compute_current_B_events[(i + 1) % 2])
+                B_d[i % 2 * diag_blocksize : (i + 1) % 2 * diag_blocksize] = cu_la.solve_triangular(
+                    L_diagonal_blocks[i % 2],
+                    B[i % 2 * diag_blocksize : (i + 1) % 2 * diag_blocksize],
+                    lower=True,
+                )
+                compute_current_B_events[i % 2].record(stream=compute_stream)
+            
+            h2d_stream.wait_event(compute_current_B_events[i % 2])
+            L_diagonal_blocks_d[(i + 2) % 2].set(arr=L_diagonal_blocks[i + 2], stream=h2d_stream)
+            h2d_diagonal_events[i % 2].record(stream=h2d_stream)
+
+            d2h_stream.wait_event(compute_next_B_events[i % 2])
+            B_d[i % 2].get(
+                out=B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                stream=d2h_stream,
+                blocking=False,
+            )
+            d2h_B_events[i % 2].record(stream=d2h_stream)
+            
+            with compute_stream:
+                # 2
+                compute_stream.wait_event(h2d_lower_diagonal_events[i % 2])
+                compute_stream.wait_event(h2d_B_events[(i + 1) % 2])
+                compute_stream.wait_event(compute_current_B_events[i % 2])
+                compute_stream.wait_event(compute_next_B_events[(i + 1) % 2])
+                B_d[(i + 1) % 2 * diag_blocksize : (i + 2) % 2 * diag_blocksize] -= (
+                    L_lower_diagonal_blocks[i%2]
+                    @ B[i % 2 * diag_blocksize : (i + 1) % 2 * diag_blocksize]
+                )
+                compute_next_B_events[i % 2].record(stream=compute_stream)
+
+            h2d_stream.wait_event(compute_next_B_events[i % 2])
+            L_lower_diagonal_blocks_d[(i + 2) % 2].set(arr=L_lower_diagonal_blocks[i + 2], stream=h2d_stream)
+            h2d_lower_diagonal_events[i % 2].record(stream=h2d_stream)
+                
+            with compute_stream:
+                # 3
+                compute_stream.wait_event(h2d_arrow_events[i % 2])
+                compute_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
+                compute_stream.wait_event(compute_next_B_events[i % 2])
+                B_last_block_d -= (
+                    L_lower_arrow_blocks_d[i % 2]
+                    @ B_d[i % 2 * diag_blocksize : (i + 1) % 2 * diag_blocksize]
+                )
+                compute_arrow_B_events[i % 2].record(stream=compute_stream)
+
+            h2d_stream.wait_event(compute_arrow_B_events[i % 2])
+            B_d[(i + 2) % 2].set(arr=B[(i + 2) * diag_blocksize : (i + 3) * diag_blocksize], stream = h2d_stream)
+            h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
+
+            L_lower_arrow_blocks_d[(i + 1) % 2].set(arr=L_lower_arrow_blocks[i + 1], stream=h2d_stream)
+            h2d_arrow_events[i % 2].record(stream=h2d_stream)
+
+
+        if not partial:
+            # In the case of the partial solve, we do not solve the last block and
+            # arrow tip block of the RHS.
+            
+            L_diagonal_blocks_d[0].set(arr=L_diagonal_blocks[n_diag_blocks - 1], stream=h2d_stream)
+            h2d_diagonal_events[0].record(stream=h2d_stream)
+
+            L_lower_arrow_blocks_d[0].set(arr=L_diagonal_blocks[n_diag_blocks - 1], stream=h2d_stream)
+            h2d_arrow_events[0].record(stream=h2d_stream)
+
+            
+            with compute_stream:
+
+                compute_stream.wait_event(h2d_diagonal_events[0])
+                B_last_block_d = (cu_la.solve_triangular(L_diagonal_blocks_d[0], B_d[0], lower=True,))
+                compute_partial_events[0].record(stream=compute_stream)
+
+                compute_stream.wait_event(h2d_arrow_events[0])
+                compute_stream.wait_event(compute_partial_events[0])
+                B_last_block_d -= (L_lower_arrow_blocks_d[-1] @ B_last_block_d[1])
+                compute_partial_events[1].record(stream=compute_stream)
+
+            d2h_stream.wait_event(compute_partial_events[1])
+            B_d[i % 2].get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
+
+            # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
+
+    elif trans == "T" or trans == "C":
+        # ----- Backward substitution -----
+        if not partial:
+            # X_{ndb+1} = L_{ndb+1,ndb+1}^{-T} (Y_{ndb+1})
+            raise NotImplementedError(
+            "T and C not yet implemented."
+        )
+            # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
+
+        # for i in range(n_diag_blocks -2, -1, -1):
+            # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
+            
     else:
         raise ValueError(f"Invalid transpose argument: {trans}.")
