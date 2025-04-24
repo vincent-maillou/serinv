@@ -367,7 +367,7 @@ def _pobtas_streaming(
                 compute_stream.wait_event(compute_next_B_events[i % 2])
                 B_last_block_d -= (
                     L_lower_arrow_blocks_d[i % 2]
-                    @ B_d[i % 2 * diag_blocksize : (i + 1) % 2 * diag_blocksize]
+                    @ B_d[i % 2]
                 )
                 compute_arrow_B_events[i % 2].record(stream=compute_stream)
 
