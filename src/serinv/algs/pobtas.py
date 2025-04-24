@@ -305,6 +305,10 @@ def _pobtas_streaming(
     L_arrow_tip_block_d.set(arr=L_arrow_tip_block[:, :], stream=h2d_stream)
 
     # --- H2D: transfers ---
+    print("B block")
+    print(B[0 : 1 * diag_blocksize])
+    print("B_d 0")
+    print(B_d[0])
     B_d[0].set(arr=B[0 : 1 * diag_blocksize], stream = h2d_stream)
     h2d_B_events[0].record(stream=h2d_stream)
     
