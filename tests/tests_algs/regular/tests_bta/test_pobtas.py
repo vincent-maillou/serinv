@@ -22,7 +22,7 @@ def test_pobtas(
     array_type: str,
     dtype: np.dtype,
 ):
-    # array_type = "streaming"
+    array_type = "streaming"
     
     A = dd_bta(
         diagonal_blocksize,
@@ -57,7 +57,6 @@ def test_pobtas(
     ) = bta_dense_to_arrays(A, diagonal_blocksize, arrowhead_blocksize, n_diag_blocks)
 
     if backend_flags["cupy_avail"] and array_type == "streaming":
-        print("streaming")
         A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks)
         A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :]
         A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)
