@@ -445,7 +445,18 @@ def _pobtas_streaming(
             L_lower_arrow_blocks_d[0].set(arr=L_lower_arrow_blocks[-1], stream=h2d_stream)
             h2d_arrow_events[0].record(stream=h2d_stream)
 
-            
+            B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
+                la.solve_triangular(
+                    L_diagonal_blocks[n_diag_blocks - 1],
+                    B[
+                        (n_diag_blocks - 1)
+                        * diag_blocksize : n_diag_blocks
+                        * diag_blocksize
+                    ],
+                    lower=True,
+                )
+            )
+            print(B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize])
             
             with compute_stream:
 
@@ -461,7 +472,7 @@ def _pobtas_streaming(
             d2h_B_events[0].record(stream=d2h_stream)
 
             h2d_stream.wait_event(d2h_B_events[0])
-            B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
+            B_arrow_tip_d.set(arr=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
             h2d_tip_events[0].record(stream=h2d_stream)
 
             with compute_stream:
