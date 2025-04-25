@@ -388,7 +388,7 @@ def _pobtas_streaming(
                 d2h_B_events[(i + 1) % 2].record(stream=d2h_stream)
                 
                 h2d_stream.wait_event(d2h_B_events[(i + 1) % 2])
-                B_arrow_tip_d.set(arr=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
+                B_arrow_tip_d.set(arr=B[-arrow_blocksize:], stream=d2h_stream,)
                 h2d_tip_events[i % 2].record(stream=h2d_stream)
 
                 
