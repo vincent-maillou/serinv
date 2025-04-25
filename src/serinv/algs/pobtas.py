@@ -466,9 +466,6 @@ def _pobtas_streaming(
                 compute_stream.wait_event(h2d_tip_events[0])
                 compute_stream.wait_event(compute_partial_events[0])
 
-                print(L_lower_arrow_blocks_d)
-                print(B_arrow_tip_d)
-
                 B_arrow_tip_d -= (L_lower_arrow_blocks_d[0] @ B_d[0])
                 compute_partial_events[1].record(stream=compute_stream)
 
