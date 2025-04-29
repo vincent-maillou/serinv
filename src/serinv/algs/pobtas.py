@@ -417,6 +417,9 @@ def _pobtas_streaming(
 
 
         if not partial:
+            raise NotImplementedError(
+                "just error display"
+            )
             # In the case of the partial solve, we do not solve the last block and
             # arrow tip block of the RHS.
             
