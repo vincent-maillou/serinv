@@ -481,7 +481,7 @@ def _pobtas_streaming(
         h2d_events[n_diag_blocks % 2].record(stream=h2d_stream)
         if n_diag_blocks > 1:
             B_d[n_diag_blocks % 2].set(
-                arr=B[-arrow_blocksize - 2 * diag_blocksize : -arrow_blocksize - diag_blocksize], 
+                arr=B[-arrow_blocksize - (2 * diag_blocksize) : -arrow_blocksize - diag_blocksize], 
                 stream=h2d_stream
             )
 
