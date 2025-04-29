@@ -419,18 +419,10 @@ def _pobtas_streaming(
         if not partial:
             # In the case of the partial solve, we do not solve the last block and
             # arrow tip block of the RHS.
-
-            raise NotImplementedError(
-                "wrong."
-            )
-
             
             h2d_stream.wait_event(d2h_tip_events[n_diag_blocks % 2])
             L_diagonal_blocks_d[0].set(arr=L_diagonal_blocks[n_diag_blocks - 1], stream=h2d_stream)
             h2d_diagonal_events[0].record(stream=h2d_stream)
-
-            B_d[0].set(arr=B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize], stream=h2d_stream,)
-            h2d_B_events[0].record(stream=h2d_stream)
 
             L_lower_arrow_blocks_d[0].set(arr=L_lower_arrow_blocks[-1], stream=h2d_stream)
             h2d_arrow_events[0].record(stream=h2d_stream)
@@ -438,22 +430,18 @@ def _pobtas_streaming(
             
             with compute_stream:
 
-                compute_stream.wait_event(h2d_B_events[0])
-                B_d[0] = (cu_la.solve_triangular(L_diagonal_blocks_d[0], B_d[0], lower=True,))
+                compute_stream.wait_event(h2d_diagonal_events[0])
+                B_d[(n_diag_blocks - 1) % 2] = (cu_la.solve_triangular(L_diagonal_blocks_d[0], B_d[(n_diag_blocks - 1) % 2], lower=True,))
                 compute_partial_events[0].record(stream=compute_stream)
 
             d2h_stream.wait_event(compute_partial_events[0])
             B_d[0].get(out=B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize], stream=d2h_stream, blocking=False,)
             d2h_B_events[0].record(stream=d2h_stream)
 
-            h2d_stream.wait_event(d2h_B_events[0])
-            B_arrow_tip_d.set(arr=B[-arrow_blocksize:], stream=d2h_stream,)
-            h2d_tip_events[0].record(stream=h2d_stream)
-
             with compute_stream:
-                compute_stream.wait_event(h2d_tip_events[0])
+                compute_stream.wait_event(h2d_arrow_events[0])
 
-                B_arrow_tip_d -= (L_lower_arrow_blocks_d[0] @ B_d[0])
+                B_arrow_tip_d -= (L_lower_arrow_blocks_d[0] @ B_d[(n_diag_blocks - 1) % 2])
                 compute_partial_events[1].record(stream=compute_stream)
 
                 compute_stream.wait_event(compute_partial_events[1])
