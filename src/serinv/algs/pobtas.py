@@ -331,6 +331,10 @@ def _pobtas_streaming(
 
 
     if trans == "N":
+
+        print(B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize])
+        print(B[-arrow_blocksize:])
+
         for i in range(0, n_diag_blocks - 1):
             # --- Forward substitution ---
             with compute_stream:
