@@ -331,11 +331,6 @@ def _pobtas_streaming(
 
 
     if trans == "N":
-
-        print(B)
-        print(B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize])
-        print(B[-arrow_blocksize:])
-
         for i in range(0, n_diag_blocks - 1):
             # --- Forward substitution ---
             with compute_stream:
@@ -352,8 +347,6 @@ def _pobtas_streaming(
                 h2d_stream.wait_event(compute_current_B_events[i % 2])
                 L_diagonal_blocks_d[(i + 2) % 2].set(arr=L_diagonal_blocks[i + 2], stream=h2d_stream)
                 h2d_diagonal_events[(i + 2) % 2].record(stream=h2d_stream)
-                if not ((i + 2) * diag_blocksize) < (n_diag_blocks * diag_blocksize - arrow_blocksize):
-                    B_d[(i + 1) % 2].set(arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream=h2d_stream,)
 
             d2h_stream.wait_event(compute_current_B_events[i % 2])
             B_d[i % 2].get(
@@ -378,26 +371,10 @@ def _pobtas_streaming(
                 h2d_stream.wait_event(compute_next_B_events[i % 2])
                 L_lower_diagonal_blocks_d[(i + 2) % 2].set(arr=L_lower_diagonal_blocks[i + 2], stream=h2d_stream)
                 h2d_lower_diagonal_events[(i + 2) % 2].record(stream=h2d_stream)
-
-            if not ((i + 2) * diag_blocksize) < (n_diag_blocks * diag_blocksize - arrow_blocksize):
-                d2h_stream.wait_event(compute_next_B_events[i % 2])
-                B_d[(i + 1) % 2].get(
-                    out=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
-                    stream=d2h_stream,
-                    blocking=False,
-                )
-                d2h_B_events[(i + 1) % 2].record(stream=d2h_stream)
-                
-                h2d_stream.wait_event(d2h_B_events[(i + 1) % 2])
-                B_arrow_tip_d.set(arr=B[-arrow_blocksize:], stream=d2h_stream,)
-                h2d_tip_events[i % 2].record(stream=h2d_stream)
-
                 
             with compute_stream:
                 # 3
                 compute_stream.wait_event(h2d_arrow_events[i % 2])
-                if not ((i + 2) * diag_blocksize) < (n_diag_blocks * diag_blocksize - arrow_blocksize):
-                    compute_stream.wait_event(h2d_tip_events[i % 2])
                 
                 B_arrow_tip_d -= (
                     L_lower_arrow_blocks_d[i % 2]
@@ -405,22 +382,14 @@ def _pobtas_streaming(
                 )
 
                 compute_arrow_B_events[i % 2].record(stream=compute_stream)
-                
 
-            # make sure that arrowtip and B overlap gets resolved
-            if ((i + 3) * diag_blocksize) < (n_diag_blocks * diag_blocksize - arrow_blocksize):
-                h2d_stream.wait_event(compute_arrow_B_events[i % 2])
-                B_d[(i + 2) % 2].set(arr=B[(i + 2) * diag_blocksize : (i + 3) * diag_blocksize], stream = h2d_stream)
-                h2d_B_events[(i + 2) % 2].record(stream=h2d_stream)
-
-            else:
-                d2h_stream.wait_event(compute_arrow_B_events[i % 2])
-                B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
-                d2h_tip_events[i % 2].record(stream=d2h_stream)
-                
-                if i + 1 < n_diag_blocks - 1:
-                    B_d[(i + 1) % 2].set(arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream = h2d_stream)
-                    h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
+            d2h_stream.wait_event(compute_arrow_B_events[i % 2])
+            B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
+            d2h_tip_events[i % 2].record(stream=d2h_stream)
+            
+            if i + 1 < n_diag_blocks - 1:
+                B_d[(i + 1) % 2].set(arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream = h2d_stream)
+                h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
 
 
             if i + 2 < n_diag_blocks - 1:
