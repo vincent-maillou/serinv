@@ -322,7 +322,7 @@ def _pobtas_streaming(
         # --- Forward substitution ---
         for i in range(0, n_diag_blocks - 1):
 
-            if i + 1 < n_diag_blocks - 1:
+            if i < n_diag_blocks - 1:
                 # stream next B block
                 h2d_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
 
@@ -333,6 +333,7 @@ def _pobtas_streaming(
 
                 h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
 
+            if i + 1 < n_diag_blocks - 1:
                 # stream next diagonal block
                 h2d_stream.wait_event(compute_current_B_events[(i + 1) % 2])
 
