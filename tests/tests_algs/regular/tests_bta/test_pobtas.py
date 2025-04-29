@@ -100,6 +100,7 @@ def test_pobtas(
         A_arrow_tip_block,
         B,
         trans="C",
+        device_streaming=True if array_type == "streaming" else False,
     )
 
     assert xp.allclose(B, X_ref)
