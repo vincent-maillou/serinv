@@ -319,6 +319,7 @@ def _pobtas_streaming(
 
 
     if trans == "N":
+        print(B)
         # --- Forward substitution ---
         for i in range(0, n_diag_blocks - 1):
 
@@ -401,7 +402,7 @@ def _pobtas_streaming(
                 h2d_arrow_events[(i + 1) % 2].record(stream=h2d_stream)
 
             with compute_stream:
-                # Compute step 3 : update arrowtip
+                # Compute step 3 : update arrow tip
                 compute_stream.wait_event(h2d_arrow_events[i % 2])
                 
                 B_arrow_tip_d -= (
@@ -417,9 +418,6 @@ def _pobtas_streaming(
 
 
         if not partial:
-            raise NotImplementedError(
-                "just error display"
-            )
             # In the case of the partial solve, we do not solve the last block and
             # arrow tip block of the RHS.
             
@@ -453,6 +451,8 @@ def _pobtas_streaming(
 
             d2h_stream.wait_event(compute_partial_events[0])
             B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
+
+            print(B)
 
 
     elif trans == "T" or trans == "C":
