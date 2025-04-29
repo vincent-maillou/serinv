@@ -319,8 +319,8 @@ def _pobtas_streaming(
 
 
     if trans == "N":
+        # --- Forward substitution ---
         for i in range(0, n_diag_blocks - 1):
-            # --- Forward substitution ---
 
             if i + 1 < n_diag_blocks - 1:
                 # stream next B block
@@ -419,6 +419,11 @@ def _pobtas_streaming(
         if not partial:
             # In the case of the partial solve, we do not solve the last block and
             # arrow tip block of the RHS.
+
+            raise NotImplementedError(
+                "wrong."
+            )
+
             
             h2d_stream.wait_event(d2h_tip_events[n_diag_blocks % 2])
             L_diagonal_blocks_d[0].set(arr=L_diagonal_blocks[n_diag_blocks - 1], stream=h2d_stream)
@@ -464,8 +469,8 @@ def _pobtas_streaming(
         if not partial:
             # X_{ndb+1} = L_{ndb+1,ndb+1}^{-T} (Y_{ndb+1})
             raise NotImplementedError(
-            "T and C not yet implemented."
-        )
+                "T and C not yet implemented."
+            )
             # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
 
         # for i in range(n_diag_blocks -2, -1, -1):
