@@ -425,24 +425,24 @@ def _pobtas_streaming(
             L_diagonal_blocks_d[(n_diag_blocks - 1) % 2].set(arr=L_diagonal_blocks[n_diag_blocks - 1], stream=h2d_stream)
             h2d_diagonal_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
 
-            L_lower_arrow_blocks_d[0].set(arr=L_lower_arrow_blocks[-1], stream=h2d_stream)
-            h2d_arrow_events[0].record(stream=h2d_stream)
+            L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2].set(arr=L_lower_arrow_blocks[-1], stream=h2d_stream)
+            h2d_arrow_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
 
             
             with compute_stream:
 
-                compute_stream.wait_event(h2d_diagonal_events[0])
+                compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
                 B_d[(n_diag_blocks - 1) % 2] = (cu_la.solve_triangular(L_diagonal_blocks_d[(n_diag_blocks - 1) % 2], B_d[(n_diag_blocks - 1) % 2], lower=True,))
                 compute_partial_events[0].record(stream=compute_stream)
 
             d2h_stream.wait_event(compute_partial_events[0])
-            B_d[0].get(out=B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize], stream=d2h_stream, blocking=False,)
+            B_d[(n_diag_blocks - 1) % 2].get(out=B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize], stream=d2h_stream, blocking=False,)
             d2h_B_events[0].record(stream=d2h_stream)
 
             with compute_stream:
-                compute_stream.wait_event(h2d_arrow_events[0])
+                compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
 
-                B_arrow_tip_d -= (L_lower_arrow_blocks_d[0] @ B_d[(n_diag_blocks - 1) % 2])
+                B_arrow_tip_d -= (L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2] @ B_d[(n_diag_blocks - 1) % 2])
                 compute_partial_events[1].record(stream=compute_stream)
 
                 compute_stream.wait_event(compute_partial_events[1])
