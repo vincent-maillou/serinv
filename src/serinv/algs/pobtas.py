@@ -336,8 +336,6 @@ def _pobtas_streaming(
             with compute_stream:
                 # Compute step 1 : compute B
                 compute_stream.wait_event(h2d_diagonal_events[i % 2])
-                compute_stream.wait_event(compute_arrow_B_events[i % 2])
-                compute_stream.wait_event(compute_current_B_events[(i + 1) % 2])
                 B_d[i % 2] = cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2],
@@ -364,10 +362,7 @@ def _pobtas_streaming(
             
             with compute_stream:
                 # 2
-                compute_stream.wait_event(h2d_lower_diagonal_events[i % 2])
                 compute_stream.wait_event(h2d_B_events[(i + 1) % 2])
-                compute_stream.wait_event(compute_current_B_events[i % 2])
-                compute_stream.wait_event(compute_next_B_events[(i + 1) % 2])
                 B_d[(i + 1) % 2] -= (
                     L_lower_diagonal_blocks_d[i % 2]
                     @ B_d[i % 2]
@@ -396,8 +391,6 @@ def _pobtas_streaming(
             with compute_stream:
                 # 3
                 compute_stream.wait_event(h2d_arrow_events[i % 2])
-                compute_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
-                compute_stream.wait_event(compute_next_B_events[i % 2])
                 if not ((i + 2) * diag_blocksize) < (n_diag_blocks * diag_blocksize - arrow_blocksize):
                     compute_stream.wait_event(h2d_tip_events[i % 2])
                 
@@ -448,7 +441,6 @@ def _pobtas_streaming(
             
             with compute_stream:
 
-                compute_stream.wait_event(h2d_diagonal_events[0])
                 compute_stream.wait_event(h2d_B_events[0])
                 B_d[0] = (cu_la.solve_triangular(L_diagonal_blocks_d[0], B_d[0], lower=True,))
                 compute_partial_events[0].record(stream=compute_stream)
@@ -462,9 +454,7 @@ def _pobtas_streaming(
             h2d_tip_events[0].record(stream=h2d_stream)
 
             with compute_stream:
-                compute_stream.wait_event(h2d_arrow_events[0])
                 compute_stream.wait_event(h2d_tip_events[0])
-                compute_stream.wait_event(compute_partial_events[0])
 
                 B_arrow_tip_d -= (L_lower_arrow_blocks_d[0] @ B_d[0])
                 compute_partial_events[1].record(stream=compute_stream)
