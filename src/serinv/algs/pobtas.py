@@ -484,8 +484,11 @@ def _pobtas_streaming(
                 arr=B[-arrow_blocksize - (2 * diag_blocksize) : -arrow_blocksize - diag_blocksize], 
                 stream=h2d_stream
             )
+            print(B)
             L_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_diagonal_blocks[-2], stream=h2d_stream)
             L_lower_arrow_blocks_d[n_diag_blocks % 2].set(arr=L_lower_arrow_blocks[-2], stream=h2d_stream)
+            print(L_diagonal_blocks_d[n_diag_blocks % 2])
+            print(L_lower_arrow_blocks_d[n_diag_blocks % 2])
 
         # ----- Backward substitution -----
         if not partial:
