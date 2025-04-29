@@ -332,6 +332,7 @@ def _pobtas_streaming(
 
     if trans == "N":
 
+        print(B)
         print(B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize])
         print(B[-arrow_blocksize:])
 
