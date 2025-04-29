@@ -312,10 +312,10 @@ def _pobtas_streaming(
     
     n_diag_blocks: int = L_diagonal_blocks.shape[0]
 
-    # if n_diag_blocks > 1:
+    if n_diag_blocks > 1:
 
-    L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
-    h2d_lower_diagonal_events[0].record(stream=h2d_stream)
+        L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
+        h2d_lower_diagonal_events[0].record(stream=h2d_stream)
 
 
     if trans == "N":
