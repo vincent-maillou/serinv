@@ -479,7 +479,7 @@ def _pobtas_streaming(
         L_diagonal_blocks_d[(n_diag_blocks - 1) % 2].set(arr=L_diagonal_blocks[-1], stream=h2d_stream)
         L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2].set(arr=L_lower_arrow_blocks[-1], stream=h2d_stream)
 
-        h2d_events[n_diag_blocks % 2].record(stream=h2d_stream)
+        h2d_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
         if n_diag_blocks > 1:
             B_d[n_diag_blocks % 2].set(
                 arr=B[-arrow_blocksize - (2 * diag_blocksize) : -arrow_blocksize - diag_blocksize], 
@@ -488,11 +488,15 @@ def _pobtas_streaming(
             L_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_diagonal_blocks[-2], stream=h2d_stream)
             L_lower_arrow_blocks_d[n_diag_blocks % 2].set(arr=L_lower_arrow_blocks[-2], stream=h2d_stream)
 
+            h2d_events[n_diag_blocks % 2].record(stream=h2d_stream)
+
+
+
         # ----- Backward substitution -----
         if not partial:
             # X_{ndb+1} = L_{ndb+1,ndb+1}^{-T} (Y_{ndb+1})
             with compute_stream:
-                compute_stream.wait_event(h2d_events[n_diag_blocks % 2])
+                compute_stream.wait_event(h2d_events[(n_diag_blocks - 1) % 2])
                 B_arrow_tip_d = cu_la.solve_triangular( 
                     L_arrow_tip_block_d,
                     B_arrow_tip_d,
