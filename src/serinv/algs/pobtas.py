@@ -304,76 +304,104 @@ def _pobtas_streaming(
     L_diagonal_blocks_d[0].set(arr=L_diagonal_blocks[0], stream=h2d_stream)
     h2d_diagonal_events[0].record(stream=h2d_stream)
 
-    #L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
-    #h2d_lower_diagonal_events[0].record(stream=h2d_stream)
-
     L_lower_arrow_blocks_d[0].set(arr=L_lower_arrow_blocks[0], stream=h2d_stream)
     h2d_arrow_events[0].record(stream=h2d_stream)
 
     # --- D2H: event ---
     d2h_B_events[1].record(stream=d2h_stream)
     
+    n_diag_blocks: int = L_diagonal_blocks.shape[0]
 
-    n_diag_blocks: int = L_diagonal_blocks.shape[0] # why?
-    if n_diag_blocks > 1:
-        B_d[1].set(arr=B[1 * diag_blocksize : 2 * diag_blocksize], stream = h2d_stream)
-        h2d_B_events[1].record(stream=h2d_stream)
+    # if n_diag_blocks > 1:
 
-        L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
-        h2d_lower_diagonal_events[0].record(stream=h2d_stream)
-
-        L_diagonal_blocks_d[1].set(arr=L_diagonal_blocks[1], stream=h2d_stream)
-        h2d_diagonal_events[1].record(stream=h2d_stream)
-
-        if n_diag_blocks > 2:
-            L_lower_diagonal_blocks_d[1].set(arr=L_lower_diagonal_blocks[1], stream=h2d_stream)
-            h2d_lower_diagonal_events[1].record(stream=h2d_stream)
+    L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
+    h2d_lower_diagonal_events[0].record(stream=h2d_stream)
 
 
     if trans == "N":
         for i in range(0, n_diag_blocks - 1):
             # --- Forward substitution ---
+
+            if i + 1 < n_diag_blocks - 1:
+                # stream next B block
+                h2d_stream.wait_event(d2h_B_events[(i + 1) % 2])
+
+                B_d[(i + 1) % 2].set(
+                    arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                    stream = h2d_stream
+                )
+
+                h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
+
+                # stream next diagonal block
+                h2d_stream.wait_event(compute_current_B_events[(i + 1) % 2])
+
+                L_diagonal_blocks_d[(i + 1) % 2].set(
+                    arr=L_diagonal_blocks[i + 1], 
+                    stream=h2d_stream
+                )
+
+                h2d_diagonal_events[(i + 1) % 2].record(stream=h2d_stream)
+
+
             with compute_stream:
                 # Compute step 1 : compute B
                 compute_stream.wait_event(h2d_diagonal_events[i % 2])
+
                 B_d[i % 2] = cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2],
                     lower=True,
                 )
+
                 compute_current_B_events[i % 2].record(stream=compute_stream)
             
-            if i + 2 < n_diag_blocks - 1:
-                h2d_stream.wait_event(compute_current_B_events[i % 2])
-                L_diagonal_blocks_d[(i + 2) % 2].set(arr=L_diagonal_blocks[i + 2], stream=h2d_stream)
-                h2d_diagonal_events[(i + 2) % 2].record(stream=h2d_stream)
-
+            # stream B back
             d2h_stream.wait_event(compute_current_B_events[i % 2])
+
             B_d[i % 2].get(
                 out=B[i * diag_blocksize : (i + 1) * diag_blocksize],
                 stream=d2h_stream,
                 blocking=False,
             )
+
             d2h_B_events[i % 2].record(stream=d2h_stream)
 
-            
+            if i + 1 < n_diag_blocks - 1:
+                # stream next lower diagonal block
+                h2d_stream.wait_event(compute_next_B_events[(i + 1) % 2])
+
+                L_lower_diagonal_blocks_d[(i + 1) % 2].set(
+                    arr=L_lower_diagonal_blocks[i + 1], 
+                    stream=h2d_stream
+                )
+
+                h2d_lower_diagonal_events[(i + 1) % 2].record(stream=h2d_stream)
             
             with compute_stream:
-                # 2
+                # Compute step 2 : update next B
                 compute_stream.wait_event(h2d_B_events[(i + 1) % 2])
+
                 B_d[(i + 1) % 2] -= (
                     L_lower_diagonal_blocks_d[i % 2]
                     @ B_d[i % 2]
                 )
-                compute_next_B_events[i % 2].record(stream=compute_stream)
 
-            if i + 2 < n_diag_blocks - 1:
-                h2d_stream.wait_event(compute_next_B_events[i % 2])
-                L_lower_diagonal_blocks_d[(i + 2) % 2].set(arr=L_lower_diagonal_blocks[i + 2], stream=h2d_stream)
-                h2d_lower_diagonal_events[(i + 2) % 2].record(stream=h2d_stream)
+                compute_next_B_events[i % 2].record(stream=compute_stream)                
                 
+            if i + 1 < n_diag_blocks - 1:
+                # stream next lower arrow block
+                h2d_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
+
+                L_lower_arrow_blocks_d[(i + 1) % 2].set(
+                    arr=L_lower_arrow_blocks[i + 1], 
+                    stream=h2d_stream
+                )
+
+                h2d_arrow_events[(i + 1) % 2].record(stream=h2d_stream)
+
             with compute_stream:
-                # 3
+                # Compute step 3 : update arrowtip
                 compute_stream.wait_event(h2d_arrow_events[i % 2])
                 
                 B_arrow_tip_d -= (
@@ -386,16 +414,6 @@ def _pobtas_streaming(
             d2h_stream.wait_event(compute_arrow_B_events[i % 2])
             B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
             d2h_tip_events[i % 2].record(stream=d2h_stream)
-            
-            if i + 1 < n_diag_blocks - 1:
-                B_d[(i + 1) % 2].set(arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream = h2d_stream)
-                h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
-
-
-            if i + 2 < n_diag_blocks - 1:
-
-                L_lower_arrow_blocks_d[(i + 1) % 2].set(arr=L_lower_arrow_blocks[i + 1], stream=h2d_stream)
-                h2d_arrow_events[(i + 1) % 2].record(stream=h2d_stream)
 
 
         if not partial:
