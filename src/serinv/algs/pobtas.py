@@ -480,16 +480,7 @@ def _pobtas_streaming(
         L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2].set(arr=L_lower_arrow_blocks[-1], stream=h2d_stream)
 
         h2d_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
-        if n_diag_blocks > 1:
-            B_d[n_diag_blocks % 2].set(
-                arr=B[-arrow_blocksize - (2 * diag_blocksize) : -arrow_blocksize - diag_blocksize], 
-                stream=h2d_stream
-            )
-            L_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_diagonal_blocks[-2], stream=h2d_stream)
-            L_lower_arrow_blocks_d[n_diag_blocks % 2].set(arr=L_lower_arrow_blocks[-2], stream=h2d_stream)
-            L_lower_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_lower_diagonal_blocks[-1], stream=h2d_stream)
-
-            h2d_events[n_diag_blocks % 2].record(stream=h2d_stream)
+        
 
 
 
@@ -521,6 +512,21 @@ def _pobtas_streaming(
             B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
             B_d[(n_diag_blocks - 1) % 2].get(out=B[-arrow_blocksize - diag_blocksize : -arrow_blocksize], stream=d2h_stream, blocking=False,)
             d2h_events[(n_diag_blocks - 1) % 2].record(stream=d2h_stream)
+            previous_B_event.record(stream=d2h_stream)
+
+        if n_diag_blocks > 1:
+
+            B_d[n_diag_blocks % 2].set(
+                arr=B[-arrow_blocksize - (2 * diag_blocksize) : -arrow_blocksize - diag_blocksize], 
+                stream=h2d_stream
+            )
+            L_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_diagonal_blocks[-2], stream=h2d_stream)
+            L_lower_arrow_blocks_d[n_diag_blocks % 2].set(arr=L_lower_arrow_blocks[-2], stream=h2d_stream)
+            L_lower_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_lower_diagonal_blocks[-1], stream=h2d_stream)
+            h2d_stream.wait_event(previous_B_event)
+            B_previous_d.set(arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream=h2d_stream)
+
+            h2d_events[n_diag_blocks % 2].record(stream=h2d_stream)
 
         for i in range(n_diag_blocks - 2, -1, -1):
         # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
