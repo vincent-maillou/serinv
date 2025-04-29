@@ -295,7 +295,7 @@ def _pobtas_streaming(
     compute_arrow_B_events[1].record(stream=compute_stream)
 
     B_arrow_tip_d.set(arr=B[-arrow_blocksize:], stream=h2d_stream)
-    L_arrow_tip_block_d.set(arr=L_arrow_tip_block[:, :], stream=h2d_stream)
+    L_arrow_tip_block_d.set(arr=L_arrow_tip_block[:], stream=h2d_stream)
 
     # --- H2D: transfers ---
     B_d[0].set(arr=B[0 : 1 * diag_blocksize], stream = h2d_stream)
@@ -319,7 +319,6 @@ def _pobtas_streaming(
 
 
     if trans == "N":
-        print(B)
         # --- Forward substitution ---
         for i in range(0, n_diag_blocks - 1):
 
@@ -451,9 +450,6 @@ def _pobtas_streaming(
 
             d2h_stream.wait_event(compute_partial_events[0])
             B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
-
-            print(B)
-
 
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
