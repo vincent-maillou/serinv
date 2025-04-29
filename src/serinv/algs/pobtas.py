@@ -557,6 +557,7 @@ def _pobtas_streaming(
 
                 compute_B_events[i % 2].record(compute_stream)
 
+            d2h_stream.wait_event(compute_B_events[i % 2])
             B_d[i % 2].get(out=B[i * diag_blocksize : (i + 1) * diag_blocksize], stream=d2h_stream, blocking=False)
             d2h_events[i % 2].record(stream=d2h_stream)
             
