@@ -481,3 +481,6 @@ def _pobtas_streaming(
             
     else:
         raise ValueError(f"Invalid transpose argument: {trans}.")
+    
+
+    cp.cuda.Device().synchronize()
