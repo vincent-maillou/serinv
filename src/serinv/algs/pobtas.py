@@ -497,7 +497,7 @@ def _pobtas_streaming(
                     trans="C",
                 )
 
-                B_d[(n_diag_blocks -1) % 2] = (
+                B_d[(n_diag_blocks - 1) % 2] = (
                     cu_la.solve_triangular(
                         L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
                         B_d[(n_diag_blocks - 1) % 2]
@@ -511,7 +511,7 @@ def _pobtas_streaming(
 
             d2h_stream.wait_event(compute_B_events[(n_diag_blocks - 1) % 2])
             B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
-            B_d.get(out=B[-arrow_blocksize - diag_blocksize : -arrow_blocksize], stream=d2h_stream, blocking=False,)
+            B_d[(n_diag_blocks - 1) % 2].get(out=B[-arrow_blocksize - diag_blocksize : -arrow_blocksize], stream=d2h_stream, blocking=False,)
             d2h_events[(n_diag_blocks - 1) % 2].record(stream=d2h_stream)
 
         for i in range(n_diag_blocks - 2, -1, -1):
