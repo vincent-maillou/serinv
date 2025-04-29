@@ -524,7 +524,7 @@ def _pobtas_streaming(
             L_lower_arrow_blocks_d[n_diag_blocks % 2].set(arr=L_lower_arrow_blocks[-2], stream=h2d_stream)
             L_lower_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_lower_diagonal_blocks[-1], stream=h2d_stream)
             h2d_stream.wait_event(previous_B_event)
-            B_previous_d.set(arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream=h2d_stream)
+            B_previous_d.set(arr=B[-arrow_blocksize - diag_blocksize : -arrow_blocksize], stream=h2d_stream)
 
             h2d_events[n_diag_blocks % 2].record(stream=h2d_stream)
 
