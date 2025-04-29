@@ -501,7 +501,7 @@ def _pobtas_streaming(
                     cu_la.solve_triangular(
                         L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
                         B_d[(n_diag_blocks - 1) % 2]
-                        - L_lower_arrow_blocks[(n_diag_blocks - 1) % 2].conj().T @ B_arrow_tip_d,
+                        - L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2].conj().T @ B_arrow_tip_d,
                         lower=True,
                         trans="C",
                     )
