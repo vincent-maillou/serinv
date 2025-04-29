@@ -524,19 +524,16 @@ def _pobtas_streaming(
 
         for i in range(n_diag_blocks - 2, -1, -1):
         # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
-            with compute_stream:
-                compute_stream.wait_event(d2h_events[(i + 1) % 2])
-                B_previous_d = B_d[(i + 1) % 2]
-                previous_B_event.record(stream=compute_stream)
             
             if i > 0:
                 
-                h2d_stream.wait_event(previous_B_event)
+                h2d_stream.wait_event(d2h_events[(i + 1) % 2])
 
                 B_d[(i - 1) % 2].set(arr=B[(i - 1) * diag_blocksize : i * diag_blocksize], stream=h2d_stream)
                 L_diagonal_blocks_d[(i - 1) % 2].set(arr=L_diagonal_blocks[i - 1], stream=h2d_stream)
                 L_lower_diagonal_blocks_d[(i - 1) % 2].set(arr=L_lower_diagonal_blocks[i - 1], stream=h2d_stream)
                 L_lower_arrow_blocks_d[(i - 1) % 2].set(arr=L_lower_arrow_blocks[i - 1], stream=h2d_stream)
+                B_previous_d.set(arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream=h2d_stream)
 
                 h2d_events[(i - 1) % 2].record(stream=h2d_stream)
             
