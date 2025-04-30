@@ -102,5 +102,6 @@ def test_pobtas(
         trans="C",
         device_streaming=True if array_type == "streaming" else False,
     )
+    print(X_ref)
 
     assert xp.allclose(B, X_ref)
