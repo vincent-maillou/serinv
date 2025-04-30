@@ -535,7 +535,7 @@ def _pobtas_streaming(
 
             
             if i > 0:
-                h2d_stream.wait_event(previous_B_events[(i -1 ) % 2])
+                h2d_stream.wait_event(previous_B_events[(i - 1 ) % 2])
                 B_d[(i - 1) % 2].set(arr=B[(i - 1) * diag_blocksize : i * diag_blocksize], stream=h2d_stream)
                 L_diagonal_blocks_d[(i - 1) % 2].set(arr=L_diagonal_blocks[i - 1], stream=h2d_stream)
                 L_lower_diagonal_blocks_d[(i - 1) % 2].set(arr=L_lower_diagonal_blocks[i - 1], stream=h2d_stream)
@@ -559,7 +559,8 @@ def _pobtas_streaming(
 
                 compute_B_events[i % 2].record(compute_stream)
 
-            d2h_stream.wait_event(previous_B_events[(i - 1) % 2])
+            # d2h_stream.wait_event(previous_B_events[(i - 1) % 2])
+            d2h_stream.wait_event(h2d_events[i % 2])
             B_previous_d.get(out=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream=d2h_stream, blocking=False)
             d2h_events[i % 2].record(stream=d2h_stream)
 
