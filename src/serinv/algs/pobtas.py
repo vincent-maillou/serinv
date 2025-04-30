@@ -566,7 +566,7 @@ def _pobtas_streaming(
             d2h_events[i % 2].record(stream=d2h_stream)
 
         #B_previous_d[0].get(out=B[:diag_blocksize], stream=d2h_stream, blocking=False)
-            
+        print(B)    
     else:
         raise ValueError(f"Invalid transpose argument: {trans}.")
     
