@@ -530,6 +530,7 @@ def _pobtas_streaming(
 
         for i in range(n_diag_blocks - 2, -1, -1):
         # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
+            print("---")
             with compute_stream:
                 compute_stream.wait_event(compute_B_events[(i - 1) % 2])
                 compute_stream.wait_event(d2h_events[(i - 1) % 2])
