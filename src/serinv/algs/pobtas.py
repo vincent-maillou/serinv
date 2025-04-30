@@ -533,7 +533,9 @@ def _pobtas_streaming(
             with compute_stream:
                 compute_stream.wait_event(compute_B_events[(i - 1) % 2])
                 compute_stream.wait_event(d2h_events[(i - 1) % 2])
+                print(B_previous_d)
                 B_previous_d = B_d[(i - 1) % 2]
+                print(B_previous_d)
                 previous_B_event.record(stream=compute_stream)
 
             
