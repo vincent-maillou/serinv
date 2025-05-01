@@ -240,7 +240,6 @@ def _pobts_streaming(
         # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
             
             if i + 1 < n_diag_blocks:
-                print(i)
                 h2d_stream.wait_event(compute_B_events[(i + 1) % 2])
                 B_d[(i + 1) % 2].set(arr=B[i * diag_blocksize : (i + 1) * diag_blocksize], stream=h2d_stream)
                 L_diagonal_blocks_d[(i + 1) % 2].set(arr=L_diagonal_blocks[i + 1], stream=h2d_stream)
