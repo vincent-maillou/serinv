@@ -222,9 +222,9 @@ def _pobts_streaming(
 
             compute_B_events[0].record(stream=compute_stream)
 
-        d2h_stream.wait_event(compute_B_events[0])
+        #d2h_stream.wait_event(compute_B_events[0])
 
-        B_previous_d[0].get(out=B[:diag_blocksize], stream=d2h_stream, blocking=False,)
+        #B_previous_d[0].get(out=B[:diag_blocksize], stream=d2h_stream, blocking=False,)
         
         d2h_events[0].record(stream=d2h_stream)
 
@@ -276,10 +276,9 @@ def _pobts_streaming(
             
             d2h_events[i % 2].record(stream=d2h_stream)
 
-        if n_diag_blocks > 1:
-            d2h_stream.wait_event(compute_B_events[(n_diag_blocks + 1) % 2])
+        d2h_stream.wait_event(compute_B_events[(n_diag_blocks + 1) % 2])
             
-            B_previous_d[(n_diag_blocks + 1) % 2].get(out=B[-diag_blocksize:], stream=d2h_stream, blocking=False)
+        B_previous_d[(n_diag_blocks + 1) % 2].get(out=B[-diag_blocksize:], stream=d2h_stream, blocking=False)
         
     
     elif trans == "T" or trans == "C":
@@ -301,10 +300,6 @@ def _pobts_streaming(
             )
 
             compute_B_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
-
-        #d2h_stream.wait_event(compute_B_events[(n_diag_blocks - 1) % 2])
-
-        #B_previous_d[(n_diag_blocks - 1) % 2].get(out=B[-diag_blocksize:], stream=d2h_stream, blocking=False)
 
         d2h_events[(n_diag_blocks - 1) % 2].record(stream=d2h_stream)
 
@@ -352,10 +347,10 @@ def _pobts_streaming(
             
             d2h_events[i % 2].record(stream=d2h_stream)
 
-        if n_diag_blocks > 0:
-            d2h_stream.wait_event(compute_B_events[0])
+        
+        d2h_stream.wait_event(compute_B_events[0])
             
-            B_previous_d[0].get(out=B[:diag_blocksize], stream=d2h_stream, blocking=False)
+        B_previous_d[0].get(out=B[:diag_blocksize], stream=d2h_stream, blocking=False)
 
     else:
         raise ValueError(f"Invalid transpose argument: {trans}.")
