@@ -269,7 +269,7 @@ def _pobts_streaming(
 
         if n_diag_blocks > 1:
             d2h_stream.wait_event(compute_B_events[(n_diag_blocks) % 2])
-            B_previous_d[(n_diag_blocks - 1) % 2].get(out=B[-diag_blocksize:], stream=d2h_stream, blocking=False)
+            # B_previous_d[(n_diag_blocks - 1) % 2].get(out=B[-diag_blocksize:], stream=d2h_stream, blocking=False)
         
     
     elif trans == "T" or trans == "C":
