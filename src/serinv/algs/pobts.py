@@ -42,8 +42,11 @@ def pobts(
     else:
         # Natural arrowhead
         if device_streaming:
-            raise NotImplementedError(
-                "Streaming is not implemented for the natural arrowhead."
+            _pobts_streaming(
+                L_diagonal_blocks,
+                L_lower_diagonal_blocks,
+                B,
+                trans,
             )
         else:
             _pobts(
