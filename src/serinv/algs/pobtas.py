@@ -327,10 +327,9 @@ def _pobtas_streaming(
 
         # --- Computations ---
         for i in range(0, n_diag_blocks - 1):
-
-            #if i + 1 < n_diag_blocks:
-            # stream next B block
+            # pass next B block
             h2d_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
+
             B_d[(i + 1) % 2].set(
                 arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
                 stream = h2d_stream
@@ -339,7 +338,7 @@ def _pobtas_streaming(
             h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
 
             if i + 1 < n_diag_blocks - 1:
-                # stream next diagonal block
+                # pass next diagonal block
                 h2d_stream.wait_event(compute_current_B_events[(i + 1) % 2])
 
                 L_diagonal_blocks_d[(i + 1) % 2].set(
@@ -351,7 +350,7 @@ def _pobtas_streaming(
 
 
             with compute_stream:
-                # Compute step 1 : compute B
+                # Solve current B
                 compute_stream.wait_event(h2d_diagonal_events[i % 2])
 
                 B_d[i % 2] = cu_la.solve_triangular(
@@ -362,7 +361,7 @@ def _pobtas_streaming(
 
                 compute_current_B_events[i % 2].record(stream=compute_stream)
             
-            # stream B back
+            # Pass current B back
             d2h_stream.wait_event(compute_current_B_events[i % 2])
 
             B_d[i % 2].get(
@@ -374,7 +373,7 @@ def _pobtas_streaming(
             d2h_B_events[i % 2].record(stream=d2h_stream)
 
             if i + 1 < n_diag_blocks - 1:
-                # stream next lower diagonal block
+                # Pass next lower diagonal block
                 h2d_stream.wait_event(compute_next_B_events[(i + 1) % 2])
 
                 L_lower_diagonal_blocks_d[(i + 1) % 2].set(
@@ -385,7 +384,7 @@ def _pobtas_streaming(
                 h2d_lower_diagonal_events[(i + 1) % 2].record(stream=h2d_stream)
             
             with compute_stream:
-                # Compute step 2 : update next B
+                # Update next B
                 compute_stream.wait_event(h2d_B_events[(i + 1) % 2])
 
                 B_d[(i + 1) % 2] -= (
@@ -396,7 +395,7 @@ def _pobtas_streaming(
                 compute_next_B_events[i % 2].record(stream=compute_stream)                
                 
             if i + 1 < n_diag_blocks - 1:
-                # stream next lower arrow block
+                # Pass next lower arrow block
                 h2d_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
 
                 L_lower_arrow_blocks_d[(i + 1) % 2].set(
@@ -407,7 +406,7 @@ def _pobtas_streaming(
                 h2d_arrow_events[(i + 1) % 2].record(stream=h2d_stream)
 
             with compute_stream:
-                # Compute step 3 : update arrow tip
+                # Update arrow tip
                 compute_stream.wait_event(h2d_arrow_events[i % 2])
                 
                 B_arrow_tip_d -= (
@@ -417,11 +416,12 @@ def _pobtas_streaming(
 
                 compute_arrow_B_events[i % 2].record(stream=compute_stream)
 
-            d2h_stream.wait_event(compute_arrow_B_events[i % 2])
+            # Pass arrow tip back
+        d2h_stream.wait_event(compute_arrow_B_events[i % 2])
             
-            B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
+        B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
 
-            d2h_tip_events[i % 2].record(stream=d2h_stream)
+        d2h_tip_events[i % 2].record(stream=d2h_stream)
 
 
         if not partial:
