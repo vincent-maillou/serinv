@@ -74,6 +74,7 @@ def test_pobts(
         A_lower_diagonal_blocks,
         B,
         trans="N",
+        device_streaming=True if array_type == "streaming" else False,
     )
 
     # Backward solve: X=L^{-T}Y
