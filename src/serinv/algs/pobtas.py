@@ -277,6 +277,7 @@ def _pobtas_streaming(
     L_arrow_tip_block_d = cp.empty_like(L_arrow_tip_block)
 
     if trans == "N":
+        # --- Forward substitution ---
 
         # delete helper variable
         del B_shape
@@ -295,8 +296,6 @@ def _pobtas_streaming(
         compute_arrow_B_events = [cp.cuda.Event(), cp.cuda.Event()]
 
         compute_partial_events = [cp.cuda.Event(), cp.cuda.Event()]
-
-        # --- Forward substitution ---
 
         # --- C: events + transfers ---
         compute_current_B_events[1].record(stream=compute_stream)
@@ -329,16 +328,15 @@ def _pobtas_streaming(
         # --- Computations ---
         for i in range(0, n_diag_blocks - 1):
 
-            if i + 1 < n_diag_blocks:
-                # stream next B block
-                h2d_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
+            #if i + 1 < n_diag_blocks:
+            # stream next B block
+            h2d_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
+            B_d[(i + 1) % 2].set(
+                arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                stream = h2d_stream
+            )
 
-                B_d[(i + 1) % 2].set(
-                    arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
-                    stream = h2d_stream
-                )
-
-                h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
+            h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
 
             if i + 1 < n_diag_blocks - 1:
                 # stream next diagonal block
