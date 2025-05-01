@@ -293,7 +293,7 @@ def _pobts_streaming(
         d2h_events[(n_diag_blocks - 1) % 2].record(stream=d2h_stream)
 
         if n_diag_blocks > 1:
-
+            h2d_stream.wait_event(d2h_events[(n_diag_blocks - 1) % 2])
             B_d[n_diag_blocks % 2].set(
                 arr=B[-(2 * diag_blocksize) : -diag_blocksize], 
                 stream=h2d_stream
