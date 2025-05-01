@@ -204,12 +204,27 @@ def _pobts_streaming(
     d2h_events = [cp.cuda.Event(), cp.cuda.Event()]
 
     if trans == "N":
+        # ----- Forward substitution -----
+
+        # --- H2D: transfers ---
         B_d[0].set(arr=B[:diag_blocksize], stream=h2d_stream)
         L_diagonal_blocks_d[0].set(arr=L_diagonal_blocks[0], stream=h2d_stream)
 
         h2d_events[1].record(stream=h2d_stream)
 
+        if n_diag_blocks > 1:
+            
+            B_d[1].set(
+                arr=B[diag_blocksize : (2 * diag_blocksize)], 
+                stream=h2d_stream
+            )
+            L_diagonal_blocks_d[1].set(arr=L_diagonal_blocks[1], stream=h2d_stream)
+            L_lower_diagonal_blocks_d[1].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
+
+            h2d_events[0].record(stream=h2d_stream)
+
         with compute_stream:
+            # Solve first B block
             compute_stream.wait_event(h2d_events[1])
 
             B_previous_d[0] = (
@@ -223,21 +238,13 @@ def _pobts_streaming(
             compute_B_events[0].record(stream=compute_stream)
 
 
-        if n_diag_blocks > 1:
-
-            B_d[1].set(
-                arr=B[diag_blocksize : (2 * diag_blocksize)], 
-                stream=h2d_stream
-            )
-            L_diagonal_blocks_d[1].set(arr=L_diagonal_blocks[1], stream=h2d_stream)
-            L_lower_diagonal_blocks_d[1].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
-
-            h2d_events[0].record(stream=h2d_stream)
+        
 
         for i in range(1, n_diag_blocks):
         
             
             if i + 1 < n_diag_blocks:
+                # Pass next blocks
                 h2d_stream.wait_event(compute_B_events[(i + 1) % 2])
 
                 B_d[(i + 1) % 2].set(arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream=h2d_stream)
