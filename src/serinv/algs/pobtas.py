@@ -417,11 +417,11 @@ def _pobtas_streaming(
                 compute_arrow_B_events[i % 2].record(stream=compute_stream)
 
             # Pass arrow tip back
-        d2h_stream.wait_event(compute_arrow_B_events[i % 2])
+            d2h_stream.wait_event(compute_arrow_B_events[i % 2])
             
-        B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
+            B_arrow_tip_d.get(out=B[-arrow_blocksize:], stream=d2h_stream, blocking=False,)
 
-        d2h_tip_events[i % 2].record(stream=d2h_stream)
+            d2h_tip_events[i % 2].record(stream=d2h_stream)
 
 
         if not partial:
