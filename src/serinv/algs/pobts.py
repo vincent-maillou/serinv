@@ -249,7 +249,7 @@ def _pobts_streaming(
             B_previous_d[0].set(arr=B[:diag_blocksize], stream=h2d_stream)
             h2d_events[0].record(stream=h2d_stream)
 
-        for i in range(1, n_diag_blocks - 1):
+        for i in range(1, n_diag_blocks):
         # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
             
             
