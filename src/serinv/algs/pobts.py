@@ -259,6 +259,7 @@ def _pobts_streaming(
                 compute_B_events[i % 2].record(compute_stream)
 
             d2h_stream.wait_event(compute_B_events[(i - 1) % 2])
+            print(B_previous_d)
             B_previous_d[(i + 1) % 2].get(out=B[(i - 1) * diag_blocksize : i * diag_blocksize], stream=d2h_stream, blocking=False)
             d2h_events[i % 2].record(stream=d2h_stream)
 
