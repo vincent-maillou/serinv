@@ -256,8 +256,7 @@ def _pobts_streaming(
                 h2d_stream.wait_event(compute_B_events[(i + 1) % 2])
                 B_d[(i + 1) % 2].set(arr=B[i * diag_blocksize : (i + 1) * diag_blocksize], stream=h2d_stream)
                 L_diagonal_blocks_d[(i + 1) % 2].set(arr=L_diagonal_blocks[i + 1], stream=h2d_stream)
-                if i + 1 < n_diag_blocks - 1:
-                    L_lower_diagonal_blocks_d[(i + 1) % 2].set(arr=L_lower_diagonal_blocks[i + 1], stream=h2d_stream)
+                L_lower_diagonal_blocks_d[(i + 1) % 2].set(arr=L_lower_diagonal_blocks[i], stream=h2d_stream)
                 h2d_events[i % 2].record(stream=h2d_stream)
             
             with compute_stream:
