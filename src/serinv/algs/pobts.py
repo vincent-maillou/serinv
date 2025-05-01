@@ -254,7 +254,6 @@ def _pobts_streaming(
                     - L_lower_diagonal_blocks_d[i % 2].conj().T
                     @ B_previous_d[(i - 1) % 2],
                     lower=True,
-                    trans="C",
                 )
 
                 compute_B_events[i % 2].record(compute_stream)
