@@ -231,7 +231,7 @@ def _pobts_streaming(
                 )
             )
 
-            compute_B_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
+            compute_B_events[0].record(stream=compute_stream)
 
         d2h_stream.wait_event(compute_B_events[0])
         B_d[0].get(out=B[:diag_blocksize], stream=d2h_stream, blocking=False,)
