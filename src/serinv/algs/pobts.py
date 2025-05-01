@@ -207,7 +207,8 @@ def _pobts_streaming(
         raise NotImplementedError(f"Forward solve not implemented for streaming")
     
     elif trans == "T" or trans == "C":
-        print("hi")
+        print(B_d)
+        print(B)
 
         B_d[(n_diag_blocks - 1) % 2].set(arr=B[-diag_blocksize], stream=h2d_stream)
         L_diagonal_blocks_d[(n_diag_blocks - 1) % 2].set(arr=L_diagonal_blocks[-1], stream=h2d_stream)
