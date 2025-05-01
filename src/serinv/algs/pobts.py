@@ -263,8 +263,8 @@ def _pobts_streaming(
             with compute_stream:
                 compute_stream.wait_event(h2d_events[(i + 1) % 2])
                 compute_stream.wait_event(d2h_events[(i + 1) % 2])
-                print(L_diagonal_blocks)
-                print(L_diagonal_blocks_d)
+                print(L_lower_diagonal_blocks)
+                print(L_lower_diagonal_blocks_d)
                 print(i % 2)
                 B_previous_d[i % 2] = cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2],
