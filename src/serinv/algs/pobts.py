@@ -315,6 +315,7 @@ def _pobts_streaming(
             L_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_diagonal_blocks[-2], stream=h2d_stream)
             L_lower_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_lower_diagonal_blocks[-1], stream=h2d_stream)
             h2d_stream.wait_event(previous_B_events[(n_diag_blocks - 1) % 2])
+            print(B_previous_d)
             B_previous_d[(n_diag_blocks - 1) % 2].set(arr=B[-diag_blocksize:], stream=h2d_stream)
             h2d_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
 
