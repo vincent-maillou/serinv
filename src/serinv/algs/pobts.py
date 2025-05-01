@@ -269,7 +269,7 @@ def _pobts_streaming(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2]
                     - L_lower_diagonal_blocks_d[i % 2].conj().T
-                    @ B_previous_d[i % 2],
+                    @ B_previous_d[(i + 1) % 2],
                     lower=True,
                 )
 
