@@ -212,7 +212,6 @@ def _pobts_streaming(
 
     # Events
     compute_B_events = [cp.cuda.Event(), cp.cuda.Event()]
-    previous_B_events = [cp.cuda.Event(), cp.cuda.Event()]
     h2d_events = [cp.cuda.Event(), cp.cuda.Event()]
     d2h_events = [cp.cuda.Event(), cp.cuda.Event()]
 
@@ -239,7 +238,7 @@ def _pobts_streaming(
         d2h_events[0].record(stream=d2h_stream)
 
         if n_diag_blocks > 1:
-
+            h2d_stream.wait_event(d2h_events[0])
             B_d[1].set(
                 arr=B[diag_blocksize : (2 * diag_blocksize)], 
                 stream=h2d_stream
