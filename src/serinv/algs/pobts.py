@@ -249,6 +249,8 @@ def _pobts_streaming(
             with compute_stream:
                 compute_stream.wait_event(h2d_events[(i + 1) % 2])
                 compute_stream.wait_event(d2h_events[(i + 1) % 2])
+                print(L_diagonal_blocks)
+                print(L_diagonal_blocks_d)
                 B_previous_d[i % 2] = cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2]
@@ -260,8 +262,6 @@ def _pobts_streaming(
                 compute_B_events[i % 2].record(compute_stream)
 
             d2h_stream.wait_event(compute_B_events[(i - 1) % 2])
-            print(B_previous_d)
-            print(B[(i - 1) * diag_blocksize : i * diag_blocksize])
             B_previous_d[(i + 1) % 2].get(out=B[i * diag_blocksize : (i + 1) * diag_blocksize], stream=d2h_stream, blocking=False)
             d2h_events[i % 2].record(stream=d2h_stream)
 
