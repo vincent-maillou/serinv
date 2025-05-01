@@ -270,14 +270,14 @@ def _pobts_streaming(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2]
                     - L_lower_diagonal_blocks_d[i % 2]
-                    @ B_previous_d[(i + 1) % 2],
+                    @ B_previous_d[(i - 1) % 2],
                     lower=True,
                 )
 
                 compute_B_events[i % 2].record(compute_stream)
 
             d2h_stream.wait_event(compute_B_events[(i - 1) % 2])
-            B_previous_d[(i + 1) % 2].get(out=B[i * diag_blocksize : (i + 1) * diag_blocksize], stream=d2h_stream, blocking=False)
+            B_previous_d[(i - 1) % 2].get(out=B[(i - 1) * diag_blocksize : i * diag_blocksize], stream=d2h_stream, blocking=False)
             d2h_events[i % 2].record(stream=d2h_stream)
 
         if n_diag_blocks > 1:
