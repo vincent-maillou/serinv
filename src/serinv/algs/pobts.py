@@ -225,7 +225,7 @@ def _pobts_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_events[1])
 
-            B_d[0] = (
+            B_previous_d[0] = (
                 cu_la.solve_triangular(
                     L_diagonal_blocks_d[0],
                     B_d[0],
@@ -237,7 +237,7 @@ def _pobts_streaming(
 
         d2h_stream.wait_event(compute_B_events[0])
 
-        B_d[0].get(out=B[:diag_blocksize], stream=d2h_stream, blocking=False,)
+        B_previous_d[0].get(out=B[:diag_blocksize], stream=d2h_stream, blocking=False,)
         
         d2h_events[0].record(stream=d2h_stream)
 
@@ -250,7 +250,6 @@ def _pobts_streaming(
             )
             L_diagonal_blocks_d[1].set(arr=L_diagonal_blocks[1], stream=h2d_stream)
             L_lower_diagonal_blocks_d[1].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
-            B_previous_d[0].set(arr=B[:diag_blocksize], stream=h2d_stream)
 
             h2d_events[0].record(stream=h2d_stream)
 
@@ -331,7 +330,6 @@ def _pobts_streaming(
             )
             L_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_diagonal_blocks[-2], stream=h2d_stream)
             L_lower_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_lower_diagonal_blocks[-1], stream=h2d_stream)
-            #B_previous_d[(n_diag_blocks - 1) % 2].set(arr=B[-diag_blocksize:], stream=h2d_stream)
 
             h2d_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
 
