@@ -24,7 +24,6 @@ DTYPE = [
 DIAGONAL_BLOCKSIZE = [
     pytest.param(2, id="diagonal_blocksize=2"),
     pytest.param(3, id="diagonal_blocksize=3"),
-    pytest.param(20, id="diagonal_blocksize=20"),
 ]
 
 

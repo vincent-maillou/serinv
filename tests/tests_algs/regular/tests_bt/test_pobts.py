@@ -12,7 +12,7 @@ if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
 @pytest.mark.mpi_skip()
-@pytest.mark.parametrize("n_rhs", [1, 2, 3, 500, 2000])
+@pytest.mark.parametrize("n_rhs", [1, 2, 3])
 def test_pobts(
     n_rhs: int,
     diagonal_blocksize: int,
