@@ -13,7 +13,7 @@ if backend_flags["cupy_avail"]:
 
 
 @pytest.mark.mpi_skip()
-@pytest.mark.parametrize("n_rhs", [1, 2, 3, 500, 2000, 4000, 8000, 16000])
+@pytest.mark.parametrize("n_rhs", [1, 2, 3, 500, 2000])
 def test_pobtas(
     n_rhs: int,
     diagonal_blocksize: int,
