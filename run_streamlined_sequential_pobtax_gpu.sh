@@ -2,7 +2,7 @@
 #SBATCH --job-name="serinv_pobtx_benchmark"
 #SBATCH --output=%x.%j.out
 #SBATCH --error=%x.%j.err
-#SBATCH --account=lp82
+#SBATCH --account=lp16
 #SBATCH --time=00:10:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -35,7 +35,7 @@ conda activate serinv_env
 # export a=6
 # export n=128
 
-# Dataset 1: b = 4002, a = 6, n = 250
+# Dataset 2: b = 4002, a = 6, n = 250
 # Reference timings (to beat!):
 #     - pobtaf: 3.2716     (INLA_BTA CUDA code: 2.713)
 #     - pobtas: 0.15397
