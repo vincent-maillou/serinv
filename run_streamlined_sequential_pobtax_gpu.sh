@@ -45,7 +45,7 @@ export a=6
 export n=250
 
 # Benchmark the code
-srun python ~/sc25_runs/positive_definite/streamlined_sequential_pobtax_gpu.py --b $b --a $a --n $n
+srun python ~/serinv/sc25_runs/positive_definite/streamlined_sequential_pobtax_gpu.py --b $b --a $a --n $n
 
 # Profile the code
 # srun nsys profile --force-overwrite=true -o profile_serinv_pobtax_b${b}_a${a}_n${n} python ~/repositories/serinv/sc25_runs/positive_definite/streamlined_sequential_pobtax_gpu.py --b $b --a $a --n $n --b $b --a $a --n $n
