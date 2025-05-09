@@ -160,6 +160,7 @@ if __name__ == "__main__":
             A_arrow_bottom_blocks_gpu,
             A_arrow_tip_block_gpu,
             B_gpu,
+            device_streaming=True
         )
         cp.cuda.runtime.deviceSynchronize()
         toc = time.perf_counter()
