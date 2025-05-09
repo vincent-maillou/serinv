@@ -23,7 +23,7 @@ export OMP_PROC_BIND=close
 
 export CUDA_VISIBLE_DEVICES=$SLURM_LOCALID
 
-source ~/load_modules.sh
+# source ~/load_modules.sh
 conda activate serinv_env
 
 # Dataset 1: b = 1675, a = 6, n = 128
