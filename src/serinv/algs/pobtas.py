@@ -238,6 +238,8 @@ def _pobtas_streaming(
         raise NotImplementedError(
             "Host<->Device streaming only works when host-arrays are given."
         )
+    
+    print("streaming")
 
     cp, cu_la = _get_module_from_str(module_str="cupy")
 
