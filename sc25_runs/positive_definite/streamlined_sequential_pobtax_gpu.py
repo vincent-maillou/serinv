@@ -180,7 +180,7 @@ if __name__ == "__main__":
         #print(f"Copying data from GPU took: {toc - tic:.5f} sec", flush=True)
 
         cp.cuda.runtime.deviceSynchronize()
-        RangePush(f"pobtas: i:{i}")
+        # RangePush(f"pobtas: i:{i}")
         tic = time.perf_counter()
         pobtas(
             A_diagonal_blocks_cpu,
@@ -192,7 +192,7 @@ if __name__ == "__main__":
         )
         cp.cuda.runtime.deviceSynchronize()
         toc = time.perf_counter()
-        RangePop()
+        # RangePop()
         elapsed = toc - tic
         print(f"pobtas took: {elapsed:.5f} sec", flush=True)
         if i >= n_warmups:
