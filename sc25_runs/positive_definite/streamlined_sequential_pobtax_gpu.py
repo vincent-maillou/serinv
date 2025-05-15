@@ -138,11 +138,11 @@ if __name__ == "__main__":
         RangePush(f"pobtaf: i:{i}")
         tic = time.perf_counter()
         pobtaf(
-            A_diagonal_blocks_gpu,
-            A_lower_diagonal_blocks_gpu,
-            A_arrow_bottom_blocks_gpu,
-            A_arrow_tip_block_gpu,
-            # device_streaming=True
+            A_diagonal_blocks_cpu,
+            A_lower_diagonal_blocks_cpu,
+            A_arrow_bottom_blocks_cpu,
+            A_arrow_tip_block_cpu,
+            device_streaming=True
         )
         cp.cuda.runtime.deviceSynchronize()
         toc = time.perf_counter()
