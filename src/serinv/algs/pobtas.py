@@ -371,15 +371,7 @@ def _pobtas_streaming(
                 compute_current_B_events[i % 2].record(stream=compute_stream)
             
             # Pass current B block back
-            d2h_stream.wait_event(compute_current_B_events[i % 2])
-
-            B_d[i % 2].get(
-                out=B[i * diag_blocksize : (i + 1) * diag_blocksize],
-                stream=d2h_stream,
-                blocking=False,
-            )
-
-            d2h_B_events[i % 2].record(stream=d2h_stream)
+            
 
             if i + 1 < n_diag_blocks - 1:
                 # Pass next lower diagonal block
@@ -392,6 +384,17 @@ def _pobtas_streaming(
                 
                 h2d_lower_diagonal_events[(i + 1) % 2].record(stream=h2d_stream)
                 RangePop()
+
+            d2h_stream.wait_event(compute_current_B_events[i % 2])
+            d2h_stream.wait_event(h2d_lower_diagonal_events[(i+1) % 2])
+
+            B_d[i % 2].get(
+                out=B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                stream=d2h_stream,
+                blocking=False,
+            )
+
+            d2h_B_events[i % 2].record(stream=d2h_stream)
             
             with compute_stream:
                 # Update next B block

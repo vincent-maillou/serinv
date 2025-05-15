@@ -136,6 +136,7 @@ if __name__ == "__main__":
     A_arrow_tip_block_cpu = A_arrow_tip_block_pinned
     B_cpu = B_pinned
 
+
     t_pobtaf = []
     t_pobtas = []
     t_pobtasi = []
@@ -143,14 +144,14 @@ if __name__ == "__main__":
     for i in range(n_warmups + n_iterations):
         print(f"Iteration: {i+1}/{n_warmups+n_iterations}", flush=True)
 
-        tic = time.perf_counter()
-        A_diagonal_blocks_gpu.set(arr=A_diagonal_blocks_cpu)
-        A_lower_diagonal_blocks_gpu.set(arr=A_lower_diagonal_blocks_cpu)
-        A_arrow_bottom_blocks_gpu.set(arr=A_arrow_bottom_blocks_cpu)
-        A_arrow_tip_block_gpu.set(arr=A_arrow_tip_block_cpu)
-        B_gpu.set(arr=B_cpu)
-        toc = time.perf_counter()
-        print(f"Copying data to GPU took: {toc - tic:.5f} sec", flush=True)
+        #tic = time.perf_counter()
+        #A_diagonal_blocks_gpu.set(arr=A_diagonal_blocks_cpu)
+        #A_lower_diagonal_blocks_gpu.set(arr=A_lower_diagonal_blocks_cpu)
+        #A_arrow_bottom_blocks_gpu.set(arr=A_arrow_bottom_blocks_cpu)
+        #A_arrow_tip_block_gpu.set(arr=A_arrow_tip_block_cpu)
+        #B_gpu.set(arr=B_cpu)
+        #toc = time.perf_counter()
+        #print(f"Copying data to GPU took: {toc - tic:.5f} sec", flush=True)
 
         cp.cuda.runtime.deviceSynchronize()
         RangePush(f"pobtaf: i:{i}")
