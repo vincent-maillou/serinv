@@ -157,7 +157,7 @@ if __name__ == "__main__":
         A_lower_diagonal_blocks_gpu.get(out=A_lower_diagonal_blocks_cpu)
         A_arrow_bottom_blocks_gpu.get(out=A_arrow_bottom_blocks_cpu)
         A_arrow_tip_block_gpu.get(out=A_arrow_tip_block_cpu)
-        B_gpu.get(arr=B_cpu)
+        B_gpu.get(out=B_cpu)
         toc = time.perf_counter()
         print(f"Copying data from GPU took: {toc - tic:.5f} sec", flush=True)
 
