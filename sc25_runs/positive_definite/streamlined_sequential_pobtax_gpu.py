@@ -6,6 +6,7 @@ import argparse
 import numpy as np
 import cupy as cp
 from cupy.cuda.nvtx import RangePush, RangePop
+import cupyx as cpx
 
 from serinv.algs import pobtaf, pobtas, pobtasi
 
@@ -118,15 +119,15 @@ if __name__ == "__main__":
     toc = time.perf_counter()
     print(f"Init device arrays took: {toc - tic:.5f} sec", flush=True)
 
-    A_diagonal_blocks_pinned = cp.zeros_like_pinned(A_diagonal_blocks_cpu)
+    A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks_cpu)
     A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks_cpu[:, :, :]
-    A_lower_diagonal_blocks_pinned = cp.zeros_like_pinned(A_lower_diagonal_blocks_cpu)
+    A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks_cpu)
     A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks_cpu[:, :, :]
-    A_lower_arrow_blocks_pinned = cp.zeros_like_pinned(A_arrow_bottom_blocks_cpu)
+    A_lower_arrow_blocks_pinned = cpx.zeros_like_pinned(A_arrow_bottom_blocks_cpu)
     A_lower_arrow_blocks_pinned[:, :, :] = A_arrow_bottom_blocks_cpu[:, :, :]
-    A_arrow_tip_block_pinned = cp.zeros_like_pinned(A_arrow_tip_block_cpu)
+    A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block_cpu)
     A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block_cpu[:, :]
-    B_pinned = cp.zeros_like_pinned(B_cpu)
+    B_pinned = cpx.zeros_like_pinned(B_cpu)
     B_pinned[:, :] = B_cpu[:, :]
 
     A_diagonal_blocks_cpu = A_diagonal_blocks_pinned
