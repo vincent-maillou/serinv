@@ -118,6 +118,23 @@ if __name__ == "__main__":
     toc = time.perf_counter()
     print(f"Init device arrays took: {toc - tic:.5f} sec", flush=True)
 
+    A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks_cpu)
+    A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks_cpu[:, :, :]
+    A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks_cpu)
+    A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks_cpu[:, :, :]
+    A_lower_arrow_blocks_pinned = cpx.zeros_like_pinned(A_lower_arrow_blocks_cpu)
+    A_lower_arrow_blocks_pinned[:, :, :] = A_lower_arrow_blocks_cpu[:, :, :]
+    A_arrow_tip_block_pinned = cpx.zeros_like_pinned(A_arrow_tip_block_cpu)
+    A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block_cpu[:, :]
+    B_pinned = cpx.zeros_like_pinned(B_cpu)
+    B_pinned[:, :] = B_cpu[:, :]
+
+    A_diagonal_blocks_cpu = A_diagonal_blocks_pinned
+    A_lower_diagonal_blocks_cpu = A_lower_diagonal_blocks_pinned
+    A_lower_arrow_blocks_cpu = A_lower_arrow_blocks_pinned
+    A_arrow_tip_block_cpu = A_arrow_tip_block_pinned
+    B = B_pinned
+
     t_pobtaf = []
     t_pobtas = []
     t_pobtasi = []
