@@ -122,8 +122,8 @@ if __name__ == "__main__":
     A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks_cpu[:, :, :]
     A_lower_diagonal_blocks_pinned = cp.zeros_like_pinned(A_lower_diagonal_blocks_cpu)
     A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks_cpu[:, :, :]
-    A_lower_arrow_blocks_pinned = cp.zeros_like_pinned(A_lower_arrow_blocks_cpu)
-    A_lower_arrow_blocks_pinned[:, :, :] = A_lower_arrow_blocks_cpu[:, :, :]
+    A_lower_arrow_blocks_pinned = cp.zeros_like_pinned(A_arrow_bottom_blocks_cpu)
+    A_lower_arrow_blocks_pinned[:, :, :] = A_arrow_bottom_blocks_cpu[:, :, :]
     A_arrow_tip_block_pinned = cp.zeros_like_pinned(A_arrow_tip_block_cpu)
     A_arrow_tip_block_pinned[:, :] = A_arrow_tip_block_cpu[:, :]
     B_pinned = cp.zeros_like_pinned(B_cpu)
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     A_diagonal_blocks_cpu = A_diagonal_blocks_pinned
     A_lower_diagonal_blocks_cpu = A_lower_diagonal_blocks_pinned
-    A_lower_arrow_blocks_cpu = A_lower_arrow_blocks_pinned
+    A_arrow_bottom_blocks_cpu = A_lower_arrow_blocks_pinned
     A_arrow_tip_block_cpu = A_arrow_tip_block_pinned
     B = B_pinned
 
