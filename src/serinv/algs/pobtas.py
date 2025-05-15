@@ -342,8 +342,8 @@ def _pobtas_streaming(
                 stream = h2d_stream
             )
 
-            RangePop()
             h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
+            RangePop()
 
             if i + 1 < n_diag_blocks - 1:
                 # pass next diagonal block
@@ -353,8 +353,9 @@ def _pobtas_streaming(
                     arr=L_diagonal_blocks[i + 1], 
                     stream=h2d_stream
                 )
-                RangePop()
+                
                 h2d_diagonal_events[(i + 1) % 2].record(stream=h2d_stream)
+                RangePop()
 
 
             with compute_stream:
@@ -388,8 +389,9 @@ def _pobtas_streaming(
                     arr=L_lower_diagonal_blocks[i + 1], 
                     stream=h2d_stream
                 )
-                RangePop()
+                
                 h2d_lower_diagonal_events[(i + 1) % 2].record(stream=h2d_stream)
+                RangePop()
             
             with compute_stream:
                 # Update next B block
@@ -410,8 +412,9 @@ def _pobtas_streaming(
                     arr=L_lower_arrow_blocks[i + 1], 
                     stream=h2d_stream
                 )
-                RangePop()
+                
                 h2d_arrow_events[(i + 1) % 2].record(stream=h2d_stream)
+                RangePop()
 
             with compute_stream:
                 # Update arrow tip
