@@ -142,7 +142,7 @@ if __name__ == "__main__":
             A_lower_diagonal_blocks_gpu,
             A_arrow_bottom_blocks_gpu,
             A_arrow_tip_block_gpu,
-            device_streaming=True
+            # device_streaming=True
         )
         cp.cuda.runtime.deviceSynchronize()
         toc = time.perf_counter()
@@ -152,15 +152,24 @@ if __name__ == "__main__":
         if i >= n_warmups:
             t_pobtaf.append(elapsed)
 
+        tic = time.perf_counter()
+        A_diagonal_blocks_gpu.get(arr=A_diagonal_blocks_cpu)
+        A_lower_diagonal_blocks_gpu.get(arr=A_lower_diagonal_blocks_cpu)
+        A_arrow_bottom_blocks_gpu.get(arr=A_arrow_bottom_blocks_cpu)
+        A_arrow_tip_block_gpu.get(arr=A_arrow_tip_block_cpu)
+        B_gpu.get(arr=B_cpu)
+        toc = time.perf_counter()
+        print(f"Copying data from GPU took: {toc - tic:.5f} sec", flush=True)
+
         cp.cuda.runtime.deviceSynchronize()
         RangePush(f"pobtas: i:{i}")
         tic = time.perf_counter()
         pobtas(
-            A_diagonal_blocks_gpu,
-            A_lower_diagonal_blocks_gpu,
-            A_arrow_bottom_blocks_gpu,
-            A_arrow_tip_block_gpu,
-            B_gpu,
+            A_diagonal_blocks_cpu,
+            A_lower_diagonal_blocks_cpu,
+            A_arrow_bottom_blocks_cpu,
+            A_arrow_tip_block_cpu,
+            B_cpu,
             device_streaming=True
         )
         cp.cuda.runtime.deviceSynchronize()
@@ -170,6 +179,15 @@ if __name__ == "__main__":
         print(f"pobtas took: {elapsed:.5f} sec", flush=True)
         if i >= n_warmups:
             t_pobtas.append(elapsed)
+
+        tic = time.perf_counter()
+        A_diagonal_blocks_gpu.set(arr=A_diagonal_blocks_cpu)
+        A_lower_diagonal_blocks_gpu.set(arr=A_lower_diagonal_blocks_cpu)
+        A_arrow_bottom_blocks_gpu.set(arr=A_arrow_bottom_blocks_cpu)
+        A_arrow_tip_block_gpu.set(arr=A_arrow_tip_block_cpu)
+        B_gpu.set(arr=B_cpu)
+        toc = time.perf_counter()
+        print(f"Copying data to GPU took: {toc - tic:.5f} sec", flush=True)
 
         cp.cuda.runtime.deviceSynchronize()
         RangePush(f"pobtasi: i:{i}")
