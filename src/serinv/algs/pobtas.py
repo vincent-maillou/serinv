@@ -7,6 +7,9 @@ from serinv import (
     _get_module_from_str,
 )
 
+from cupy.cuda.nvtx import RangePush, RangePop
+
+
 
 def pobtas(
     L_diagonal_blocks: ArrayLike,
@@ -239,7 +242,7 @@ def _pobtas_streaming(
             "Host<->Device streaming only works when host-arrays are given."
         )
     
-    print("streaming")
+    
 
     cp, cu_la = _get_module_from_str(module_str="cupy")
 
@@ -280,7 +283,7 @@ def _pobtas_streaming(
 
     if trans == "N":
         # ----- Forward substitution -----
-
+        RangePush(f"pobtas: startup")
         # Delete helper variable
         del B_shape
 
@@ -327,27 +330,30 @@ def _pobtas_streaming(
             L_lower_diagonal_blocks_d[0].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
             h2d_lower_diagonal_events[0].record(stream=h2d_stream)
 
+        RangePop()
         # --- Computations ---
         for i in range(0, n_diag_blocks - 1):
             # pass next B block
             h2d_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
+            RangePush(f"pobtas: streaming B {i+1}")
 
             B_d[(i + 1) % 2].set(
                 arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
                 stream = h2d_stream
             )
 
+            RangePop()
             h2d_B_events[(i + 1) % 2].record(stream=h2d_stream)
 
             if i + 1 < n_diag_blocks - 1:
                 # pass next diagonal block
                 h2d_stream.wait_event(compute_current_B_events[(i + 1) % 2])
-
+                RangePush(f"pobtas: streaming diag blocks {i+1}")
                 L_diagonal_blocks_d[(i + 1) % 2].set(
                     arr=L_diagonal_blocks[i + 1], 
                     stream=h2d_stream
                 )
-
+                RangePop()
                 h2d_diagonal_events[(i + 1) % 2].record(stream=h2d_stream)
 
 
@@ -377,12 +383,12 @@ def _pobtas_streaming(
             if i + 1 < n_diag_blocks - 1:
                 # Pass next lower diagonal block
                 h2d_stream.wait_event(compute_next_B_events[(i + 1) % 2])
-
+                RangePush(f"pobtas: streaming lower diag blocks {i+1}")
                 L_lower_diagonal_blocks_d[(i + 1) % 2].set(
                     arr=L_lower_diagonal_blocks[i + 1], 
                     stream=h2d_stream
                 )
-
+                RangePop()
                 h2d_lower_diagonal_events[(i + 1) % 2].record(stream=h2d_stream)
             
             with compute_stream:
@@ -399,12 +405,12 @@ def _pobtas_streaming(
             if i + 1 < n_diag_blocks - 1:
                 # Pass next lower arrow block
                 h2d_stream.wait_event(compute_arrow_B_events[(i + 1) % 2])
-
+                RangePush(f"pobtas: streaming lower arrow blocks{i}")
                 L_lower_arrow_blocks_d[(i + 1) % 2].set(
                     arr=L_lower_arrow_blocks[i + 1], 
                     stream=h2d_stream
                 )
-
+                RangePop()
                 h2d_arrow_events[(i + 1) % 2].record(stream=h2d_stream)
 
             with compute_stream:
