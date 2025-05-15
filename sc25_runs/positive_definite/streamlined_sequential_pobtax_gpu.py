@@ -138,10 +138,11 @@ if __name__ == "__main__":
         RangePush(f"pobtaf: i:{i}")
         tic = time.perf_counter()
         pobtaf(
-            A_diagonal_blocks_cpu,
-            A_lower_diagonal_blocks_cpu,
-            A_arrow_bottom_blocks_cpu,
-            A_arrow_tip_block_cpu,
+            A_diagonal_blocks_gpu,
+            A_lower_diagonal_blocks_gpu,
+            A_arrow_bottom_blocks_gpu,
+            A_arrow_tip_block_gpu,
+            device_streaming=True
         )
         cp.cuda.runtime.deviceSynchronize()
         toc = time.perf_counter()
@@ -155,11 +156,11 @@ if __name__ == "__main__":
         RangePush(f"pobtas: i:{i}")
         tic = time.perf_counter()
         pobtas(
-            A_diagonal_blocks_cpu,
-            A_lower_diagonal_blocks_cpu,
-            A_arrow_bottom_blocks_cpu,
-            A_arrow_tip_block_cpu,
-            B_cpu,
+            A_diagonal_blocks_gpu,
+            A_lower_diagonal_blocks_gpu,
+            A_arrow_bottom_blocks_gpu,
+            A_arrow_tip_block_gpu,
+            B_gpu,
             device_streaming=True
         )
         cp.cuda.runtime.deviceSynchronize()
@@ -174,10 +175,10 @@ if __name__ == "__main__":
         RangePush(f"pobtasi: i:{i}")
         tic = time.perf_counter()
         pobtasi(
-            A_diagonal_blocks_cpu,
-            A_lower_diagonal_blocks_cpu,
-            A_arrow_bottom_blocks_cpu,
-            A_arrow_tip_block_cpu,
+            A_diagonal_blocks_gpu,
+            A_lower_diagonal_blocks_gpu,
+            A_arrow_bottom_blocks_gpu,
+            A_arrow_tip_block_gpu,
         )
         cp.cuda.runtime.deviceSynchronize()
         toc = time.perf_counter()
