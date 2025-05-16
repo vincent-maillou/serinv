@@ -91,6 +91,7 @@ def test_pobtas(
         A_lower_diagonal_blocks,
         A_lower_arrow_blocks,
         A_arrow_tip_block,
+        device_streaming=True if array_type == "streaming" else False,
     )
 
     # Forward solve: Y=L^{-1}B
