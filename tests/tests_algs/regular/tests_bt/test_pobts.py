@@ -3,10 +3,19 @@
 import numpy as np
 import pytest
 
+from ....conftest import ARRAY_TYPE as ARRAY_TYPE
+
 from serinv import backend_flags, _get_module_from_array
 from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize, rhs
 
 from serinv.algs import pobtf, pobts
+
+if backend_flags["cupy_avail"]:
+    ARRAY_TYPE.extend(
+        [
+            pytest.param("streaming", id="streaming"),
+        ]
+    )
 
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
