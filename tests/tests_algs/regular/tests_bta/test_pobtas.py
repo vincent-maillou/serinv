@@ -3,14 +3,28 @@
 import numpy as np
 import pytest
 
+from conftest import ARRAY_TYPE as ARRAY_TYPE
+
 from serinv import backend_flags, _get_module_from_array
 from ....testing_utils import bta_dense_to_arrays, dd_bta, symmetrize, rhs
 
 from serinv.algs import pobtaf, pobtas
 
 if backend_flags["cupy_avail"]:
+    ARRAY_TYPE.extend(
+        [
+            
+            pytest.param("streaming", id="streaming"),
+        ]
+    )
+
+if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
+
+@pytest.fixture(params=ARRAY_TYPE, autouse=True)
+def array_type(request: pytest.FixtureRequest) -> str:
+    return request.param
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("n_rhs", [1, 2, 3])
@@ -22,7 +36,6 @@ def test_pobtas(
     array_type: str,
     dtype: np.dtype,
 ):
-    array_type = "streaming"
     
     A = dd_bta(
         diagonal_blocksize,
