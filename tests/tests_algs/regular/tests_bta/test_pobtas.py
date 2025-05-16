@@ -3,19 +3,16 @@
 import numpy as np
 import pytest
 
+from ....conftest import ARRAY_TYPE as ARRAY_TYPE
+
 from serinv import backend_flags, _get_module_from_array
 from ....testing_utils import bta_dense_to_arrays, dd_bta, symmetrize, rhs
 
 from serinv.algs import pobtaf, pobtas
 
-
-ARRAY_TYPE = [
-    pytest.param("host", id="host"),
-]
 if backend_flags["cupy_avail"]:
     ARRAY_TYPE.extend(
         [
-            pytest.param("device", id="device"),
             pytest.param("streaming", id="streaming"),
         ]
     )
