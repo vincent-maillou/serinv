@@ -48,9 +48,6 @@ def pobtas(
     else:
         # Natural arrowhead
         if device_streaming:
-            raise NotImplementedError(
-                "Test testing."
-            )
             _pobtas_streaming(
                 L_diagonal_blocks,
                 L_lower_diagonal_blocks,
