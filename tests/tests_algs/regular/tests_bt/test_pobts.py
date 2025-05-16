@@ -34,7 +34,6 @@ def test_pobts(
     array_type: str,
     dtype: np.dtype,
 ):
-    array_type = "streaming"
     
     A = dd_bt(
         diagonal_blocksize,
