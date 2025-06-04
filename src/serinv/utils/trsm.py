@@ -23,6 +23,7 @@ def serinv_solve_triangular(a, b, trans=0, lower = False, unit_diagonal=False,
     """
     print("one")
     xp = _get_module_from_array(a)
+    print(xp)
     print("two")
     if  xp == np:
         print("three")
