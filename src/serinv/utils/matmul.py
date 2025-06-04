@@ -128,7 +128,7 @@ def _solve_triangular(a1, b1, trans_a=0, trans_b=0, overwrite_c=0):
     alpha = 1
     beta = 0
     
-    x = gemm(alpha, a1.T, b1.T, beta=beta, trans_a=trans_a, trans_b=trans_b, overwrite_c=overwrite_c)
+    x = gemm(alpha, a1, b1, beta=beta, trans_a=trans_a, trans_b=trans_b, overwrite_c=overwrite_c)
     
 
     return x
