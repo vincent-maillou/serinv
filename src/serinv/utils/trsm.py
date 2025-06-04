@@ -310,6 +310,7 @@ def _solve_triangular(a1, b1, trans=0, lower=False, unit_diagonal=False,
 
     trans = {'N': 0, 'T': 1, 'C': 2}.get(trans, trans)
     trsm, = get_blas_funcs(('trsm',), (a1, b1))
+    print(trsm)
 
     if a1.dtype.char in 'fd':
         dtype = a1.dtype
@@ -324,7 +325,7 @@ def _solve_triangular(a1, b1, trans=0, lower=False, unit_diagonal=False,
                         trans_a=trans, diag=unit_diagonal, side=side)
     else:
         # transposed system is solved since trtrs expects Fortran ordering
-        x = trsm(alpha, a1, b1, overwrite_b=overwrite_b, lower=not lower,
+        x = trsm(alpha, a1.T, b1, overwrite_b=overwrite_b, lower=not lower,
                         trans_a=not trans, diag=unit_diagonal, side=side)
 
     return x
