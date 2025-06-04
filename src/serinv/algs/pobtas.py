@@ -4,8 +4,10 @@
 from serinv import (
     ArrayLike,
     _get_module_from_array,
+
 )
 
+from serinv.utils import serinv_matmul, serinv_solve_triangular
 
 def pobtas(
     L_diagonal_blocks: ArrayLike,
@@ -86,9 +88,9 @@ def _pobtas(
                 lower=True,
             )
 
-            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
+            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= serinv_matmul(
                 L_lower_diagonal_blocks[i]
-                @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
+                , B[i * diag_blocksize : (i + 1) * diag_blocksize]
             )
 
             B[-arrow_blocksize:] -= (
