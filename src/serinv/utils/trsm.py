@@ -1,0 +1,246 @@
+import numpy as np
+
+from serinv import _get_module_from_array
+
+from scipy.linalg.blas import get_blas_funcs
+from scipy.linalg._misc import _datacopied
+from scipy.linalg._decomp import _asarray_validated
+
+try:
+    import cupy as cp
+    from cupy.cuda import cublas
+    from cupy.cuda import device
+    from cupy.linalg import _util
+except (ImportError, ImportWarning, ModuleNotFoundError):
+    pass
+
+def serinv_solve_triangular(a, b, trans=0, lower = False, unit_diagonal=False,
+                            overwrite_b=False, check_finite=False, side=0):
+    """Wrapper for the trsm function to call depending on wheter the solve happens on the host or the device
+    
+        For Compatibility this function accepts exactly the same parameters as what the scipy and cupy implementations accept
+        plus the side parameter which can either be 0 or 1 for left or right hand side
+    """
+    xp = _get_module_from_array(a)
+
+    if  xp == np:
+        return solve_triangular_host(a, b, trans, lower, unit_diagonal, overwrite_b, check_finite, side)
+    elif xp == cp:
+        return solve_triangular_device(a, b, trans, lower, unit_diagonal, overwrite_b, check_finite, side)
+    else:
+        ModuleNotFoundError("Unknown Module")
+    
+
+
+def solve_triangular_device(a, b, trans=0, lower=False, unit_diagonal=False,
+                     overwrite_b=False, check_finite=False, side=0):
+    """Solve the equation a x = b for x, assuming a is a triangular matrix.
+
+    Args:
+        a (cupy.ndarray): The matrix with dimension ``(M, M)``.
+        b (cupy.ndarray): The matrix with dimension ``(M,)`` or
+            ``(M, N)``.
+        lower (bool): Use only data contained in the lower triangle of ``a``.
+            Default is to use upper triangle.
+        trans (0, 1, 2, 'N', 'T' or 'C'): Type of system to solve:
+
+            - *'0'* or *'N'* -- :math:`a x  = b`
+            - *'1'* or *'T'* -- :math:`a^T x = b`
+            - *'2'* or *'C'* -- :math:`a^H x = b`
+
+        unit_diagonal (bool): If ``True``, diagonal elements of ``a`` are
+            assumed to be 1 and will not be referenced.
+        overwrite_b (bool): Allow overwriting data in b (may enhance
+            performance)
+        check_finite (bool): Whether to check that the input matrices contain
+            only finite numbers. Disabling may give a performance gain, but may
+            result in problems (crashes, non-termination) if the inputs do
+            contain infinities or NaNs.
+
+    Returns:
+        cupy.ndarray:
+            The matrix with dimension ``(M,)`` or ``(M, N)``.
+
+    .. seealso:: :func:`scipy.linalg.solve_triangular`
+    """
+
+    _util._assert_cupy_array(a, b)
+
+    if len(a.shape) != 2 or a.shape[0] != a.shape[1]:
+        raise ValueError('expected square matrix')
+    if len(a) != len(b):
+        raise ValueError('incompatible dimensions')
+
+    # Cast to float32 or float64
+    if a.dtype.char in 'fd':
+        dtype = a.dtype
+    else:
+        dtype = np.promote_types(a.dtype.char, 'f')
+
+    a = cp.array(a, dtype=dtype, order='F', copy=False)
+    b = cp.array(b, dtype=dtype, order='F', copy=(not overwrite_b))
+
+    if check_finite:
+        if a.dtype.kind == 'f' and not cp.isfinite(a).all():
+            raise ValueError(
+                'array must not contain infs or NaNs')
+        if b.dtype.kind == 'f' and not cp.isfinite(b).all():
+            raise ValueError(
+                'array must not contain infs or NaNs')
+
+    m, n = (b.size, 1) if b.ndim == 1 else b.shape
+    cublas_handle = device.get_cublas_handle()
+
+    if dtype == 'f':
+        trsm = cublas.strsm
+    elif dtype == 'd':
+        trsm = cublas.dtrsm
+    elif dtype == 'F':
+        trsm = cublas.ctrsm
+    else:  # dtype == 'D'
+        trsm = cublas.ztrsm
+    one = np.array(1, dtype=dtype)
+
+    if lower:
+        uplo = cublas.CUBLAS_FILL_MODE_LOWER
+    else:
+        uplo = cublas.CUBLAS_FILL_MODE_UPPER
+
+    if trans == 'N':
+        trans = cublas.CUBLAS_OP_N
+    elif trans == 'T':
+        trans = cublas.CUBLAS_OP_T
+    elif trans == 'C':
+        trans = cublas.CUBLAS_OP_C
+
+    if unit_diagonal:
+        diag = cublas.CUBLAS_DIAG_UNIT
+    else:
+        diag = cublas.CUBLAS_DIAG_NON_UNIT
+
+    if side:
+        blas_side = cublas.CUBLAS_SIDE_RIGHT
+    else:
+        blas_side = cublas.CUBLAS_SIDE_LEFT
+
+    trsm(
+        cublas_handle, blas_side, uplo,
+        trans, diag,
+        m, n, one.ctypes.data, a.data.ptr, m, b.data.ptr, m)
+    
+
+def solve_triangular_host(a, b, trans=0, lower=False, unit_diagonal=False,
+                     overwrite_b=False, check_finite=True, side=0):
+    """
+    Solve the equation ``a x = b`` for `x`, assuming a is a triangular matrix.
+
+    Parameters
+    ----------
+    a : (M, M) array_like
+        A triangular matrix
+    b : (M,) or (M, N) array_like
+        Right-hand side matrix in ``a x = b``
+    lower : bool, optional
+        Use only data contained in the lower triangle of `a`.
+        Default is to use upper triangle.
+    trans : {0, 1, 2, 'N', 'T', 'C'}, optional
+        Type of system to solve:
+
+        ========  =========
+        trans     system
+        ========  =========
+        0 or 'N'  a x  = b
+        1 or 'T'  a^T x = b
+        2 or 'C'  a^H x = b
+        ========  =========
+    unit_diagonal : bool, optional
+        If True, diagonal elements of `a` are assumed to be 1 and
+        will not be referenced.
+    overwrite_b : bool, optional
+        Allow overwriting data in `b` (may enhance performance)
+    check_finite : bool, optional
+        Whether to check that the input matrices contain only finite numbers.
+        Disabling may give a performance gain, but may result in problems
+        (crashes, non-termination) if the inputs do contain infinities or NaNs.
+
+    Returns
+    -------
+    x : (M,) or (M, N) ndarray
+        Solution to the system ``a x = b``.  Shape of return matches `b`.
+
+    Raises
+    ------
+    LinAlgError
+        If `a` is singular
+
+    Notes
+    -----
+    .. versionadded:: 0.9.0
+
+    Examples
+    --------
+    Solve the lower triangular system a x = b, where::
+
+             [3  0  0  0]       [4]
+        a =  [2  1  0  0]   b = [2]
+             [1  0  1  0]       [4]
+             [1  1  1  1]       [2]
+
+    >>> import numpy as np
+    >>> from scipy.linalg import solve_triangular
+    >>> a = np.array([[3, 0, 0, 0], [2, 1, 0, 0], [1, 0, 1, 0], [1, 1, 1, 1]])
+    >>> b = np.array([4, 2, 4, 2])
+    >>> x = solve_triangular(a, b, lower=True)
+    >>> x
+    array([ 1.33333333, -0.66666667,  2.66666667, -1.33333333])
+    >>> a.dot(x)  # Check the result
+    array([ 4.,  2.,  4.,  2.])
+
+    """
+
+    a1 = _asarray_validated(a, check_finite=check_finite)
+    b1 = _asarray_validated(b, check_finite=check_finite)
+
+    if len(a1.shape) != 2 or a1.shape[0] != a1.shape[1]:
+        raise ValueError('expected square matrix')
+
+    if a1.shape[0] != b1.shape[0]:
+        raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible')
+
+    # accommodate empty arrays
+    if b1.size == 0:
+        dt_nonempty = solve_triangular_host(
+            np.eye(2, dtype=a1.dtype), np.ones(2, dtype=b1.dtype)
+        ).dtype
+        return np.empty_like(b1, dtype=dt_nonempty)
+
+    overwrite_b = overwrite_b or _datacopied(b1, b)
+
+    x = _solve_triangular(a1, b1, trans, lower, unit_diagonal, overwrite_b, side)
+    return x
+
+
+# solve_triangular without the input validation
+def _solve_triangular(a1, b1, trans=0, lower=False, unit_diagonal=False,
+                      overwrite_b=False, side=0):
+
+    trans = {'N': 0, 'T': 1, 'C': 2}.get(trans, trans)
+    trsm, = get_blas_funcs(('trsm',), (a1, b1))
+
+    if a1.dtype.char in 'fd':
+        dtype = a1.dtype
+    else:
+        dtype = np.promote_types(a1.dtype.char, 'f')
+
+    one = np.array(1, dtype=dtype)
+    alpha = one.ctypes.data
+
+    if a1.flags.f_contiguous or trans == 2:
+        x = trsm(alpha, a1, b1, overwrite_b=overwrite_b, lower=lower,
+                        trans_a=trans, diag=unit_diagonal, side=side)
+    else:
+        # transposed system is solved since trtrs expects Fortran ordering
+        x = trsm(alpha, a1.T, b1, overwrite_b=overwrite_b, lower=not lower,
+                        trans_a=not trans, diag=unit_diagonal, side=side)
+
+    return x

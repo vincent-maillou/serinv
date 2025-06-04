@@ -1,12 +1,31 @@
-import numpy as np
+from serinv import _get_module_from_array
 
+import numpy as np
+from numpy.linalg import matmul
 
 from scipy.linalg.blas import get_blas_funcs
 from scipy.linalg._misc import _datacopied
 from scipy.linalg._decomp import _asarray_validated
 
-def solve_triangular_host(a, b, trans=0, lower=False, unit_diagonal=False,
-                     overwrite_b=False, check_finite=True, side=0):
+try:
+    import cupy as cp
+    from cupy.cublas import gemm
+except (ImportError, ImportWarning, ModuleNotFoundError):
+    pass
+
+def serinv_matmul (a, b):
+    """Wrapper to call GeMM for host or device"""
+    xp, la = _get_module_from_array(a)
+
+    if xp == np:
+        return matmul(a, b)
+    elif xp == cp:
+        return gemm('N', 'N', a, b)
+    else:
+        ModuleNotFoundError("Unknown Module")
+
+
+def matmul_gemm_host(a, b, trans_a=0, trans_b=0, overwrite_c=0, check_finite=False):
     """
     Solve the equation ``a x = b`` for `x`, assuming a is a triangular matrix.
 
@@ -85,23 +104,21 @@ def solve_triangular_host(a, b, trans=0, lower=False, unit_diagonal=False,
 
     # accommodate empty arrays
     if b1.size == 0:
-        dt_nonempty = solve_triangular_host(
+        dt_nonempty = matmul_gemm_host(
             np.eye(2, dtype=a1.dtype), np.ones(2, dtype=b1.dtype)
         ).dtype
         return np.empty_like(b1, dtype=dt_nonempty)
 
-    overwrite_b = overwrite_b or _datacopied(b1, b)
-
-    x = _solve_triangular(a1, b1, trans, lower, unit_diagonal, overwrite_b, side)
+    x = _solve_triangular(a1, b1, trans_a, trans_b, overwrite_c)
     return x
 
 
 # solve_triangular without the input validation
-def _solve_triangular(a1, b1, trans=0, lower=False, unit_diagonal=False,
-                      overwrite_b=False, side=0):
+def _solve_triangular(a1, b1, trans_a=0, trans_b=0, overwrite_c=0):
 
-    trans = {'N': 0, 'T': 1, 'C': 2}.get(trans, trans)
-    trsm, = get_blas_funcs(('trsm',), (a1, b1))
+    trans_a = {'N': 0, 'T': 1, 'C': 2}.get(trans_a, trans_a)
+    trans_b = {'N': 0, 'T': 1, 'C': 2}.get(trans_b, trans_b)
+    gemm, = get_blas_funcs(('gemm',), (a1, b1))
 
     if a1.dtype.char in 'fd':
         dtype = a1.dtype
@@ -109,14 +126,12 @@ def _solve_triangular(a1, b1, trans=0, lower=False, unit_diagonal=False,
         dtype = np.promote_types(a1.dtype.char, 'f')
 
     one = np.array(1, dtype=dtype)
+    zero =np.array(0, dtype=dtype)
     alpha = one.ctypes.data
+    beta = zero.ctypes.data
 
-    if a1.flags.f_contiguous or trans == 2:
-        x = trsm(alpha, a1, b1, overwrite_b=overwrite_b, lower=lower,
-                        trans_a=trans, diag=unit_diagonal, side=side)
-    else:
-        # transposed system is solved since trtrs expects Fortran ordering
-        x = trsm(alpha, a1.T, b1, overwrite_b=overwrite_b, lower=not lower,
-                        trans_a=not trans, diag=unit_diagonal, side=side)
+    
+    x = gemm(alpha, a1.T, b1.T, beta=beta, trans_a=trans_a, trans_b=trans_b, overwrite_c=overwrite_c)
+    
 
     return x
