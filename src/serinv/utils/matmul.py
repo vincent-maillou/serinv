@@ -109,12 +109,12 @@ def matmul_gemm_host(a, b, trans_a=0, trans_b=0, overwrite_c=0, check_finite=Fal
         ).dtype
         return np.empty_like(b1, dtype=dt_nonempty)
 
-    x = _solve_triangular(a1, b1, trans_a, trans_b, overwrite_c)
+    x = _matmul_gemm(a1, b1, trans_a, trans_b, overwrite_c)
     return x
 
 
 # solve_triangular without the input validation
-def _solve_triangular(a1, b1, trans_a=0, trans_b=0, overwrite_c=0):
+def _matmul_gemm(a1, b1, trans_a=0, trans_b=0, overwrite_c=0):
 
     trans_a = {'N': 0, 'T': 1, 'C': 2}.get(trans_a, trans_a)
     trans_b = {'N': 0, 'T': 1, 'C': 2}.get(trans_b, trans_b)
