@@ -13,14 +13,14 @@ try:
 except (ImportError, ImportWarning, ModuleNotFoundError):
     pass
 
-def serinv_matmul (a, b):
+def serinv_matmul (a, b, trans_a = 'N', trans_b = 'N'):
     """Wrapper to call GeMM for host or device"""
     xp, la = _get_module_from_array(a)
 
     if xp == np:
-        return matmul_gemm_host(a, b)
+        return matmul_gemm_host(a, b, trans_a=trans_a, trans_b=trans_b)
     elif xp == cp:
-        return gemm('N', 'N', a, b)
+        return gemm(trans_a, trans_b, a, b)
     else:
         ModuleNotFoundError("Unknown Module")
 
