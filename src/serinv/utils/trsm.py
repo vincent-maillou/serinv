@@ -21,10 +21,10 @@ def serinv_solve_triangular(a, b, trans=0, lower = False, unit_diagonal=False,
         For Compatibility this function accepts exactly the same parameters as what the scipy and cupy implementations accept
         plus the side parameter which can either be 0 or 1 for left or right hand side
     """
-    print("one")
+    print(a)
     xp, la = _get_module_from_array(a)
     print(xp)
-    print("two")
+    print(b)
     if  xp == np:
         print("three")
         return solve_triangular_host(a, b, trans, lower, unit_diagonal, overwrite_b, check_finite, side)
