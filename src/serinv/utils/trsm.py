@@ -317,7 +317,6 @@ def _solve_triangular(a1, b1, trans=0, lower=False, unit_diagonal=False,
     else:
         dtype = np.promote_types(a1.dtype.char, 'f')
 
-    one = np.array(1, dtype=dtype)
     alpha = 1
 
     if a1.flags.f_contiguous or trans == 2:
