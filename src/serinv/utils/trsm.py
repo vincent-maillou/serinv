@@ -318,7 +318,7 @@ def _solve_triangular(a1, b1, trans=0, lower=False, unit_diagonal=False,
         dtype = np.promote_types(a1.dtype.char, 'f')
 
     one = np.array(1, dtype=dtype)
-    alpha = one.ctypes.data
+    alpha = 1
 
     if a1.flags.f_contiguous or trans == 2:
         x = trsm(alpha, a1, b1, overwrite_b=overwrite_b, lower=lower,
