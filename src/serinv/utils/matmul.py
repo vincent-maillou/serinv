@@ -18,7 +18,7 @@ def serinv_matmul (a, b):
     xp, la = _get_module_from_array(a)
 
     if xp == np:
-        return matmul(a, b)
+        return matmul_gemm_host(a, b)
     elif xp == cp:
         return gemm('N', 'N', a, b)
     else:
@@ -125,11 +125,8 @@ def _solve_triangular(a1, b1, trans_a=0, trans_b=0, overwrite_c=0):
     else:
         dtype = np.promote_types(a1.dtype.char, 'f')
 
-    one = np.array(1, dtype=dtype)
-    zero =np.array(0, dtype=dtype)
-    alpha = one.ctypes.data
-    beta = zero.ctypes.data
-
+    alpha = 1
+    beta = 0
     
     x = gemm(alpha, a1.T, b1.T, beta=beta, trans_a=trans_a, trans_b=trans_b, overwrite_c=overwrite_c)
     
