@@ -22,7 +22,7 @@ def serinv_solve_triangular(a, b, trans=0, lower = False, unit_diagonal=False,
         plus the side parameter which can either be 0 or 1 for left or right hand side
     """
     print("one")
-    xp = _get_module_from_array(a)
+    xp, la = _get_module_from_array(a)
     print(xp)
     print("two")
     if  xp == np:
