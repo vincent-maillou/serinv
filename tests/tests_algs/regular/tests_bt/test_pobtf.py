@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+from ....conftest import ARRAY_TYPE
+
 from serinv import backend_flags, _get_module_from_array
 from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
 
@@ -10,6 +12,16 @@ from serinv.algs import pobtf
 
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
+
+    ARRAY_TYPE.extend(
+        [
+            pytest.param("streaming", id="streaming"),
+        ]
+    )
+
+    @pytest.fixture(params=ARRAY_TYPE, autouse=True)
+    def array_type(request: pytest.FixtureRequest) -> str:
+        return request.param
 
 
 @pytest.mark.mpi_skip()
