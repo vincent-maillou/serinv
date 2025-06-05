@@ -34,7 +34,7 @@ def pddbtsci(
         The upper diagonal blocks of the block tridiagonal matrix.
     comm : MPI.Comm
         The MPI communicator. Default is MPI.COMM_WORLD.
-        
+
     Keyword Arguments
     -----------------
     rhs : dict

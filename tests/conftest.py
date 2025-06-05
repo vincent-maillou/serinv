@@ -24,6 +24,7 @@ DIAGONAL_BLOCKSIZE = [
     pytest.param(3, id="diagonal_blocksize=3"),
 ]
 
+
 @pytest.fixture(params=ARRAY_TYPE, autouse=True)
 def array_type(request: pytest.FixtureRequest) -> str:
     return request.param

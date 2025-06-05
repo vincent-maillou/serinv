@@ -13,7 +13,6 @@ if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
 
-
 def allocate_ddbtars(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
