@@ -7,11 +7,13 @@ from serinv import (
     backend_flags,
     _get_module_from_str,
     _get_module_from_array,
+    _use_nccl,
+    _get_nccl_parameters,
 )
 
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
-
+    import cupy as cp
 
 def allocate_ddbtars(
     A_diagonal_blocks: ArrayLike,
@@ -24,7 +26,14 @@ def allocate_ddbtars(
     comm: MPI.Comm,
     strategy: str = "allgather",
     quadratic: bool = False,
+    nccl_comm: object = None,
 ) -> dict:
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -71,7 +80,11 @@ def allocate_ddbtars(
         )
         _A_arrow_tip_block = xp.zeros_like(A_arrow_tip_block)
 
-        if xp.__name__ == "cupy":
+        if (
+            xp.__name__ == "cupy"
+            and not backend_flags["mpi_cuda_aware"]
+            and not _use_nccl(communicator)
+        ):
             # In this case we also need to allocate a pinned-memory
             # reduced system on the host side.
             _A_diagonal_blocks_comm = cpx.empty_like_pinned(_A_diagonal_blocks)
@@ -131,7 +144,11 @@ def allocate_ddbtars(
             )
             _B_arrow_tip_block = xp.zeros_like(A_arrow_tip_block)
 
-            if xp.__name__ == "cupy":
+            if (
+                xp.__name__ == "cupy"
+                and not backend_flags["mpi_cuda_aware"]
+                and not _use_nccl(communicator)
+            ):
                 # In this case we also need to allocate a pinned-memory
                 # reduced system on the host side.
 
@@ -210,8 +227,15 @@ def map_ddbtasc_to_ddbtars(
     _A_arrow_tip_block: ArrayLike,
     comm: MPI.Comm,
     strategy: str,
+    nccl_comm: object = None,
     **kwargs,
 ) -> None:
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -346,7 +370,14 @@ def aggregate_ddbtars(
     comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
+    nccl_comm: object = None,
 ) -> None:
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -437,85 +468,205 @@ def aggregate_ddbtars(
             )
 
     xp, _ = _get_module_from_array(arr=_A_diagonal_blocks)
-    if strategy == "allgather":
-        if xp.__name__ == "cupy":
+
+    if (
+        xp.__name__ == "cupy"
+        and not backend_flags["mpi_cuda_aware"]
+        and not _use_nccl(communicator)
+    ):
+        # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
+        if comm_rank == 0:
+            _A_diagonal_blocks[1].get(out=_A_diagonal_blocks_comm[1])
+            _A_lower_diagonal_blocks[1].get(out=_A_lower_diagonal_blocks_comm[1])
+            _A_upper_diagonal_blocks[1].get(out=_A_upper_diagonal_blocks_comm[1])
+            _A_lower_arrow_blocks[1].get(out=_A_lower_arrow_blocks_comm[1])
+            _A_upper_arrow_blocks[1].get(out=_A_upper_arrow_blocks_comm[1])
+        else:
+            _A_diagonal_blocks[2 * comm_rank].get(
+                out=_A_diagonal_blocks_comm[2 * comm_rank]
+            )
+            _A_diagonal_blocks[2 * comm_rank + 1].get(
+                out=_A_diagonal_blocks_comm[2 * comm_rank + 1]
+            )
+
+            if comm_rank < comm_size - 1:
+                _A_lower_diagonal_blocks[2 * comm_rank].get(
+                    out=_A_lower_diagonal_blocks_comm[2 * comm_rank]
+                )
+                _A_upper_diagonal_blocks[2 * comm_rank].get(
+                    out=_A_upper_diagonal_blocks_comm[2 * comm_rank]
+                )
+
+                _A_lower_diagonal_blocks[2 * comm_rank + 1].get(
+                    out=_A_lower_diagonal_blocks_comm[2 * comm_rank + 1]
+                )
+                _A_upper_diagonal_blocks[2 * comm_rank + 1].get(
+                    out=_A_upper_diagonal_blocks_comm[2 * comm_rank + 1]
+                )
+            else:
+                _A_lower_diagonal_blocks[2 * comm_rank].get(
+                    out=_A_lower_diagonal_blocks_comm[2 * comm_rank]
+                )
+                _A_upper_diagonal_blocks[2 * comm_rank].get(
+                    out=_A_upper_diagonal_blocks_comm[2 * comm_rank]
+                )
+
+            _A_lower_arrow_blocks[2 * comm_rank].get(
+                out=_A_lower_arrow_blocks_comm[2 * comm_rank]
+            )
+            _A_lower_arrow_blocks[2 * comm_rank + 1].get(
+                out=_A_lower_arrow_blocks_comm[2 * comm_rank + 1]
+            )
+
+            _A_upper_arrow_blocks[2 * comm_rank].get(
+                out=_A_upper_arrow_blocks_comm[2 * comm_rank]
+            )
+            _A_upper_arrow_blocks[2 * comm_rank + 1].get(
+                out=_A_upper_arrow_blocks_comm[2 * comm_rank + 1]
+            )
+        _A_arrow_tip_block.get(out=_A_arrow_tip_block_comm)
+
+        if quadratic:
             # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
             if comm_rank == 0:
-                _A_diagonal_blocks[1].get(out=_A_diagonal_blocks_comm[1])
-                _A_lower_diagonal_blocks[1].get(out=_A_lower_diagonal_blocks_comm[1])
-                _A_upper_diagonal_blocks[1].get(out=_A_upper_diagonal_blocks_comm[1])
-                _A_lower_arrow_blocks[1].get(out=_A_lower_arrow_blocks_comm[1])
-                _A_upper_arrow_blocks[1].get(out=_A_upper_arrow_blocks_comm[1])
+                _B_diagonal_blocks[1].get(out=_B_diagonal_blocks_comm[1])
+                _B_lower_diagonal_blocks[1].get(out=_B_lower_diagonal_blocks_comm[1])
+                _B_upper_diagonal_blocks[1].get(out=_B_upper_diagonal_blocks_comm[1])
+                _B_lower_arrow_blocks[1].get(out=_B_lower_arrow_blocks_comm[1])
+                _B_upper_arrow_blocks[1].get(out=_B_upper_arrow_blocks_comm[1])
             else:
-                _A_diagonal_blocks[2 * comm_rank].get(
-                    out=_A_diagonal_blocks_comm[2 * comm_rank]
+                _B_diagonal_blocks[2 * comm_rank].get(
+                    out=_B_diagonal_blocks_comm[2 * comm_rank]
                 )
-                _A_diagonal_blocks[2 * comm_rank + 1].get(
-                    out=_A_diagonal_blocks_comm[2 * comm_rank + 1]
+                _B_diagonal_blocks[2 * comm_rank + 1].get(
+                    out=_B_diagonal_blocks_comm[2 * comm_rank + 1]
                 )
 
                 if comm_rank < comm_size - 1:
-                    _A_lower_diagonal_blocks[2 * comm_rank].get(
-                        out=_A_lower_diagonal_blocks_comm[2 * comm_rank]
+                    _B_lower_diagonal_blocks[2 * comm_rank].get(
+                        out=_B_lower_diagonal_blocks_comm[2 * comm_rank]
                     )
-                    _A_upper_diagonal_blocks[2 * comm_rank].get(
-                        out=_A_upper_diagonal_blocks_comm[2 * comm_rank]
+                    _B_upper_diagonal_blocks[2 * comm_rank].get(
+                        out=_B_upper_diagonal_blocks_comm[2 * comm_rank]
                     )
 
-                    _A_lower_diagonal_blocks[2 * comm_rank + 1].get(
-                        out=_A_lower_diagonal_blocks_comm[2 * comm_rank + 1]
+                    _B_lower_diagonal_blocks[2 * comm_rank + 1].get(
+                        out=_B_lower_diagonal_blocks_comm[2 * comm_rank + 1]
                     )
-                    _A_upper_diagonal_blocks[2 * comm_rank + 1].get(
-                        out=_A_upper_diagonal_blocks_comm[2 * comm_rank + 1]
+                    _B_upper_diagonal_blocks[2 * comm_rank + 1].get(
+                        out=_B_upper_diagonal_blocks_comm[2 * comm_rank + 1]
                     )
                 else:
-                    _A_lower_diagonal_blocks[2 * comm_rank].get(
-                        out=_A_lower_diagonal_blocks_comm[2 * comm_rank]
+                    _B_lower_diagonal_blocks[2 * comm_rank].get(
+                        out=_B_lower_diagonal_blocks_comm[2 * comm_rank]
                     )
-                    _A_upper_diagonal_blocks[2 * comm_rank].get(
-                        out=_A_upper_diagonal_blocks_comm[2 * comm_rank]
+                    _B_upper_diagonal_blocks[2 * comm_rank].get(
+                        out=_B_upper_diagonal_blocks_comm[2 * comm_rank]
                     )
 
-                _A_lower_arrow_blocks[2 * comm_rank].get(
-                    out=_A_lower_arrow_blocks_comm[2 * comm_rank]
+                _B_lower_arrow_blocks[2 * comm_rank].get(
+                    out=_B_lower_arrow_blocks_comm[2 * comm_rank]
                 )
-                _A_lower_arrow_blocks[2 * comm_rank + 1].get(
-                    out=_A_lower_arrow_blocks_comm[2 * comm_rank + 1]
-                )
-
-                _A_upper_arrow_blocks[2 * comm_rank].get(
-                    out=_A_upper_arrow_blocks_comm[2 * comm_rank]
-                )
-                _A_upper_arrow_blocks[2 * comm_rank + 1].get(
-                    out=_A_upper_arrow_blocks_comm[2 * comm_rank + 1]
+                _B_lower_arrow_blocks[2 * comm_rank + 1].get(
+                    out=_B_lower_arrow_blocks_comm[2 * comm_rank + 1]
                 )
 
-            _A_arrow_tip_block.get(out=_A_arrow_tip_block_comm)
+                _B_upper_arrow_blocks[2 * comm_rank].get(
+                    out=_B_upper_arrow_blocks_comm[2 * comm_rank]
+                )
+                _B_upper_arrow_blocks[2 * comm_rank + 1].get(
+                    out=_B_upper_arrow_blocks_comm[2 * comm_rank + 1]
+                )
+            _B_arrow_tip_block.get(out=_B_arrow_tip_block_comm)
+        cp.cuda.runtime.deviceSynchronize()
 
-            cpx.cuda.Stream.null.synchronize()
-
-        # Perform the allgather operation
-        comm.Allgather(
-            MPI.IN_PLACE,
-            _A_diagonal_blocks_comm,
-        )
-        comm.Allgather(
-            MPI.IN_PLACE,
-            _A_lower_diagonal_blocks_comm,
-        )
-        comm.Allgather(
-            MPI.IN_PLACE,
-            _A_upper_diagonal_blocks_comm,
-        )
-        comm.Allgather(
-            MPI.IN_PLACE,
-            _A_lower_arrow_blocks_comm,
-        )
-        comm.Allgather(
-            MPI.IN_PLACE,
-            _A_upper_arrow_blocks_comm,
-        )
-        comm.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
+    if strategy == "allgather":
+        if _use_nccl(communicator):
+            # --- Use NCCL ---
+            count, displacement, datatype = _get_nccl_parameters(
+                arr=_A_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+            )
+            communicator.allGather(
+                sendbuf=_A_diagonal_blocks_comm.data.ptr + displacement,
+                recvbuf=_A_diagonal_blocks_comm.data.ptr,
+                count=count,
+                datatype=datatype,
+                stream=cp.cuda.Stream.null.ptr,
+            )
+            count, displacement, datatype = _get_nccl_parameters(
+                arr=_A_lower_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+            )
+            communicator.allGather(
+                sendbuf=_A_lower_diagonal_blocks_comm.data.ptr + displacement,
+                recvbuf=_A_lower_diagonal_blocks_comm.data.ptr,
+                count=count,
+                datatype=datatype,
+                stream=cp.cuda.Stream.null.ptr,
+            )
+            count, displacement, datatype = _get_nccl_parameters(
+                arr=_A_upper_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+            )
+            communicator.allGather(
+                sendbuf=_A_upper_diagonal_blocks_comm.data.ptr + displacement,
+                recvbuf=_A_upper_diagonal_blocks_comm.data.ptr,
+                count=count,
+                datatype=datatype,
+                stream=cp.cuda.Stream.null.ptr,
+            )
+            count, displacement, datatype = _get_nccl_parameters(
+                arr=_A_lower_arrow_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+            )
+            communicator.allGather(
+                sendbuf=_A_lower_arrow_blocks_comm.data.ptr + displacement,
+                recvbuf=_A_lower_arrow_blocks_comm.data.ptr,
+                count=count,
+                datatype=datatype,
+                stream=cp.cuda.Stream.null.ptr,
+            )
+            count, displacement, datatype = _get_nccl_parameters(
+                arr=_A_upper_arrow_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+            )
+            communicator.allGather(
+                sendbuf=_A_upper_arrow_blocks_comm.data.ptr + displacement,
+                recvbuf=_A_upper_arrow_blocks_comm.data.ptr,
+                count=count,
+                datatype=datatype,
+                stream=cp.cuda.Stream.null.ptr,
+            )
+            count, displacement, datatype = _get_nccl_parameters(
+                arr=_A_arrow_tip_block_comm, comm=communicator, rank=comm_rank, op="allreduce"
+            )
+            communicator.allReduce(
+                sendbuf=_A_arrow_tip_block_comm.data.ptr,
+                recvbuf=_A_arrow_tip_block_comm.data.ptr,
+                count=count,
+                datatype=datatype,
+                op=cp.cuda.nccl.NCCL_SUM,
+                stream=cp.cuda.Stream.null.ptr,
+            )
+        else:
+            # --- Use MPI ---
+            comm.Allgather(
+                MPI.IN_PLACE,
+                _A_diagonal_blocks_comm,
+            )
+            comm.Allgather(
+                MPI.IN_PLACE,
+                _A_lower_diagonal_blocks_comm,
+            )
+            comm.Allgather(
+                MPI.IN_PLACE,
+                _A_upper_diagonal_blocks_comm,
+            )
+            comm.Allgather(
+                MPI.IN_PLACE,
+                _A_lower_arrow_blocks_comm,
+            )
+            comm.Allgather(
+                MPI.IN_PLACE,
+                _A_upper_arrow_blocks_comm,
+            )
+            comm.Allreduce(MPI.IN_PLACE, _A_arrow_tip_block_comm, op=MPI.SUM)
 
         ddbtars["A_diagonal_blocks_comm"] = _A_diagonal_blocks_comm[1:]
         ddbtars["A_lower_diagonal_blocks_comm"] = _A_lower_diagonal_blocks_comm[1:-1]
@@ -530,86 +681,92 @@ def aggregate_ddbtars(
         ddbtars["A_upper_arrow_blocks"] = _A_upper_arrow_blocks[1:]
 
         if quadratic:
-            if xp.__name__ == "cupy":
-                # We need to move the data of the reduced system from the GPU to the HOST pinned arrays.
-                if comm_rank == 0:
-                    _B_diagonal_blocks[1].get(out=_B_diagonal_blocks_comm[1])
-                    _B_lower_diagonal_blocks[1].get(
-                        out=_B_lower_diagonal_blocks_comm[1]
-                    )
-                    _B_upper_diagonal_blocks[1].get(
-                        out=_B_upper_diagonal_blocks_comm[1]
-                    )
-                    _B_lower_arrow_blocks[1].get(out=_B_lower_arrow_blocks_comm[1])
-                    _B_upper_arrow_blocks[1].get(out=_B_upper_arrow_blocks_comm[1])
-                else:
-                    _B_diagonal_blocks[2 * comm_rank].get(
-                        out=_B_diagonal_blocks_comm[2 * comm_rank]
-                    )
-                    _B_diagonal_blocks[2 * comm_rank + 1].get(
-                        out=_B_diagonal_blocks_comm[2 * comm_rank + 1]
-                    )
-
-                    if comm_rank < comm_size - 1:
-                        _B_lower_diagonal_blocks[2 * comm_rank].get(
-                            out=_B_lower_diagonal_blocks_comm[2 * comm_rank]
-                        )
-                        _B_upper_diagonal_blocks[2 * comm_rank].get(
-                            out=_B_upper_diagonal_blocks_comm[2 * comm_rank]
-                        )
-
-                        _B_lower_diagonal_blocks[2 * comm_rank + 1].get(
-                            out=_B_lower_diagonal_blocks_comm[2 * comm_rank + 1]
-                        )
-                        _B_upper_diagonal_blocks[2 * comm_rank + 1].get(
-                            out=_B_upper_diagonal_blocks_comm[2 * comm_rank + 1]
-                        )
-                    else:
-                        _B_lower_diagonal_blocks[2 * comm_rank].get(
-                            out=_B_lower_diagonal_blocks_comm[2 * comm_rank]
-                        )
-                        _B_upper_diagonal_blocks[2 * comm_rank].get(
-                            out=_B_upper_diagonal_blocks_comm[2 * comm_rank]
-                        )
-
-                    _B_lower_arrow_blocks[2 * comm_rank].get(
-                        out=_B_lower_arrow_blocks_comm[2 * comm_rank]
-                    )
-                    _B_lower_arrow_blocks[2 * comm_rank + 1].get(
-                        out=_B_lower_arrow_blocks_comm[2 * comm_rank + 1]
-                    )
-
-                    _B_upper_arrow_blocks[2 * comm_rank].get(
-                        out=_B_upper_arrow_blocks_comm[2 * comm_rank]
-                    )
-                    _B_upper_arrow_blocks[2 * comm_rank + 1].get(
-                        out=_B_upper_arrow_blocks_comm[2 * comm_rank + 1]
-                    )
-
-                _B_arrow_tip_block.get(out=_B_arrow_tip_block_comm)
-
-            # Perform the allgather operation
-            comm.Allgather(
-                MPI.IN_PLACE,
-                _B_diagonal_blocks_comm,
-            )
-            comm.Allgather(
-                MPI.IN_PLACE,
-                _B_lower_diagonal_blocks_comm,
-            )
-            comm.Allgather(
-                MPI.IN_PLACE,
-                _B_upper_diagonal_blocks_comm,
-            )
-            comm.Allgather(
-                MPI.IN_PLACE,
-                _B_lower_arrow_blocks_comm,
-            )
-            comm.Allgather(
-                MPI.IN_PLACE,
-                _B_upper_arrow_blocks_comm,
-            )
-            comm.Allreduce(MPI.IN_PLACE, _B_arrow_tip_block_comm, op=MPI.SUM)
+            if _use_nccl(communicator):
+                # --- Use NCCL ---
+                count, displacement, datatype = _get_nccl_parameters(
+                    arr=_B_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+                )
+                communicator.allGather(
+                    sendbuf=_B_diagonal_blocks_comm.data.ptr + displacement,
+                    recvbuf=_B_diagonal_blocks_comm.data.ptr,
+                    count=count,
+                    datatype=datatype,
+                    stream=cp.cuda.Stream.null.ptr,
+                )
+                count, displacement, datatype = _get_nccl_parameters(
+                    arr=_B_lower_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+                )
+                communicator.allGather(
+                    sendbuf=_B_lower_diagonal_blocks_comm.data.ptr + displacement,
+                    recvbuf=_B_lower_diagonal_blocks_comm.data.ptr,
+                    count=count,
+                    datatype=datatype,
+                    stream=cp.cuda.Stream.null.ptr,
+                )
+                count, displacement, datatype = _get_nccl_parameters(
+                    arr=_B_upper_diagonal_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+                )
+                communicator.allGather(
+                    sendbuf=_B_upper_diagonal_blocks_comm.data.ptr + displacement,
+                    recvbuf=_B_upper_diagonal_blocks_comm.data.ptr,
+                    count=count,
+                    datatype=datatype,
+                    stream=cp.cuda.Stream.null.ptr,
+                )
+                count, displacement, datatype = _get_nccl_parameters(
+                    arr=_B_lower_arrow_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+                )
+                communicator.allGather(
+                    sendbuf=_B_lower_arrow_blocks_comm.data.ptr + displacement,
+                    recvbuf=_B_lower_arrow_blocks_comm.data.ptr,
+                    count=count,
+                    datatype=datatype,
+                    stream=cp.cuda.Stream.null.ptr,
+                )
+                count, displacement, datatype = _get_nccl_parameters(
+                    arr=_B_upper_arrow_blocks_comm, comm=communicator, rank=comm_rank, op="allgather"
+                )
+                communicator.allGather(
+                    sendbuf=_B_upper_arrow_blocks_comm.data.ptr + displacement,
+                    recvbuf=_B_upper_arrow_blocks_comm.data.ptr,
+                    count=count,
+                    datatype=datatype,
+                    stream=cp.cuda.Stream.null.ptr,
+                )
+                count, displacement, datatype = _get_nccl_parameters(
+                    arr=_B_arrow_tip_block_comm, comm=communicator, rank=comm_rank, op="allreduce"
+                )
+                communicator.allReduce(
+                    sendbuf=_B_arrow_tip_block_comm.data.ptr,
+                    recvbuf=_B_arrow_tip_block_comm.data.ptr,
+                    count=count,
+                    datatype=datatype,
+                    op=cp.cuda.nccl.NCCL_SUM,
+                    stream=cp.cuda.Stream.null.ptr,
+                )
+            else:
+                # --- Use MPI ---
+                comm.Allgather(
+                    MPI.IN_PLACE,
+                    _B_diagonal_blocks_comm,
+                )
+                comm.Allgather(
+                    MPI.IN_PLACE,
+                    _B_lower_diagonal_blocks_comm,
+                )
+                comm.Allgather(
+                    MPI.IN_PLACE,
+                    _B_upper_diagonal_blocks_comm,
+                )
+                comm.Allgather(
+                    MPI.IN_PLACE,
+                    _B_lower_arrow_blocks_comm,
+                )
+                comm.Allgather(
+                    MPI.IN_PLACE,
+                    _B_upper_arrow_blocks_comm,
+                )
+                comm.Allreduce(MPI.IN_PLACE, _B_arrow_tip_block_comm, op=MPI.SUM)
 
             _rhs["B_diagonal_blocks_comm"] = _B_diagonal_blocks_comm[1:]
             _rhs["B_lower_diagonal_blocks_comm"] = _B_lower_diagonal_blocks_comm[1:-1]
@@ -623,12 +780,12 @@ def aggregate_ddbtars(
             _rhs["B_lower_arrow_blocks"] = _B_lower_arrow_blocks[1:]
             _rhs["B_upper_arrow_blocks"] = _B_upper_arrow_blocks[1:]
             ddbtars["_rhs"] = _rhs
-    else:
-        raise ValueError("Unknown communication strategy.")
 
-    comm.Barrier()
-
-    if xp.__name__ == "cupy":
+    if (
+        xp.__name__ == "cupy"
+        and not backend_flags["mpi_cuda_aware"]
+        and not _use_nccl(communicator)
+    ):
         # Need to put back the reduced system on the GPU
         _A_diagonal_blocks.set(arr=_A_diagonal_blocks_comm)
         _A_lower_diagonal_blocks.set(arr=_A_lower_diagonal_blocks_comm)
@@ -651,8 +808,15 @@ def scatter_ddbtars(
     comm: MPI.Comm,
     quadratic: bool = False,
     strategy: str = "allgather",
+    nccl_comm: object = None,
     **kwargs,
 ):
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 
@@ -724,8 +888,15 @@ def map_ddbtars_to_ddbtasci(
     _A_arrow_tip_block: ArrayLike,
     comm: MPI.Comm,
     strategy: str = "allgather",
+    nccl_comm: object = None,
     **kwargs,
 ):
+    communicator = None
+    if nccl_comm is not None:
+        communicator = nccl_comm
+    else:
+        communicator = comm
+        
     comm_rank = comm.Get_rank()
     comm_size = comm.Get_size()
 

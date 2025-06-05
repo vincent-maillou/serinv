@@ -22,6 +22,7 @@ def pddbtasci(
     A_upper_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel selected-inversion of the Schur-complement of a block tridiagonal matrix.
@@ -159,6 +160,7 @@ def pddbtasci(
         ddbtars=ddbtars,
         comm=comm,
         quadratic=quadratic,
+        nccl_comm=nccl_comm,
     )
 
     map_ddbtars_to_ddbtasci(
@@ -179,6 +181,7 @@ def pddbtasci(
         quadratic=quadratic,
         buffers=buffers,
         _rhs=ddbtars.get("_rhs", None),
+        nccl_comm=nccl_comm,
     )
 
     # Perform distributed SCI

@@ -4,7 +4,6 @@ from mpi4py import MPI
 
 from serinv import (
     ArrayLike,
-    _get_module_from_array,
 )
 
 from serinv.algs import pobtasi
@@ -20,6 +19,7 @@ def ppobtasi(
     L_lower_arrow_blocks: ArrayLike,
     L_arrow_tip_block: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ):
     """Perform a selected inversion of a block tridiagonal with arrowhead matrix (pointing downward by convention).
@@ -103,9 +103,9 @@ def ppobtasi(
 
     elif strategy == "allgather":
         pobtasi(
-            L_diagonal_blocks=pobtars["A_diagonal_blocks"],
-            L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"],
-            L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"],
+            L_diagonal_blocks=pobtars["A_diagonal_blocks"][1:],
+            L_lower_diagonal_blocks=pobtars["A_lower_diagonal_blocks"][1:-1],
+            L_lower_arrow_blocks=pobtars["A_lower_arrow_blocks"][1:],
             L_arrow_tip_block=pobtars["A_arrow_tip_block"],
         )
 
@@ -114,6 +114,7 @@ def ppobtasi(
         comm=comm,
         strategy=strategy,
         root=root,
+        nccl_comm=nccl_comm,
     )
 
     # Map result of the reduced system back to the original system
@@ -129,6 +130,7 @@ def ppobtasi(
         comm=comm,
         buffer=buffer,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
 
     # Parallel selected inversion of the original system
