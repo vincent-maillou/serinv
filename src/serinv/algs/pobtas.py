@@ -235,7 +235,7 @@ def _pobtas_streaming(
 ):
     arr_module, _ = _get_module_from_array(arr=L_diagonal_blocks)
     if arr_module.__name__ != "numpy":
-        raise NotImplementedError(
+        raise TypeError(
             "Host<->Device streaming only works when host-arrays are given."
         )
     
