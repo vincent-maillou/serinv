@@ -131,9 +131,11 @@ def _pobtaf(
         L_lower_arrow_blocks[i, :, :] = (
             trsm(
                 L_diagonal_blocks[i, :, :],
-                A_lower_arrow_blocks[i, :, :],
-                trans='C',lower=True, side=1
+                A_lower_arrow_blocks[i, :, :].conj().T,
+                lower=True,
             )
+            .conj()
+            .T
         )
 
         # Update next diagonal block
@@ -164,11 +166,9 @@ def _pobtaf(
         L_lower_arrow_blocks[-1, :, :] = (
             trsm(
                 L_diagonal_blocks[-1, :, :],
-                A_lower_arrow_blocks[-1, :, :].conj().T,
-                lower=True,
+                A_lower_arrow_blocks[-1, :, :],
+                trans='C',lower=True, side=1
             )
-            .conj()
-            .T
         )
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
