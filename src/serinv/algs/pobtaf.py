@@ -131,7 +131,7 @@ def _pobtaf(
         L_test = trsm(
                 L_diagonal_blocks[i, :, :],
                 A_lower_diagonal_blocks[i, :, :],
-                trans=2,lower=True, side = 1
+                trans='C',lower=True, side=1
                 )
         print(L_test)
         print("###")
@@ -152,11 +152,10 @@ def _pobtaf(
         L_lower_diagonal_blocks[i, :, :] = (
             trsm(
                 L_diagonal_blocks[i, :, :],
-                A_lower_diagonal_blocks[i, :, :].conj().T,
-                lower=True, side = 1
+                A_lower_diagonal_blocks[i, :, :],
+                trans='C',lower=True, side=1
             )
-            .conj()
-            .T
+            
         )
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
