@@ -161,8 +161,12 @@ def _pobtaf(
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
         A_arrow_tip_block[:, :] = (
-            A_arrow_tip_block[:, :]
-            - L_lower_arrow_blocks[i, :, :] @ L_lower_arrow_blocks[i, :, :].conj().T
+            gemm(
+                L_lower_arrow_blocks[i, :, :],
+                L_lower_arrow_blocks[i, :, :],
+                A_arrow_tip_block[:, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
     if factorize_last_block:
