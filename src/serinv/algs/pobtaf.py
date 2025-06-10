@@ -129,7 +129,7 @@ def _pobtaf(
         print("###")
         print("side = 1 sol")
         L_test = trsm(
-                L_diagonal_blocks[i, :, :],
+                L_diagonal_blocks[i, :, :].conj.T,
                 A_lower_diagonal_blocks[i, :, :],
                 lower=True, side = 1
                 )
