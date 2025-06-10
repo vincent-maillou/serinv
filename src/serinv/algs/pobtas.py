@@ -82,15 +82,15 @@ def _pobtas(
     if trans == "N":
         # ----- Forward substitution -----
         for i in range(0, n_diag_blocks - 1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = serinv_solve_triangular(
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
                 L_diagonal_blocks[i],
                 B[i * diag_blocksize : (i + 1) * diag_blocksize],
                 lower=True, side=0
             )
 
-            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= serinv_matmul(
+            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
                 L_lower_diagonal_blocks[i]
-                , B[i * diag_blocksize : (i + 1) * diag_blocksize]
+                @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
             )
 
             B[-arrow_blocksize:] -= (

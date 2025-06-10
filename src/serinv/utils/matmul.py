@@ -9,7 +9,7 @@ from scipy.linalg._decomp import _asarray_validated
 
 try:
     import cupy as cp
-    from cupy.cublas import gemm
+    from cupy.cublas import gemm as cp_gemm
 except (ImportError, ImportWarning, ModuleNotFoundError):
     pass
 
@@ -20,7 +20,7 @@ def serinv_matmul (a, b, trans_a = 'N', trans_b = 'N'):
     if xp == np:
         return matmul_gemm_host(a, b, trans_a=trans_a, trans_b=trans_b)
     elif xp == cp:
-        return gemm(trans_a, trans_b, a, b)
+        return cp_gemm(trans_a, trans_b, a, b)
     else:
         ModuleNotFoundError("Unknown Module")
 
