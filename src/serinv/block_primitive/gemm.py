@@ -9,26 +9,25 @@ from scipy.linalg._decomp import _asarray_validated
 
 try:
     import cupy as cp
-    from cupy.cublas import gemm as cp_gemm
     from cupy_backends.cuda.libs import cublas
     from cupy import _core
     from cupy.cuda import device
 except (ImportError, ImportWarning, ModuleNotFoundError):
     pass
 
-def gemm (a, b, trans_a = 'N', trans_b = 'N'):
+def gemm (a, b, c=None, alpha=1.0, beta=0.0, trans_a ='N', trans_b ='N'):
     """Wrapper to call GeMM for host or device"""
     xp, la = _get_module_from_array(a)
 
     if xp == np:
         return matmul_gemm_host(a, b, trans_a=trans_a, trans_b=trans_b)
     elif xp == cp:
-        return matmul_gemm_device(trans_a, trans_b, a, b)
+        return matmul_gemm_device(trans_a, trans_b, a, b, c, alpha, beta)
     else:
         ModuleNotFoundError("Unknown Module")
 
 
-def matmul_gemm_host(a, b, alpha=1, beta=0, c=None, trans_a=0, trans_b=0, overwrite_c=0, check_finite=False):
+def matmul_gemm_host(a, b, alpha=1.0, beta=0.0, c=None, trans_a=0, trans_b=0, overwrite_c=0, check_finite=False):
     """
     Solve the equation ``a x = b`` for `x`, assuming a is a triangular matrix.
 
@@ -124,7 +123,7 @@ def matmul_gemm_host(a, b, alpha=1, beta=0, c=None, trans_a=0, trans_b=0, overwr
 
 
 # solve_triangular without the input validation
-def _matmul_gemm(a1, b1, alpha=1, beta=0, c1=None, trans_a=0, trans_b=0, overwrite_c=0):
+def _matmul_gemm(a1, b1, alpha=1.0, beta=0.0, c1=None, trans_a=0, trans_b=0, overwrite_c=0):
 
     trans_a = {'N': 0, 'T': 1, 'C': 2}.get(trans_a, trans_a)
     trans_b = {'N': 0, 'T': 1, 'C': 2}.get(trans_b, trans_b)
@@ -146,7 +145,7 @@ def _matmul_gemm(a1, b1, alpha=1, beta=0, c1=None, trans_a=0, trans_b=0, overwri
     return x
 
 
-
+# Util functions for cupy gemm
 def _trans_to_cublas_op(trans):
     if trans == 'N' or trans == cublas.CUBLAS_OP_N:
         trans = cublas.CUBLAS_OP_N
@@ -186,6 +185,7 @@ def _get_scalar_ptr(a, dtype):
             a = np.array(a, dtype=dtype)
         a_ptr = a.ctypes.data
     return a, a_ptr
+# Util functions for cupy gemm end
 
 
 def matmul_gemm_device(transa, transb, a, b, out=None, alpha=1.0, beta=0.0):
