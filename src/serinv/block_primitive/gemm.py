@@ -20,7 +20,7 @@ def gemm (a, b, c=None, alpha=1.0, beta=0.0, trans_a ='N', trans_b ='N'):
     xp, la = _get_module_from_array(a)
 
     if xp == np:
-        return matmul_gemm_host(a, b, trans_a=trans_a, trans_b=trans_b)
+        return matmul_gemm_host(a, b, c, alpha, beta, trans_a, trans_b)
     elif xp == cp:
         return matmul_gemm_device(trans_a, trans_b, a, b, c, alpha, beta)
     else:
