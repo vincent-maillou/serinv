@@ -247,7 +247,7 @@ def _pobtaf_permuted(
         L_lower_arrow_blocks[i, :, :] = (
             trsm(
                 L_diagonal_blocks[i, :, :],
-                A_lower_arrow_blocks[i, :, :].conj().T,
+                A_lower_arrow_blocks[i, :, :],
                 lower=True,
             )
             .conj()
@@ -258,8 +258,8 @@ def _pobtaf_permuted(
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
         A_diagonal_blocks[i + 1, :, :] = (
             gemm(
-                L_lower_diagonal_blocks[i, :, :]
-                @ L_lower_diagonal_blocks[i, :, :].conj().T,
+                L_lower_diagonal_blocks[i, :, :],
+                L_lower_diagonal_blocks[i, :, :],
                 A_diagonal_blocks[i + 1, :, :],
                 trans_b='C', alpha=-1.0, beta=1.0
             )
@@ -267,33 +267,54 @@ def _pobtaf_permuted(
 
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
         A_lower_arrow_blocks[i + 1, :, :] = (
-            A_lower_arrow_blocks[i + 1, :, :]
-            - L_lower_arrow_blocks[i, :, :] @ L_lower_diagonal_blocks[i, :, :].conj().T
+            gemm(
+                L_lower_arrow_blocks[i, :, :],
+                L_lower_diagonal_blocks[i, :, :],
+                A_lower_arrow_blocks[i + 1, :, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
         # Update the block at the tip of the arrowhead
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
         L_arrow_tip_block[:, :] = (
-            L_arrow_tip_block[:, :]
-            - L_lower_arrow_blocks[i, :, :] @ L_lower_arrow_blocks[i, :, :].conj().T
+            gemm(
+                L_lower_arrow_blocks[i, :, :],
+                L_lower_arrow_blocks[i, :, :],
+                L_arrow_tip_block[:, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
         # Update top and next upper/lower blocks of 2-sided factorization pattern
         # A_{top, top} = A_{top, top} - L_{top, i} @ L_{top, i}.conj().T
         A_diagonal_blocks[0, :, :] = (
-            A_diagonal_blocks[0, :, :] - buffer[i, :, :] @ buffer[i, :, :].conj().T
+            gemm(
+                buffer[i, :, :],
+                buffer[i, :, :],
+                A_diagonal_blocks[0, :, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
         # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
         buffer[i + 1, :, :] = (
-            -buffer[i, :, :] @ L_lower_diagonal_blocks[i, :, :].conj().T
+            gemm(
+                buffer[i, :, :],
+                L_lower_diagonal_blocks[i, :, :],
+                trans_b='C', alpha=-1.0
+            )
         )
 
         # Update the top (first blocks) of the arrowhead
         # A_{ndb+1, top} = A_{ndb+1, top} - L_{ndb+1, i} @ L_{top, i}.conj().T
         A_lower_arrow_blocks[0, :, :] = (
-            A_lower_arrow_blocks[0, :, :]
-            - L_lower_arrow_blocks[i, :, :] @ buffer[i, :, :].conj().T
+            gemm(
+                L_lower_arrow_blocks[i, :, :],
+                buffer[i, :, :].conj().T,
+                A_lower_arrow_blocks[0, :, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
 
