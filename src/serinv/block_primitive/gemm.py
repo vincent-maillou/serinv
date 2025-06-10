@@ -108,7 +108,7 @@ def matmul_gemm_host(a, b, alpha=1.0, beta=0.0, c=None, trans_a=0, trans_b=0, ov
     if a1.shape[0] != b1.shape[0]:
         raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible')
     
-    if beta != 0 and c1 == None:
+    if beta != 0 and c1 is None:
         raise ValueError('expected C matrix')
 
     # accommodate empty arrays
