@@ -134,8 +134,6 @@ def _matmul_gemm(a1, b1, alpha=1.0, beta=0.0, c1=None, trans_a=0, trans_b=0, ove
     else:
         dtype = np.promote_types(a1.dtype.char, 'f')
 
-    alpha = 1
-    beta = 0
     if beta == 0:
         x = gemm(alpha, a1, b1, beta=beta, trans_a=trans_a, trans_b=trans_b, overwrite_c=overwrite_c)
     else:

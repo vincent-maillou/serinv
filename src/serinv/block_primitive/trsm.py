@@ -305,7 +305,6 @@ def _solve_triangular(a1, b1, trans=0, lower=False, unit_diagonal=False,
 
     trans = {'N': 0, 'T': 1, 'C': 2}.get(trans, trans)
     trsm, = get_blas_funcs(('trsm',), (a1, b1))
-    print(trsm)
 
     if a1.dtype.char in 'fd':
         dtype = a1.dtype
