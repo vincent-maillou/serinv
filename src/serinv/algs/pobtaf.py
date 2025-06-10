@@ -186,8 +186,12 @@ def _pobtaf(
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
         A_arrow_tip_block[:, :] = (
-            A_arrow_tip_block[:, :]
-            - L_lower_arrow_blocks[-1, :, :] @ L_lower_arrow_blocks[-1, :, :].conj().T
+            gemm(
+                L_lower_arrow_blocks[-1, :, :],
+                L_lower_arrow_blocks[-1, :, :],
+                A_arrow_tip_block[:, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
