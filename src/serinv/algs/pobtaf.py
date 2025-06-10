@@ -120,15 +120,29 @@ def _pobtaf(
 
         ###
         # Testing for shape and size
+        print("###")
         print(L_diagonal_blocks[i, :, :])
+        print("###")
         print(A_lower_diagonal_blocks[i, :, :].conj().T)
+        print("###")
         print(A_lower_diagonal_blocks[i, :, :])
-
+        print("###")
         L_test = trsm(
                 L_diagonal_blocks[i, :, :],
                 A_lower_diagonal_blocks[i, :, :],
                 lower=True, side = 1
                 )
+        print(L_test)
+        print("###")
+        L_test = (
+            trsm(
+                L_diagonal_blocks[i, :, :],
+                A_lower_diagonal_blocks[i, :, :].conj().T,
+                lower=True, side = 0
+            )
+            .conj()
+            .T
+        )
         print(L_test)
         ###
 
