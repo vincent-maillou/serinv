@@ -502,9 +502,12 @@ def _pobtaf_streaming(
 
             # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
             A_arrow_tip_block_d[:, :] = (
-                A_arrow_tip_block_d[:, :]
-                - L_lower_arrow_blocks_d[i % 2, :, :]
-                @ L_lower_arrow_blocks_d[i % 2, :, :].conj().T
+                gemm(
+                    L_lower_arrow_blocks_d[i % 2, :, :],
+                    L_lower_arrow_blocks_d[i % 2, :, :],
+                    A_arrow_tip_block_d[:, :],
+                    trans_b='C', alpha=-1.0, beta=1.0
+                )
             )
             compute_arrow_h2d_events[i % 2].record(stream=compute_stream)
 
