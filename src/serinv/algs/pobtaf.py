@@ -121,11 +121,9 @@ def _pobtaf(
         L_lower_diagonal_blocks[i, :, :] = (
             trsm(
                 L_diagonal_blocks[i, :, :],
-                A_lower_diagonal_blocks[i, :, :].conj().T,
-                lower=True,
+                A_lower_diagonal_blocks[i, :, :],
+                lower=True, side = 1
             )
-            .conj()
-            .T
         )
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
