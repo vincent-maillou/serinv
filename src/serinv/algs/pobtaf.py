@@ -7,6 +7,7 @@ from serinv import (
     _get_cholesky,
 )
 
+from serinv.block_primitive import trsm, gemm
 
 def pobtaf(
     A_diagonal_blocks: ArrayLike,
@@ -118,7 +119,7 @@ def _pobtaf(
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L_lower_diagonal_blocks[i, :, :] = (
-            la.solve_triangular(
+            trsm(
                 L_diagonal_blocks[i, :, :],
                 A_lower_diagonal_blocks[i, :, :].conj().T,
                 lower=True,
@@ -129,7 +130,7 @@ def _pobtaf(
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         L_lower_arrow_blocks[i, :, :] = (
-            la.solve_triangular(
+            trsm(
                 L_diagonal_blocks[i, :, :],
                 A_lower_arrow_blocks[i, :, :].conj().T,
                 lower=True,
@@ -164,7 +165,7 @@ def _pobtaf(
 
         # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
         L_lower_arrow_blocks[-1, :, :] = (
-            la.solve_triangular(
+            trsm(
                 L_diagonal_blocks[-1, :, :],
                 A_lower_arrow_blocks[-1, :, :].conj().T,
                 lower=True,
@@ -210,7 +211,7 @@ def _pobtaf_permuted(
         # Compute lower factors
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L_lower_diagonal_blocks[i, :, :] = (
-            la.solve_triangular(
+            trsm(
                 L_diagonal_blocks[i, :, :],
                 A_lower_diagonal_blocks[i, :, :].conj().T,
                 lower=True,
@@ -221,7 +222,7 @@ def _pobtaf_permuted(
 
         # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
         buffer[i, :, :] = (
-            la.solve_triangular(
+            trsm(
                 L_diagonal_blocks[i, :, :],
                 buffer[i, :, :].conj().T,
                 lower=True,
@@ -232,7 +233,7 @@ def _pobtaf_permuted(
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         L_lower_arrow_blocks[i, :, :] = (
-            la.solve_triangular(
+            trsm(
                 L_diagonal_blocks[i, :, :],
                 A_lower_arrow_blocks[i, :, :].conj().T,
                 lower=True,
@@ -391,7 +392,7 @@ def _pobtaf_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_lower_events[i % 2])
             L_lower_diagonal_blocks_d[i % 2, :, :] = (
-                cu_la.solve_triangular(
+                cu_trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
@@ -418,7 +419,7 @@ def _pobtaf_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_arrow_events[i % 2])
             L_lower_arrow_blocks_d[i % 2, :, :] = (
-                cu_la.solve_triangular(
+                cu_trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_lower_arrow_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
@@ -488,7 +489,7 @@ def _pobtaf_streaming(
         compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
         if factorize_last_block:
             L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :] = (
-                cu_la.solve_triangular(
+                cu_trsm(
                     L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
                     A_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :].conj().T,
                     lower=True,
@@ -654,7 +655,7 @@ def _pobtaf_permuted_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_lower_events[i % 2])
             L_lower_diagonal_blocks_d[i % 2, :, :] = (
-                cu_la.solve_triangular(
+                cu_trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
@@ -681,7 +682,7 @@ def _pobtaf_permuted_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_arrow_events[i % 2])
             L_lower_arrow_blocks_d[i % 2, :, :] = (
-                cu_la.solve_triangular(
+                cu_trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_lower_arrow_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
@@ -701,7 +702,7 @@ def _pobtaf_permuted_streaming(
         # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
         with compute_stream:
             L_upper_nested_dissection_buffer_d[i % 2, :, :] = (
-                cu_la.solve_triangular(
+                cu_trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
                     buffer_d[i % 2, :, :].conj().T,
                     lower=True,

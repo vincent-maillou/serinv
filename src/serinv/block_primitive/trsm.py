@@ -14,7 +14,7 @@ try:
 except (ImportError, ImportWarning, ModuleNotFoundError):
     pass
 
-def serinv_solve_triangular(a, b, trans=0, lower = False, unit_diagonal=False,
+def trsm(a, b, trans=0, lower = False, unit_diagonal=False,
                             overwrite_b=False, check_finite=False, side=0):
     """Wrapper for the trsm function to call depending on wheter the solve happens on the host or the device
     

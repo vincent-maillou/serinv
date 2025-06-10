@@ -7,7 +7,6 @@ from serinv import (
 
 )
 
-from serinv.utils import serinv_matmul, serinv_solve_triangular
 
 def pobtas(
     L_diagonal_blocks: ArrayLike,

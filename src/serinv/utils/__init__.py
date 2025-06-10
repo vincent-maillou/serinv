@@ -8,8 +8,7 @@ from serinv.utils.ddbtax import allocate_ddbtax_permutation_buffers
 from serinv.utils.pobtx import allocate_pobtx_permutation_buffers
 from serinv.utils.pobtax import allocate_pobtax_permutation_buffers
 
-from serinv.utils.matmul import serinv_matmul
-from serinv.utils.trsm import serinv_solve_triangular
+
 
 __all__ = [
     "check_block_dd",
@@ -18,6 +17,4 @@ __all__ = [
     "allocate_ddbtax_permutation_buffers",
     "allocate_pobtx_permutation_buffers",
     "allocate_pobtax_permutation_buffers",
-    "serinv_matmul",
-    "serinv_solve_triangluar"
 ]
