@@ -303,15 +303,18 @@ def _pobtaf_permuted(
                 buffer[i, :, :],
                 L_lower_diagonal_blocks[i, :, :],
                 trans_b='C', alpha=-1.0
-            )
-            
+            )     
         )
 
         # Update the top (first blocks) of the arrowhead
         # A_{ndb+1, top} = A_{ndb+1, top} - L_{ndb+1, i} @ L_{top, i}.conj().T
         A_lower_arrow_blocks[0, :, :] = (
-            A_lower_arrow_blocks[0, :, :]
-            - L_lower_arrow_blocks[i, :, :] @ buffer[i, :, :].conj().T
+            gemm(
+                L_lower_arrow_blocks[i, :, :],
+                buffer[i, :, :],
+                A_lower_arrow_blocks[0, :, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
 
