@@ -141,7 +141,6 @@ def _pobtaf(
         # Update next diagonal block
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
         A_diagonal_blocks[i + 1, :, :] = (
-            
             gemm(
                 L_lower_diagonal_blocks[i, :, :], 
                 L_lower_diagonal_blocks[i, :, :],
@@ -152,8 +151,12 @@ def _pobtaf(
 
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
         A_lower_arrow_blocks[i + 1, :, :] = (
-            A_lower_arrow_blocks[i + 1, :, :]
-            - L_lower_arrow_blocks[i, :, :] @ L_lower_diagonal_blocks[i, :, :].conj().T
+            gemm(
+                L_lower_arrow_blocks[i, :, :],
+                L_lower_diagonal_blocks[i, :, :],
+                A_lower_arrow_blocks[i + 1, :, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
