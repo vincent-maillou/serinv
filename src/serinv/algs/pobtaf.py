@@ -137,7 +137,7 @@ def _pobtaf(
             trsm(
                 L_diagonal_blocks[i, :, :],
                 A_lower_diagonal_blocks[i, :, :].conj().T,
-                lower=True,
+                lower=True, side = 1
             )
             .conj()
             .T
