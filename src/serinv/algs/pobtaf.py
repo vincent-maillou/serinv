@@ -117,13 +117,30 @@ def _pobtaf(
         # L_{i, i} = chol(A_{i, i})
         L_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :])
 
+
+        ###
+        # Testing for shape and size
+        print(L_diagonal_blocks[i, :, :])
+        print(A_lower_diagonal_blocks[i, :, :].conj().T)
+        print(A_lower_diagonal_blocks[i, :, :])
+
+        L_test = trsm(
+                L_diagonal_blocks[i, :, :],
+                A_lower_diagonal_blocks[i, :, :],
+                lower=True, side = 1
+                )
+        print(L_test)
+        ###
+
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L_lower_diagonal_blocks[i, :, :] = (
             trsm(
                 L_diagonal_blocks[i, :, :],
-                A_lower_diagonal_blocks[i, :, :],
-                lower=True, side = 1
+                A_lower_diagonal_blocks[i, :, :].conj().T,
+                lower=True,
             )
+            .conj()
+            .T
         )
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
