@@ -209,8 +209,10 @@ def matmul_gemm_device(transa, transb, a, b, out=None, alpha=1.0, beta=0.0):
         func = cublas.dgemm
     elif dtype == 'F':
         func = cublas.cgemm
+        alpha = complex(alpha)
     elif dtype == 'D':
         func = cublas.zgemm
+        alpha = complex(alpha)
     else:
         raise TypeError('invalid dtype')
     
