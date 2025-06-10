@@ -97,7 +97,7 @@ def matmul_gemm_host(a, b, alpha=1.0, beta=0.0, c=None, trans_a=0, trans_b=0, ov
 
     a1 = _asarray_validated(a, check_finite=check_finite)
     b1 = _asarray_validated(b, check_finite=check_finite)
-    if c == None:
+    if c is None:
         c1 = None
     else:
         c1 = _asarray_validated(c, check_finite=check_finite)
