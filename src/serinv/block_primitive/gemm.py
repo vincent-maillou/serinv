@@ -193,6 +193,7 @@ def matmul_gemm_device(transa, transb, a, b, out=None, alpha=1.0, beta=0.0):
     op(b) = b if transb is 'N', op(b) = b.T if transb is 'T',
     op(b) = b.T.conj() if transb is 'H'.
     """
+    ValueError("TEST")
     assert a.ndim == b.ndim == 2
     assert a.dtype == b.dtype
     dtype = a.dtype.char
