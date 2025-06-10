@@ -151,7 +151,7 @@ def _trans_to_cublas_op(trans):
         trans = cublas.CUBLAS_OP_N
     elif trans == 'T' or trans == cublas.CUBLAS_OP_T:
         trans = cublas.CUBLAS_OP_T
-    elif trans == 'H' or trans == cublas.CUBLAS_OP_C:
+    elif trans == 'C' or trans == cublas.CUBLAS_OP_C:
         trans = cublas.CUBLAS_OP_C
     else:
         raise TypeError('invalid trans (actual: {})'.format(trans))
@@ -192,9 +192,9 @@ def matmul_gemm_device(transa, transb, a, b, out=None, alpha=1.0, beta=0.0):
     """Computes out = alpha * op(a) @ op(b) + beta * out
 
     op(a) = a if transa is 'N', op(a) = a.T if transa is 'T',
-    op(a) = a.T.conj() if transa is 'H'.
+    op(a) = a.T.conj() if transa is 'C'.
     op(b) = b if transb is 'N', op(b) = b.T if transb is 'T',
-    op(b) = b.T.conj() if transb is 'H'.
+    op(b) = b.T.conj() if transb is 'C'.
     """
     assert a.ndim == b.ndim == 2
     assert a.dtype == b.dtype
