@@ -278,8 +278,12 @@ def _pobtaf_permuted(
         # Update the block at the tip of the arrowhead
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
         L_arrow_tip_block[:, :] = (
-            L_arrow_tip_block[:, :]
-            - L_lower_arrow_blocks[i, :, :] @ L_lower_arrow_blocks[i, :, :].conj().T
+            gemm(
+                L_lower_arrow_blocks[i, :, :],
+                L_lower_arrow_blocks[i, :, :],
+                L_arrow_tip_block[:, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
         # Update top and next upper/lower blocks of 2-sided factorization pattern
