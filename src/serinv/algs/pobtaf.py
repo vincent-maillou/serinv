@@ -289,7 +289,12 @@ def _pobtaf_permuted(
         # Update top and next upper/lower blocks of 2-sided factorization pattern
         # A_{top, top} = A_{top, top} - L_{top, i} @ L_{top, i}.conj().T
         A_diagonal_blocks[0, :, :] = (
-            A_diagonal_blocks[0, :, :] - buffer[i, :, :] @ buffer[i, :, :].conj().T
+            gemm(
+                buffer[i, :, :],
+                buffer[i, :, :],
+                A_diagonal_blocks[0, :, :],
+                trans_b='C', alpha=-1.0, beta=1.0
+            )
         )
 
         # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
