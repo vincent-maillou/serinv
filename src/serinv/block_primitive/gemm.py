@@ -100,6 +100,8 @@ def matmul_gemm_host(a, b, alpha=1, beta=0, c=None, trans_a=0, trans_b=0, overwr
     b1 = _asarray_validated(b, check_finite=check_finite)
     if c != None:
         c1 = _asarray_validated(c, check_finite=check_finite)
+    else:
+        c1 = None
 
     if len(a1.shape) != 2 or a1.shape[0] != a1.shape[1]:
         raise ValueError('expected square matrix')
