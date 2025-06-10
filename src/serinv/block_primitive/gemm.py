@@ -117,7 +117,7 @@ def matmul_gemm_host(a, b, alpha=1.0, beta=0.0, c=None, trans_a=0, trans_b=0, ov
             np.eye(2, dtype=a1.dtype), np.ones(2, dtype=b1.dtype)
         ).dtype
         return np.empty_like(b1, dtype=dt_nonempty)
-
+    print(alpha)
     x = _matmul_gemm(a1, b1, alpha, beta, c1, trans_a, trans_b, overwrite_c)
     return x
 
@@ -134,6 +134,12 @@ def _matmul_gemm(a1, b1, alpha=1.0, beta=0.0, c1=None, trans_a=0, trans_b=0, ove
     else:
         dtype = np.promote_types(a1.dtype.char, 'f')
 
+    print(a1)
+    print("###")
+    print(b1)
+    print("###")
+    print(alpha)
+    print("###")
     if beta == 0:
         x = gemm(alpha, a1, b1, beta=beta, trans_a=trans_a, trans_b=trans_b, overwrite_c=overwrite_c)
     else:
