@@ -299,7 +299,12 @@ def _pobtaf_permuted(
 
         # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
         buffer[i + 1, :, :] = (
-            -buffer[i, :, :] @ L_lower_diagonal_blocks[i, :, :].conj().T
+            gemm(
+                buffer[i, :, :],
+                L_lower_diagonal_blocks[i, :, :],
+                trans_b='C', alpha=-1.0
+            )
+            
         )
 
         # Update the top (first blocks) of the arrowhead
