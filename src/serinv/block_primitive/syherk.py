@@ -1,7 +1,7 @@
 from serinv import _get_module_from_array
 
 #import trymod
-from cupyfix_backends.cuda.libs import cublas as cublasfix
+from block_primitive.cupyfix_backends.cuda.libs import cublas as cublasfix
 
 import numpy as np
 from numpy.linalg import matmul
