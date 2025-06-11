@@ -4,7 +4,7 @@
 
 cimport cython  # NOQA
 
-
+from libc.stdint cimport intptr_t
 
 from cupy_backends.cuda.api import runtime
 from cupy_backends.cuda import stream as stream_module
