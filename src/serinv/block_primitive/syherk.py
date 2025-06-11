@@ -1,5 +1,7 @@
 from serinv import _get_module_from_array
 
+from cupyfix_backends.cuda.libs import cublas as cublasfix
+
 import numpy as np
 from numpy.linalg import matmul
 
@@ -12,7 +14,7 @@ try:
     from cupy_backends.cuda.libs import cublas
     from cupy.cuda import device
 
-    from cupyfix_backends import cublas as cublasfix
+    
 except (ImportError, ImportWarning, ModuleNotFoundError):
     pass
 
