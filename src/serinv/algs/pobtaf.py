@@ -148,7 +148,8 @@ def _pobtaf(
                 trans_b='C', alpha=-1.0, beta=1.0
             )
         )
-
+        print(A_diagonal_blocks[i + 1, :, :])
+        raise ValueError("TEST")
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
         A_lower_arrow_blocks[i + 1, :, :] = (
             gemm(

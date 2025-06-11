@@ -28,71 +28,12 @@ def gemm (a, b, c=None, alpha=1.0, beta=0.0, trans_a ='N', trans_b ='N'):
 
 
 def matmul_gemm_host(a, b, alpha=1.0, beta=0.0, c=None, trans_a=0, trans_b=0, overwrite_c=0, check_finite=False):
-    """
-    Solve the equation ``a x = b`` for `x`, assuming a is a triangular matrix.
+    """Computes out = alpha * op(a) @ op(b) + beta * out
 
-    Parameters
-    ----------
-    a : (M, M) array_like
-        A triangular matrix
-    b : (M,) or (M, N) array_like
-        Right-hand side matrix in ``a x = b``
-    lower : bool, optional
-        Use only data contained in the lower triangle of `a`.
-        Default is to use upper triangle.
-    trans : {0, 1, 2, 'N', 'T', 'C'}, optional
-        Type of system to solve:
-
-        ========  =========
-        trans     system
-        ========  =========
-        0 or 'N'  a x  = b
-        1 or 'T'  a^T x = b
-        2 or 'C'  a^H x = b
-        ========  =========
-    unit_diagonal : bool, optional
-        If True, diagonal elements of `a` are assumed to be 1 and
-        will not be referenced.
-    overwrite_b : bool, optional
-        Allow overwriting data in `b` (may enhance performance)
-    check_finite : bool, optional
-        Whether to check that the input matrices contain only finite numbers.
-        Disabling may give a performance gain, but may result in problems
-        (crashes, non-termination) if the inputs do contain infinities or NaNs.
-
-    Returns
-    -------
-    x : (M,) or (M, N) ndarray
-        Solution to the system ``a x = b``.  Shape of return matches `b`.
-
-    Raises
-    ------
-    LinAlgError
-        If `a` is singular
-
-    Notes
-    -----
-    .. versionadded:: 0.9.0
-
-    Examples
-    --------
-    Solve the lower triangular system a x = b, where::
-
-             [3  0  0  0]       [4]
-        a =  [2  1  0  0]   b = [2]
-             [1  0  1  0]       [4]
-             [1  1  1  1]       [2]
-
-    >>> import numpy as np
-    >>> from scipy.linalg import solve_triangular
-    >>> a = np.array([[3, 0, 0, 0], [2, 1, 0, 0], [1, 0, 1, 0], [1, 1, 1, 1]])
-    >>> b = np.array([4, 2, 4, 2])
-    >>> x = solve_triangular(a, b, lower=True)
-    >>> x
-    array([ 1.33333333, -0.66666667,  2.66666667, -1.33333333])
-    >>> a.dot(x)  # Check the result
-    array([ 4.,  2.,  4.,  2.])
-
+    op(a) = a if transa is 'N', op(a) = a.T if transa is 'T',
+    op(a) = a.T.conj() if transa is 'C'.
+    op(b) = b if transb is 'N', op(b) = b.T if transb is 'T',
+    op(b) = b.T.conj() if transb is 'C'.
     """
 
     a1 = _asarray_validated(a, check_finite=check_finite)
@@ -128,29 +69,27 @@ def matmul_gemm_host(a, b, alpha=1.0, beta=0.0, c=None, trans_a=0, trans_b=0, ov
         ).dtype
         return np.empty_like(b1, dtype=dt_nonempty)
     
+    if c1 is not None:
+        overwrite_c = overwrite_c or _datacopied(c1, c)
+    
     x = _matmul_gemm(a1, b1, alpha, beta, c1, trans_a, trans_b, overwrite_c)
     return x
 
 
-# solve_triangular without the input validation
+# gemm without the input validation
 def _matmul_gemm(a1, b1, alpha=1.0, beta=0.0, c1=None, trans_a=0, trans_b=0, overwrite_c=0):
 
     trans_a = {'N': 0, 'T': 1, 'C': 2}.get(trans_a, trans_a)
     trans_b = {'N': 0, 'T': 1, 'C': 2}.get(trans_b, trans_b)
     gemm, = get_blas_funcs(('gemm',), (a1, b1))
 
-    if a1.dtype.char in 'fd':
-        dtype = a1.dtype
-    else:
-        dtype = np.promote_types(a1.dtype.char, 'f')
-
     if beta == 0:
-        x = gemm(alpha, a1, b1, beta=beta, trans_a=trans_a, trans_b=trans_b, overwrite_c=overwrite_c)
+        out = gemm(alpha, a1, b1, beta=beta, trans_a=trans_a, trans_b=trans_b, overwrite_c=overwrite_c)
     else:
-        x = gemm(alpha, a1, b1, beta, c1, trans_a, trans_b, overwrite_c)
+        out = gemm(alpha, a1, b1, beta, c1, trans_a, trans_b, overwrite_c)
     
 
-    return x
+    return out
 
 
 # Util functions for cupy gemm
