@@ -4,6 +4,7 @@ from Cython.Build import cythonize
 ext = Extension(
     name="cupyfix_backends.cuda.libs.cublas",
     sources=["src/serinv/cupyfix_backends/cuda/libs/cublas.pyx",
+             "src/serinv/cupyfix_backends/cuda/libs/cublas.pxd",
              "src/serinv/cupyfix_backends/cuda/cupy_cublas.h",
              "src/serinv/cupyfix_backends/cuda/hip/cupy_cuComplex.h",
              "src/serinv/cupyfix_backends/cuda/hip/cupy_hip_common.h",
