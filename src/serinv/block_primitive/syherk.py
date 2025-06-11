@@ -12,7 +12,7 @@ try:
     from cupy_backends.cuda.libs import cublas
     from cupy.cuda import device
 
-    from cupyfix_backends import cublasfix
+    from cupyfix_backends import cublas as cublasfix
 except (ImportError, ImportWarning, ModuleNotFoundError):
     pass
 
