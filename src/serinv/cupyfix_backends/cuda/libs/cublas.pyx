@@ -103,6 +103,21 @@ cpdef inline check_status(int status):
         raise CUBLASError(status)
 
 
+cpdef setStream(intptr_t handle, size_t stream):
+    # TODO(leofang): It seems most of cuBLAS APIs support stream capture (as of
+    # CUDA 11.5) under certain conditions, see
+    # https://docs.nvidia.com/cuda/cublas/index.html#CUDA-graphs
+    # Before we come up with a robust strategy to test the support conditions,
+    # we disable this functionality.
+    if not runtime._is_hip_environment and runtime.streamIsCapturing(stream):
+        raise NotImplementedError(
+            'calling cuBLAS API during stream capture is currently '
+            'unsupported')
+
+    with nogil:
+        status = cublasSetStream(<Handle>handle, <Stream>stream)
+    check_status(status)
+
 
 ###############################################################################
 # BLAS Level 3
