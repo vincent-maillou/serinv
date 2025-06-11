@@ -4,8 +4,8 @@
 
 cimport cython  # NOQA
 
-from cupy_backends.cuda.api cimport runtime
-from cupy_backends.cuda cimport stream as stream_module
+from cupy_backends.cuda.api import runtime
+from cupy_backends.cuda import stream as stream_module
 
 ###############################################################################
 # Extern
