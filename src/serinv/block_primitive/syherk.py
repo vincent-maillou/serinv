@@ -11,6 +11,8 @@ try:
     import cupy as cp
     from cupy_backends.cuda.libs import cublas
     from cupy.cuda import device
+
+    from cupyfix_backends import cublasfix
 except (ImportError, ImportWarning, ModuleNotFoundError):
     pass
 
@@ -114,9 +116,9 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
     elif dtype == 'd':
         func = cublas.dsyrk
     elif dtype == 'F':
-        func = cublas.cherk
+        func = cublasfix.cherk
     elif dtype == 'D':
-        func = cublas.zherk
+        func = cublasfix.zherk
     else:
         raise TypeError('invalid dtype')
 
