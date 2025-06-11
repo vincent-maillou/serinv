@@ -22,6 +22,21 @@ cdef extern from '../../cupy_blas.h' nogil:
     ctypedef void* Stream 'cudaStream_t'
     ctypedef int DataType 'cudaDataType'
 
+    # Context
+    int cublasCreate(Handle* handle)
+    int cublasDestroy(Handle handle)
+    int cublasGetVersion(Handle handle, int* version)
+    int cublasGetPointerMode(Handle handle, PointerMode* mode)
+    int cublasSetPointerMode(Handle handle, PointerMode mode)
+
+    # Stream
+    int cublasSetStream(Handle handle, Stream streamId)
+    int cublasGetStream(Handle handle, Stream* streamId)
+
+    # Math Mode
+    int cublasSetMathMode(Handle handle, Math mode)
+    int cublasGetMathMode(Handle handle, Math* mode)
+
     # BLAS Level 3
     int cublasCherk(
         Handle handle, FillMode uplo, Operation trans, int n, int k,
