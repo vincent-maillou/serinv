@@ -1,5 +1,5 @@
 from setuptools import setup, Extension
-from Cython.Build import cythonize
+from cython.Build import cythonize
 
 ext = Extension(
     name="cupyfix_backends.cuda.libs.cublas",
