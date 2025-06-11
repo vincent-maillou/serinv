@@ -4,7 +4,7 @@
 
 cimport cython  # NOQA
 
-from cupyfix_backends.cuda.libs cimport cublas
+cimport cupyfix_backends.cuda.libs.cublas as cublas
 
 from cupy_backends.cuda.api import runtime
 from cupy_backends.cuda import stream as stream_module
