@@ -17,7 +17,7 @@ ext = Extension(
 )
 
 setup(
-    name="cuupyfix_backends",
+    name="cupyfix_backends",
     ext_modules=cythonize([ext]),
-    packages=["cublas"],
+    packages=["cupyfix_backends"],
 )
