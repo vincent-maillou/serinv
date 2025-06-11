@@ -44,7 +44,7 @@ def matmul_syherk_host(a, c=None, alpha=1.0, beta=1.0, trans=0, lower=False, uni
     
     overwrite_c = overwrite_c or _datacopied(c1, c)
 
-    x = _syherk(a1, c1, alpha, beta, trans, lower, unit_diagonal, overwrite_c, side)
+    x = _syherk(a1, c1, alpha, beta, trans, lower, overwrite_c)
     return x
 
 
