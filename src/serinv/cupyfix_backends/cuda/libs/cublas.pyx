@@ -118,6 +118,9 @@ cpdef setStream(intptr_t handle, size_t stream):
         status = cublasSetStream(<Handle>handle, <Stream>stream)
     check_status(status)
 
+cdef _setStream(intptr_t handle):
+    """Set current stream"""
+    setStream(handle, stream_module.get_current_stream_ptr())
 
 ###############################################################################
 # BLAS Level 3
