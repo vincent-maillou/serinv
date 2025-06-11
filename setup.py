@@ -19,5 +19,5 @@ ext = Extension(
 setup(
     name="cupyfix_backends",
     ext_modules=cythonize([ext]),
-    packages=["cupyfix_backends"],
+    packages=["src/serinv/cupyfix_backends"],
 )
