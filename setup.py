@@ -19,5 +19,5 @@ ext = Extension(
 setup(
     name="cupyfix_backends",
     ext_modules=cythonize([ext]),
-    packages=["src/serinv/cupyfix_backends.cuda.libs.cublas"],
+    packages=["src/serinv/cupyfix_backends.cuda.libs"],
 )
