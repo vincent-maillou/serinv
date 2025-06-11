@@ -202,6 +202,7 @@ def _pobtaf(
                 A_arrow_tip_block[:, :],
                 alpha=-1.0, beta=1.0, lower=True
             )
+        )
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
         L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
