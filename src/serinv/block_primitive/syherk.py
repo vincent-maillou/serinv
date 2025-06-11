@@ -1,6 +1,6 @@
 from serinv import _get_module_from_array
 
-import trymod
+#import trymod
 from cupyfix_backends.cuda.libs import cublas as cublasfix
 
 import numpy as np
