@@ -115,7 +115,7 @@ def _pobtaf(
     # Forward block-Cholesky
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :])
+        L_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :], lower=True)
 
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L_lower_diagonal_blocks[i, :, :] = (
