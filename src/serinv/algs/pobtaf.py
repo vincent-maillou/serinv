@@ -169,7 +169,7 @@ def _pobtaf(
 
     if factorize_last_block:
         # L_{ndb, ndb} = chol(A_{ndb, ndb})
-        L_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :])
+        L_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :], lower=True)
 
         # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
         L_lower_arrow_blocks[-1, :, :] = (
