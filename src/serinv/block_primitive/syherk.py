@@ -31,7 +31,7 @@ def syherk(a, c=None, alpha=1.0, beta=0.0, trans=0, lower = False):
         ModuleNotFoundError("Unknown Module")
 
 def matmul_syherk_host(a, c=None, alpha=1.0, beta=1.0, trans=0, lower=False,
-                     overwrite_c=False, check_finite=True, side=0):
+                     overwrite_c=False, check_finite=True,):
     """Computes out = alpha * op(a) @ op(a)^T + beta * b
 
     op(a) = a if transa is 'N', op(a) = a.T if transa is 'T',
@@ -129,6 +129,9 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
             return out
     else:
         raise TypeError('invalid dtype')
+    
+    # Testing remove later
+    out=None
 
     trans = _trans_to_cublas_op(trans)
     if trans == cublas.CUBLAS_OP_N:
