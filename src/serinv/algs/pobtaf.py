@@ -198,7 +198,7 @@ def _pobtaf(
         
         print(A_arrow_tip_block[:, :]-gemm(L_lower_arrow_blocks[-1, :, :],
                 L_lower_arrow_blocks[-1, :, :],
-               trans_b='C', alpha=-1.0))
+               trans_b='C', alpha=1.0))
 
 
         A_arrow_tip_block[:, :] = (
