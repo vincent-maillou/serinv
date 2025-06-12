@@ -16,7 +16,7 @@ try:
 except (ImportError, ImportWarning, ModuleNotFoundError):
     pass
 
-def syherk(a, c=None, alpha=1.0, beta=0.0, trans=0, lower = False):
+def syherk(a, c=None, alpha=1.0, beta=0.0, trans=0, lower=False, cu_chol=False):
     """Wrapper for the trsm function to call depending on wheter the solve happens on the host or the device
     
         For Compatibility this function accepts exactly the same parameters as what the scipy and cupy implementations accept
@@ -26,7 +26,7 @@ def syherk(a, c=None, alpha=1.0, beta=0.0, trans=0, lower = False):
     if  xp == np:
         return matmul_syherk_host(a, c, alpha, beta, trans, lower)
     elif xp == cp:
-        return matmul_syherk_device(a, trans, c, alpha, beta, lower)
+        return matmul_syherk_device(a, trans, c, alpha, beta, lower, cu_chol)
     else:
         ModuleNotFoundError("Unknown Module")
 
@@ -101,7 +101,7 @@ def _get_scalar_ptr(a, dtype):
     return a, a_ptr
 # Util functions for cupy gemm end
 
-def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=False):
+def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=False, cu_chol=False):
     """Computes out := alpha*op1(a)*op2(a) + beta*out
 
     op1(a) = a if trans is 'N', op2(a) = a.T if transa is 'N'
@@ -130,8 +130,9 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
     else:
         raise TypeError('invalid dtype')
     
-    # Testing remove later
-    #out=None
+    # If this is run in combination with cholesky, it will be necessary to flip lower
+    if cu_chol:
+        lower = not lower
 
     trans = _trans_to_cublas_op(trans)
     if trans == cublas.CUBLAS_OP_N:
