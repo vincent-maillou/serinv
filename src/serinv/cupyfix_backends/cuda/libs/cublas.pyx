@@ -9,18 +9,6 @@ from libc.stdint cimport intptr_t
 from cupy_backends.cuda.api import runtime
 from cupy_backends.cuda import stream as stream_module
 
-cdef:
-    ctypedef void* Handle 'cublasHandle_t'
-
-    ctypedef int DiagType 'cublasDiagType_t'
-    ctypedef int FillMode 'cublasFillMode_t'
-    ctypedef int Operation 'cublasOperation_t'
-    ctypedef int PointerMode 'cublasPointerMode_t'
-    ctypedef int SideMode 'cublasSideMode_t'
-    ctypedef int GemmAlgo 'cublasGemmAlgo_t'
-    ctypedef int Math 'cublasMath_t'
-    ctypedef int ComputeType 'cublasComputeType_t'
-
 ###############################################################################
 # Extern
 ###############################################################################
