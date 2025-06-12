@@ -3,8 +3,9 @@ from Cython.Build import cythonize
 import os
 
 CONDA_PREFIX = os.environ.get("CONDA_PREFIX", "")
-CUDA_INCLUDE = os.path.join(CONDA_PREFIX, "include")
-CUDA_LIB = os.path.join(CONDA_PREFIX, "lib")
+CONDA_PREFIX = os.path.join()
+CUDA_INCLUDE = os.path.join(CONDA_PREFIX, "targets", "x86_64-linux", "include")
+
 
 
 ext = Extension(
@@ -19,7 +20,6 @@ ext = Extension(
                 "cupyfix_backends",
                 CUDA_INCLUDE
                 ],
-    library_dirs=[CUDA_LIB],
 
 )
 
