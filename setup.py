@@ -1,3 +1,4 @@
+"""
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 import os
@@ -28,3 +29,4 @@ setup(
     ext_modules=cythonize([ext]),
     packages=["src/serinv/cupyfix_backends.cuda.libs"],
 )
+"""
