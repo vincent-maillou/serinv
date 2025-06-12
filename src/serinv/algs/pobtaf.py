@@ -169,7 +169,6 @@ def _pobtaf(
                 trans_b='C', alpha=-1.0, beta=1.0
             )
         )
-        print(A_arrow_tip_block[:, :])
 
     if factorize_last_block:
         # L_{ndb, ndb} = chol(A_{ndb, ndb})
@@ -203,6 +202,7 @@ def _pobtaf(
                 alpha=-1.0, beta=1.0, lower=True
             )
         )
+        print(A_arrow_tip_block[:, :])
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
         L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
