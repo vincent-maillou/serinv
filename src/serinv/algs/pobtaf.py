@@ -193,6 +193,11 @@ def _pobtaf(
     #            trans_b='C', alpha=-1.0, beta=1.0
     #        )
     #    )
+        a = syherk(
+                L_lower_arrow_blocks[-1, :, :],
+                alpha=-1.0, beta=0.0, lower=True
+            )
+        print(a)
 
         A_arrow_tip_block[:, :] = (
             syherk(
