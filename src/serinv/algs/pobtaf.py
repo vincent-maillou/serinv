@@ -187,7 +187,7 @@ def _pobtaf(
             syherk(
                 L_lower_arrow_blocks[-1, :, :],
                 A_arrow_tip_block[:, :],
-                alpha=-1.0, beta=1.0, lower=True, trans='C'
+                alpha=-1.0, beta=1.0, lower=True, trans='N'
             )
         )
         
