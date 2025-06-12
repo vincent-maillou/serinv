@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from ....conftest import ARRAY_TYPE as ARRAY_TYPE
+from ....conftest import ARRAY_TYPE
 
 from serinv import backend_flags, _get_module_from_array
 from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize, rhs
@@ -11,19 +11,18 @@ from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize, rhs
 from serinv.algs import pobtf, pobts
 
 if backend_flags["cupy_avail"]:
+    import cupyx as cpx
+
     ARRAY_TYPE.extend(
         [
             pytest.param("streaming", id="streaming"),
         ]
     )
 
-if backend_flags["cupy_avail"]:
-    import cupyx as cpx
+    @pytest.fixture(params=ARRAY_TYPE, autouse=True)
+    def array_type(request: pytest.FixtureRequest) -> str:
+        return request.param
 
-
-@pytest.fixture(params=ARRAY_TYPE, autouse=True)
-def array_type(request: pytest.FixtureRequest) -> str:
-    return request.param
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("n_rhs", [1, 2, 3])
@@ -34,7 +33,7 @@ def test_pobts(
     array_type: str,
     dtype: np.dtype,
 ):
-    
+
     A = dd_bt(
         diagonal_blocksize,
         n_diag_blocks,
@@ -79,6 +78,7 @@ def test_pobts(
     pobtf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
+        device_streaming=True if array_type == "streaming" else False,
     )
 
     # Forward solve: Y=L^{-1}B

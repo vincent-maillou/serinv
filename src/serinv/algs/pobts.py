@@ -25,7 +25,7 @@ def pobts(
     """
     device_streaming: bool = kwargs.get("device_streaming", False)
     buffer = kwargs.get("buffer", None)
-    # solve_last_rhs = kwargs.get("solve_last_rhs", True)
+    partial = kwargs.get("partial", False)
 
     if buffer is not None:
         # Permuted arrowhead
@@ -54,6 +54,7 @@ def pobts(
                 L_lower_diagonal_blocks,
                 B,
                 trans,
+                partial,
             )
 
 
@@ -62,6 +63,7 @@ def _pobts(
     L_lower_diagonal_blocks: ArrayLike,
     B: ArrayLike,
     trans: str,
+    partial: bool,
 ):
     _, la = _get_module_from_array(L_diagonal_blocks)
 
@@ -70,30 +72,41 @@ def _pobts(
 
     if trans == "N":
         # ----- Forward substitution -----
-        B[0:diag_blocksize] = la.solve_triangular(
-            L_diagonal_blocks[0],
-            B[0:diag_blocksize],
-            lower=True,
-        )
-
-        for i in range(1, n_diag_blocks):
+        for i in range(0, n_diag_blocks - 1):
             # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
             B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
                 L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize]
-                - L_lower_diagonal_blocks[i - 1]
-                @ B[(i - 1) * diag_blocksize : (i) * diag_blocksize],
+                B[i * diag_blocksize : (i + 1) * diag_blocksize],
                 lower=True,
+            )
+
+            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
+                L_lower_diagonal_blocks[i]
+                @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            )
+
+        if not partial:
+            B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
+                la.solve_triangular(
+                    L_diagonal_blocks[n_diag_blocks - 1],
+                    B[
+                        (n_diag_blocks - 1)
+                        * diag_blocksize : n_diag_blocks
+                        * diag_blocksize
+                    ],
+                    lower=True,
+                )
             )
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
-        # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
-        B[-diag_blocksize:] = la.solve_triangular(
-            L_diagonal_blocks[-1],
-            B[-diag_blocksize:],
-            lower=True,
-            trans="C",
-        )
+        if not partial:
+            # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
+            B[-diag_blocksize:] = la.solve_triangular(
+                L_diagonal_blocks[-1],
+                B[-diag_blocksize:],
+                lower=True,
+                trans="C",
+            )
 
         for i in range(n_diag_blocks - 2, -1, -1):
             # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
@@ -181,13 +194,9 @@ def _pobts_streaming(
 
     # Device Buffers
     # B Buffers
-    B_shape = B[0 : diag_blocksize] 
-    B_d = cp.empty(
-        (2, *B_shape.shape), dtype=B_shape.dtype
-    )
-    B_previous_d = cp.empty(
-        (2, *B_shape.shape), dtype=B_shape.dtype
-    )
+    B_shape = B[0:diag_blocksize]
+    B_d = cp.empty((2, *B_shape.shape), dtype=B_shape.dtype)
+    B_previous_d = cp.empty((2, *B_shape.shape), dtype=B_shape.dtype)
     del B_shape
 
     # L Buffers
@@ -213,12 +222,11 @@ def _pobts_streaming(
         h2d_events[1].record(stream=h2d_stream)
 
         if n_diag_blocks > 1:
-            B_d[1].set(
-                arr=B[diag_blocksize : (2 * diag_blocksize)], 
-                stream=h2d_stream
-            )
+            B_d[1].set(arr=B[diag_blocksize : (2 * diag_blocksize)], stream=h2d_stream)
             L_diagonal_blocks_d[1].set(arr=L_diagonal_blocks[1], stream=h2d_stream)
-            L_lower_diagonal_blocks_d[1].set(arr=L_lower_diagonal_blocks[0], stream=h2d_stream)
+            L_lower_diagonal_blocks_d[1].set(
+                arr=L_lower_diagonal_blocks[0], stream=h2d_stream
+            )
 
             h2d_events[0].record(stream=h2d_stream)
 
@@ -226,28 +234,33 @@ def _pobts_streaming(
             # Solve first B block
             compute_stream.wait_event(h2d_events[1])
 
-            B_previous_d[0] = (
-                cu_la.solve_triangular(
-                    L_diagonal_blocks_d[0],
-                    B_d[0],
-                    lower=True,
-                )
+            B_previous_d[0] = cu_la.solve_triangular(
+                L_diagonal_blocks_d[0],
+                B_d[0],
+                lower=True,
             )
 
             compute_B_events[0].record(stream=compute_stream)
 
         for i in range(1, n_diag_blocks):
-        
+
             if i + 1 < n_diag_blocks:
                 # Pass next blocks
                 h2d_stream.wait_event(compute_B_events[(i + 1) % 2])
 
-                B_d[(i + 1) % 2].set(arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream=h2d_stream)
-                L_diagonal_blocks_d[(i + 1) % 2].set(arr=L_diagonal_blocks[i + 1], stream=h2d_stream)
-                L_lower_diagonal_blocks_d[(i + 1) % 2].set(arr=L_lower_diagonal_blocks[i], stream=h2d_stream)
-                
+                B_d[(i + 1) % 2].set(
+                    arr=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                    stream=h2d_stream,
+                )
+                L_diagonal_blocks_d[(i + 1) % 2].set(
+                    arr=L_diagonal_blocks[i + 1], stream=h2d_stream
+                )
+                L_lower_diagonal_blocks_d[(i + 1) % 2].set(
+                    arr=L_lower_diagonal_blocks[i], stream=h2d_stream
+                )
+
                 h2d_events[i % 2].record(stream=h2d_stream)
-            
+
             with compute_stream:
                 # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
                 compute_stream.wait_event(h2d_events[(i + 1) % 2])
@@ -256,8 +269,7 @@ def _pobts_streaming(
                 B_previous_d[i % 2] = cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2]
-                    - L_lower_diagonal_blocks_d[i % 2]
-                    @ B_previous_d[(i + 1) % 2],
+                    - L_lower_diagonal_blocks_d[i % 2] @ B_previous_d[(i + 1) % 2],
                     lower=True,
                 )
 
@@ -265,38 +277,44 @@ def _pobts_streaming(
 
             # Pass previous B block back
             d2h_stream.wait_event(compute_B_events[(i - 1) % 2])
-            
+
             B_previous_d[(i + 1) % 2].get(
-                out=B[(i - 1) * diag_blocksize : i * diag_blocksize], 
-                stream=d2h_stream, 
-                blocking=False
+                out=B[(i - 1) * diag_blocksize : i * diag_blocksize],
+                stream=d2h_stream,
+                blocking=False,
             )
-            
+
             d2h_events[i % 2].record(stream=d2h_stream)
 
         # Pass last B block back
         d2h_stream.wait_event(compute_B_events[(n_diag_blocks + 1) % 2])
-            
-        B_previous_d[(n_diag_blocks + 1) % 2].get(out=B[-diag_blocksize:], stream=d2h_stream, blocking=False)
-        
-    
+
+        B_previous_d[(n_diag_blocks + 1) % 2].get(
+            out=B[-diag_blocksize:], stream=d2h_stream, blocking=False
+        )
+
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
 
         # --- H2D: transfers ---
         B_d[(n_diag_blocks - 1) % 2].set(arr=B[-diag_blocksize:], stream=h2d_stream)
-        L_diagonal_blocks_d[(n_diag_blocks - 1) % 2].set(arr=L_diagonal_blocks[-1], stream=h2d_stream)
+        L_diagonal_blocks_d[(n_diag_blocks - 1) % 2].set(
+            arr=L_diagonal_blocks[-1], stream=h2d_stream
+        )
 
         h2d_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
 
         if n_diag_blocks > 1:
 
             B_d[n_diag_blocks % 2].set(
-                arr=B[-(2 * diag_blocksize) : -diag_blocksize], 
-                stream=h2d_stream
+                arr=B[-(2 * diag_blocksize) : -diag_blocksize], stream=h2d_stream
             )
-            L_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_diagonal_blocks[-2], stream=h2d_stream)
-            L_lower_diagonal_blocks_d[n_diag_blocks % 2].set(arr=L_lower_diagonal_blocks[-1], stream=h2d_stream)
+            L_diagonal_blocks_d[n_diag_blocks % 2].set(
+                arr=L_diagonal_blocks[-2], stream=h2d_stream
+            )
+            L_lower_diagonal_blocks_d[n_diag_blocks % 2].set(
+                arr=L_lower_diagonal_blocks[-1], stream=h2d_stream
+            )
 
             h2d_events[(n_diag_blocks - 1) % 2].record(stream=h2d_stream)
 
@@ -304,31 +322,34 @@ def _pobts_streaming(
             # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
             compute_stream.wait_event(h2d_events[(n_diag_blocks - 1) % 2])
 
-            B_previous_d[(n_diag_blocks - 1) % 2] = (
-                cu_la.solve_triangular(
-                    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
-                    B_d[(n_diag_blocks - 1) % 2],
-                    lower=True,
-                    trans="C",
-                )
+            B_previous_d[(n_diag_blocks - 1) % 2] = cu_la.solve_triangular(
+                L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
+                B_d[(n_diag_blocks - 1) % 2],
+                lower=True,
+                trans="C",
             )
 
             compute_B_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
 
-        
-
         for i in range(n_diag_blocks - 2, -1, -1):
-        
+
             if i > 0:
                 # pass next blocks
                 h2d_stream.wait_event(compute_B_events[(i - 1) % 2])
 
-                B_d[(i - 1) % 2].set(arr=B[(i - 1) * diag_blocksize : i * diag_blocksize], stream=h2d_stream)
-                L_diagonal_blocks_d[(i - 1) % 2].set(arr=L_diagonal_blocks[i - 1], stream=h2d_stream)
-                L_lower_diagonal_blocks_d[(i - 1) % 2].set(arr=L_lower_diagonal_blocks[i - 1], stream=h2d_stream)
+                B_d[(i - 1) % 2].set(
+                    arr=B[(i - 1) * diag_blocksize : i * diag_blocksize],
+                    stream=h2d_stream,
+                )
+                L_diagonal_blocks_d[(i - 1) % 2].set(
+                    arr=L_diagonal_blocks[i - 1], stream=h2d_stream
+                )
+                L_lower_diagonal_blocks_d[(i - 1) % 2].set(
+                    arr=L_lower_diagonal_blocks[i - 1], stream=h2d_stream
+                )
 
                 h2d_events[i % 2].record(stream=h2d_stream)
-            
+
             with compute_stream:
                 # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
                 compute_stream.wait_event(h2d_events[(i - 1) % 2])
@@ -348,16 +369,20 @@ def _pobts_streaming(
             # Pass previous B block back
             d2h_stream.wait_event(compute_B_events[(i - 1) % 2])
 
-            B_previous_d[(i - 1) % 2].get(out=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize], stream=d2h_stream, blocking=False)
-            
+            B_previous_d[(i - 1) % 2].get(
+                out=B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                stream=d2h_stream,
+                blocking=False,
+            )
+
             d2h_events[i % 2].record(stream=d2h_stream)
 
         # Pass last B block back
         d2h_stream.wait_event(compute_B_events[0])
-            
+
         B_previous_d[0].get(out=B[:diag_blocksize], stream=d2h_stream, blocking=False)
 
     else:
         raise ValueError(f"Invalid transpose argument: {trans}.")
-    
+
     cp.cuda.Device().synchronize()

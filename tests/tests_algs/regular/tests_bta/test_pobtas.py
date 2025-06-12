@@ -25,6 +25,7 @@ if backend_flags["cupy_avail"]:
 def array_type(request: pytest.FixtureRequest) -> str:
     return request.param
 
+
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("n_rhs", [1, 2, 3])
 def test_pobtas(
@@ -35,7 +36,7 @@ def test_pobtas(
     array_type: str,
     dtype: np.dtype,
 ):
-    
+
     A = dd_bta(
         diagonal_blocksize,
         arrowhead_blocksize,

@@ -1,6 +1,5 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 # Global pytest fixtures for the Serinv tests.
-
 import pytest
 
 from serinv import backend_flags
@@ -14,7 +13,6 @@ if backend_flags["cupy_avail"]:
             pytest.param("device", id="device"),
         ]
     )
-
 
 DTYPE = [
     pytest.param("float64", id="float64"),

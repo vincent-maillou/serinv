@@ -1,5 +1,7 @@
 # Copyright 2023-2025 ETH Zurich. All rights reserved.
 
+import time
+
 from mpi4py import MPI
 
 from serinv import (
@@ -22,6 +24,7 @@ def pddbtasc(
     A_upper_arrow_blocks: ArrayLike,
     A_arrow_tip_block: ArrayLike,
     comm: MPI.Comm = MPI.COMM_WORLD,
+    nccl_comm: object = None,
     **kwargs,
 ) -> ArrayLike:
     """Perform the parallel Schur-complement of a block tridiagonal matrix.
@@ -42,7 +45,7 @@ def pddbtasc(
         The arrow tip block of the block tridiagonal with arrowhead matrix.
     comm : MPI.Comm
         The MPI communicator. Default is MPI.COMM_WORLD.
-        
+
     Keyword Arguments
     -----------------
     rhs : dict
@@ -115,9 +118,10 @@ def pddbtasc(
     if comm_size == 1:
         raise ValueError("The number of MPI processes must be greater than 1.")
 
+    xp, _ = _get_module_from_array(arr=A_diagonal_blocks)
+
     rhs: dict = kwargs.get("rhs", None)
     quadratic: bool = kwargs.get("quadratic", False)
-
     buffers: dict = kwargs.get("buffers", None)
     ddbtars: dict = kwargs.get("ddbtars", None)
     strategy: str = kwargs.get("strategy", "allgather")
@@ -200,14 +204,23 @@ def pddbtasc(
         quadratic=quadratic,
         buffers=buffers,
         _rhs=ddbtars.get("_rhs", None),
+        nccl_comm=nccl_comm,
     )
 
+    comm.Barrier()
+    tic = time.perf_counter()
     aggregate_ddbtars(
         ddbtars=ddbtars,
         quadratic=quadratic,
         comm=comm,
         strategy=strategy,
+        nccl_comm=nccl_comm,
     )
+    if xp.__name__ == "cupy":
+        xp.cuda.runtime.deviceSynchronize()
+    comm.Barrier()
+    toc = time.perf_counter()
+    elapsed = toc - tic
 
     ddbtars["A_arrow_tip_block"][:] += A_arrow_tip_initial
     if quadratic:
@@ -226,3 +239,5 @@ def pddbtasc(
     )
 
     comm.Barrier()
+
+    return elapsed
