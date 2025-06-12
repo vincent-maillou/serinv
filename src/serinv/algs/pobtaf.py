@@ -193,7 +193,7 @@ def _pobtaf(
         
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-        L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :], lower=True)
+        L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :], lower=False)
 
 
 def _pobtaf_permuted(
