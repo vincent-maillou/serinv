@@ -195,11 +195,11 @@ def _pobtaf(
         #)
         #raise ValueError("TEST")
         
-        A_arrow_tip_block[:, :]-=gemm(L_lower_arrow_blocks[-1, :, :],
+        print(A_arrow_tip_block[:, :]-gemm(L_lower_arrow_blocks[-1, :, :],
                 L_lower_arrow_blocks[-1, :, :],
-               trans_b='C', alpha=1.0)
+               trans_b='C', alpha=1.0))
 
-        print(A_arrow_tip_block[:, :]-syherk(L_lower_arrow_blocks[-1, :, :],lower=True))
+        A_arrow_tip_block[:, :]-=syherk(L_lower_arrow_blocks[-1, :, :],lower=True))
 
         #A_arrow_tip_block[:, :] = (
         #    syherk(
@@ -209,10 +209,11 @@ def _pobtaf(
         #    )
         #)
         
-        print(A_arrow_tip_block[:, :])
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
         L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
+
+        print(L_arrow_tip_block[:, :])
 
 
 def _pobtaf_permuted(
