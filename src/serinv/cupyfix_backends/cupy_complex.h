@@ -3,7 +3,7 @@
 
 
 
-#include "hip/cupy_cuComplex.h"
+#include <cuComplex.h>
 
 
 #endif // #ifndef INCLUDE_GUARD_CUPY_COMPLEX_H
