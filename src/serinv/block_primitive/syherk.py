@@ -1,7 +1,7 @@
 from serinv import _get_module_from_array
 
 import serinv.block_primitive.trymod
-from serinv.cupyfix_backends.cuda.libs import cublas as cublasfix
+
 
 import numpy as np
 from numpy.linalg import matmul
@@ -119,9 +119,9 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
     elif dtype == 'd':
         func = cublas.dsyrk
     elif dtype == 'F':
-        func = cublasfix.cherk
+        func = cublas.cherk
     elif dtype == 'D':
-        func = cublasfix.zherk
+        func = cublas.zherk
     else:
         raise TypeError('invalid dtype')
 
