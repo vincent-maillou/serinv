@@ -170,12 +170,6 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
     lda, trans = _decide_ld_and_trans(a, trans)
     ldo, _ = _decide_ld_and_trans(out, trans)
 
-    #print(a)
-    #print(out)
-    #print(alpha)
-    #print(beta)
-    #print(lower)
-
     if out._c_contiguous:
         if not a._c_contiguous:
             a = a.copy(order='C')
@@ -185,7 +179,6 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
             func(handle, 1 - uplo, trans, n, k,
                  alpha_ptr, a.data.ptr, lda,
                  beta_ptr, out.data.ptr, ldo)
-            print("yes1")
         finally:
             cublas.setPointerMode(handle, orig_mode)
 
@@ -201,10 +194,8 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
             func(handle, uplo, trans, n, k,
                  alpha_ptr, a.data.ptr, lda,
                  beta_ptr, out.data.ptr, ldo)
-            print("yes2")
         finally:
             cublas.setPointerMode(handle, orig_mode)
         if not out._f_contiguous:
             out[...] = c
-    #print(out)
     return out
