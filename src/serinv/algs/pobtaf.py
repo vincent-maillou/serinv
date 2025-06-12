@@ -194,20 +194,14 @@ def _pobtaf(
         #    )
         #)
         #raise ValueError("TEST")
-        
-        print(A_arrow_tip_block[:, :]-gemm(L_lower_arrow_blocks[-1, :, :],
+
+        A_arrow_tip_block[:, :] = (
+            syherk(
                 L_lower_arrow_blocks[-1, :, :],
-               trans_b='C', alpha=1.0))
-
-        A_arrow_tip_block[:, :]-=syherk(L_lower_arrow_blocks[-1, :, :],lower=False)
-
-        #A_arrow_tip_block[:, :] = (
-        #    syherk(
-        #        L_lower_arrow_blocks[-1, :, :],
-        #        A_arrow_tip_block[:, :],
-        #        alpha=-1.0, beta=1.0, lower=True
-        #    )
-        #)
+                A_arrow_tip_block[:, :],
+                alpha=-1.0, beta=1.0, lower=True
+            )
+        )
         
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
