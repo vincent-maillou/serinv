@@ -198,8 +198,8 @@ def _pobtaf(
                 alpha=-1.0, beta=0.0, lower=True
             )
 
-        A_arrow_tip_block[:, :] -= (
-            c
+        A_arrow_tip_block[:, :] = (
+            A_arrow_tip_block[:, :]-c
         )
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
