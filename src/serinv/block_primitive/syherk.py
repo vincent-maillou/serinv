@@ -57,9 +57,9 @@ def _syherk(a1, c1=None, alpha=1.0, beta=0.0, trans=0, lower=False,
     trans = {'N': 0, 'T': 1, 'C': 2}.get(trans, trans)
 
     if np.iscomplexobj(a1):
-        syherk = get_blas_funcs(('herk'), (a1, c1))
+        syherk = get_blas_funcs(('herk'), (a1, a1))
     else:
-        syherk = get_blas_funcs(('syrk'), (a1, c1))
+        syherk = get_blas_funcs(('syrk'), (a1, a1))
 
     out = syherk(alpha, a1, beta, c1, trans, lower, overwrite_c)
 

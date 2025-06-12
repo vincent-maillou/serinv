@@ -202,10 +202,6 @@ def _pobtaf(
                 alpha=-1.0, beta=1.0, lower=True
             )
         )
-        print(syherk(
-                L_lower_arrow_blocks[-1, :, :],
-                alpha=-1.0, beta=1.0, lower=True
-            ))
         print(A_arrow_tip_block[:, :])
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
