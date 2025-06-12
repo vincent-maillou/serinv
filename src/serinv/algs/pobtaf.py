@@ -193,6 +193,12 @@ def _pobtaf(
     #            trans_b='C', alpha=-1.0, beta=1.0
     #        )
     #    )
+        b = gemm(
+                L_lower_arrow_blocks[-1, :, :],
+                L_lower_arrow_blocks[-1, :, :],
+                trans_b='C', alpha=-1.0, beta=0.0
+            )
+        print(b)
         a = syherk(
                 L_lower_arrow_blocks[-1, :, :],
                 alpha=-1.0, beta=0.0, lower=True
