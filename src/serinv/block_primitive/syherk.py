@@ -1,5 +1,7 @@
 from serinv import _get_module_from_array
 
+from serinv.block_primitive import gemm
+
 import numpy as np
 from numpy.linalg import matmul
 
@@ -114,9 +116,17 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
     elif dtype == 'd':
         func = cublas.dsyrk
     elif dtype == 'F':
-        func = cublas.cherk
+        try:
+            func = cublas.cherk
+        except(AttributeError):
+            out = gemm(a, a, out, trans_b='C', alpha=alpha, beta=beta, lower=lower)
+            return out
     elif dtype == 'D':
-        func = cublas.zherk
+        try:
+            func = cublas.zherk
+        except(AttributeError):
+            out = gemm(a, a, out, trans_b='C', alpha=alpha, beta=beta, lower=lower)
+            return out
     else:
         raise TypeError('invalid dtype')
 
