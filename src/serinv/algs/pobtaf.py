@@ -194,7 +194,7 @@ def _pobtaf(
             )
         )
         print(A_arrow_tip_block[:, :])
-        raise ValueError("TEST")
+        #raise ValueError("TEST")
 
         #A_arrow_tip_block[:, :] = (
         #    syherk(
