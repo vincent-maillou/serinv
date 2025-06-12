@@ -284,11 +284,10 @@ def _pobtaf_permuted(
         # Update top and next upper/lower blocks of 2-sided factorization pattern
         # A_{top, top} = A_{top, top} - L_{top, i} @ L_{top, i}.conj().T
         A_diagonal_blocks[0, :, :] = (
-            gemm(
-                buffer[i, :, :],
+            syherk(
                 buffer[i, :, :],
                 A_diagonal_blocks[0, :, :],
-                trans_b='C', alpha=-1.0, beta=1.0
+                alpha=-1.0, beta=1.0, lower=True, cu_chol=True
             )
         )
 
