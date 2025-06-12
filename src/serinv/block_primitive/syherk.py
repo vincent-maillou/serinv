@@ -131,7 +131,7 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
         raise TypeError('invalid dtype')
     
     # Testing remove later
-    out=None
+    #out=None
 
     trans = _trans_to_cublas_op(trans)
     if trans == cublas.CUBLAS_OP_N:
