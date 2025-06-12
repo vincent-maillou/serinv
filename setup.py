@@ -3,7 +3,7 @@ from Cython.Build import cythonize
 import os
 
 CONDA_PREFIX = os.environ.get("CONDA_PREFIX", "")
-CONDA_PREFIX = os.path.join()
+
 CUDA_INCLUDE = os.path.join(CONDA_PREFIX, "targets", "x86_64-linux", "include")
 
 
