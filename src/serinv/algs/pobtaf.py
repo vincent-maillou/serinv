@@ -149,7 +149,6 @@ def _pobtaf(
                 trans_b='C', alpha=-1.0, beta=1.0
             )
         )
-        print(A_diagonal_blocks[i + 1, :, :])
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
         A_lower_arrow_blocks[i + 1, :, :] = (
             gemm(
@@ -202,21 +201,6 @@ def _pobtaf(
                 alpha=-1.0, beta=1.0, lower=True
             )
         )
-        print("#")
-        print(syherk(
-                L_lower_arrow_blocks[-1, :, :],
-                alpha=-1.0, beta=1.0, lower=True
-            ))
-        print("#")
-        print(A_arrow_tip_block[:, :])
-        print("#")
-        print(gemm(
-                L_lower_arrow_blocks[-1, :, :],
-                L_lower_arrow_blocks[-1, :, :],
-                A_arrow_tip_block[:, :],
-                trans_b='C', alpha=-1.0, beta=1.0
-            ))
-        print("####")
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
         L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])

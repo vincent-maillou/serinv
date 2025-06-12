@@ -174,6 +174,7 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
             func(handle, 1 - uplo, trans, n, k,
                  alpha_ptr, a.data.ptr, lda,
                  beta_ptr, out.data.ptr, ldo)
+            print("yes")
         finally:
             cublas.setPointerMode(handle, orig_mode)
 
@@ -189,6 +190,7 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
             func(handle, uplo, trans, n, k,
                  alpha_ptr, a.data.ptr, lda,
                  beta_ptr, out.data.ptr, ldo)
+            print("yes")
         finally:
             cublas.setPointerMode(handle, orig_mode)
         if not out._f_contiguous:
