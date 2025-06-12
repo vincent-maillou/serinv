@@ -7,7 +7,7 @@ from cupy.cuda import device
 from cupy.linalg import _util
 
 
-def cholesky_lowerfill(a: cupy.ndarray) -> cupy.ndarray:
+def cholesky(a: cupy.ndarray, lower=True) -> cupy.ndarray:
     """Cholesky decomposition.
 
     Decompose a given two-dimensional square matrix into ``L * L.H``,
@@ -49,6 +49,11 @@ def cholesky_lowerfill(a: cupy.ndarray) -> cupy.ndarray:
     handle = device.get_cusolver_handle()
     dev_info = cupy.empty(1, dtype=numpy.int32)
 
+    if lower:
+        lower = cublas.CUBLAS_FILL_MODE_LOWER
+    else:
+        lower = cublas.CUBLAS_FILL_MODE_UPPER
+
     if dtype == "f":
         potrf = cusolver.spotrf
         potrf_bufferSize = cusolver.spotrf_bufferSize
@@ -68,7 +73,7 @@ def cholesky_lowerfill(a: cupy.ndarray) -> cupy.ndarray:
     workspace = cupy.empty(buffersize, dtype=dtype)
     potrf(
         handle,
-        cublas.CUBLAS_FILL_MODE_LOWER,
+        lower,
         n,
         x.data.ptr,
         n,

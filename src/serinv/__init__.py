@@ -25,7 +25,7 @@ try:
 
     # In the case of CuPy, we want to use the lowerfill version
     # tweaked in serinv. (More performances)
-    from serinv.cupyfix.cholesky_lowerfill import cholesky_lowerfill as cu_cholesky
+    from serinv.cupyfix.cholesky_lowerfill import cholesky as cu_cholesky
 
     # Check if cupy is actually working. This could still raise
     # a cudaErrorInsufficientDriver error or something.

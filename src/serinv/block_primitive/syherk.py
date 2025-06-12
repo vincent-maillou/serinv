@@ -26,7 +26,6 @@ def syherk(a, c=None, alpha=1.0, beta=0.0, trans=0, lower = False):
     if  xp == np:
         return matmul_syherk_host(a, c, alpha, beta, trans, lower)
     elif xp == cp:
-        lower = not lower
         return matmul_syherk_device(a, trans, c, alpha, beta, lower)
     else:
         ModuleNotFoundError("Unknown Module")
