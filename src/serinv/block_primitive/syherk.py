@@ -166,8 +166,8 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
     lda, trans = _decide_ld_and_trans(a, trans)
     ldo, _ = _decide_ld_and_trans(out, trans)
 
-    #print(a)
-    #print(out)
+    print(a)
+    print(out)
     #print(alpha)
     #print(beta)
     #print(lower)
