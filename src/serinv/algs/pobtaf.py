@@ -195,6 +195,9 @@ def _pobtaf(
         #)
         print(A_arrow_tip_block[:, :])
         #raise ValueError("TEST")
+        
+        print(L_lower_arrow_blocks[-1, :, :])
+
 
         A_arrow_tip_block[:, :] = (
             syherk(
@@ -203,6 +206,7 @@ def _pobtaf(
                 alpha=-1.0, beta=1.0, lower=True
             )
         )
+        print(A_arrow_tip_block[:, :])
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
         L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
