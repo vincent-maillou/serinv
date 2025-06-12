@@ -194,10 +194,11 @@ def _pobtaf(
     #        )
     #    )
 
-        A_arrow_tip_block[:, :] -= (
+        A_arrow_tip_block[:, :] = (
             syherk(
                 L_lower_arrow_blocks[-1, :, :],
-                alpha=-1.0, beta=0.0, lower=True
+                A_arrow_tip_block[:, :],
+                alpha=-1.0, beta=1.0, lower=True
             )
         )
 
