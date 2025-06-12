@@ -206,7 +206,7 @@ def _pobtaf(
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
         L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :])
-
+        print("LOL")
         print(L_arrow_tip_block[:, :])
 
 
