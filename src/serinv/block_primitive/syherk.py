@@ -30,7 +30,7 @@ def syherk(a, c=None, alpha=1.0, beta=0.0, trans=0, lower = False):
     else:
         ModuleNotFoundError("Unknown Module")
 
-def matmul_syherk_host(a, c=None, alpha=1.0, beta=1.0, trans=0, lower=False, unit_diagonal=False,
+def matmul_syherk_host(a, c=None, alpha=1.0, beta=1.0, trans=0, lower=False,
                      overwrite_c=False, check_finite=True, side=0):
     """Computes out = alpha * op(a) @ op(a)^T + beta * b
 
@@ -168,9 +168,9 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
 
     print(a)
     print(out)
-    #print(alpha)
-    #print(beta)
-    #print(lower)
+    print(alpha)
+    print(beta)
+    print(lower)
 
     if out._c_contiguous:
         if not a._c_contiguous:
@@ -202,5 +202,5 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
             cublas.setPointerMode(handle, orig_mode)
         if not out._f_contiguous:
             out[...] = c
-    #print(out)
+    print(out)
     return out
