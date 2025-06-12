@@ -187,13 +187,13 @@ def _pobtaf(
             syherk(
                 L_lower_arrow_blocks[-1, :, :],
                 A_arrow_tip_block[:, :],
-                alpha=-1.0, beta=1.0, lower=True
+                alpha=-1.0, beta=1.0, lower=True, trans='C'
             )
         )
         
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-        L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :], lower=False)
+        L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :], lower=True)
 
 
 def _pobtaf_permuted(
