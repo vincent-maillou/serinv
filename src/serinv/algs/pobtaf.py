@@ -145,7 +145,7 @@ def _pobtaf(
             syherk(
                 L_lower_diagonal_blocks[i, :, :],
                 A_diagonal_blocks[i + 1, :, :],
-                alpha=-1.0, beta=1.0, lower=True
+                alpha=-1.0, beta=1.0, lower=True, cu_chol=True
             )
         )
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
@@ -163,7 +163,7 @@ def _pobtaf(
             syherk(
                 L_lower_arrow_blocks[i, :, :],
                 A_arrow_tip_block[:, :],
-                alpha=-1.0, beta=1.0, lower=True
+                alpha=-1.0, beta=1.0, lower=True, cu_chol=True
             )
         )
 
