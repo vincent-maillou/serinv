@@ -119,13 +119,13 @@ def matmul_syherk_device(a, trans='N', out=None, alpha=1.0, beta=0.0, lower=Fals
         try:
             func = cublas.cherk
         except(AttributeError):
-            out = gemm(a, a, out, trans_b='C', alpha=alpha, beta=beta, lower=lower)
+            out = gemm(a, a, out, trans_b='C', alpha=alpha, beta=beta)
             return out
     elif dtype == 'D':
         try:
             func = cublas.zherk
         except(AttributeError):
-            out = gemm(a, a, out, trans_b='C', alpha=alpha, beta=beta, lower=lower)
+            out = gemm(a, a, out, trans_b='C', alpha=alpha, beta=beta)
             return out
     else:
         raise TypeError('invalid dtype')
