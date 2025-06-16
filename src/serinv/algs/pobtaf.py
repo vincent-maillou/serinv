@@ -171,7 +171,7 @@ def _pobtaf(
         print("#")
         print(A_diagonal_blocks[i, :, :])
 
-        raise ValueError("TEST")
+    raise ValueError("TEST")
 
     if factorize_last_block:
         # L_{ndb, ndb} = chol(A_{ndb, ndb})
