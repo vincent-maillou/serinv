@@ -173,7 +173,7 @@ def _pobtaf(
         A_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :], lower=True)
 
         # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
-        L_lower_arrow_blocks[-1, :, :] = (
+        A_lower_arrow_blocks[-1, :, :] = (
             trsm(
                 A_diagonal_blocks[-1, :, :],
                 A_lower_arrow_blocks[-1, :, :].conj().T,
@@ -194,7 +194,7 @@ def _pobtaf(
         
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-        L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :], lower=True)
+        A_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :], lower=True)
 
 
 def _pobtaf_permuted(
