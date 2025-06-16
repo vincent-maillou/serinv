@@ -44,9 +44,8 @@ def cholesky(a: cupy.ndarray, lower=True) -> cupy.ndarray:
     if a.size == 0:
         return cupy.empty(a.shape, out_dtype)
 
+    x = a.astype(dtype, order="C", copy=False)
     n = len(a)
-    a = a.astype(dtype, order="C", copy=False)
-    
     handle = device.get_cusolver_handle()
     dev_info = cupy.empty(1, dtype=numpy.int32)
 
@@ -69,14 +68,14 @@ def cholesky(a: cupy.ndarray, lower=True) -> cupy.ndarray:
         potrf_bufferSize = cusolver.zpotrf_bufferSize
 
     buffersize = potrf_bufferSize(
-        handle, cublas.CUBLAS_FILL_MODE_LOWER, n, a.data.ptr, n
+        handle, cublas.CUBLAS_FILL_MODE_LOWER, n, x.data.ptr, n
     )
     workspace = cupy.empty(buffersize, dtype=dtype)
     potrf(
         handle,
         lower,
         n,
-        a.data.ptr,
+        x.data.ptr,
         n,
         workspace.data.ptr,
         buffersize,
@@ -86,6 +85,6 @@ def cholesky(a: cupy.ndarray, lower=True) -> cupy.ndarray:
         potrf, dev_info
     )
 
-    _util._triu(a, k=0)
-    cupy.conjugate(a, out=a)
-    return a.astype(out_dtype, copy=False).T
+    _util._triu(x, k=0)
+    cupy.conjugate(x, out=x)
+    return x.astype(out_dtype, copy=False).T
