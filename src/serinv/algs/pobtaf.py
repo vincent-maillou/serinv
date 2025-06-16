@@ -116,11 +116,7 @@ def _pobtaf(
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
         L_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :], lower=True)
-        print(L_diagonal_blocks[i, :, :])
-        print("#")
-        print(A_diagonal_blocks[i, :, :])
-
-        raise ValueError("TEST")
+        
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L_lower_diagonal_blocks[i, :, :] = (
             trsm(
@@ -170,6 +166,12 @@ def _pobtaf(
                 alpha=-1.0, beta=1.0, lower=True, cu_chol=True
             )
         )
+
+        print(L_diagonal_blocks[i, :, :])
+        print("#")
+        print(A_diagonal_blocks[i, :, :])
+
+        raise ValueError("TEST")
 
     if factorize_last_block:
         # L_{ndb, ndb} = chol(A_{ndb, ndb})
