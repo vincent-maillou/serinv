@@ -118,7 +118,7 @@ def _pobtaf(
         A_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :], lower=True)
         
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
-        L_lower_diagonal_blocks[i, :, :] = (
+        A_lower_diagonal_blocks[i, :, :] = (
             trsm(
                 A_diagonal_blocks[i, :, :],
                 A_lower_diagonal_blocks[i, :, :],
@@ -129,7 +129,7 @@ def _pobtaf(
         
 
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
-        L_lower_arrow_blocks[i, :, :] = (
+        A_lower_arrow_blocks[i, :, :] = (
             trsm(
                 A_diagonal_blocks[i, :, :],
                 A_lower_arrow_blocks[i, :, :].conj().T,
@@ -143,7 +143,7 @@ def _pobtaf(
         # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
         A_diagonal_blocks[i + 1, :, :] = (
             syherk(
-                L_lower_diagonal_blocks[i, :, :],
+                A_lower_diagonal_blocks[i, :, :],
                 A_diagonal_blocks[i + 1, :, :],
                 alpha=-1.0, beta=1.0, lower=True, cu_chol=True
             )
@@ -151,8 +151,8 @@ def _pobtaf(
         # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
         A_lower_arrow_blocks[i + 1, :, :] = (
             gemm(
-                L_lower_arrow_blocks[i, :, :],
-                L_lower_diagonal_blocks[i, :, :],
+                A_lower_arrow_blocks[i, :, :],
+                A_lower_diagonal_blocks[i, :, :],
                 A_lower_arrow_blocks[i + 1, :, :],
                 trans_b='C', alpha=-1.0, beta=1.0
             )
@@ -161,7 +161,7 @@ def _pobtaf(
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
         A_arrow_tip_block[:, :] = (
             syherk(
-                L_lower_arrow_blocks[i, :, :],
+                A_lower_arrow_blocks[i, :, :],
                 A_arrow_tip_block[:, :],
                 alpha=-1.0, beta=1.0, lower=True, cu_chol=True
             )
@@ -170,12 +170,12 @@ def _pobtaf(
 
     if factorize_last_block:
         # L_{ndb, ndb} = chol(A_{ndb, ndb})
-        L_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :], lower=True)
+        A_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :], lower=True)
 
         # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
         L_lower_arrow_blocks[-1, :, :] = (
             trsm(
-                L_diagonal_blocks[-1, :, :],
+                A_diagonal_blocks[-1, :, :],
                 A_lower_arrow_blocks[-1, :, :].conj().T,
                 lower=True,
             )
