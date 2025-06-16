@@ -115,12 +115,12 @@ def _pobtaf(
     # Forward block-Cholesky
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        L_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :], lower=True)
+        A_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :], lower=True)
         
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L_lower_diagonal_blocks[i, :, :] = (
             trsm(
-                L_diagonal_blocks[i, :, :],
+                A_diagonal_blocks[i, :, :],
                 A_lower_diagonal_blocks[i, :, :],
                 trans='C',lower=True, side=1
             )
@@ -131,7 +131,7 @@ def _pobtaf(
         # L_{ndb+1, i} = A_{ndb+1, i} @ L_{i, i}^{-T}
         L_lower_arrow_blocks[i, :, :] = (
             trsm(
-                L_diagonal_blocks[i, :, :],
+                A_diagonal_blocks[i, :, :],
                 A_lower_arrow_blocks[i, :, :].conj().T,
                 lower=True,
             )
@@ -167,11 +167,6 @@ def _pobtaf(
             )
         )
 
-        print(L_diagonal_blocks[i, :, :])
-        print("#")
-        print(A_diagonal_blocks[i, :, :])
-
-    raise ValueError("TEST")
 
     if factorize_last_block:
         # L_{ndb, ndb} = chol(A_{ndb, ndb})
