@@ -6,8 +6,6 @@ import numpy
 from cupy.cuda import device
 from cupy.linalg import _util
 
-from cupy.cuda.nvtx import RangePush, RangePop
-
 
 def cholesky(a: cupy.ndarray, lower=True) -> cupy.ndarray:
     """Cholesky decomposition.
@@ -36,7 +34,6 @@ def cholesky(a: cupy.ndarray, lower=True) -> cupy.ndarray:
 
     .. seealso:: :func:`numpy.linalg.cholesky`
     """
-    RangePush("cholesky")
     from cupy_backends.cuda.libs import cublas, cusolver
 
     _util._assert_cupy_array(a)
@@ -90,5 +87,4 @@ def cholesky(a: cupy.ndarray, lower=True) -> cupy.ndarray:
 
     _util._triu(x, k=0)
     cupy.conjugate(x, out=x)
-    RangePop()
     return x.astype(out_dtype, copy=False).T

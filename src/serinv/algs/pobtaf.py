@@ -9,8 +9,6 @@ from serinv import (
 
 from serinv.block_primitive import trsm, gemm, syherk
 
-from cupy.cuda.nvtx import RangePush, RangePop
-
 def pobtaf(
     A_diagonal_blocks: ArrayLike,
     A_lower_diagonal_blocks: ArrayLike,
@@ -117,9 +115,7 @@ def _pobtaf(
     # Forward block-Cholesky
     for i in range(0, n_diag_blocks - 1):
         # L_{i, i} = chol(A_{i, i})
-        RangePush("chol call")
         L_diagonal_blocks[i, :, :] = cholesky(A_diagonal_blocks[i, :, :], lower=True)
-        RangePop()
         # L_{i+1, i} = A_{i+1, i} @ L_{i, i}^{-T}
         L_lower_diagonal_blocks[i, :, :] = (
             trsm(
