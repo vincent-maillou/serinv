@@ -15,7 +15,7 @@ except (ImportError, ImportWarning, ModuleNotFoundError):
     pass
 
 def trsm(a, b, trans=0, lower = False, unit_diagonal=False,
-                            overwrite_b=False, check_finite=False, side=0):
+                            overwrite_b=True, check_finite=False, side=0):
     """Wrapper for the trsm function to call depending on wheter the solve happens on the host or the device
     
         For Compatibility this function accepts exactly the same parameters as what the scipy and cupy implementations accept
