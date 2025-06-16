@@ -169,10 +169,10 @@ def _pobtaf(
 
     if factorize_last_block:
         # L_{ndb, ndb} = chol(A_{ndb, ndb})
-        A_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :], lower=True)
+        L_diagonal_blocks[-1, :, :] = cholesky(A_diagonal_blocks[-1, :, :], lower=True)
 
         # L_{ndb+1, ndb} = A_{ndb+1, ndb} @ L_{ndb, ndb}^{-T}
-        A_lower_arrow_blocks[-1, :, :] = (
+        L_lower_arrow_blocks[-1, :, :] = (
             trsm(
                 L_diagonal_blocks[-1, :, :],
                 A_lower_arrow_blocks[-1, :, :].conj().T,
@@ -193,7 +193,7 @@ def _pobtaf(
         
 
         # L_{ndb+1, ndb+1} = chol(A_{ndb+1, ndb+1})
-        A_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :], lower=True)
+        L_arrow_tip_block[:, :] = cholesky(A_arrow_tip_block[:, :], lower=True)
 
 
 def _pobtaf_permuted(
