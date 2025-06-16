@@ -186,7 +186,7 @@ def _pobtaf(
         # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
         A_arrow_tip_block[:, :] = (
             syherk(
-                L_lower_arrow_blocks[-1, :, :],
+                A_lower_arrow_blocks[-1, :, :],
                 A_arrow_tip_block[:, :],
                 alpha=-1.0, beta=1.0, lower=True, cu_chol=True
             )
