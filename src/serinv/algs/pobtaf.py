@@ -736,7 +736,7 @@ def _pobtaf_permuted_streaming(
         # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
         with compute_stream:
             L_upper_nested_dissection_buffer_d[i % 2, :, :] = (
-                cu_la.solve_triangular(
+                trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
                     buffer_d[i % 2, :, :].conj().T,
                     lower=True,
@@ -767,11 +767,9 @@ def _pobtaf_permuted_streaming(
             compute_stream.wait_event(h2d_diagonal_events[(i + 1) % 2])
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
-                syherk(
-                    L_lower_diagonal_blocks_d[i % 2, :, :],
-                    A_diagonal_blocks_d[(i + 1) % 2, :, :],
-                    alpha=-1.0, beta=1.0, lower=True, cu_chol=True
-                )
+                A_diagonal_blocks_d[(i + 1) % 2, :, :]
+                - L_lower_diagonal_blocks_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
