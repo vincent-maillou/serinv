@@ -20,6 +20,9 @@ if backend_flags["cupy_avail"]:
 if backend_flags["cupy_avail"]:
     import cupyx as cpx
 
+@pytest.fixture(params=ARRAY_TYPE, autouse=True)
+def array_type(request: pytest.FixtureRequest) -> str:
+    return request.param
 
 @pytest.mark.mpi_skip()
 def test_pobtaf(
@@ -66,7 +69,6 @@ def test_pobtaf(
         A_lower_diagonal_blocks = A_lower_diagonal_blocks_pinned
         A_lower_arrow_blocks = A_lower_arrow_blocks_pinned
         A_arrow_tip_block = A_arrow_tip_block_pinned
-        raise ValueError("Streaming")
 
     pobtaf(
         A_diagonal_blocks,
