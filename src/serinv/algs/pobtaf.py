@@ -769,9 +769,11 @@ def _pobtaf_permuted_streaming(
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             print(A_diagonal_blocks_d[(i + 1) % 2, :, :])
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
-                A_diagonal_blocks_d[(i + 1) % 2, :, :]
-                - L_lower_diagonal_blocks_d[i % 2, :, :]
-                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
+                syherk(
+                    L_lower_diagonal_blocks_d[i % 2, :, :],
+                    A_diagonal_blocks_d[(i + 1) % 2, :, :],
+                    alpha=-1.0, beta=1.0, lower=True, cu_chol=True
+                )
             )
             print(A_diagonal_blocks_d[(i + 1) % 2, :, :])
             
@@ -820,7 +822,7 @@ def _pobtaf_permuted_streaming(
                 - L_upper_nested_dissection_buffer_d[i % 2, :, :]
                 @ L_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
             )
-    raise ValueError("TEST")
+
     # --- Device 2 Host transfers ---
     d2h_stream.wait_event(cp_lower_events_h2d_release[(n_diag_blocks - 2) % 2])
     A_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :].get(
