@@ -691,13 +691,11 @@ def _pobtaf_permuted_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_lower_events[i % 2])
             L_lower_diagonal_blocks_d[i % 2, :, :] = (
-                cu_la.solve_triangular(
+                trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
-                    lower=True,
+                    A_lower_diagonal_blocks_d[i % 2, :, :],
+                    trans='C',lower=True, side=1
                 )
-                .conj()
-                .T
             )
             cp_lower_events[i % 2].record(stream=compute_stream)
 
@@ -718,7 +716,7 @@ def _pobtaf_permuted_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_arrow_events[i % 2])
             L_lower_arrow_blocks_d[i % 2, :, :] = (
-                trsm(
+                cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_lower_arrow_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
