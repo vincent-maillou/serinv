@@ -137,8 +137,8 @@ def test_pobtasi_permuted(
         _A_arrow_tip_block,
     )
 
-    print(X_arrow_tip_block_ref)
-    print(_A_arrow_tip_block)
+    print(X_diagonal_blocks_ref)
+    print(_A_diagonal_blocks)
     # Verify that the reduced system is already correct
     assert xp.allclose(X_arrow_tip_block_ref, _A_arrow_tip_block)
     assert xp.allclose(X_diagonal_blocks_ref[0], _A_diagonal_blocks[0])
