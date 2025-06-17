@@ -736,7 +736,7 @@ def _pobtaf_permuted_streaming(
         # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
         with compute_stream:
             L_upper_nested_dissection_buffer_d[i % 2, :, :] = (
-                cu_la.solve_triangular(
+                trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
                     buffer_d[i % 2, :, :].conj().T,
                     lower=True,
