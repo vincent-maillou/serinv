@@ -668,7 +668,7 @@ def _pobtaf_permuted_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
             L_diagonal_blocks_d[i % 2, :, :] = cholesky(
-                A_diagonal_blocks_d[i % 2, :, :]
+                A_diagonal_blocks_d[i % 2, :, :], lower=True
             )
             cp_diagonal_events[i % 2].record(stream=compute_stream)
 
@@ -773,7 +773,7 @@ def _pobtaf_permuted_streaming(
                 @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
             print(A_diagonal_blocks_d[(i + 1) % 2, :, :])
-            raise ValueError("TEST")
+            #raise ValueError("TEST")
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
             A_lower_arrow_blocks_d[(i + 1) % 2, :, :] = (
