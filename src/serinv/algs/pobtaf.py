@@ -767,19 +767,18 @@ def _pobtaf_permuted_streaming(
             compute_stream.wait_event(h2d_diagonal_events[(i + 1) % 2])
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
-                A_diagonal_blocks_d[(i + 1) % 2, :, :]
-                - L_lower_diagonal_blocks_d[i % 2, :, :]
-                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
+                syherk(
+                    L_lower_diagonal_blocks_d[i % 2, :, :],
+                    A_diagonal_blocks_d[(i + 1) % 2, :, :],
+                    alpha=-1.0, beta=1.0, lower=True, cu_chol=True
+                )
             )
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
             A_lower_arrow_blocks_d[(i + 1) % 2, :, :] = (
-                gemm(
-                    L_lower_arrow_blocks_d[i % 2, :, :],
-                    L_lower_diagonal_blocks_d[i % 2, :, :],
-                    A_lower_arrow_blocks_d[(i + 1) % 2, :, :],
-                    trans_b='C', alpha=-1.0, beta=1.0
-                )
+                A_lower_arrow_blocks_d[(i + 1) % 2, :, :]
+                - L_lower_arrow_blocks_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
