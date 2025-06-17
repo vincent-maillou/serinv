@@ -807,20 +807,21 @@ def _pobtaf_permuted_streaming(
             # Update the top (first blocks) of the arrowhead
             # A_{ndb+1, top} = A_{ndb+1, top} - L_{ndb+1, i} @ L_{top, i}.conj().T
             A_arrow_bottom_top_block_d[:, :] = (
-                A_arrow_bottom_top_block_d[:, :]
-                - L_lower_arrow_blocks_d[i % 2, :, :]
-                @ L_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
+                gemm(
+                    L_lower_arrow_blocks_d[i % 2, :, :],
+                    L_upper_nested_dissection_buffer_d[i % 2, :, :],
+                    A_arrow_bottom_top_block_d[:, :],
+                    trans_b='C', alpha=-1.0, beta=1.0
+                )
             )
             cp_arrow_events_h2d_release[i % 2].record(stream=compute_stream)
 
             # Update top and next upper/lower blocks of 2-sided factorization pattern
             # A_{top, top} = A_{top, top} - L_{top, i} @ L_{top, i}.conj().T
             A_diagonal_top_block_d[:, :] = (
-                syherk(
-                    L_upper_nested_dissection_buffer_d[i % 2, :, :],
-                    A_diagonal_top_block_d[:, :],
-                    alpha=-1.0, beta=1.0, lower=True, cu_chol=True
-                )
+                A_diagonal_top_block_d[:, :]
+                - L_upper_nested_dissection_buffer_d[i % 2, :, :]
+                @ L_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
             )
 
     # --- Device 2 Host transfers ---
