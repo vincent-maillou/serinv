@@ -770,7 +770,7 @@ def _pobtaf_permuted_streaming(
                 syherk(
                     L_lower_diagonal_blocks_d[i % 2, :, :],
                     A_diagonal_blocks_d[(i + 1) % 2, :, :],
-                    alpha=-1.0, beta=1.0, lower=True, cu_chol=True
+                    alpha=-1.0, beta=1.0, lower=True, cu_chol=False
                 )
             )
 
