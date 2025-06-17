@@ -773,7 +773,7 @@ def _pobtaf_permuted_streaming(
                 @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
             print(A_diagonal_blocks_d[(i + 1) % 2, :, :])
-            #raise ValueError("TEST")
+            raise ValueError("TEST")
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
             A_lower_arrow_blocks_d[(i + 1) % 2, :, :] = (
