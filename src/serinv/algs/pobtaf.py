@@ -691,11 +691,13 @@ def _pobtaf_permuted_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_lower_events[i % 2])
             L_lower_diagonal_blocks_d[i % 2, :, :] = (
-                trsm(
+                cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    A_lower_diagonal_blocks_d[i % 2, :, :],
-                    trans='C',lower=True, side=1
+                    A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
+                    lower=True,
                 )
+                .conj()
+                .T
             )
             cp_lower_events[i % 2].record(stream=compute_stream)
 
@@ -716,7 +718,7 @@ def _pobtaf_permuted_streaming(
         with compute_stream:
             compute_stream.wait_event(h2d_arrow_events[i % 2])
             L_lower_arrow_blocks_d[i % 2, :, :] = (
-                trsm(
+                cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
                     A_lower_arrow_blocks_d[i % 2, :, :].conj().T,
                     lower=True,
@@ -736,7 +738,7 @@ def _pobtaf_permuted_streaming(
         # L_{top, i} = A_{top, i} @ U{i, i}^{-1}
         with compute_stream:
             L_upper_nested_dissection_buffer_d[i % 2, :, :] = (
-                trsm(
+                cu_la.solve_triangular(
                     L_diagonal_blocks_d[i % 2, :, :],
                     buffer_d[i % 2, :, :].conj().T,
                     lower=True,
@@ -767,52 +769,39 @@ def _pobtaf_permuted_streaming(
             compute_stream.wait_event(h2d_diagonal_events[(i + 1) % 2])
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
-                syherk(
-                    L_lower_diagonal_blocks_d[i % 2, :, :],
-                    A_diagonal_blocks_d[(i + 1) % 2, :, :],
-                    alpha=-1.0, beta=1.0, lower=True, cu_chol=True
-                )
+                A_diagonal_blocks_d[(i + 1) % 2, :, :]
+                - L_lower_diagonal_blocks_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # A_{ndb+1, i+1} = A_{ndb+1, i+1} - L_{ndb+1, i} @ L_{i+1, i}.conj().T
             A_lower_arrow_blocks_d[(i + 1) % 2, :, :] = (
-                gemm(
-                    L_lower_arrow_blocks_d[i % 2, :, :],
-                    L_lower_diagonal_blocks_d[i % 2, :, :],
-                    A_lower_arrow_blocks_d[(i + 1) % 2, :, :],
-                    trans_b='C', alpha=-1.0, beta=1.0
-                )
+                A_lower_arrow_blocks_d[(i + 1) % 2, :, :]
+                - L_lower_arrow_blocks_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
 
             # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
             buffer_d[(i + 1) % 2, :, :] = (
-                gemm(
-                    L_upper_nested_dissection_buffer_d[i % 2, :, :],
-                    L_lower_diagonal_blocks_d[i % 2, :, :],
-                    trans_b='C', alpha=-1.0
-                )
+                -L_upper_nested_dissection_buffer_d[i % 2, :, :]
+                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
             )
             cp_lower_events_h2d_release[i % 2].record(stream=compute_stream)
 
             # Update the block at the tip of the arrowhead
             # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, i} @ L_{ndb+1, i}.conj().T
             A_arrow_tip_block_d[:, :] = (
-                syherk(
-                    L_lower_arrow_blocks_d[i % 2, :, :],
-                    A_arrow_tip_block_d[:, :],
-                    alpha=-1.0, beta=1.0, lower=True, cu_chol=True
-                )
+                A_arrow_tip_block_d[:, :]
+                - L_lower_arrow_blocks_d[i % 2, :, :]
+                @ L_lower_arrow_blocks_d[i % 2, :, :].conj().T
             )
 
             # Update the top (first blocks) of the arrowhead
             # A_{ndb+1, top} = A_{ndb+1, top} - L_{ndb+1, i} @ L_{top, i}.conj().T
             A_arrow_bottom_top_block_d[:, :] = (
-                gemm(
-                    L_lower_arrow_blocks_d[i % 2, :, :],
-                    L_upper_nested_dissection_buffer_d[i % 2, :, :],
-                    A_arrow_bottom_top_block_d[:, :],
-                    trans_b='C', alpha=-1.0, beta=1.0
-                )
+                A_arrow_bottom_top_block_d[:, :]
+                - L_lower_arrow_blocks_d[i % 2, :, :]
+                @ L_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
             )
             cp_arrow_events_h2d_release[i % 2].record(stream=compute_stream)
 
