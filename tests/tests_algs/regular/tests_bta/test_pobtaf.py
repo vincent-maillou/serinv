@@ -24,6 +24,11 @@ if backend_flags["cupy_avail"]:
 def array_type(request: pytest.FixtureRequest) -> str:
     return request.param
 
+@pytest.fixture(params=ARRAY_TYPE, autouse=True)
+def array_type(request: pytest.FixtureRequest) -> str:
+    return request.param
+
+
 @pytest.mark.mpi_skip()
 def test_pobtaf(
     diagonal_blocksize: int,
