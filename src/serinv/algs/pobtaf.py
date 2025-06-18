@@ -123,7 +123,6 @@ def _pobtaf(
                 A_lower_diagonal_blocks[i, :, :],
                 trans='C',lower=True, side=1
             )
-            
         )
         
 
