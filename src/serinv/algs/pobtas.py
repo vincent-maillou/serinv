@@ -97,12 +97,8 @@ def _pobtas(
             )
 
             B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
-                gemm(
-                    L_lower_diagonal_blocks[i],
-                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
-                    B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
-                    alpha=-1.0, beta=1.0
-                )
+                L_lower_diagonal_blocks[i]
+                @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
             )
 
             B[-arrow_blocksize:] -= (
