@@ -1,3 +1,7 @@
+# Copyright 2023-2025 ETH Zurich. All rights reserved.
+# Forked and modified from cupyx.linalg.solve_triangular: https://github.com/cupy/cupy/blob/3a2c950d64ee707096bc7ca1bf0b953a08206384/cupyx/scipy/linalg/_solve_triangular.py#L12
+# and scipy.linal.solve_triangular: https://github.com/scipy/scipy/blob/v1.15.3/scipy/linalg/_basic.py#L411
+
 import numpy as np
 
 from serinv import _get_module_from_array
