@@ -189,7 +189,7 @@ def _pobtas_permuted(
     if trans == "N":
         # ----- Forward substitution -----
         for i in range(1, n_diag_blocks - 1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
                 L_diagonal_blocks[i],
                 B[i * diag_blocksize : (i + 1) * diag_blocksize],
                 lower=True,
@@ -214,7 +214,7 @@ def _pobtas_permuted(
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
         for i in range(n_diag_blocks - 2, 0, -1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
                 L_diagonal_blocks[i],
                 B[i * diag_blocksize : (i + 1) * diag_blocksize]
                 - L_lower_diagonal_blocks[i].conj().T
@@ -350,7 +350,7 @@ def _pobtas_streaming(
                 # Solve current B block
                 compute_stream.wait_event(h2d_diagonal_events[i % 2])
 
-                B_d[i % 2] = cu_la.solve_triangular(
+                B_d[i % 2] = trsm(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2],
                     lower=True,
@@ -436,7 +436,7 @@ def _pobtas_streaming(
                 # Solve last B block
                 compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
 
-                B_d[(n_diag_blocks - 1) % 2] = cu_la.solve_triangular(
+                B_d[(n_diag_blocks - 1) % 2] = trsm(
                     L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
                     B_d[(n_diag_blocks - 1) % 2],
                     lower=True,
@@ -467,7 +467,7 @@ def _pobtas_streaming(
                     L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2]
                     @ B_d[(n_diag_blocks - 1) % 2]
                 )
-                B_arrow_tip_d = cu_la.solve_triangular(
+                B_arrow_tip_d = trsm(
                     L_arrow_tip_block_d, B_arrow_tip_d, lower=True
                 )
 
@@ -517,7 +517,7 @@ def _pobtas_streaming(
             with compute_stream:
                 # X_{ndb+1} = L_{ndb+1,ndb+1}^{-T} (Y_{ndb+1})
                 compute_stream.wait_event(h2d_events[(n_diag_blocks - 1) % 2])
-                B_arrow_tip_d = cu_la.solve_triangular(
+                B_arrow_tip_d = trsm(
                     L_arrow_tip_block_d,
                     B_arrow_tip_d,
                     lower=True,
@@ -525,7 +525,7 @@ def _pobtas_streaming(
                 )
 
                 # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
-                B_previous_d[(n_diag_blocks - 1) % 2] = cu_la.solve_triangular(
+                B_previous_d[(n_diag_blocks - 1) % 2] = trsm(
                     L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
                     B_d[(n_diag_blocks - 1) % 2]
                     - L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2].conj().T
@@ -594,7 +594,7 @@ def _pobtas_streaming(
                 compute_stream.wait_event(h2d_events[(i - 1) % 2])
                 compute_stream.wait_event(d2h_events[(i - 1) % 2])
 
-                B_previous_d[i % 2] = cu_la.solve_triangular(
+                B_previous_d[i % 2] = trsm(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2]
                     - L_lower_diagonal_blocks_d[i % 2].conj().T
