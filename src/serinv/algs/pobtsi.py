@@ -6,6 +6,7 @@ from serinv import (
     _get_module_from_str,
 )
 
+from serinv.block_primitive import trsm
 
 def pobtsi(
     L_diagonal_blocks: ArrayLike,
