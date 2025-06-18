@@ -478,7 +478,7 @@ def _pobtaf_streaming(
                     L_lower_diagonal_blocks_d[i % 2, :, :],
                     L_lower_diagonal_blocks_d[i % 2, :, :],
                     A_diagonal_blocks_d[(i + 1) % 2, :, :],
-                    alpha=-1.0, beta=1.0, lower=True, cu_chol=False
+                    trans_b='C', alpha=-1.0, beta=1.0
                 )
             )
 
