@@ -147,8 +147,12 @@ def _pobtas(
             )
 
             # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
-            B[-arrow_blocksize:] = trsm(
-                L_arrow_tip_block[:], B[-arrow_blocksize:], lower=True
+            B[-arrow_blocksize:] = (
+                trsm(
+                    L_arrow_tip_block[:], 
+                    B[-arrow_blocksize:], 
+                    lower=True
+                )
             )
 
     elif trans == "T" or trans == "C":
@@ -201,11 +205,13 @@ def _pobtas(
                 )
             )
 
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
-                L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize],
-                lower=True,
-                trans="C",
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                trsm(
+                    L_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    lower=True,
+                    trans="C",
+                )
             )
     else:
         raise ValueError(f"Invalid transpose argument: {trans}.")
@@ -267,15 +273,40 @@ def _pobtas_permuted(
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
         for i in range(n_diag_blocks - 2, 0, -1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
-                L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize]
-                - L_lower_diagonal_blocks[i].conj().T
-                @ B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-                - L_lower_arrow_blocks[i].conj().T @ B[-arrow_blocksize:]
-                - buffer[i].conj().T @ B[:diag_blocksize],
-                lower=True,
-                trans="C",
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                gemm(
+                    L_lower_diagonal_blocks[i],
+                    B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    trans_a='C', alpha=-1.0, beta=1.0
+                )
+            )
+
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                gemm(
+                    L_lower_arrow_blocks[i],
+                    B[-arrow_blocksize:],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    trans_a='C', alpha=-1.0, beta=1.0
+                )
+            )
+
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                gemm(
+                    buffer[i],
+                    B[:diag_blocksize],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    trans_a='C', alpha=-1.0, beta=1.0
+                )
+            )
+
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                trsm(
+                    L_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    lower=True,
+                    trans="C",
+                )
             )
     else:
         raise ValueError(f"Invalid transpose argument: {trans}.")
