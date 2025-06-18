@@ -92,7 +92,7 @@ def _pobtsi(
     Identity = xp.eye(L_diagonal_blocks.shape[1])
 
     if invert_last_block:
-        L_blk_inv = la.solve_triangular(
+        L_blk_inv = trsm(
             L_diagonal_blocks[-1, :, :],
             Identity,
             lower=True,
@@ -104,7 +104,7 @@ def _pobtsi(
     for i in range(n_diag_blocks - 2, -1, -1):
         L_lower_diagonal_blocks_i[:, :] = L_lower_diagonal_blocks[i, :, :]
 
-        L_blk_inv = la.solve_triangular(
+        L_blk_inv = trsm(
             L_diagonal_blocks[i, :, :],
             Identity,
             lower=True,
@@ -148,7 +148,7 @@ def _pobtsi_permuted(
         L_lower_diagonal_blocks_temp[:, :] = L_lower_diagonal_blocks[i, :, :]
         buffer_temp[:, :] = buffer[i, :, :]
 
-        L_inv_temp[:, :] = la.solve_triangular(
+        L_inv_temp[:, :] = trsm(
             L_diagonal_blocks[i, :, :],
             xp.eye(diag_blocksize),
             lower=True,
@@ -245,7 +245,7 @@ def _pobtsi_streaming(
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
         if invert_last_block:
             # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
-            L_blk_inv_d = cu_la.solve_triangular(
+            L_blk_inv_d = trsm(
                 L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
                 Identity,
                 lower=True,
@@ -289,7 +289,7 @@ def _pobtsi_streaming(
 
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
-            L_blk_inv_d = cu_la.solve_triangular(
+            L_blk_inv_d = trsm(
                 L_diagonal_blocks_d[i % 2, :, :],
                 Identity,
                 lower=True,
@@ -435,7 +435,7 @@ def _pobtsi_permuted_streaming(
 
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
-            L_inv_temp_d[:, :] = cu_la.solve_triangular(
+            L_inv_temp_d[:, :] = trsm(
                 L_diagonal_blocks_d[i % 2, :, :],
                 cp.eye(diag_blocksize),
                 lower=True,
