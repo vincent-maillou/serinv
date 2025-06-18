@@ -323,7 +323,7 @@ def _pobtasi_streaming(
     with compute_stream:
         if invert_last_block:
             # X_{ndb+1, ndb+1} = L_{ndb+1, ndb}^{-T} L_{ndb+1, ndb}^{-1}
-            L_last_blk_inv_d = cu_trsm(
+            L_last_blk_inv_d = trsm(
                 L_arrow_tip_block_d[:, :],
                 cp.eye(L_arrow_tip_block.shape[0]),
                 lower=True,
@@ -358,7 +358,7 @@ def _pobtasi_streaming(
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
         if invert_last_block:
             # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
-            L_blk_inv_d = cu_trsm(
+            L_blk_inv_d = trsm(
                 L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
                 Identity,
                 lower=True,
@@ -436,7 +436,7 @@ def _pobtasi_streaming(
 
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
-            L_blk_inv_d = cu_trsm(
+            L_blk_inv_d = trsm(
                 L_diagonal_blocks_d[i % 2, :, :],
                 Identity,
                 lower=True,
@@ -634,7 +634,7 @@ def _pobtasi_permuted_streaming(
 
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
-            L_inv_temp_d[:, :] = cu_trsm(
+            L_inv_temp_d[:, :] = trsm(
                 L_diagonal_blocks_d[i % 2, :, :],
                 cp.eye(diag_blocksize),
                 lower=True,
