@@ -133,19 +133,24 @@ def _pobtas(
                 )
             )
 
-            B[-arrow_blocksize:] -= (
-                L_lower_arrow_blocks[-1]
-                @ B[
-                    (n_diag_blocks - 1)
-                    * diag_blocksize : n_diag_blocks
-                    * diag_blocksize
-                ]
+            B[-arrow_blocksize:] = (
+                gemm(
+                    L_lower_arrow_blocks[-1],
+                    B[
+                        (n_diag_blocks - 1)
+                        * diag_blocksize : n_diag_blocks
+                        * diag_blocksize
+                    ],
+                    B[-arrow_blocksize:],
+                    alpha=-1.0, beta=1.0
+                )
             )
 
             # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
             B[-arrow_blocksize:] = trsm(
                 L_arrow_tip_block[:], B[-arrow_blocksize:], lower=True
             )
+            
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
         if not partial:
