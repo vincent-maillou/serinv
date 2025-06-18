@@ -7,7 +7,6 @@ from serinv import _get_module_from_array
 from serinv.block_primitive import gemm
 
 import numpy as np
-from numpy.linalg import matmul
 
 from scipy.linalg.blas import get_blas_funcs
 from scipy.linalg._misc import _datacopied
