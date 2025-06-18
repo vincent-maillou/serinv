@@ -287,11 +287,9 @@ def _pobtf_streaming(
             L_lower_diagonal_blocks_d[i % 2, :, :] = (
                 trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
-                    lower=True,
+                    A_lower_diagonal_blocks_d[i % 2, :, :],
+                    trans='C',lower=True, side=1
                 )
-                .conj()
-                .T
             )
             compute_lower_events[i % 2].record(stream=compute_stream)
 
@@ -313,9 +311,11 @@ def _pobtf_streaming(
             compute_stream.wait_event(h2d_diagonal_events[(i + 1) % 2])
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
-                A_diagonal_blocks_d[(i + 1) % 2, :, :]
-                - L_lower_diagonal_blocks_d[i % 2, :, :]
-                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
+                syherk(
+                    L_lower_diagonal_blocks_d[i % 2, :, :],
+                    A_diagonal_blocks_d[(i + 1) % 2, :, :],
+                    alpha=-1.0, beta=1.0, lower=True, cu_chol=True
+                )
             )
             compute_lower_h2d_events[i % 2].record(stream=compute_stream)
 
@@ -447,11 +447,9 @@ def _pobtf_permuted_streaming(
             L_lower_diagonal_blocks_d[i % 2, :, :] = (
                 trsm(
                     L_diagonal_blocks_d[i % 2, :, :],
-                    A_lower_diagonal_blocks_d[i % 2, :, :].conj().T,
-                    lower=True,
+                    A_lower_diagonal_blocks_d[i % 2, :, :],
+                    trans='C',lower=True, side=1
                 )
-                .conj()
-                .T
             )
             cp_lower_events[i % 2].record(stream=compute_stream)
 
@@ -496,24 +494,34 @@ def _pobtf_permuted_streaming(
             compute_stream.wait_event(h2d_diagonal_events[(i + 1) % 2])
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
-                A_diagonal_blocks_d[(i + 1) % 2, :, :]
-                - L_lower_diagonal_blocks_d[i % 2, :, :]
-                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
+                # gemm instead of syherk because this somehow kept failing tests in a very weird way
+                # probably because both sides of the diagonal matrix are used somwhere in a relevant way
+                gemm(
+                    L_lower_diagonal_blocks_d[i % 2, :, :],
+                    L_lower_diagonal_blocks_d[i % 2, :, :],
+                    A_diagonal_blocks_d[(i + 1) % 2, :, :],
+                    trans_b='C', alpha=-1.0, beta=1.0
+                )
             )
 
             # A_{top, i+1} = - L{top, i} @ L_{i+1, i}.conj().T
             buffer_d[(i + 1) % 2, :, :] = (
-                -L_upper_nested_dissection_buffer_d[i % 2, :, :]
-                @ L_lower_diagonal_blocks_d[i % 2, :, :].conj().T
+                gemm(
+                    L_upper_nested_dissection_buffer_d[i % 2, :, :],
+                    L_lower_diagonal_blocks_d[i % 2, :, :],
+                    trans_b='C', alpha=-1.0
+                )
             )
             cp_lower_events_h2d_release[i % 2].record(stream=compute_stream)
 
             # Update top and next upper/lower blocks of 2-sided factorization pattern
             # A_{top, top} = A_{top, top} - L_{top, i} @ L_{top, i}.conj().T
             A_diagonal_top_block_d[:, :] = (
-                A_diagonal_top_block_d[:, :]
-                - L_upper_nested_dissection_buffer_d[i % 2, :, :]
-                @ L_upper_nested_dissection_buffer_d[i % 2, :, :].conj().T
+                syherk(
+                    L_upper_nested_dissection_buffer_d[i % 2, :, :],
+                    A_diagonal_top_block_d[:, :],
+                    alpha=-1.0, beta=1.0, lower=True, cu_chol=False
+                )
             )
 
     # --- Device 2 Host transfers ---
