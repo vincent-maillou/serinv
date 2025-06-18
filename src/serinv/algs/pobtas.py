@@ -96,7 +96,7 @@ def _pobtas(
                 )
             )
 
-            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
+            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
                 L_lower_diagonal_blocks[i]
                 @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
             )
