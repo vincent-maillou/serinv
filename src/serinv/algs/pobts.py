@@ -7,6 +7,7 @@ from serinv import (
     _get_module_from_str,
 )
 
+from serinv.block_primitive import trsm, gemm
 
 def pobts(
     L_diagonal_blocks: ArrayLike,
@@ -74,20 +75,24 @@ def _pobts(
         # ----- Forward substitution -----
         for i in range(0, n_diag_blocks - 1):
             # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
                 L_diagonal_blocks[i],
                 B[i * diag_blocksize : (i + 1) * diag_blocksize],
                 lower=True,
             )
 
-            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
-                L_lower_diagonal_blocks[i]
-                @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
+                gemm(
+                    L_lower_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                    alpha=-1.0, beta=1.0
+                )
             )
 
         if not partial:
             B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
-                la.solve_triangular(
+                trsm(
                     L_diagonal_blocks[n_diag_blocks - 1],
                     B[
                         (n_diag_blocks - 1)
@@ -101,7 +106,7 @@ def _pobts(
         # ----- Backward substitution -----
         if not partial:
             # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
-            B[-diag_blocksize:] = la.solve_triangular(
+            B[-diag_blocksize:] = trsm(
                 L_diagonal_blocks[-1],
                 B[-diag_blocksize:],
                 lower=True,
@@ -110,13 +115,22 @@ def _pobts(
 
         for i in range(n_diag_blocks - 2, -1, -1):
             # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
-                L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize]
-                - L_lower_diagonal_blocks[i].conj().T
-                @ B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
-                lower=True,
-                trans="C",
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                gemm(
+                    L_lower_diagonal_blocks[i],
+                    B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    trans_a='C', alpha=-1.0, beta=1.0
+                )
+            )
+
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                trsm(
+                    L_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    lower=True,
+                    trans="C",
+                )
             )
     else:
         raise ValueError(f"Invalid transpose argument: {trans}.")
@@ -137,7 +151,7 @@ def _pobts_permuted(
     if trans == "N":
         # ----- Forward substitution -----
         for i in range(1, n_diag_blocks - 1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
                 L_diagonal_blocks[i],
                 B[i * diag_blocksize : (i + 1) * diag_blocksize],
                 lower=True,
@@ -156,7 +170,7 @@ def _pobts_permuted(
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
         for i in range(n_diag_blocks - 2, 0, -1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
                 L_diagonal_blocks[i],
                 B[i * diag_blocksize : (i + 1) * diag_blocksize]
                 - L_lower_diagonal_blocks[i].conj().T
@@ -234,7 +248,7 @@ def _pobts_streaming(
             # Solve first B block
             compute_stream.wait_event(h2d_events[1])
 
-            B_previous_d[0] = cu_la.solve_triangular(
+            B_previous_d[0] = trsm(
                 L_diagonal_blocks_d[0],
                 B_d[0],
                 lower=True,
@@ -266,7 +280,7 @@ def _pobts_streaming(
                 compute_stream.wait_event(h2d_events[(i + 1) % 2])
                 compute_stream.wait_event(d2h_events[(i + 1) % 2])
 
-                B_previous_d[i % 2] = cu_la.solve_triangular(
+                B_previous_d[i % 2] = trsm(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2]
                     - L_lower_diagonal_blocks_d[i % 2] @ B_previous_d[(i + 1) % 2],
@@ -322,7 +336,7 @@ def _pobts_streaming(
             # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
             compute_stream.wait_event(h2d_events[(n_diag_blocks - 1) % 2])
 
-            B_previous_d[(n_diag_blocks - 1) % 2] = cu_la.solve_triangular(
+            B_previous_d[(n_diag_blocks - 1) % 2] = trsm(
                 L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
                 B_d[(n_diag_blocks - 1) % 2],
                 lower=True,
@@ -355,7 +369,7 @@ def _pobts_streaming(
                 compute_stream.wait_event(h2d_events[(i - 1) % 2])
                 compute_stream.wait_event(d2h_events[(i - 1) % 2])
 
-                B_previous_d[i % 2] = cu_la.solve_triangular(
+                B_previous_d[i % 2] = trsm(
                     L_diagonal_blocks_d[i % 2],
                     B_d[i % 2]
                     - L_lower_diagonal_blocks_d[i % 2].conj().T

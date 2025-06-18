@@ -6,7 +6,7 @@ from serinv import (
     _get_module_from_str,
 )
 
-from serinv.block_primitive import trsm, gemm, syherk
+from serinv.block_primitive import trsm
 
 
 def pobtasi(
