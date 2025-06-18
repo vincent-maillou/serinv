@@ -546,10 +546,11 @@ def _pobtaf_streaming(
         if factorize_last_block:
             # A_{ndb+1, ndb+1} = A_{ndb+1, ndb+1} - L_{ndb+1, ndb} @ L_{ndb+1, ndb}^{T}
             A_arrow_tip_block_d[:, :] = (
-                syherk(
+                gemm(
+                    L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :],
                     L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2, :, :],
                     A_arrow_tip_block_d[:, :],
-                    alpha=-1.0, beta=1.0, lower=True, cu_chol=False
+                    trans_b='C', alpha=-1.0, beta=1.0
                 )
             )
 
