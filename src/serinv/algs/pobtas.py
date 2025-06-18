@@ -235,10 +235,12 @@ def _pobtas_permuted(
     if trans == "N":
         # ----- Forward substitution -----
         for i in range(1, n_diag_blocks - 1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
-                L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize],
-                lower=True,
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                trsm(
+                    L_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    lower=True,
+                )
             )
 
             # Update the next RHS block

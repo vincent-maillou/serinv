@@ -75,10 +75,12 @@ def _pobts(
         # ----- Forward substitution -----
         for i in range(0, n_diag_blocks - 1):
             # Y_{i} = L_{i,i}^{-1} (B_{i} - L_{i,i-1} Y_{i-1})
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
-                L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize],
-                lower=True,
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                trsm(
+                    L_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    lower=True
+                )
             )
 
             B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
@@ -106,11 +108,13 @@ def _pobts(
         # ----- Backward substitution -----
         if not partial:
             # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
-            B[-diag_blocksize:] = trsm(
-                L_diagonal_blocks[-1],
-                B[-diag_blocksize:],
-                lower=True,
-                trans="C",
+            B[-diag_blocksize:] = (
+                trsm(
+                    L_diagonal_blocks[-1],
+                    B[-diag_blocksize:],
+                    lower=True,
+                    trans="C",
+                )
             )
 
         for i in range(n_diag_blocks - 2, -1, -1):
@@ -151,33 +155,62 @@ def _pobts_permuted(
     if trans == "N":
         # ----- Forward substitution -----
         for i in range(1, n_diag_blocks - 1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
-                L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize],
-                lower=True,
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                trsm(
+                    L_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    lower=True,
+                )
             )
 
             # Update the next RHS block
-            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
-                L_lower_diagonal_blocks[i]
-                @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
+                gemm(
+                    L_lower_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                    alpha=-1.0, beta=1.0
+                )
             )
 
             # Update the first RHS block (permutation-linked)
-            B[:diag_blocksize] -= (
-                buffer[i] @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            B[:diag_blocksize] = (
+                gemm(
+                    buffer[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    B[:diag_blocksize],
+                    alpha=-1.0, beta=1.0
+                )
             )
+
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
         for i in range(n_diag_blocks - 2, 0, -1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
-                L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize]
-                - L_lower_diagonal_blocks[i].conj().T
-                @ B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-                - buffer[i].conj().T @ B[:diag_blocksize],
-                lower=True,
-                trans="C",
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                gemm(
+                    L_lower_diagonal_blocks[i],
+                    B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    trans_a='C', alpha=-1.0, beta=1.0
+                )
+            )
+
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                gemm(
+                    buffer[i],
+                    B[:diag_blocksize],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    trans_a='C', alpha=-1.0, beta=1.0
+                )
+            )
+
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                trsm(
+                    L_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    lower=True,
+                    trans="C",
+                )
             )
     else:
         raise ValueError(f"Invalid transpose argument: {trans}.")
