@@ -6,6 +6,8 @@ from serinv import (
     _get_module_from_str,
 )
 
+from serinv.block_primitive import trsm, gemm, syherk
+
 
 def pobtasi(
     L_diagonal_blocks: ArrayLike,
@@ -112,7 +114,7 @@ def _pobtasi(
     Identity = xp.eye(L_diagonal_blocks.shape[1])
 
     if invert_last_block:
-        L_last_blk_inv = la.solve_triangular(
+        L_last_blk_inv = trsm(
             L_arrow_tip_block[:, :], xp.eye(L_arrow_tip_block.shape[0]), lower=True
         )
 
@@ -121,7 +123,7 @@ def _pobtasi(
         # Backward block-selected inversion
         L_lower_arrow_blocks_i[:, :] = L_lower_arrow_blocks[-1, :, :]
 
-        L_blk_inv = la.solve_triangular(
+        L_blk_inv = trsm(
             L_diagonal_blocks[-1, :, :],
             Identity,
             lower=True,
@@ -142,7 +144,7 @@ def _pobtasi(
         L_lower_diagonal_blocks_i[:, :] = L_lower_diagonal_blocks[i, :, :]
         L_lower_arrow_blocks_i[:, :] = L_lower_arrow_blocks[i, :, :]
 
-        L_blk_inv = la.solve_triangular(
+        L_blk_inv = trsm(
             L_diagonal_blocks[i, :, :],
             Identity,
             lower=True,
@@ -201,7 +203,7 @@ def _pobtasi_permuted(
         L_lower_arrow_blocks_temp[:, :] = L_lower_arrow_blocks[i, :, :]
         buffer_temp[:, :] = buffer[i, :, :]
 
-        L_inv_temp[:, :] = la.solve_triangular(
+        L_inv_temp[:, :] = trsm(
             L_diagonal_blocks[i, :, :],
             xp.eye(diag_blocksize),
             lower=True,
@@ -321,7 +323,7 @@ def _pobtasi_streaming(
     with compute_stream:
         if invert_last_block:
             # X_{ndb+1, ndb+1} = L_{ndb+1, ndb}^{-T} L_{ndb+1, ndb}^{-1}
-            L_last_blk_inv_d = cu_la.solve_triangular(
+            L_last_blk_inv_d = cu_trsm(
                 L_arrow_tip_block_d[:, :],
                 cp.eye(L_arrow_tip_block.shape[0]),
                 lower=True,
@@ -356,7 +358,7 @@ def _pobtasi_streaming(
         compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
         if invert_last_block:
             # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
-            L_blk_inv_d = cu_la.solve_triangular(
+            L_blk_inv_d = cu_trsm(
                 L_diagonal_blocks_d[(n_diag_blocks - 1) % 2, :, :],
                 Identity,
                 lower=True,
@@ -434,7 +436,7 @@ def _pobtasi_streaming(
 
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
-            L_blk_inv_d = cu_la.solve_triangular(
+            L_blk_inv_d = cu_trsm(
                 L_diagonal_blocks_d[i % 2, :, :],
                 Identity,
                 lower=True,
@@ -632,7 +634,7 @@ def _pobtasi_permuted_streaming(
 
         with compute_stream:
             compute_stream.wait_event(h2d_diagonal_events[i % 2])
-            L_inv_temp_d[:, :] = cu_la.solve_triangular(
+            L_inv_temp_d[:, :] = cu_trsm(
                 L_diagonal_blocks_d[i % 2, :, :],
                 cp.eye(diag_blocksize),
                 lower=True,
