@@ -494,7 +494,14 @@ def _pobtas_streaming(
                 # Update arrow tip
                 compute_stream.wait_event(h2d_arrow_events[i % 2])
 
-                B_arrow_tip_d -= L_lower_arrow_blocks_d[i % 2] @ B_d[i % 2]
+                B_arrow_tip_d = (
+                    gemm(
+                        L_lower_arrow_blocks_d[i % 2],
+                        B_d[i % 2],
+                        B_arrow_tip_d,
+                        alpha=-1.0, beta=1.0
+                    )
+                )
 
                 compute_arrow_B_events[i % 2].record(stream=compute_stream)
 
@@ -529,10 +536,12 @@ def _pobtas_streaming(
                 # Solve last B block
                 compute_stream.wait_event(h2d_diagonal_events[(n_diag_blocks - 1) % 2])
 
-                B_d[(n_diag_blocks - 1) % 2] = trsm(
-                    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
-                    B_d[(n_diag_blocks - 1) % 2],
-                    lower=True,
+                B_d[(n_diag_blocks - 1) % 2] = (
+                    trsm(
+                        L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
+                        B_d[(n_diag_blocks - 1) % 2],
+                        lower=True,
+                    )
                 )
 
                 compute_partial_events[0].record(stream=compute_stream)
@@ -556,12 +565,20 @@ def _pobtas_streaming(
                 # Solve arrow tip
                 compute_stream.wait_event(h2d_arrow_events[(n_diag_blocks - 1) % 2])
 
-                B_arrow_tip_d -= (
-                    L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2]
-                    @ B_d[(n_diag_blocks - 1) % 2]
+                B_arrow_tip_d = (
+                    gemm(
+                        L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2],
+                        B_d[(n_diag_blocks - 1) % 2],
+                        B_arrow_tip_d,
+                        alpha=-1.0, beta=1.0
+                    )
                 )
-                B_arrow_tip_d = trsm(
-                    L_arrow_tip_block_d, B_arrow_tip_d, lower=True
+                B_arrow_tip_d = (
+                    trsm(
+                        L_arrow_tip_block_d, 
+                        B_arrow_tip_d, 
+                        lower=True
+                    )
                 )
 
                 compute_partial_events[1].record(stream=compute_stream)
