@@ -131,11 +131,7 @@ def _pobtasi(
 
         # X_{ndb+1, ndb} = -X_{ndb+1, ndb+1} L_{ndb+1, ndb} L_{ndb, ndb}^{-1}
         X_arrow_bottom_blocks[-1, :, :] = (
-            gemm(
-                X_arrow_tip_block[:, :],
-                L_lower_arrow_blocks_i[:, :],
-                alpha=-1.0
-            ) @ L_blk_inv
+            -X_arrow_tip_block[:, :] @ L_lower_arrow_blocks_i[:, :] @ L_blk_inv
         )
 
         # X_{ndb, ndb} = (L_{ndb, ndb}^{-T} - X_{ndb+1, ndb}^{T} L_{ndb+1, ndb}) L_{ndb, ndb}^{-1}
