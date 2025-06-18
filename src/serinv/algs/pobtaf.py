@@ -476,7 +476,6 @@ def _pobtaf_streaming(
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
                 gemm(
                     L_lower_diagonal_blocks_d[i % 2, :, :],
-                    L_lower_diagonal_blocks_d[i % 2, :, :],
                     A_diagonal_blocks_d[(i + 1) % 2, :, :],
                     trans_b='C', alpha=-1.0, beta=1.0
                 )
