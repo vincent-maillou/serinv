@@ -164,14 +164,18 @@ def _pobtas(
 
             # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
             B[-arrow_blocksize - diag_blocksize : -arrow_blocksize] = (
-                trsm(
-                    L_diagonal_blocks[-1],
-                    gemm(
+                gemm(
                         L_lower_arrow_blocks[-1],
                         B[-arrow_blocksize:],
                         B[-arrow_blocksize - diag_blocksize : -arrow_blocksize],
                         trans_a='C', alpha=-1.0, beta=1.0
-                    ),
+                )
+            )
+
+            B[-arrow_blocksize - diag_blocksize : -arrow_blocksize] = (
+                trsm(
+                    L_diagonal_blocks[-1],
+                    B[-arrow_blocksize - diag_blocksize : -arrow_blocksize],
                     lower=True,
                     trans="C",
                 )
