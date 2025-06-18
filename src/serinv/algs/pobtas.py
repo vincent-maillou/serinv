@@ -110,7 +110,7 @@ def _pobtas(
             # In the case of the partial solve, we do not solve the last block and
             # arrow tip block of the RHS.
             B[(n_diag_blocks - 1) * diag_blocksize : n_diag_blocks * diag_blocksize] = (
-                la.solve_triangular(
+                trsm(
                     L_diagonal_blocks[n_diag_blocks - 1],
                     B[
                         (n_diag_blocks - 1)
@@ -131,14 +131,14 @@ def _pobtas(
             )
 
             # Y_{ndb+1} = L_{ndb+1,ndb+1}^{-1} (B_{ndb+1} - \Sigma_{i=1}^{ndb} L_{ndb+1,i} Y_{i)
-            B[-arrow_blocksize:] = la.solve_triangular(
+            B[-arrow_blocksize:] = trsm(
                 L_arrow_tip_block[:], B[-arrow_blocksize:], lower=True
             )
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
         if not partial:
             # X_{ndb+1} = L_{ndb+1,ndb+1}^{-T} (Y_{ndb+1})
-            B[-arrow_blocksize:] = la.solve_triangular(
+            B[-arrow_blocksize:] = trsm(
                 L_arrow_tip_block[:],
                 B[-arrow_blocksize:],
                 lower=True,
@@ -147,7 +147,7 @@ def _pobtas(
 
             # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
             B[-arrow_blocksize - diag_blocksize : -arrow_blocksize] = (
-                la.solve_triangular(
+                trsm(
                     L_diagonal_blocks[-1],
                     B[-arrow_blocksize - diag_blocksize : -arrow_blocksize]
                     - L_lower_arrow_blocks[-1].conj().T @ B[-arrow_blocksize:],
@@ -158,7 +158,7 @@ def _pobtas(
 
         for i in range(n_diag_blocks - 2, -1, -1):
             # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
                 L_diagonal_blocks[i],
                 B[i * diag_blocksize : (i + 1) * diag_blocksize]
                 - L_lower_diagonal_blocks[i].conj().T
