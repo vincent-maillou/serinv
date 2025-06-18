@@ -671,7 +671,6 @@ def _pobtaf_permuted_streaming(
                 A_diagonal_blocks_d[i % 2, :, :], lower=True
             )
             cp_diagonal_events[i % 2].record(stream=compute_stream)
-            print(L_diagonal_blocks_d[i % 2, :, :])
 
         d2h_stream.wait_event(cp_diagonal_events[i % 2])
         L_diagonal_blocks_d[i % 2, :, :].get(
