@@ -715,14 +715,31 @@ def _pobtas_streaming(
                 compute_stream.wait_event(h2d_events[(i - 1) % 2])
                 compute_stream.wait_event(d2h_events[(i - 1) % 2])
 
-                B_previous_d[i % 2] = trsm(
-                    L_diagonal_blocks_d[i % 2],
-                    B_d[i % 2]
-                    - L_lower_diagonal_blocks_d[i % 2].conj().T
-                    @ B_previous_d[(i - 1) % 2]
-                    - L_lower_arrow_blocks_d[i % 2].conj().T @ B_arrow_tip_d,
-                    lower=True,
-                    trans="C",
+                B_d[i % 2] = (
+                    gemm(
+                        L_lower_diagonal_blocks_d[i % 2],
+                        B_previous_d[(i - 1) % 2],
+                        B_d[i % 2],
+                        trans_a='C', alpha=-1.0, beta=1.0
+                    )
+                )
+
+                B_d[i % 2] = (
+                    gemm(
+                        L_lower_arrow_blocks_d[i % 2],
+                        B_arrow_tip_d,
+                        B_d[i % 2],
+                        trans_a='C', alpha=-1.0, beta=1.0
+                    )
+                )
+
+                B_previous_d[i % 2] = (
+                    trsm(
+                        L_diagonal_blocks_d[i % 2],
+                        B_d[i % 2],
+                        lower=True,
+                        trans="C",
+                    )
                 )
 
                 compute_B_events[i % 2].record(compute_stream)
