@@ -43,20 +43,27 @@ def matmul_gemm_host(a, b, alpha=1.0, beta=0.0, c=None, trans_a=0, trans_b=0, ov
     else:
         c1 = _asarray_validated(c, check_finite=check_finite)
 
-    if not trans_a and not trans_b:
+    transa = True
+    transb = True
+    if trans_a == 'N':
+        transa = False
+    if trans_b == 'N':
+        transb = False
+
+    if not transa and not transb:
         if a1.shape[1] != b1.shape[0]:
             raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible (1,0)')
         
-    elif trans_a and not trans_b:
-        if a1.shape[0] != b1.shape[1]:
+    elif transa and not transb:
+        if a1.shape[0] != b1.shape[0]:
             raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible (0,0)')
         
-    elif not trans_a and trans_b:
+    elif not transa and transb:
         if a1.shape[1] != b1.shape[1]:
             raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible (1,1)')
         
     else:
-        if a1.shape[0] != b1.shape[0]:
+        if a1.shape[0] != b1.shape[1]:
             raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible (0,1)')
     
     if beta != 0 and c1 is None:
