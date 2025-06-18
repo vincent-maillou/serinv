@@ -474,7 +474,8 @@ def _pobtaf_streaming(
             compute_stream.wait_event(h2d_diagonal_events[(i + 1) % 2])
             # A_{i+1, i+1} = A_{i+1, i+1} - L_{i+1, i} @ L_{i+1, i}.conj().T
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
-                syherk(
+                gemm(
+                    L_lower_diagonal_blocks_d[i % 2, :, :],
                     L_lower_diagonal_blocks_d[i % 2, :, :],
                     A_diagonal_blocks_d[(i + 1) % 2, :, :],
                     alpha=-1.0, beta=1.0, lower=True, cu_chol=False
