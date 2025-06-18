@@ -150,7 +150,7 @@ def _pobtas(
             B[-arrow_blocksize:] = trsm(
                 L_arrow_tip_block[:], B[-arrow_blocksize:], lower=True
             )
-            
+
     elif trans == "T" or trans == "C":
         # ----- Backward substitution -----
         if not partial:
@@ -166,8 +166,12 @@ def _pobtas(
             B[-arrow_blocksize - diag_blocksize : -arrow_blocksize] = (
                 trsm(
                     L_diagonal_blocks[-1],
-                    B[-arrow_blocksize - diag_blocksize : -arrow_blocksize]
-                    - L_lower_arrow_blocks[-1].conj().T @ B[-arrow_blocksize:],
+                    gemm(
+                        L_lower_arrow_blocks[-1],
+                        B[-arrow_blocksize:],
+                        B[-arrow_blocksize - diag_blocksize : -arrow_blocksize],
+                        trans_a='C', alpha=-1.0, beta=1.0
+                    ),
                     lower=True,
                     trans="C",
                 )
