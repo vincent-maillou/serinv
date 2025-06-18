@@ -152,10 +152,13 @@ def _pobtasi(
 
         # --- Off-diagonal block part ---
         # X_{i+1, i} = (-X_{i+1, i+1} L_{i+1, i} - X_{ndb+1, i+1}^{T} L_{ndb+1, i}) L_{i, i}^{-1}
+        print(X_diagonal_blocks[i + 1, :, :])
         X_lower_diagonal_blocks[i, :, :] = (
             -X_diagonal_blocks[i + 1, :, :] @ L_lower_diagonal_blocks_i[:, :]
             - X_arrow_bottom_blocks[i + 1, :, :].conj().T @ L_lower_arrow_blocks_i[:, :]
         ) @ L_blk_inv
+        print(X_diagonal_blocks[i + 1, :, :])
+        raise ValueError("TEST")
 
         # --- Arrowhead part ---
         # X_{ndb+1, i} = (- X_{ndb+1, i+1} L_{i+1, i} - X_{ndb+1, ndb+1} L_{ndb+1, i}) L_{i, i}^{-1}
