@@ -627,21 +627,32 @@ def _pobtas_streaming(
             with compute_stream:
                 # X_{ndb+1} = L_{ndb+1,ndb+1}^{-T} (Y_{ndb+1})
                 compute_stream.wait_event(h2d_events[(n_diag_blocks - 1) % 2])
-                B_arrow_tip_d = trsm(
-                    L_arrow_tip_block_d,
-                    B_arrow_tip_d,
-                    lower=True,
-                    trans="C",
+                B_arrow_tip_d = (
+                    trsm(
+                        L_arrow_tip_block_d,
+                        B_arrow_tip_d,
+                        lower=True,
+                        trans="C",
+                    )
                 )
 
                 # X_{ndb} = L_{ndb,ndb}^{-T} (Y_{ndb} - L_{ndb+1,ndb}^{T} X_{ndb+1})
-                B_previous_d[(n_diag_blocks - 1) % 2] = trsm(
-                    L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
-                    B_d[(n_diag_blocks - 1) % 2]
-                    - L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2].conj().T
-                    @ B_arrow_tip_d,
-                    lower=True,
-                    trans="C",
+                B_previous_d[(n_diag_blocks - 1) % 2] = (
+                    gemm(
+                        L_lower_arrow_blocks_d[(n_diag_blocks - 1) % 2],
+                        B_arrow_tip_d,
+                        B_d[(n_diag_blocks - 1) % 2],
+                        trans_a='C', alpha=-1.0, beta=1.0
+                    )
+                )
+
+                B_previous_d[(n_diag_blocks - 1) % 2] = (
+                    trsm(
+                        L_diagonal_blocks_d[(n_diag_blocks - 1) % 2],
+                        B_d[(n_diag_blocks - 1) % 2],
+                        lower=True,
+                        trans="C",
+                    )
                 )
 
                 compute_B_events[(n_diag_blocks - 1) % 2].record(stream=compute_stream)
