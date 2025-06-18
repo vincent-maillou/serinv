@@ -45,19 +45,19 @@ def matmul_gemm_host(a, b, alpha=1.0, beta=0.0, c=None, trans_a=0, trans_b=0, ov
 
     if not trans_a and not trans_b:
         if a1.shape[1] != b1.shape[0]:
-            raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible')
+            raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible (1,0)')
         
     elif trans_a and not trans_b:
         if a1.shape[0] != b1.shape[0]:
-            raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible')
+            raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible (0,0)')
         
     elif not trans_a and trans_b:
         if a1.shape[1] != b1.shape[1]:
-            raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible')
+            raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible (1,1)')
         
     else:
         if a1.shape[0] != b1.shape[1]:
-            raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible')
+            raise ValueError(f'shapes of a {a1.shape} and b {b1.shape} are incompatible (0,1)')
     
     if beta != 0 and c1 is None:
         raise ValueError('expected C matrix')
