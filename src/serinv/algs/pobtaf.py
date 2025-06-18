@@ -770,10 +770,11 @@ def _pobtaf_permuted_streaming(
             A_diagonal_blocks_d[(i + 1) % 2, :, :] = (
                 # gemm instead of syherk because this somehow kept failing tests in a very weird way
                 # probably because both sides of the diagonal matrix are used somwhere in a relevant way
-                syherk(
+                gemm(
+                    L_lower_diagonal_blocks_d[i % 2, :, :],
                     L_lower_diagonal_blocks_d[i % 2, :, :],
                     A_diagonal_blocks_d[(i + 1) % 2, :, :],
-                    alpha=-1.0, beta=1.0, lower=True, cu_chol=True
+                    trans_b='C', alpha=-1.0, beta=1.0
                 )
             )
             
