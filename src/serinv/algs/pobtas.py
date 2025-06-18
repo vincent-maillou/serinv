@@ -7,6 +7,7 @@ from serinv import (
     _get_module_from_str,
 )
 
+from serinv.block_primitive import trsm, gemm, syherk
 
 def pobtas(
     L_diagonal_blocks: ArrayLike,
@@ -87,15 +88,21 @@ def _pobtas(
     if trans == "N":
         # ----- Forward substitution -----
         for i in range(0, n_diag_blocks - 1):
-            B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
-                L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize],
-                lower=True
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                trsm(
+                    L_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    lower=True
+                )
             )
 
-            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
-                L_lower_diagonal_blocks[i]
-                @ B[i * diag_blocksize : (i + 1) * diag_blocksize]
+            B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] = (
+                gemm(
+                    L_lower_diagonal_blocks[i],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
+                    alpha=-1.0, beta=1.0
+                )
             )
 
             B[-arrow_blocksize:] -= (
