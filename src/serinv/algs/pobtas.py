@@ -434,10 +434,12 @@ def _pobtas_streaming(
                 # Solve current B block
                 compute_stream.wait_event(h2d_diagonal_events[i % 2])
 
-                B_d[i % 2] = trsm(
-                    L_diagonal_blocks_d[i % 2],
-                    B_d[i % 2],
-                    lower=True,
+                B_d[i % 2] = (
+                    trsm(
+                        L_diagonal_blocks_d[i % 2],
+                        B_d[i % 2],
+                        lower=True,
+                    )
                 )
 
                 compute_current_B_events[i % 2].record(stream=compute_stream)
@@ -468,7 +470,14 @@ def _pobtas_streaming(
                 # Update next B block
                 compute_stream.wait_event(h2d_B_events[(i + 1) % 2])
 
-                B_d[(i + 1) % 2] -= L_lower_diagonal_blocks_d[i % 2] @ B_d[i % 2]
+                B_d[(i + 1) % 2] = (
+                    gemm(
+                        L_lower_diagonal_blocks_d[i % 2],
+                        B_d[i % 2],
+                        B_d[(i + 1) % 2],
+                        alpha=-1.0, beta=1.0
+                    )
+                )
 
                 compute_next_B_events[i % 2].record(stream=compute_stream)
 
