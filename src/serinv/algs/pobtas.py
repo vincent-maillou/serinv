@@ -179,12 +179,27 @@ def _pobtas(
 
         for i in range(n_diag_blocks - 2, -1, -1):
             # X_{i} = L_{i,i}^{-T} (Y_{i} - L_{i+1,i}^{T} X_{i+1}) - L_{ndb+1,i}^T X_{ndb+1}
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                gemm(
+                    L_lower_diagonal_blocks[i],
+                    B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    trans_a='C', alpha=-1.0, beta=1.0
+                )
+            )
+
+            B[i * diag_blocksize : (i + 1) * diag_blocksize] = (
+                gemm(
+                    L_lower_arrow_blocks[i],
+                    B[-arrow_blocksize:],
+                    B[i * diag_blocksize : (i + 1) * diag_blocksize],
+                    trans_a='C', alpha=-1.0, beta=1.0
+                )
+            )
+
             B[i * diag_blocksize : (i + 1) * diag_blocksize] = trsm(
                 L_diagonal_blocks[i],
-                B[i * diag_blocksize : (i + 1) * diag_blocksize]
-                - L_lower_diagonal_blocks[i].conj().T
-                @ B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize]
-                - L_lower_arrow_blocks[i].conj().T @ B[-arrow_blocksize:],
+                B[i * diag_blocksize : (i + 1) * diag_blocksize],
                 lower=True,
                 trans="C",
             )
