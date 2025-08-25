@@ -199,36 +199,34 @@ def _ddbtasc(
         # Invert previous diagonal block
         A_diagonal_blocks[n_i - 1] = xp.linalg.inv(A_diagonal_blocks[n_i - 1])
 
+        temp = A_diagonal_blocks[n_i - 1] @ A_upper_diagonal_blocks[n_i - 1]
         # Update next diagonal block
         A_diagonal_blocks[n_i] = (
             A_diagonal_blocks[n_i]
             - A_lower_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ A_upper_diagonal_blocks[n_i - 1]
+            @ temp
         )
 
         # Update next lower arrow block
         A_lower_arrow_blocks[n_i] = (
             A_lower_arrow_blocks[n_i]
             - A_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ A_upper_diagonal_blocks[n_i - 1]
+            @ temp
         )
 
+        temp = A_diagonal_blocks[n_i - 1] @ A_upper_arrow_blocks[n_i - 1]
         # Update next upper arrow block
         A_upper_arrow_blocks[n_i] = (
             A_upper_arrow_blocks[n_i]
             - A_lower_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ A_upper_arrow_blocks[n_i - 1]
+            @ temp
         )
 
         # Update tip arrow block
         A_arrow_tip_block[:] = (
             A_arrow_tip_block[:]
             - A_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ A_upper_arrow_blocks[n_i - 1]
+            @ temp
         )
 
     if invert_last_block:
@@ -390,17 +388,17 @@ def _ddbtasc_quadratic(
         B_diagonal_blocks[n_i - 1] = (
             A_diagonal_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i - 1].conj().T
         )
 
         B_diagonal_blocks[n_i] = (
             B_diagonal_blocks[n_i]
             + A_lower_diagonal_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i - 1]
-            @ A_lower_diagonal_blocks[n_i - 1].T
+            @ A_lower_diagonal_blocks[n_i - 1].conj().T
             - B_lower_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1].T
-            @ A_lower_diagonal_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i - 1].conj().T
+            @ A_lower_diagonal_blocks[n_i - 1].conj().T
             - A_lower_diagonal_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i - 1]
             @ B_upper_diagonal_blocks[n_i - 1]
@@ -410,10 +408,10 @@ def _ddbtasc_quadratic(
             B_upper_arrow_blocks[n_i]
             + A_lower_diagonal_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i - 1]
-            @ A_lower_arrow_blocks[n_i - 1].T
+            @ A_lower_arrow_blocks[n_i - 1].conj().T
             - B_lower_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1].T
-            @ A_lower_arrow_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i - 1].conj().T
+            @ A_lower_arrow_blocks[n_i - 1].conj().T
             - A_lower_diagonal_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i - 1]
             @ B_upper_arrow_blocks[n_i - 1]
@@ -423,10 +421,10 @@ def _ddbtasc_quadratic(
             B_lower_arrow_blocks[n_i]
             + A_lower_arrow_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i - 1]
-            @ A_lower_diagonal_blocks[n_i - 1].T
+            @ A_lower_diagonal_blocks[n_i - 1].conj().T
             - B_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1].T
-            @ A_lower_diagonal_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i - 1].conj().T
+            @ A_lower_diagonal_blocks[n_i - 1].conj().T
             - A_lower_arrow_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i - 1]
             @ B_upper_diagonal_blocks[n_i - 1]
@@ -436,10 +434,10 @@ def _ddbtasc_quadratic(
             B_arrow_tip_block
             + A_lower_arrow_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i - 1]
-            @ A_lower_arrow_blocks[n_i - 1].T
+            @ A_lower_arrow_blocks[n_i - 1].conj().T
             - B_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1].T
-            @ A_lower_arrow_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i - 1].conj().T
+            @ A_lower_arrow_blocks[n_i - 1].conj().T
             - A_lower_arrow_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i - 1]
             @ B_upper_arrow_blocks[n_i - 1]
@@ -448,7 +446,7 @@ def _ddbtasc_quadratic(
     if invert_last_block:
         A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
         B_diagonal_blocks[-1] = (
-            A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].T
+            A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].conj().T
         )
 
         A_arrow_tip_block[:] = xp.linalg.inv(
@@ -463,15 +461,15 @@ def _ddbtasc_quadratic(
                 B_arrow_tip_block[:]
                 + A_lower_arrow_blocks[-1]
                 @ B_diagonal_blocks[-1]
-                @ A_lower_arrow_blocks[-1].T
+                @ A_lower_arrow_blocks[-1].conj().T
                 - B_lower_arrow_blocks[-1]
-                @ A_diagonal_blocks[-1].T
-                @ A_lower_arrow_blocks[-1].T
+                @ A_diagonal_blocks[-1].conj().T
+                @ A_lower_arrow_blocks[-1].conj().T
                 - A_lower_arrow_blocks[-1]
                 @ A_diagonal_blocks[-1]
                 @ B_upper_arrow_blocks[-1]
             )
-            @ A_arrow_tip_block[:].T
+            @ A_arrow_tip_block[:].conj().T
         )
 
 
@@ -579,7 +577,7 @@ def _ddbtasc_quadratic_permuted(
         # --- Xl ---
         # Inverse current diagonal block
         B_diagonal_blocks[n_i] = (
-            A_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i].T
+            A_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i].conj().T
         )
 
         # Update next diagonal block
@@ -587,10 +585,10 @@ def _ddbtasc_quadratic_permuted(
             B_diagonal_blocks[n_i + 1]
             + A_lower_diagonal_blocks[n_i]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - B_lower_diagonal_blocks[n_i]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - A_lower_diagonal_blocks[n_i]
             @ A_diagonal_blocks[n_i]
             @ B_upper_diagonal_blocks[n_i]
@@ -601,10 +599,10 @@ def _ddbtasc_quadratic_permuted(
             B_lower_arrow_blocks[n_i + 1]
             + A_lower_arrow_blocks[n_i]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - B_lower_arrow_blocks[n_i]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - A_lower_arrow_blocks[n_i]
             @ A_diagonal_blocks[n_i]
             @ B_upper_diagonal_blocks[n_i]
@@ -615,10 +613,10 @@ def _ddbtasc_quadratic_permuted(
             B_upper_arrow_blocks[n_i + 1]
             + A_lower_diagonal_blocks[n_i]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_arrow_blocks[n_i].T
+            @ A_lower_arrow_blocks[n_i].conj().T
             - B_lower_diagonal_blocks[n_i]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_arrow_blocks[n_i].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_arrow_blocks[n_i].conj().T
             - A_lower_diagonal_blocks[n_i]
             @ A_diagonal_blocks[n_i]
             @ B_upper_arrow_blocks[n_i]
@@ -629,10 +627,10 @@ def _ddbtasc_quadratic_permuted(
             B_arrow_tip_block
             + A_lower_arrow_blocks[n_i]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_arrow_blocks[n_i].T
+            @ A_lower_arrow_blocks[n_i].conj().T
             - B_lower_arrow_blocks[n_i]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_arrow_blocks[n_i].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_arrow_blocks[n_i].conj().T
             - A_lower_arrow_blocks[n_i]
             @ A_diagonal_blocks[n_i]
             @ B_upper_arrow_blocks[n_i]
@@ -644,10 +642,10 @@ def _ddbtasc_quadratic_permuted(
             B_lower_buffer_blocks[n_i]
             + A_lower_buffer_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - B_lower_buffer_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - A_lower_buffer_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i]
             @ B_upper_diagonal_blocks[n_i]
@@ -658,10 +656,10 @@ def _ddbtasc_quadratic_permuted(
             B_upper_buffer_blocks[n_i]
             + A_lower_diagonal_blocks[n_i]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - B_lower_diagonal_blocks[n_i]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - A_lower_diagonal_blocks[n_i]
             @ A_diagonal_blocks[n_i]
             @ B_upper_buffer_blocks[n_i - 1]
@@ -672,10 +670,10 @@ def _ddbtasc_quadratic_permuted(
             B_diagonal_blocks[0]
             + A_lower_buffer_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - B_lower_buffer_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - A_lower_buffer_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i]
             @ B_upper_buffer_blocks[n_i - 1]
@@ -686,10 +684,10 @@ def _ddbtasc_quadratic_permuted(
             B_lower_arrow_blocks[0]
             + A_lower_arrow_blocks[n_i]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - B_lower_arrow_blocks[n_i]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - A_lower_arrow_blocks[n_i]
             @ A_diagonal_blocks[n_i]
             @ B_upper_buffer_blocks[n_i - 1]
@@ -700,10 +698,10 @@ def _ddbtasc_quadratic_permuted(
             B_upper_arrow_blocks[0]
             + A_lower_buffer_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_arrow_blocks[n_i].T
+            @ A_lower_arrow_blocks[n_i].conj().T
             - B_lower_buffer_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_arrow_blocks[n_i].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_arrow_blocks[n_i].conj().T
             - A_lower_buffer_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i]
             @ B_upper_arrow_blocks[n_i]
