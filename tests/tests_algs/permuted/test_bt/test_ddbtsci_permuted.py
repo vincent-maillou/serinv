@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from serinv import _get_module_from_array
-from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
+from ....testing_utils import bt_dense_to_arrays, dd_bt
 
 from serinv.algs import ddbtsc, ddbtsci
 from serinv.utils import allocate_ddbtx_permutation_buffers
@@ -12,7 +12,7 @@ from serinv.utils import allocate_ddbtx_permutation_buffers
 
 @pytest.mark.mpi_skip()
 @pytest.mark.parametrize("type_of_equation", ["AX=I", "AXA.T=B"])
-def test_ddbtsc_permuted(
+def test_ddbtsci_permuted(
     diagonal_blocksize: int,
     n_diag_blocks: int,
     array_type: str,
@@ -48,8 +48,6 @@ def test_ddbtsc_permuted(
             device_array=True if array_type == "device" else False,
             dtype=dtype,
         )
-
-        symmetrize(B)
 
         (
             B_diagonal_blocks,

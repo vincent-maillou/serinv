@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from serinv import _get_module_from_array
-from ....testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
+from ....testing_utils import bta_dense_to_arrays, dd_bta
 
 from serinv.algs import ddbtasc, ddbtasci
 
@@ -46,8 +46,6 @@ def test_ddbtasci(
             device_array=True if array_type == "device" else False,
             dtype=dtype,
         )
-
-        symmetrize(B)
 
         (
             B_diagonal_blocks,

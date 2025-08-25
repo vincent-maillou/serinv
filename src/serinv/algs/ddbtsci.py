@@ -595,7 +595,7 @@ def _ddbtsci_quadratic_permuted(
                 + (B2[:, :]) @ A_lower_buffer_blocks[n_i - 1]
             )
             @ B_diagonal_blocks[n_i]
-            + B_diagonal_blocks[n_i].conj().T
+            + B_diagonal_blocks[n_i]
             @ (
                 (
                     A_lower_diagonal_blocks[n_i].conj().T

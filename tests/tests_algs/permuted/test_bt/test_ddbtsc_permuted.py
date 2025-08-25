@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from serinv import _get_module_from_array
-from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize
+from ....testing_utils import bt_dense_to_arrays, dd_bt
 
 from serinv.algs import ddbtsc
 from serinv.utils import allocate_ddbtx_permutation_buffers
@@ -48,8 +48,6 @@ def test_ddbtsc_permuted(
             device_array=True if array_type == "device" else False,
             dtype=dtype,
         )
-
-        symmetrize(B)
 
         (
             B_diagonal_blocks,
