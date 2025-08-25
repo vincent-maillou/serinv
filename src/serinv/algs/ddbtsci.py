@@ -469,7 +469,7 @@ def _ddbtsci_quadratic_permuted(
     """
     Operations Counts:
     ------------------
-    68xMM(bbb)
+    66xMM(bbb)
     """
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
@@ -510,6 +510,7 @@ def _ddbtsci_quadratic_permuted(
 
         # --- Xl ---
         temp_B_12[:, :] = B_upper_diagonal_blocks[n_i]
+        temp_B_12_buffer = temp_B_12 @ A_lower_buffer_blocks[n_i].conj().T  # C: MM(bbb)
         temp_B_13[:, :] = B_upper_buffer_blocks[n_i - 1]
         temp_B_21[:, :] = B_lower_diagonal_blocks[n_i]
         temp_B_31[:, :] = B_lower_buffer_blocks[n_i - 1]
@@ -539,10 +540,10 @@ def _ddbtsci_quadratic_permuted(
             - B_diagonal_blocks[n_i] @ C2.conj().T
             + A_diagonal_blocks[n_i]
             @ (
-                temp_B_12 @ A_lower_buffer_blocks[n_i].conj().T
+                temp_B_12_buffer
                 + B_upper_buffer_blocks[n_i - 1] @ A_diagonal_blocks[0].conj().T
             )
-        )  # C: 5xMM(bbb)
+        )  # C: 4xMM(bbb)
 
         B_lower_diagonal_blocks[n_i] = (
             -(
@@ -599,14 +600,11 @@ def _ddbtsci_quadratic_permuted(
                     + temp_B_13 @ A_upper_buffer_blocks[n_i].conj().T
                 )
                 @ A_upper_diagonal_blocks[n_i].conj().T
-                + (
-                    temp_B_12 @ A_lower_buffer_blocks[n_i].conj().T
-                    + temp_B_13 @ A_diagonal_blocks[0].conj().T
-                )
+                + (temp_B_12_buffer + temp_B_13 @ A_diagonal_blocks[0].conj().T)
                 @ A_upper_buffer_blocks[n_i - 1].conj().T
             )
             @ A_diagonal_blocks[n_i].conj().T
-        )  # C: 24xMM(bbb)
+        )  # C: 23xMM(bbb)
 
         # --- Xr ---
         A_upper_diagonal_blocks[n_i] = -A_diagonal_blocks[n_i] @ B1  # C: MM(bbb)
