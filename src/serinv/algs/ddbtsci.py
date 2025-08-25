@@ -178,31 +178,27 @@ def _ddbtsci(
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
 ):
-    xp, _ = _get_module_from_array(A_diagonal_blocks)
-
-    if A_diagonal_blocks.shape[0] > 1:
-        # If there is only a single diagonal block, we don't need these buffers.
-        temp_lower = xp.empty_like(A_lower_diagonal_blocks[0])
-
+    """
+    Operations Counts:
+    ------------------
+    5xMM(bbb)
+    """
     for n_i in range(A_diagonal_blocks.shape[0] - 2, -1, -1):
-        temp_lower[:, :] = A_lower_diagonal_blocks[n_i]
+        temp_lower = A_lower_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i]  # C: MM(bbb)
 
         A_lower_diagonal_blocks[n_i] = (
-            -A_diagonal_blocks[n_i + 1]
-            @ A_lower_diagonal_blocks[n_i]
-            @ A_diagonal_blocks[n_i]
-        )
+            -A_diagonal_blocks[n_i + 1] @ temp_lower
+        )  # C: MM(bbb)
 
         A_upper_diagonal_blocks[n_i] = (
             -A_diagonal_blocks[n_i]
             @ A_upper_diagonal_blocks[n_i]
             @ A_diagonal_blocks[n_i + 1]
-        )
+        )  # C: 2xMM(bbb)
 
         A_diagonal_blocks[n_i] = (
-            A_diagonal_blocks[n_i]
-            - A_upper_diagonal_blocks[n_i] @ temp_lower @ A_diagonal_blocks[n_i]
-        )
+            A_diagonal_blocks[n_i] - A_upper_diagonal_blocks[n_i] @ temp_lower
+        )  # C: MM(bbb)
 
 
 def _ddbtsci_upward(
@@ -210,31 +206,29 @@ def _ddbtsci_upward(
     A_lower_diagonal_blocks: ArrayLike,
     A_upper_diagonal_blocks: ArrayLike,
 ):
-    xp, _ = _get_module_from_array(A_diagonal_blocks)
-
-    if A_diagonal_blocks.shape[0] > 1:
-        # If there is only a single diagonal block, we don't need these buffers.
-        temp_upper = xp.empty_like(A_upper_diagonal_blocks[0])
-
+    """
+    Operations Counts:
+    ------------------
+    5xMM(bbb)
+    """
     for n_i in range(1, A_diagonal_blocks.shape[0]):
-        temp_upper[:, :] = A_upper_diagonal_blocks[n_i - 1]
+        temp_upper = (
+            A_upper_diagonal_blocks[n_i - 1] @ A_diagonal_blocks[n_i]
+        )  # C: MM(bbb)
 
         A_lower_diagonal_blocks[n_i - 1] = (
             -A_diagonal_blocks[n_i]
             @ A_lower_diagonal_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i - 1]
-        )
+        )  # C: 2xMM(bbb)
 
         A_upper_diagonal_blocks[n_i - 1] = (
-            -A_diagonal_blocks[n_i - 1]
-            @ A_upper_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i]
-        )
+            -A_diagonal_blocks[n_i - 1] @ temp_upper
+        )  # C: MM(bbb)
 
         A_diagonal_blocks[n_i] = (
-            A_diagonal_blocks[n_i]
-            - A_lower_diagonal_blocks[n_i - 1] @ temp_upper @ A_diagonal_blocks[n_i]
-        )
+            A_diagonal_blocks[n_i] - A_lower_diagonal_blocks[n_i - 1] @ temp_upper
+        )  # C: MM(bbb)
 
 
 def _ddbtsci_permuted(
@@ -244,6 +238,11 @@ def _ddbtsci_permuted(
     A_lower_buffer_blocks: ArrayLike,
     A_upper_buffer_blocks: ArrayLike,
 ):
+    """
+    Operations Counts:
+    ------------------
+    16xMM(bbb)
+    """
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     B1 = xp.empty_like(A_lower_diagonal_blocks[0])
@@ -259,38 +258,36 @@ def _ddbtsci_permuted(
         B1[:, :] = (
             A_upper_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i + 1]
             + A_upper_buffer_blocks[n_i - 1] @ A_lower_buffer_blocks[n_i]
-        )
+        )  # C: 2xMM(bbb)
 
         B2[:, :] = (
             A_upper_diagonal_blocks[n_i] @ A_upper_buffer_blocks[n_i]
             + A_upper_buffer_blocks[n_i - 1] @ A_diagonal_blocks[0]
-        )
+        )  # C: 2xMM(bbb)
 
         C1[:, :] = (
             A_diagonal_blocks[n_i + 1] @ A_lower_diagonal_blocks[n_i]
             + A_upper_buffer_blocks[n_i] @ A_lower_buffer_blocks[n_i - 1]
-        )
+        )  # C: 2xMM(bbb)
 
         C2[:, :] = (
             A_lower_buffer_blocks[n_i] @ A_lower_diagonal_blocks[n_i]
             + A_diagonal_blocks[0] @ A_lower_buffer_blocks[n_i - 1]
-        )
+        )  # C: 2xMM(bbb)
 
-        A_upper_diagonal_blocks[n_i] = -A_diagonal_blocks[n_i] @ B1[:, :]
-        A_upper_buffer_blocks[n_i - 1] = -A_diagonal_blocks[n_i] @ B2[:, :]
+        A_upper_diagonal_blocks[n_i] = -A_diagonal_blocks[n_i] @ B1  # C: MM(bbb)
+        A_upper_buffer_blocks[n_i - 1] = -A_diagonal_blocks[n_i] @ B2  # C: MM(bbb)
 
         D1[:, :] = A_lower_diagonal_blocks[n_i]
         D2[:, :] = A_lower_buffer_blocks[n_i - 1]
 
-        A_lower_diagonal_blocks[n_i] = -C1[:, :] @ A_diagonal_blocks[n_i]
-        A_lower_buffer_blocks[n_i - 1] = -C2[:, :] @ A_diagonal_blocks[n_i]
+        A_lower_diagonal_blocks[n_i] = -C1 @ A_diagonal_blocks[n_i]  # C: MM(bbb)
+        A_lower_buffer_blocks[n_i - 1] = -C2 @ A_diagonal_blocks[n_i]  # C: MM(bbb)
 
         A_diagonal_blocks[n_i] = (
             A_diagonal_blocks[n_i]
-            + A_diagonal_blocks[n_i]
-            @ (B1[:, :] @ D1[:, :] + B2[:, :] @ D2[:, :])
-            @ A_diagonal_blocks[n_i]
-        )
+            + A_diagonal_blocks[n_i] @ (B1 @ D1 + B2 @ D2) @ A_diagonal_blocks[n_i]
+        )  # C: 4xMM(bbb)
 
     A_lower_diagonal_blocks[0] = A_upper_buffer_blocks[0]
     A_upper_diagonal_blocks[0] = A_lower_buffer_blocks[0]
@@ -304,6 +301,11 @@ def _ddbtsci_quadratic(
     B_lower_diagonal_blocks: ArrayLike,
     B_upper_diagonal_blocks: ArrayLike,
 ):
+    """
+    Operations Counts:
+    ------------------
+    19xMM(bbb)
+    """
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     if A_diagonal_blocks.shape[0] > 1:
@@ -315,62 +317,59 @@ def _ddbtsci_quadratic(
     temp_1 = xp.empty_like(A_diagonal_blocks[0])
     temp_2 = xp.empty_like(A_diagonal_blocks[0])
     temp_3 = xp.empty_like(A_diagonal_blocks[0])
-    temp_4 = xp.empty_like(A_diagonal_blocks[0])
+    temp_3_b = xp.empty_like(A_diagonal_blocks[0])
 
     for n_i in range(A_diagonal_blocks.shape[0] - 2, -1, -1):
-        temp_upper_lesser[:, :] = B_upper_diagonal_blocks[n_i]
-        temp_1[:, :] = A_diagonal_blocks[n_i] @ A_upper_diagonal_blocks[n_i]
-        temp_4[:, :] = (
-            A_lower_diagonal_blocks[n_i].conj().T @ A_diagonal_blocks[n_i + 1].conj().T
-        )
+        temp_1[:, :] = (
+            A_diagonal_blocks[n_i] @ A_upper_diagonal_blocks[n_i]
+        )  # C: MM(bbb)
+        temp_2[:, :] = temp_1.conj().T
+        temp_2_b = B_diagonal_blocks[n_i + 1] @ temp_2  # C: MM(bbb)
+        temp_3[:, :] = (
+            A_diagonal_blocks[n_i + 1] @ A_lower_diagonal_blocks[n_i]
+        )  # C: MM(bbb)
+        temp_3_b[:, :] = B_diagonal_blocks[n_i] @ temp_3.conj().T  # C: MM(bbb)
+        temp_4 = temp_3 @ B_diagonal_blocks[n_i]  # C: MM(bbb)
 
-        B_upper_diagonal_blocks[n_i] = (
-            -temp_1[:, :] @ B_diagonal_blocks[n_i + 1]
-            - B_diagonal_blocks[n_i] @ temp_4[:, :]
-            + A_diagonal_blocks[n_i]
+        temp_upper_lesser[:, :] = (
+            A_diagonal_blocks[n_i]
             @ B_upper_diagonal_blocks[n_i]
             @ A_diagonal_blocks[n_i + 1].conj().T
-        )
+        )  # C: 2xMM(bbb)
 
-        temp_lower_lesser[:, :] = B_lower_diagonal_blocks[n_i]
-        temp_2[:, :] = (
-            A_upper_diagonal_blocks[n_i].conj().T @ A_diagonal_blocks[n_i].conj().T
-        )
-        temp_3[:, :] = A_diagonal_blocks[n_i + 1] @ A_lower_diagonal_blocks[n_i]
+        B_upper_diagonal_blocks[n_i] = (
+            -temp_1 @ B_diagonal_blocks[n_i + 1] - temp_3_b + temp_upper_lesser
+        )  # C: MM(bbb)
 
-        B_lower_diagonal_blocks[n_i] = (
-            -B_diagonal_blocks[n_i + 1] @ temp_2[:, :]
-            - temp_3[:, :] @ B_diagonal_blocks[n_i]
-            + A_diagonal_blocks[n_i + 1]
+        temp_lower_lesser[:, :] = (
+            A_diagonal_blocks[n_i + 1]
             @ B_lower_diagonal_blocks[n_i]
             @ A_diagonal_blocks[n_i].conj().T
-        )
+        )  # C: 2xMM(bbb)
+
+        B_lower_diagonal_blocks[n_i] = -temp_2_b - temp_4 + temp_lower_lesser
 
         B_diagonal_blocks[n_i] = (
             B_diagonal_blocks[n_i]
-            + temp_1[:, :] @ B_diagonal_blocks[n_i + 1] @ temp_2[:, :]
-            + temp_1[:, :] @ temp_3[:, :] @ B_diagonal_blocks[n_i]
-            + B_diagonal_blocks[n_i] @ temp_4[:, :] @ temp_2[:, :]
-            - temp_1[:, :]
-            @ A_diagonal_blocks[n_i + 1]
-            @ temp_lower_lesser[:, :]
-            @ A_diagonal_blocks[n_i].conj().T
-            - A_diagonal_blocks[n_i]
-            @ temp_upper_lesser[:, :]
-            @ A_diagonal_blocks[n_i + 1].conj().T
-            @ temp_2[:, :]
-        )
+            + temp_1 @ temp_2_b
+            + temp_1 @ temp_4
+            + temp_3_b @ temp_2
+            - temp_1 @ temp_lower_lesser
+            - temp_upper_lesser @ temp_2
+        )  # C: 5xMM(bbb)
 
         temp_lower_retarded[:, :] = A_lower_diagonal_blocks[n_i]
 
-        A_lower_diagonal_blocks[n_i] = -temp_3[:, :] @ A_diagonal_blocks[n_i]
-        A_upper_diagonal_blocks[n_i] = -temp_1[:, :] @ A_diagonal_blocks[n_i + 1]
+        A_lower_diagonal_blocks[n_i] = -temp_3 @ A_diagonal_blocks[n_i]  # C: MM(bbb)
+        A_upper_diagonal_blocks[n_i] = (
+            -temp_1 @ A_diagonal_blocks[n_i + 1]
+        )  # C: MM(bbb)
         A_diagonal_blocks[n_i] = (
             A_diagonal_blocks[n_i]
             - A_upper_diagonal_blocks[n_i]
-            @ temp_lower_retarded[:, :]
+            @ temp_lower_retarded
             @ A_diagonal_blocks[n_i]
-        )
+        )  # C: 2xMM(bbb)
 
 
 def _ddbtsci_upward_quadratic(
@@ -381,6 +380,11 @@ def _ddbtsci_upward_quadratic(
     B_lower_diagonal_blocks: ArrayLike,
     B_upper_diagonal_blocks: ArrayLike,
 ):
+    """
+    Operations Counts:
+    ------------------
+    19xMM(bbb)
+    """
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     if A_diagonal_blocks.shape[0] > 1:
@@ -395,61 +399,59 @@ def _ddbtsci_upward_quadratic(
     temp_4 = xp.empty_like(A_diagonal_blocks[0])
 
     for n_i in range(1, A_diagonal_blocks.shape[0]):
+        temp_1[:, :] = (
+            A_diagonal_blocks[n_i - 1] @ A_upper_diagonal_blocks[n_i - 1]
+        )  # C: MM(bbb)
+        temp_1_b = temp_1 @ B_diagonal_blocks[n_i]  # C: MM(bbb)
+        temp_2[:, :] = temp_1.conj().T
+        temp_2_b = B_diagonal_blocks[n_i] @ temp_2  # C: MM(bbb)
+        temp_3[:, :] = (
+            A_diagonal_blocks[n_i] @ A_lower_diagonal_blocks[n_i - 1]
+        )  # C: MM(bbb)
+        temp_4[:, :] = temp_3.conj().T
+        temp_4_b = B_diagonal_blocks[n_i - 1] @ temp_4  # C: MM(bbb)
 
-        temp_upper_lesser[:, :] = B_upper_diagonal_blocks[n_i - 1]
-        temp_1[:, :] = A_diagonal_blocks[n_i - 1] @ A_upper_diagonal_blocks[n_i - 1]
-        temp_4[:, :] = (
-            A_lower_diagonal_blocks[n_i - 1].conj().T @ A_diagonal_blocks[n_i].conj().T
-        )
-
-        B_upper_diagonal_blocks[n_i - 1] = (
-            -temp_1[:, :] @ B_diagonal_blocks[n_i]
-            - B_diagonal_blocks[n_i - 1] @ temp_4[:, :]
-            + A_diagonal_blocks[n_i - 1]
+        temp_upper_lesser[:, :] = (
+            A_diagonal_blocks[n_i - 1]
             @ B_upper_diagonal_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i].conj().T
-        )
+        )  # C: 2xMM(bbb)
 
-        temp_lower_lesser[:, :] = B_lower_diagonal_blocks[n_i - 1]
-        temp_2[:, :] = (
-            A_upper_diagonal_blocks[n_i - 1].conj().T
-            @ A_diagonal_blocks[n_i - 1].conj().T
-        )
-        temp_3[:, :] = A_diagonal_blocks[n_i] @ A_lower_diagonal_blocks[n_i - 1]
+        B_upper_diagonal_blocks[n_i - 1] = -temp_1_b - temp_4_b + temp_upper_lesser
 
-        B_lower_diagonal_blocks[n_i - 1] = (
-            -B_diagonal_blocks[n_i] @ temp_2[:, :]
-            - temp_3[:, :] @ B_diagonal_blocks[n_i - 1]
-            + A_diagonal_blocks[n_i]
+        temp_lower_lesser[:, :] = (
+            A_diagonal_blocks[n_i]
             @ B_lower_diagonal_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i - 1].conj().T
-        )
+        )  # C: 2xMM(bbb)
+
+        B_lower_diagonal_blocks[n_i - 1] = (
+            -temp_2_b - temp_3 @ B_diagonal_blocks[n_i - 1] + temp_lower_lesser
+        )  # C: MM(bbb)
 
         B_diagonal_blocks[n_i] = (
             B_diagonal_blocks[n_i]
-            + temp_3[:, :] @ B_diagonal_blocks[n_i - 1] @ temp_4[:, :]
-            + temp_3[:, :] @ temp_1[:, :] @ B_diagonal_blocks[n_i]
-            + B_diagonal_blocks[n_i] @ temp_2[:, :] @ temp_4[:, :]
-            - temp_3[:, :]
-            @ A_diagonal_blocks[n_i - 1]
-            @ temp_upper_lesser[:, :]
-            @ A_diagonal_blocks[n_i].conj().T
-            - A_diagonal_blocks[n_i]
-            @ temp_lower_lesser[:, :]
-            @ A_diagonal_blocks[n_i - 1].conj().T
-            @ temp_4[:, :]
-        )
+            + temp_3 @ temp_4_b
+            + temp_3 @ temp_1_b
+            + temp_2_b @ temp_4
+            - temp_3 @ temp_upper_lesser
+            - temp_lower_lesser @ temp_4
+        )  # C: 5xMM(bbb)
 
         temp_upper_retarded[:, :] = A_upper_diagonal_blocks[n_i - 1]
 
-        A_lower_diagonal_blocks[n_i - 1] = -temp_3[:, :] @ A_diagonal_blocks[n_i - 1]
-        A_upper_diagonal_blocks[n_i - 1] = -temp_1[:, :] @ A_diagonal_blocks[n_i]
+        A_lower_diagonal_blocks[n_i - 1] = (
+            -temp_3 @ A_diagonal_blocks[n_i - 1]
+        )  # C: MM(bbb)
+        A_upper_diagonal_blocks[n_i - 1] = (
+            -temp_1 @ A_diagonal_blocks[n_i]
+        )  # C: MM(bbb)
         A_diagonal_blocks[n_i] = (
             A_diagonal_blocks[n_i]
             - A_lower_diagonal_blocks[n_i - 1]
-            @ temp_upper_retarded[:, :]
+            @ temp_upper_retarded
             @ A_diagonal_blocks[n_i]
-        )
+        )  # C: 2xMM(bbb)
 
 
 def _ddbtsci_quadratic_permuted(
@@ -464,6 +466,11 @@ def _ddbtsci_quadratic_permuted(
     B_lower_buffer_blocks: ArrayLike,
     B_upper_buffer_blocks: ArrayLike,
 ):
+    """
+    Operations Counts:
+    ------------------
+    68xMM(bbb)
+    """
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
     B1 = xp.empty_like(A_lower_diagonal_blocks[0])
@@ -484,22 +491,22 @@ def _ddbtsci_quadratic_permuted(
         B1[:, :] = (
             A_upper_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i + 1]
             + A_upper_buffer_blocks[n_i - 1] @ A_lower_buffer_blocks[n_i]
-        )
+        )  # C: 2xMM(bbb)
 
         B2[:, :] = (
             A_upper_diagonal_blocks[n_i] @ A_upper_buffer_blocks[n_i]
             + A_upper_buffer_blocks[n_i - 1] @ A_diagonal_blocks[0]
-        )
+        )  # C: 2xMM(bbb)
 
         C1[:, :] = (
             A_diagonal_blocks[n_i + 1] @ A_lower_diagonal_blocks[n_i]
             + A_upper_buffer_blocks[n_i] @ A_lower_buffer_blocks[n_i - 1]
-        )
+        )  # C: 2xMM(bbb)
 
         C2[:, :] = (
             A_lower_buffer_blocks[n_i] @ A_lower_diagonal_blocks[n_i]
             + A_diagonal_blocks[0] @ A_lower_buffer_blocks[n_i - 1]
-        )
+        )  # C: 2xMM(bbb)
 
         # --- Xl ---
         temp_B_12[:, :] = B_upper_diagonal_blocks[n_i]
@@ -507,44 +514,35 @@ def _ddbtsci_quadratic_permuted(
         temp_B_21[:, :] = B_lower_diagonal_blocks[n_i]
         temp_B_31[:, :] = B_lower_buffer_blocks[n_i - 1]
 
+        D1 = (
+            A_upper_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i + 1]
+            + A_upper_buffer_blocks[n_i - 1] @ B_lower_buffer_blocks[n_i]
+        )  # C: 2xMM(bbb)
+
+        D2 = (
+            A_upper_diagonal_blocks[n_i] @ B_upper_buffer_blocks[n_i]
+            + A_upper_buffer_blocks[n_i - 1] @ B_diagonal_blocks[0]
+        )  # C: 2xMM(bbb)
+
         B_upper_diagonal_blocks[n_i] = (
-            -A_diagonal_blocks[n_i]
-            @ (
-                A_upper_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i + 1]
-                + A_upper_buffer_blocks[n_i - 1] @ B_lower_buffer_blocks[n_i]
-            )
-            - B_diagonal_blocks[n_i]
-            @ (
-                A_lower_diagonal_blocks[n_i].conj().T
-                @ A_diagonal_blocks[n_i + 1].conj().T
-                + A_lower_buffer_blocks[n_i - 1].conj().T
-                @ A_upper_buffer_blocks[n_i].conj().T
-            )
+            -A_diagonal_blocks[n_i] @ D1
+            - B_diagonal_blocks[n_i] @ C1.conj().T
             + A_diagonal_blocks[n_i]
             @ (
                 B_upper_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i + 1].conj().T
                 + B_upper_buffer_blocks[n_i - 1] @ A_upper_buffer_blocks[n_i].conj().T
             )
-        )
+        )  # C: 5xMM(bbb)
+
         B_upper_buffer_blocks[n_i - 1] = (
-            -A_diagonal_blocks[n_i]
-            @ (
-                A_upper_diagonal_blocks[n_i] @ B_upper_buffer_blocks[n_i]
-                + A_upper_buffer_blocks[n_i - 1] @ B_diagonal_blocks[0]
-            )
-            - B_diagonal_blocks[n_i]
-            @ (
-                A_lower_diagonal_blocks[n_i].conj().T
-                @ A_lower_buffer_blocks[n_i].conj().T
-                + A_lower_buffer_blocks[n_i - 1].conj().T
-                @ A_diagonal_blocks[0].conj().T
-            )
+            -A_diagonal_blocks[n_i] @ D2
+            - B_diagonal_blocks[n_i] @ C2.conj().T
             + A_diagonal_blocks[n_i]
             @ (
-                temp_B_12[:, :] @ A_lower_buffer_blocks[n_i].conj().T
+                temp_B_12 @ A_lower_buffer_blocks[n_i].conj().T
                 + B_upper_buffer_blocks[n_i - 1] @ A_diagonal_blocks[0].conj().T
             )
-        )
+        )  # C: 5xMM(bbb)
 
         B_lower_diagonal_blocks[n_i] = (
             -(
@@ -552,69 +550,47 @@ def _ddbtsci_quadratic_permuted(
                 + B_upper_buffer_blocks[n_i] @ A_upper_buffer_blocks[n_i - 1].conj().T
             )
             @ A_diagonal_blocks[n_i].conj().T
-            - (C1[:, :]) @ B_diagonal_blocks[n_i]
+            - C1 @ B_diagonal_blocks[n_i]
             + (
                 A_diagonal_blocks[n_i + 1] @ B_lower_diagonal_blocks[n_i]
                 + A_upper_buffer_blocks[n_i] @ B_lower_buffer_blocks[n_i - 1]
             )
             @ A_diagonal_blocks[n_i].conj().T
-        )
+        )  # C: 7xMM(bbb)
+
         B_lower_buffer_blocks[n_i - 1] = (
             -(
                 B_lower_buffer_blocks[n_i] @ A_upper_diagonal_blocks[n_i].conj().T
                 + B_diagonal_blocks[0] @ A_upper_buffer_blocks[n_i - 1].conj().T
             )
             @ A_diagonal_blocks[n_i].conj().T
-            - (C2[:, :]) @ B_diagonal_blocks[n_i]
+            - C2 @ B_diagonal_blocks[n_i]
             + (
-                A_lower_buffer_blocks[n_i] @ temp_B_21[:, :]
+                A_lower_buffer_blocks[n_i] @ temp_B_21
                 + A_diagonal_blocks[0] @ B_lower_buffer_blocks[n_i - 1]
             )
             @ A_diagonal_blocks[n_i].conj().T
-        )
+        )  # C: 7xMM(bbb)
 
         B_diagonal_blocks[n_i] = (
             B_diagonal_blocks[n_i]
             + A_diagonal_blocks[n_i]
             @ (
-                (
-                    A_upper_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i + 1]
-                    + A_upper_buffer_blocks[n_i - 1] @ B_lower_buffer_blocks[n_i]
-                )
-                @ A_upper_diagonal_blocks[n_i].conj().T
-                + (
-                    A_upper_diagonal_blocks[n_i] @ B_upper_buffer_blocks[n_i]
-                    + A_upper_buffer_blocks[n_i - 1] @ B_diagonal_blocks[0]
-                )
-                @ A_upper_buffer_blocks[n_i - 1].conj().T
+                D1 @ A_upper_diagonal_blocks[n_i].conj().T
+                + D2 @ A_upper_buffer_blocks[n_i - 1].conj().T
             )
             @ A_diagonal_blocks[n_i].conj().T
             + A_diagonal_blocks[n_i]
-            @ (
-                (B1[:, :]) @ A_lower_diagonal_blocks[n_i]
-                + (B2[:, :]) @ A_lower_buffer_blocks[n_i - 1]
-            )
+            @ (B1 @ A_lower_diagonal_blocks[n_i] + B2 @ A_lower_buffer_blocks[n_i - 1])
             @ B_diagonal_blocks[n_i]
             + B_diagonal_blocks[n_i]
             @ (
-                (
-                    A_lower_diagonal_blocks[n_i].conj().T
-                    @ A_diagonal_blocks[n_i + 1].conj().T
-                    + A_lower_buffer_blocks[n_i - 1].conj().T
-                    @ A_upper_buffer_blocks[n_i].conj().T
-                )
-                @ A_upper_diagonal_blocks[n_i].conj().T
-                + (
-                    A_lower_diagonal_blocks[n_i].conj().T
-                    @ A_lower_buffer_blocks[n_i].conj().T
-                    + A_lower_buffer_blocks[n_i - 1].conj().T
-                    @ A_diagonal_blocks[0].conj().T
-                )
-                @ A_upper_buffer_blocks[n_i - 1].conj().T
+                C1.conj().T @ A_upper_diagonal_blocks[n_i].conj().T
+                + C2.conj().T @ A_upper_buffer_blocks[n_i - 1].conj().T
             )
             @ A_diagonal_blocks[n_i].conj().T
             - A_diagonal_blocks[n_i]
-            @ ((B1[:, :]) @ temp_B_21 + (B2[:, :]) @ temp_B_31)
+            @ (B1 @ temp_B_21 + B2 @ temp_B_31)
             @ A_diagonal_blocks[n_i].conj().T
             - A_diagonal_blocks[n_i]
             @ (
@@ -630,24 +606,22 @@ def _ddbtsci_quadratic_permuted(
                 @ A_upper_buffer_blocks[n_i - 1].conj().T
             )
             @ A_diagonal_blocks[n_i].conj().T
-        )
+        )  # C: 24xMM(bbb)
 
         # --- Xr ---
-        A_upper_diagonal_blocks[n_i] = -A_diagonal_blocks[n_i] @ B1[:, :]
-        A_upper_buffer_blocks[n_i - 1] = -A_diagonal_blocks[n_i] @ B2[:, :]
+        A_upper_diagonal_blocks[n_i] = -A_diagonal_blocks[n_i] @ B1  # C: MM(bbb)
+        A_upper_buffer_blocks[n_i - 1] = -A_diagonal_blocks[n_i] @ B2  # C: MM(bbb)
 
         D1[:, :] = A_lower_diagonal_blocks[n_i]
         D2[:, :] = A_lower_buffer_blocks[n_i - 1]
 
-        A_lower_diagonal_blocks[n_i] = -C1[:, :] @ A_diagonal_blocks[n_i]
-        A_lower_buffer_blocks[n_i - 1] = -C2[:, :] @ A_diagonal_blocks[n_i]
+        A_lower_diagonal_blocks[n_i] = -C1 @ A_diagonal_blocks[n_i]  # C: MM(bbb)
+        A_lower_buffer_blocks[n_i - 1] = -C2 @ A_diagonal_blocks[n_i]  # C: MM(bbb)
 
         A_diagonal_blocks[n_i] = (
             A_diagonal_blocks[n_i]
-            + A_diagonal_blocks[n_i]
-            @ (B1[:, :] @ D1[:, :] + B2[:, :] @ D2[:, :])
-            @ A_diagonal_blocks[n_i]
-        )
+            + A_diagonal_blocks[n_i] @ (B1 @ D1 + B2 @ D2) @ A_diagonal_blocks[n_i]
+        )  # C: 4xMM(bbb)
 
     A_lower_diagonal_blocks[0] = A_upper_buffer_blocks[0]
     A_upper_diagonal_blocks[0] = A_lower_buffer_blocks[0]
