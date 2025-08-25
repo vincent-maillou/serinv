@@ -352,35 +352,25 @@ def _ddbtasc_quadratic(
         A_diagonal_blocks[n_i - 1] = xp.linalg.inv(A_diagonal_blocks[n_i - 1])
 
         # Update next diagonal block
+        temp_a_diag = A_lower_diagonal_blocks[n_i - 1] @ A_diagonal_blocks[n_i - 1]
         A_diagonal_blocks[n_i] = (
-            A_diagonal_blocks[n_i]
-            - A_lower_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ A_upper_diagonal_blocks[n_i - 1]
+            A_diagonal_blocks[n_i] - temp_a_diag @ A_upper_diagonal_blocks[n_i - 1]
         )
 
         # Update next lower arrow block
+        temp_a_arrow = A_lower_arrow_blocks[n_i - 1] @ A_diagonal_blocks[n_i - 1]
         A_lower_arrow_blocks[n_i] = (
-            A_lower_arrow_blocks[n_i]
-            - A_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ A_upper_diagonal_blocks[n_i - 1]
+            A_lower_arrow_blocks[n_i] - temp_a_arrow @ A_upper_diagonal_blocks[n_i - 1]
         )
 
         # Update next upper arrow block
         A_upper_arrow_blocks[n_i] = (
-            A_upper_arrow_blocks[n_i]
-            - A_lower_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ A_upper_arrow_blocks[n_i - 1]
+            A_upper_arrow_blocks[n_i] - temp_a_diag @ A_upper_arrow_blocks[n_i - 1]
         )
 
         # Update tip arrow block
         A_arrow_tip_block[:] = (
-            A_arrow_tip_block[:]
-            - A_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ A_upper_arrow_blocks[n_i - 1]
+            A_arrow_tip_block[:] - temp_a_arrow @ A_upper_arrow_blocks[n_i - 1]
         )
 
         # --- Xl ---
@@ -391,56 +381,46 @@ def _ddbtasc_quadratic(
             @ A_diagonal_blocks[n_i - 1].conj().T
         )
 
+        temp_a_diag_conjt = (
+            temp_a_diag.conj().T
+        )  # A_diagonal_blocks[n_i - 1].conj().T @ A_lower_diagonal_blocks[n_i - 1].conj().T
+        temp_b_diag = (
+            B_diagonal_blocks[n_i - 1] @ A_lower_diagonal_blocks[n_i - 1].conj().T
+        )
         B_diagonal_blocks[n_i] = (
             B_diagonal_blocks[n_i]
-            + A_lower_diagonal_blocks[n_i - 1]
-            @ B_diagonal_blocks[n_i - 1]
-            @ A_lower_diagonal_blocks[n_i - 1].conj().T
-            - B_lower_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1].conj().T
-            @ A_lower_diagonal_blocks[n_i - 1].conj().T
+            + A_lower_diagonal_blocks[n_i - 1] @ temp_b_diag
+            - B_lower_diagonal_blocks[n_i - 1] @ temp_a_diag_conjt
             - A_lower_diagonal_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i - 1]
             @ B_upper_diagonal_blocks[n_i - 1]
         )
 
+        temp_a_arrow_conjt = (
+            temp_a_arrow.conj().T
+        )  # A_diagonal_blocks[n_i - 1].conj().T @ A_lower_arrow_blocks[n_i - 1].conj().T
+        temp_b_arrow = (
+            B_diagonal_blocks[n_i - 1] @ A_lower_arrow_blocks[n_i - 1].conj().T
+        )
         B_upper_arrow_blocks[n_i] = (
             B_upper_arrow_blocks[n_i]
-            + A_lower_diagonal_blocks[n_i - 1]
-            @ B_diagonal_blocks[n_i - 1]
-            @ A_lower_arrow_blocks[n_i - 1].conj().T
-            - B_lower_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1].conj().T
-            @ A_lower_arrow_blocks[n_i - 1].conj().T
-            - A_lower_diagonal_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ B_upper_arrow_blocks[n_i - 1]
+            + A_lower_diagonal_blocks[n_i - 1] @ temp_b_arrow
+            - B_lower_diagonal_blocks[n_i - 1] @ temp_a_arrow_conjt
+            - temp_a_diag @ B_upper_arrow_blocks[n_i - 1]
         )
 
         B_lower_arrow_blocks[n_i] = (
             B_lower_arrow_blocks[n_i]
-            + A_lower_arrow_blocks[n_i - 1]
-            @ B_diagonal_blocks[n_i - 1]
-            @ A_lower_diagonal_blocks[n_i - 1].conj().T
-            - B_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1].conj().T
-            @ A_lower_diagonal_blocks[n_i - 1].conj().T
-            - A_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ B_upper_diagonal_blocks[n_i - 1]
+            + A_lower_arrow_blocks[n_i - 1] @ temp_b_diag
+            - B_lower_arrow_blocks[n_i - 1] @ temp_a_diag_conjt
+            - temp_a_arrow @ B_upper_diagonal_blocks[n_i - 1]
         )
 
         B_arrow_tip_block[:, :] = (
             B_arrow_tip_block
-            + A_lower_arrow_blocks[n_i - 1]
-            @ B_diagonal_blocks[n_i - 1]
-            @ A_lower_arrow_blocks[n_i - 1].conj().T
-            - B_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1].conj().T
-            @ A_lower_arrow_blocks[n_i - 1].conj().T
-            - A_lower_arrow_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i - 1]
-            @ B_upper_arrow_blocks[n_i - 1]
+            + A_lower_arrow_blocks[n_i - 1] @ temp_b_arrow
+            - B_lower_arrow_blocks[n_i - 1] @ temp_a_arrow_conjt
+            - temp_a_arrow @ B_upper_arrow_blocks[n_i - 1]
         )
 
     if invert_last_block:
@@ -449,11 +429,9 @@ def _ddbtasc_quadratic(
             A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].conj().T
         )
 
+        temp_a_arrow = A_lower_arrow_blocks[-1] @ A_diagonal_blocks[-1]
         A_arrow_tip_block[:] = xp.linalg.inv(
-            A_arrow_tip_block[:]
-            - A_lower_arrow_blocks[-1]
-            @ A_diagonal_blocks[-1]
-            @ A_upper_arrow_blocks[-1]
+            A_arrow_tip_block[:] - temp_a_arrow @ A_upper_arrow_blocks[-1]
         )
         B_arrow_tip_block[:] = (
             A_arrow_tip_block[:]
@@ -462,12 +440,8 @@ def _ddbtasc_quadratic(
                 + A_lower_arrow_blocks[-1]
                 @ B_diagonal_blocks[-1]
                 @ A_lower_arrow_blocks[-1].conj().T
-                - B_lower_arrow_blocks[-1]
-                @ A_diagonal_blocks[-1].conj().T
-                @ A_lower_arrow_blocks[-1].conj().T
-                - A_lower_arrow_blocks[-1]
-                @ A_diagonal_blocks[-1]
-                @ B_upper_arrow_blocks[-1]
+                - B_lower_arrow_blocks[-1] @ temp_a_arrow.conj().T
+                - temp_a_arrow @ B_upper_arrow_blocks[-1]
             )
             @ A_arrow_tip_block[:].conj().T
         )

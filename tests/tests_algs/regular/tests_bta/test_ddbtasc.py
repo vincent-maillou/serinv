@@ -45,7 +45,7 @@ def test_ddbtasc(
             dtype=dtype,
         )
 
-        symmetrize(B)
+        # symmetrize(B)
 
         (
             B_diagonal_blocks,

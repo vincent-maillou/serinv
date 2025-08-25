@@ -279,17 +279,16 @@ def _ddbtsc_quadratic(
 ):
     xp, _ = _get_module_from_array(A_diagonal_blocks)
 
-    temp_1 = xp.empty_like(A_diagonal_blocks[0])
-    temp_2 = xp.empty_like(A_diagonal_blocks[0])
-
     for n_i in range(0, A_diagonal_blocks.shape[0] - 1):
         A_diagonal_blocks[n_i] = xp.linalg.inv(A_diagonal_blocks[n_i])
         B_diagonal_blocks[n_i] = (
             A_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i].T
         )
 
-        temp_1[:, :] = A_lower_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i]
-        temp_2[:, :] = A_diagonal_blocks[n_i].T @ A_lower_diagonal_blocks[n_i].T
+        temp_1 = A_lower_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i]
+        temp_2 = (
+            temp_1.conj().T
+        )  # A_diagonal_blocks[n_i].T @ A_lower_diagonal_blocks[n_i].T
 
         A_diagonal_blocks[n_i + 1] = (
             A_diagonal_blocks[n_i + 1] - temp_1[:, :] @ A_upper_diagonal_blocks[n_i]

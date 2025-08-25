@@ -44,7 +44,7 @@ def test_ddbtsc(
             dtype=dtype,
         )
 
-        symmetrize(B)
+        # symmetrize(B)
 
         (
             B_diagonal_blocks,
