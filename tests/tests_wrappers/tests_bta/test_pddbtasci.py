@@ -10,7 +10,7 @@ else:
 
 import numpy as np
 
-from ...testing_utils import bta_dense_to_arrays, dd_bta, symmetrize
+from ...testing_utils import bta_dense_to_arrays, dd_bta
 
 from serinv.utils import allocate_ddbtax_permutation_buffers
 from serinv.wrappers import (
@@ -163,8 +163,6 @@ def test_pddbtasci(
             device_array=True if array_type == "device" else False,
             dtype=dtype,
         )
-
-        symmetrize(B)
 
         (
             B_diagonal_blocks,

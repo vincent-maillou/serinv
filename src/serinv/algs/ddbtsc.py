@@ -282,13 +282,15 @@ def _ddbtsc_quadratic(
     for n_i in range(0, A_diagonal_blocks.shape[0] - 1):
         A_diagonal_blocks[n_i] = xp.linalg.inv(A_diagonal_blocks[n_i])
         B_diagonal_blocks[n_i] = (
-            A_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i].T
+            A_diagonal_blocks[n_i]
+            @ B_diagonal_blocks[n_i]
+            @ A_diagonal_blocks[n_i].conj().T
         )
 
         temp_1 = A_lower_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i]
         temp_2 = (
             temp_1.conj().T
-        )  # A_diagonal_blocks[n_i].T @ A_lower_diagonal_blocks[n_i].T
+        )  # A_diagonal_blocks[n_i].conj().T @ A_lower_diagonal_blocks[n_i].conj().T
 
         A_diagonal_blocks[n_i + 1] = (
             A_diagonal_blocks[n_i + 1] - temp_1[:, :] @ A_upper_diagonal_blocks[n_i]
@@ -298,7 +300,7 @@ def _ddbtsc_quadratic(
             B_diagonal_blocks[n_i + 1]
             + A_lower_diagonal_blocks[n_i]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - B_lower_diagonal_blocks[n_i] @ temp_2[:, :]
             - temp_1[:, :] @ B_upper_diagonal_blocks[n_i]
         )
@@ -306,7 +308,9 @@ def _ddbtsc_quadratic(
     if invert_last_block:
         A_diagonal_blocks[-1] = xp.linalg.inv(A_diagonal_blocks[-1])
         B_diagonal_blocks[-1] = (
-            A_diagonal_blocks[-1] @ B_diagonal_blocks[-1] @ A_diagonal_blocks[-1].T
+            A_diagonal_blocks[-1]
+            @ B_diagonal_blocks[-1]
+            @ A_diagonal_blocks[-1].conj().T
         )
 
 
@@ -327,11 +331,15 @@ def _ddbtsc_upward_quadratic(
     for n_i in range(A_diagonal_blocks.shape[0] - 1, 0, -1):
         A_diagonal_blocks[n_i] = xp.linalg.inv(A_diagonal_blocks[n_i])
         B_diagonal_blocks[n_i] = (
-            A_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i].T
+            A_diagonal_blocks[n_i]
+            @ B_diagonal_blocks[n_i]
+            @ A_diagonal_blocks[n_i].conj().T
         )
 
         temp_1[:, :] = A_upper_diagonal_blocks[n_i - 1] @ A_diagonal_blocks[n_i]
-        temp_2[:, :] = A_diagonal_blocks[n_i].T @ A_upper_diagonal_blocks[n_i - 1].T
+        temp_2[:, :] = (
+            A_diagonal_blocks[n_i].conj().T @ A_upper_diagonal_blocks[n_i - 1].conj().T
+        )
 
         A_diagonal_blocks[n_i - 1] = (
             A_diagonal_blocks[n_i - 1] - temp_1[:, :] @ A_lower_diagonal_blocks[n_i - 1]
@@ -341,7 +349,7 @@ def _ddbtsc_upward_quadratic(
             B_diagonal_blocks[n_i - 1]
             + A_upper_diagonal_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i]
-            @ A_upper_diagonal_blocks[n_i - 1].T
+            @ A_upper_diagonal_blocks[n_i - 1].conj().T
             - B_upper_diagonal_blocks[n_i - 1] @ temp_2[:, :]
             - temp_1[:, :] @ B_lower_diagonal_blocks[n_i - 1]
         )
@@ -349,7 +357,7 @@ def _ddbtsc_upward_quadratic(
     if invert_last_block:
         A_diagonal_blocks[0] = xp.linalg.inv(A_diagonal_blocks[0])
         B_diagonal_blocks[0] = (
-            A_diagonal_blocks[0] @ B_diagonal_blocks[0] @ A_diagonal_blocks[0].T
+            A_diagonal_blocks[0] @ B_diagonal_blocks[0] @ A_diagonal_blocks[0].conj().T
         )
 
 
@@ -409,17 +417,19 @@ def _ddbtsc_quadratic_permuted(
 
         # --- Xl ---
         B_diagonal_blocks[n_i] = (
-            A_diagonal_blocks[n_i] @ B_diagonal_blocks[n_i] @ A_diagonal_blocks[n_i].T
+            A_diagonal_blocks[n_i]
+            @ B_diagonal_blocks[n_i]
+            @ A_diagonal_blocks[n_i].conj().T
         )
 
         B_diagonal_blocks[n_i + 1] = (
             B_diagonal_blocks[n_i + 1]
             + A_lower_diagonal_blocks[n_i]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - B_lower_diagonal_blocks[n_i]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - A_lower_diagonal_blocks[n_i]
             @ A_diagonal_blocks[n_i]
             @ B_upper_diagonal_blocks[n_i]
@@ -429,10 +439,10 @@ def _ddbtsc_quadratic_permuted(
             B_upper_buffer_blocks[n_i]
             + A_lower_diagonal_blocks[n_i]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - B_lower_diagonal_blocks[n_i]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - A_lower_diagonal_blocks[n_i]
             @ A_diagonal_blocks[n_i]
             @ B_upper_buffer_blocks[n_i - 1]
@@ -442,10 +452,10 @@ def _ddbtsc_quadratic_permuted(
             B_lower_buffer_blocks[n_i]
             + A_lower_buffer_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - B_lower_buffer_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_diagonal_blocks[n_i].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_diagonal_blocks[n_i].conj().T
             - A_lower_buffer_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i]
             @ B_upper_diagonal_blocks[n_i]
@@ -455,10 +465,10 @@ def _ddbtsc_quadratic_permuted(
             B_diagonal_blocks[0]
             + A_lower_buffer_blocks[n_i - 1]
             @ B_diagonal_blocks[n_i]
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - B_lower_buffer_blocks[n_i - 1]
-            @ A_diagonal_blocks[n_i].T
-            @ A_lower_buffer_blocks[n_i - 1].T
+            @ A_diagonal_blocks[n_i].conj().T
+            @ A_lower_buffer_blocks[n_i - 1].conj().T
             - A_lower_buffer_blocks[n_i - 1]
             @ A_diagonal_blocks[n_i]
             @ B_upper_buffer_blocks[n_i - 1]
