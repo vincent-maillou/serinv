@@ -321,7 +321,7 @@ def _ddbtsc_quadratic(
         )  # A_diagonal_blocks[n_i].conj().T @ A_lower_diagonal_blocks[n_i].conj().T
 
         A_diagonal_blocks[n_i + 1] = (
-            A_diagonal_blocks[n_i + 1] - temp_1[:, :] @ A_upper_diagonal_blocks[n_i]
+            A_diagonal_blocks[n_i + 1] - temp_1 @ A_upper_diagonal_blocks[n_i]
         )  # C: MM(bbb)
 
         B_diagonal_blocks[n_i + 1] = (
@@ -329,8 +329,8 @@ def _ddbtsc_quadratic(
             + A_lower_diagonal_blocks[n_i]
             @ B_diagonal_blocks[n_i]
             @ A_lower_diagonal_blocks[n_i].conj().T
-            - B_lower_diagonal_blocks[n_i] @ temp_2[:, :]
-            - temp_1[:, :] @ B_upper_diagonal_blocks[n_i]
+            - B_lower_diagonal_blocks[n_i] @ temp_2
+            - temp_1 @ B_upper_diagonal_blocks[n_i]
         )  # C: 4xMM(bbb)
 
     if invert_last_block:
