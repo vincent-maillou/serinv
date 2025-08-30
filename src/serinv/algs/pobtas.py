@@ -4,6 +4,7 @@
 from serinv import (
     ArrayLike,
     _get_module_from_array,
+
 )
 
 
@@ -83,7 +84,7 @@ def _pobtas(
             B[i * diag_blocksize : (i + 1) * diag_blocksize] = la.solve_triangular(
                 L_diagonal_blocks[i],
                 B[i * diag_blocksize : (i + 1) * diag_blocksize],
-                lower=True,
+                lower=True
             )
 
             B[(i + 1) * diag_blocksize : (i + 2) * diag_blocksize] -= (
