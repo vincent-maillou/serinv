@@ -3,10 +3,25 @@
 import numpy as np
 import pytest
 
-from serinv import _get_module_from_array
+from ....conftest import ARRAY_TYPE
+
+from serinv import backend_flags, _get_module_from_array
 from ....testing_utils import bt_dense_to_arrays, dd_bt, symmetrize, rhs
 
 from serinv.algs import pobtf, pobts
+
+if backend_flags["cupy_avail"]:
+    import cupyx as cpx
+
+    ARRAY_TYPE.extend(
+        [
+            pytest.param("streaming", id="streaming"),
+        ]
+    )
+
+    @pytest.fixture(params=ARRAY_TYPE, autouse=True)
+    def array_type(request: pytest.FixtureRequest) -> str:
+        return request.param
 
 
 @pytest.mark.mpi_skip()
@@ -18,6 +33,7 @@ def test_pobts(
     array_type: str,
     dtype: np.dtype,
 ):
+
     A = dd_bt(
         diagonal_blocksize,
         n_diag_blocks,
@@ -47,9 +63,22 @@ def test_pobts(
         _,
     ) = bt_dense_to_arrays(A, diagonal_blocksize, n_diag_blocks)
 
+    if backend_flags["cupy_avail"] and array_type == "streaming":
+        A_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_diagonal_blocks)
+        A_diagonal_blocks_pinned[:, :, :] = A_diagonal_blocks[:, :, :]
+        A_lower_diagonal_blocks_pinned = cpx.zeros_like_pinned(A_lower_diagonal_blocks)
+        A_lower_diagonal_blocks_pinned[:, :, :] = A_lower_diagonal_blocks[:, :, :]
+        B_pinned = cpx.zeros_like_pinned(B)
+        B_pinned[:, :] = B[:, :]
+
+        A_diagonal_blocks = A_diagonal_blocks_pinned
+        A_lower_diagonal_blocks = A_lower_diagonal_blocks_pinned
+        B = B_pinned
+
     pobtf(
         A_diagonal_blocks,
         A_lower_diagonal_blocks,
+        device_streaming=True if array_type == "streaming" else False,
     )
 
     # Forward solve: Y=L^{-1}B
@@ -58,6 +87,7 @@ def test_pobts(
         A_lower_diagonal_blocks,
         B,
         trans="N",
+        device_streaming=True if array_type == "streaming" else False,
     )
 
     # Backward solve: X=L^{-T}Y
@@ -66,6 +96,7 @@ def test_pobts(
         A_lower_diagonal_blocks,
         B,
         trans="C",
+        device_streaming=True if array_type == "streaming" else False,
     )
 
     assert xp.allclose(B, X_ref)
