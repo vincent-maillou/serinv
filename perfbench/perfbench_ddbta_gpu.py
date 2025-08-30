@@ -2,6 +2,7 @@ import time
 
 tic = time.perf_counter()
 import numpy as np
+import cupy as cp
 import argparse
 
 from serinv.utils.check_dd import check_ddbta
@@ -201,36 +202,36 @@ if __name__ == "__main__":
     toc = time.perf_counter()
     print(f"Dataset generation took: {toc - tic:.5f} sec", flush=True)
 
-    A_diagonal_blocks_init = A["A_diagonal_blocks"]
-    A_lower_diagonal_blocks_init = A["A_lower_diagonal_blocks"]
-    A_upper_diagonal_blocks_init = A["A_upper_diagonal_blocks"]
-    A_lower_arrow_blocks_init = A["A_lower_arrow_blocks"]
-    A_upper_arrow_blocks_init = A["A_upper_arrow_blocks"]
-    A_arrow_tip_block_init = A["A_arrow_tip_block"]
+    A_diagonal_blocks_cpu = A["A_diagonal_blocks"]
+    A_lower_diagonal_blocks_cpu = A["A_lower_diagonal_blocks"]
+    A_upper_diagonal_blocks_cpu = A["A_upper_diagonal_blocks"]
+    A_lower_arrow_blocks_cpu = A["A_lower_arrow_blocks"]
+    A_upper_arrow_blocks_cpu = A["A_upper_arrow_blocks"]
+    A_arrow_tip_block_cpu = A["A_arrow_tip_block"]
 
-    # Init device arrays
-    A_diagonal_blocks_cpu = np.empty_like(A_diagonal_blocks_init)
-    A_lower_diagonal_blocks_cpu = np.empty_like(A_lower_diagonal_blocks_init)
-    A_upper_diagonal_blocks_cpu = np.empty_like(A_upper_diagonal_blocks_init)
-    A_lower_arrow_blocks_cpu = np.empty_like(A_lower_arrow_blocks_init)
-    A_upper_arrow_blocks_cpu = np.empty_like(A_upper_arrow_blocks_init)
-    A_arrow_tip_block_cpu = np.empty_like(A_arrow_tip_block_init)
+    A_diagonal_blocks_gpu = cp.empty_like(A_diagonal_blocks_cpu)
+    A_lower_diagonal_blocks_gpu = cp.empty_like(A_lower_diagonal_blocks_cpu)
+    A_upper_diagonal_blocks_gpu = cp.empty_like(A_upper_diagonal_blocks_cpu)
+    A_lower_arrow_blocks_gpu = cp.empty_like(A_lower_arrow_blocks_cpu)
+    A_upper_arrow_blocks_gpu = cp.empty_like(A_upper_arrow_blocks_cpu)
+    A_arrow_tip_block_gpu = cp.empty_like(A_arrow_tip_block_cpu)
 
     if quadratic:
-        B_diagonal_blocks_init = B["B_diagonal_blocks"]
-        B_lower_diagonal_blocks_init = B["B_lower_diagonal_blocks"]
-        B_upper_diagonal_blocks_init = B["B_upper_diagonal_blocks"]
-        B_lower_arrow_blocks_init = B["B_lower_arrow_blocks"]
-        B_upper_arrow_blocks_init = B["B_upper_arrow_blocks"]
-        B_arrow_tip_block_init = B["B_arrow_tip_block"]
+        B_diagonal_blocks_cpu = B["B_diagonal_blocks"]
+        B_lower_diagonal_blocks_cpu = B["B_lower_diagonal_blocks"]
+        B_upper_diagonal_blocks_cpu = B["B_upper_diagonal_blocks"]
+        B_lower_arrow_blocks_cpu = B["B_lower_arrow_blocks"]
+        B_upper_arrow_blocks_cpu = B["B_upper_arrow_blocks"]
+        B_arrow_tip_block_cpu = B["B_arrow_tip_block"]
 
-        # Init device arrays
-        B_diagonal_blocks_cpu = np.empty_like(B_diagonal_blocks_init)
-        B_lower_diagonal_blocks_cpu = np.empty_like(B_lower_diagonal_blocks_init)
-        B_upper_diagonal_blocks_cpu = np.empty_like(B_upper_diagonal_blocks_init)
-        B_lower_arrow_blocks_cpu = np.empty_like(B_lower_arrow_blocks_init)
-        B_upper_arrow_blocks_cpu = np.empty_like(B_upper_arrow_blocks_init)
-        B_arrow_tip_block_cpu = np.empty_like(B_arrow_tip_block_init)
+        B_diagonal_blocks_gpu = cp.empty_like(B_diagonal_blocks_cpu)
+        B_lower_diagonal_blocks_gpu = cp.empty_like(B_lower_diagonal_blocks_cpu)
+        B_upper_diagonal_blocks_gpu = cp.empty_like(B_upper_diagonal_blocks_cpu)
+        B_lower_arrow_blocks_gpu = cp.empty_like(B_lower_arrow_blocks_cpu)
+        B_upper_arrow_blocks_gpu = cp.empty_like(B_upper_arrow_blocks_cpu)
+        B_arrow_tip_block_gpu = cp.empty_like(B_arrow_tip_block_cpu)
+
+    direction = "downward"
 
     t_ddbtasc = []
     t_ddbtasci = []
@@ -239,60 +240,63 @@ if __name__ == "__main__":
         print(f"Iteration: {i+1}/{n_warmups+n_iterations}", flush=True)
 
         tic = time.perf_counter()
-        A_diagonal_blocks_cpu[:] = A_diagonal_blocks_init
-        A_lower_diagonal_blocks_cpu[:] = A_lower_diagonal_blocks_init
-        A_upper_diagonal_blocks_cpu[:] = A_upper_diagonal_blocks_init
-        A_lower_arrow_blocks_cpu[:] = A_lower_arrow_blocks_init
-        A_upper_arrow_blocks_cpu[:] = A_upper_arrow_blocks_init
-        A_arrow_tip_block_cpu[:] = A_arrow_tip_block_init
+        A_diagonal_blocks_gpu.set(arr=A_diagonal_blocks_cpu)
+        A_lower_diagonal_blocks_gpu.set(arr=A_lower_diagonal_blocks_cpu)
+        A_upper_diagonal_blocks_gpu.set(arr=A_upper_diagonal_blocks_cpu)
+        A_lower_arrow_blocks_gpu.set(arr=A_lower_arrow_blocks_cpu)
+        A_upper_arrow_blocks_gpu.set(arr=A_upper_arrow_blocks_cpu)
+        A_arrow_tip_block_gpu.set(arr=A_arrow_tip_block_cpu)
 
         if quadratic:
-            B_diagonal_blocks_cpu[:] = B_diagonal_blocks_init
-            B_lower_diagonal_blocks_cpu[:] = B_lower_diagonal_blocks_init
-            B_upper_diagonal_blocks_cpu[:] = B_upper_diagonal_blocks_init
-            B_lower_arrow_blocks_cpu[:] = B_lower_arrow_blocks_init
-            B_upper_arrow_blocks_cpu[:] = B_upper_arrow_blocks_init
-            B_arrow_tip_block_cpu[:] = B_arrow_tip_block_init
+            B_diagonal_blocks_gpu.set(arr=B_diagonal_blocks_cpu)
+            B_lower_diagonal_blocks_gpu.set(arr=B_lower_diagonal_blocks_cpu)
+            B_upper_diagonal_blocks_gpu.set(arr=B_upper_diagonal_blocks_cpu)
+            B_lower_arrow_blocks_gpu.set(arr=B_lower_arrow_blocks_cpu)
+            B_upper_arrow_blocks_gpu.set(arr=B_upper_arrow_blocks_cpu)
+            B_arrow_tip_block_gpu.set(arr=B_arrow_tip_block_cpu)
             rhs = {
-                "B_diagonal_blocks": B_diagonal_blocks_cpu,
-                "B_lower_diagonal_blocks": B_lower_diagonal_blocks_cpu,
-                "B_upper_diagonal_blocks": B_upper_diagonal_blocks_cpu,
-                "B_lower_arrow_blocks": B_lower_arrow_blocks_cpu,
-                "B_upper_arrow_blocks": B_upper_arrow_blocks_cpu,
-                "B_arrow_tip_block": B_arrow_tip_block_cpu,
+                "B_diagonal_blocks": B_diagonal_blocks_gpu,
+                "B_lower_diagonal_blocks": B_lower_diagonal_blocks_gpu,
+                "B_upper_diagonal_blocks": B_upper_diagonal_blocks_gpu,
+                "B_lower_arrow_blocks": B_lower_arrow_blocks_gpu,
+                "B_upper_arrow_blocks": B_upper_arrow_blocks_gpu,
+                "B_arrow_tip_block": B_arrow_tip_block_gpu,
             }
-
         toc = time.perf_counter()
-        print(f"Copying data from ref took: {toc - tic:.5f} sec", flush=True)
+        print(f"Copying data to GPU took: {toc - tic:.5f} sec", flush=True)
 
+        cp.cuda.runtime.deviceSynchronize()
         tic = time.perf_counter()
         ddbtasc(
-            A_diagonal_blocks_cpu,
-            A_lower_diagonal_blocks_cpu,
-            A_upper_diagonal_blocks_cpu,
-            A_lower_arrow_blocks_cpu,
-            A_upper_arrow_blocks_cpu,
-            A_arrow_tip_block_cpu,
+            A_diagonal_blocks_gpu,
+            A_lower_diagonal_blocks_gpu,
+            A_upper_diagonal_blocks_gpu,
+            A_lower_arrow_blocks_gpu,
+            A_upper_arrow_blocks_gpu,
+            A_arrow_tip_block_gpu,
             rhs=rhs if quadratic else None,
             quadratic=quadratic,
         )
+        cp.cuda.runtime.deviceSynchronize()
         toc = time.perf_counter()
         elapsed = toc - tic
         print(f"t_ddbtasc took: {elapsed:.5f} sec", flush=True)
         if i >= n_warmups:
             t_ddbtasc.append(elapsed)
 
+        cp.cuda.runtime.deviceSynchronize()
         tic = time.perf_counter()
         ddbtasci(
-            A_diagonal_blocks_cpu,
-            A_lower_diagonal_blocks_cpu,
-            A_upper_diagonal_blocks_cpu,
-            A_lower_arrow_blocks_cpu,
-            A_upper_arrow_blocks_cpu,
-            A_arrow_tip_block_cpu,
+            A_diagonal_blocks_gpu,
+            A_lower_diagonal_blocks_gpu,
+            A_upper_diagonal_blocks_gpu,
+            A_lower_arrow_blocks_gpu,
+            A_upper_arrow_blocks_gpu,
+            A_arrow_tip_block_gpu,
             rhs=rhs if quadratic else None,
             quadratic=quadratic,
         )
+        cp.cuda.runtime.deviceSynchronize()
         toc = time.perf_counter()
         elapsed = toc - tic
         print(f"t_ddbtasci took: {elapsed:.5f} sec", flush=True)
