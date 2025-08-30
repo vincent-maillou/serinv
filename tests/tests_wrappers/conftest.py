@@ -9,7 +9,6 @@ PARTITION_SIZE = [
     pytest.param(5, id="partition_size=5"),
 ]
 
-
 @pytest.fixture(params=PARTITION_SIZE, autouse=True)
 def partition_size(request: pytest.FixtureRequest) -> int:
     return request.param

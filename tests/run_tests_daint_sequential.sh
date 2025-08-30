@@ -2,11 +2,10 @@
 #SBATCH --job-name="tests_serinv"
 #SBATCH --output=%x.%j.out
 #SBATCH --error=%x.%j.err
-#SBATCH --account=g186
-### SBATCH --account=sm96
+#SBATCH --account=lp82
 #SBATCH --time=00:10:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
+#SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=64
 #SBATCH --gpus-per-task=1
 #SBATCH --partition=debug
@@ -27,7 +26,6 @@ source ~/load_modules.sh
 conda activate allin
 
 export MPI_CUDA_AWARE=1
-export LARGE_TESTS=1
 
 # --- Microbenchmark ---
-srun pytest --with-mpi ~/repositories/serinv/
+srun pytest ~/repositories/serinv/
