@@ -226,6 +226,19 @@ if __name__ == "__main__":
 
     mempool = cp.get_default_memory_pool()
 
+    # Set device - SLURM has already isolated GPUs via CUDA_VISIBLE_DEVICES
+    # Each task sees only its assigned GPU as device 0
+    import os
+    cuda_visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES', '')
+    local_rank = int(os.environ.get('SLURM_LOCALID', MPI.COMM_WORLD.rank))
+    
+    # With CUDA_VISIBLE_DEVICES set by SLURM, always use device 0 (the isolated GPU)
+    cp.cuda.Device(0).use()
+    print(f"rank: {MPI.COMM_WORLD.rank}, local_rank: {local_rank}, CUDA_VISIBLE_DEVICES={cuda_visible_devices}, using gpu_id: {cp.cuda.runtime.getDevice()}", flush=True)
+    
+    # Synchronize after device selection
+    cp.cuda.runtime.deviceSynchronize()
+
     if MPI.COMM_WORLD.rank == 0:
         nccl_id = cp.cuda.nccl.get_unique_id()
         MPI.COMM_WORLD.bcast(nccl_id, root=0)
@@ -357,23 +370,27 @@ if __name__ == "__main__":
         mempool.free_all_blocks()
 
     MPI.COMM_WORLD.Barrier()
-    print(f"rank: {MPI.COMM_WORLD.rank}, t_pddbtsc: {t_pddbtsc}", flush=True)
-    print(f"rank: {MPI.COMM_WORLD.rank}, t_comm: {t_comm}", flush=True)
-    print(f"rank: {MPI.COMM_WORLD.rank}, t_pddbtsci: {t_pddbtsci}", flush=True)
 
-    print(
-        f"rank: {MPI.COMM_WORLD.rank},avg t_pddbtsc: {np.mean(np.array(t_pddbtsc)):.5f} sec",
-        flush=True,
-    )
-    print(
-        f"rank: {MPI.COMM_WORLD.rank},avg t_comm: {np.mean(np.array(t_comm)):.5f} sec",
-        flush=True,
-    )
-    print(
-        f"rank: {MPI.COMM_WORLD.rank},avg t_pddbtsci: {np.mean(np.array(t_pddbtsci)):.5f} sec",
-        flush=True,
-    )
-    print(
-        f"rank: {MPI.COMM_WORLD.rank},avg total time: {np.mean(np.array(t_pddbtsc))+np.mean(np.array(t_comm))+np.mean(np.array(t_pddbtsci)):.5f} sec",
-        flush=True,
-    )
+    if MPI.COMM_WORLD.rank == 0:
+        print(f"\n", flush=True)
+
+        print(f"rank: {MPI.COMM_WORLD.rank}, t_pddbtsc: {t_pddbtsc}", flush=True)
+        print(f"rank: {MPI.COMM_WORLD.rank}, t_comm: {t_comm}", flush=True)
+        print(f"rank: {MPI.COMM_WORLD.rank}, t_pddbtsci: {t_pddbtsci}", flush=True)
+
+        print(
+            f"rank: {MPI.COMM_WORLD.rank},avg t_pddbtsc: {np.mean(np.array(t_pddbtsc)):.5f} sec",
+            flush=True,
+        )
+        print(
+            f"rank: {MPI.COMM_WORLD.rank},avg t_comm: {np.mean(np.array(t_comm)):.5f} sec",
+            flush=True,
+        )
+        print(
+            f"rank: {MPI.COMM_WORLD.rank},avg t_pddbtsci: {np.mean(np.array(t_pddbtsci)):.5f} sec",
+            flush=True,
+        )
+        print(
+            f"rank: {MPI.COMM_WORLD.rank},avg total time: {np.mean(np.array(t_pddbtsc))+np.mean(np.array(t_comm))+np.mean(np.array(t_pddbtsci)):.5f} sec",
+            flush=True,
+        )

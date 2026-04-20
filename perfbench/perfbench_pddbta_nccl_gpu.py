@@ -232,6 +232,9 @@ if __name__ == "__main__":
     toc = time.perf_counter()
     print(f"rank: {MPI.COMM_WORLD.rank}, import and parsing took: {toc - tic:.5f} sec", flush=True)
 
+    print(f" #### Running with parameters: b={args.b}, a={args.a}, n={args.n}, bsym={args.bsym}, q={args.q} #### ", flush=True)
+    print(f"lb: {args.lb}, partition sizes: {get_partition_size_bta(args.n, MPI.COMM_WORLD.size, args.lb)}", flush=True)
+
     quadratic = False if args.q == 0 else True
     n_iterations = 10
     n_warmups = 2
@@ -284,17 +287,44 @@ if __name__ == "__main__":
 
     mempool = cp.get_default_memory_pool()
 
+    # # Set device - SLURM has already isolated GPUs via CUDA_VISIBLE_DEVICES
+    # # Each task sees only its assigned GPU as device 0
+    # import os
+    # cuda_visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES', '')
+    # local_rank = int(os.environ.get('SLURM_LOCALID', MPI.COMM_WORLD.rank))
+    
+    # # With CUDA_VISIBLE_DEVICES set by SLURM, always use device 0 (the isolated GPU)
+    # cp.cuda.Device(0).use()
+    # print(f"rank: {MPI.COMM_WORLD.rank}, local_rank: {local_rank}, CUDA_VISIBLE_DEVICES={cuda_visible_devices}, using gpu_id: {cp.cuda.runtime.getDevice()}", flush=True)
+    
+    # # Synchronize after device selection
+    # cp.cuda.runtime.deviceSynchronize()
+
     if MPI.COMM_WORLD.rank == 0:
         nccl_id = cp.cuda.nccl.get_unique_id()
         MPI.COMM_WORLD.bcast(nccl_id, root=0)
     else:
         nccl_id = MPI.COMM_WORLD.bcast(None, root=0)
 
+
+    print(f"rank: {MPI.COMM_WORLD.rank}, NCCL communicator initialized with unique ID: {nccl_id}", flush=True)
+
+
+
     nccl_comm = cp.cuda.nccl.NcclCommunicator(
         MPI.COMM_WORLD.Get_size(),
         nccl_id,
         MPI.COMM_WORLD.rank,
     )
+
+
+    # nccl_comm = NcclCommunicator(
+    #     1,
+    #     nccl_id,
+    #     0,
+    # )
+
+
     cp.cuda.runtime.deviceSynchronize()
 
     for i in range(n_warmups + n_iterations):

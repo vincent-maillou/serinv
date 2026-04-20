@@ -187,6 +187,8 @@ if __name__ == "__main__":
     toc = time.perf_counter()
     print(f"Import and parsing took: {toc - tic:.5f} sec", flush=True)
 
+    print(f" #### Running with parameters: b={args.b}, a={args.a}, n={args.n}, bsym={args.bsym}, q={args.q} #### ", flush=True)
+
     quadratic = False if args.q == 0 else True
     n_iterations = 10
     n_warmups = 2

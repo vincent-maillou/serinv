@@ -9,27 +9,17 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=70
 #SBATCH --gpus-per-task=1
-#SBATCH --partition=debug
-#### SBATCH --partition=normal
+#### SBATCH --partition=debug
+#SBATCH --partition=normal
 #SBATCH --constraint=gpu
 #SBATCH --hint=nomultithread
-#SBATCH --uenv=prgenv-gnu/24.11:v1
+#SBATCH --uenv=prgenv-gnu/25.6:v2
 #SBATCH --view=modules
 
 set -e -u
 
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-export MPICH_GPU_SUPPORT_ENABLED=1
-# export OMP_PLACES=cores
-# export OMP_PROC_BIND=close
+module load cuda gcc meson ninja nccl cray-mpich cmake openblas aws-ofi-nccl netlib-scalapack
+conda activate dalia_xccl_daint
 
-export NCCL_NET='AWS Libfabric'
-export CUDA_VISIBLE_DEVICES=$SLURM_LOCALID
-
-source ~/load_modules.sh
-conda activate allin
-
-export MPI_CUDA_AWARE=1
-
-srun python ./perfbench_ddbta_cpu.py --b 2048 --a 256 --n 8 --q 1
+srun python ./perfbench_ddbta_gpu.py --b 1024 --a 256 --n 1024 --q 1
 

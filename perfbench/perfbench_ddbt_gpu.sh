@@ -2,12 +2,12 @@
 #SBATCH --job-name="perfbench_ddbt_gpu"
 #SBATCH --output=%x.%j.out
 #SBATCH --error=%x.%j.err
-#SBATCH --account=lp16
-### SBATCH --account=sm96
-#SBATCH --time=00:08:00
+### SBATCH --account=lp16
+#SBATCH --account=sm96
+#SBATCH --time=00:25:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=70
+#SBATCH --cpus-per-task=64
 #SBATCH --gpus-per-task=1
 #SBATCH --partition=debug
 #### SBATCH --partition=normal
@@ -31,5 +31,5 @@ conda activate allin
 
 export MPI_CUDA_AWARE=1
 
-srun python ./perfbench_ddbt_cpu.py --b 1024 --n 8 --q 1
+srun python ./perfbench_ddbt_gpu.py --b 1024 --n 1024 --q 0
 

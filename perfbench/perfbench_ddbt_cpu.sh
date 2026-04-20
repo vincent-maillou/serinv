@@ -5,7 +5,7 @@
 #SBATCH --time=00:05:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=8
 #SBATCH --partition=spr1tb
 #SBATCH --hint=nomultithread
 
@@ -21,5 +21,5 @@ CPU_BIND="${CPU_BIND},0xffff,0xffff0000"
 CPU_BIND="${CPU_BIND},0xffff000000000000000000000000,0xffff0000000000000000000000000000"
 CPU_BIND="${CPU_BIND},0xffff0000000000000000,0xffff00000000000000000000"
 
-srun python ./perfbench_ddbt_cpu.py --b 2048 --n 8 --q 0
+srun python ./perfbench_ddbt_cpu.py --b 3408 --n 5 --q 0
 
